@@ -2,10 +2,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from routes.messaging import convert_message
 from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
-from models import LoginRequest, RegisterRequest, User
+from models import LoginRequest, RegisterRequest, User, CryptoPublicKey, CryptoBackup
 from utils import create_token, get_password_hash, verify_password
 from validation import is_valid_password, is_valid_username
 
@@ -119,6 +118,48 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         "status": "success",
         "message": "Регистрация прошла успешно Теперь вы можете войти."
     }
+
+
+@router.get("/crypto/public-key")
+def get_public_key(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    row = db.query(CryptoPublicKey).filter(CryptoPublicKey.user_id == current_user.id).first()
+    return {"publicKey": row.public_key_b64 if row else None}
+
+
+@router.post("/crypto/public-key")
+def set_public_key(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    pk = payload.get("publicKey")
+    if not pk:
+        raise HTTPException(status_code=400, detail="publicKey required")
+    row = db.query(CryptoPublicKey).filter(CryptoPublicKey.user_id == current_user.id).first()
+    if row:
+        row.public_key_b64 = pk
+    else:
+        row = CryptoPublicKey(user_id=current_user.id, public_key_b64=pk)
+        db.add(row)
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.get("/crypto/backup")
+def get_backup(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    row = db.query(CryptoBackup).filter(CryptoBackup.user_id == current_user.id).first()
+    return {"blob": row.blob_json if row else None}
+
+
+@router.post("/crypto/backup")
+def set_backup(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    blob = payload.get("blob")
+    if not blob:
+        raise HTTPException(status_code=400, detail="blob required")
+    row = db.query(CryptoBackup).filter(CryptoBackup.user_id == current_user.id).first()
+    if row:
+        row.blob_json = blob
+    else:
+        row = CryptoBackup(user_id=current_user.id, blob_json=blob)
+        db.add(row)
+    db.commit()
+    return {"status": "ok"}
 
 
 @router.delete("/admin/user/{user_id}")
