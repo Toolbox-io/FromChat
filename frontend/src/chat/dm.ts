@@ -5,6 +5,8 @@ import { ecdhSharedSecret, deriveWrappingKey } from "../crypto/asymmetric";
 import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../crypto/symmetric";
 import { randomBytes } from "../crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
+import { websocket } from "../websocket";
+import type { WebSocketMessage } from "../core/types";
 import type { Tabs } from "mdui/components/tabs";
 
 function b64(a: Uint8Array): string { return btoa(String.fromCharCode(...a)); }
@@ -90,11 +92,33 @@ async function loadUsers() {
 				dmPanel = new DmPanel(
 					async (text: string) => {
 						if (activeDm?.publicKey) {
-							try { await sendDm(activeDm.userId, activeDm.publicKey, text); } catch {}
+							// WebSocket realtime send
+							const keys = getCurrentKeys();
+							if (!keys) return;
+							const mk = randomBytes(32);
+							const wkSalt = randomBytes(16);
+							const shared = ecdhSharedSecret(keys.privateKey, ub64(activeDm.publicKey));
+							const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
+							const wk = await importAesGcmKey(wkRaw);
+							const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(text));
+							const wrap = await aesGcmEncrypt(wk, mk);
+							const payload: WebSocketMessage = {
+								type: "dmSend",
+								credentials: { scheme: "Bearer", credentials: (await import("../auth/api")).authToken! },
+								data: {
+									recipientId: activeDm.userId,
+									iv: b64(encMsg.iv),
+									ciphertext: b64(encMsg.ciphertext),
+									salt: b64(wkSalt),
+									iv2: b64(wrap.iv),
+									wrappedMk: b64(wrap.ciphertext)
+								}
+							};
+							websocket.send(JSON.stringify(payload));
 						}
 					},
 					() => {
-						// For v1, no DM history yet; just clear
+						// For v1, load history for this DM
 					}
 				);
 			}
@@ -124,8 +148,31 @@ function init() {
 	tabs.addEventListener("change", (e: any) => {
 		if (e.detail?.value === "dms") {
 			ensureUsersLoaded();
+			dmPanel?.activate();
 		}
 	});
 }
 
 init();
+
+// realtime incoming DMs
+websocket.addEventListener("message", async (e) => {
+	try {
+		const msg = JSON.parse((e as MessageEvent).data);
+		if (msg?.type === "dmNew" && activeDm && msg.data.senderId === activeDm.userId) {
+			const plaintext = await decryptDm(msg.data, activeDm.publicKey!);
+			const container = document.getElementById("chat-messages")!;
+			const div = document.createElement("div");
+			div.className = "message received";
+			const inner = document.createElement("div");
+			inner.className = "message-inner";
+			const content = document.createElement("div");
+			content.className = "message-content";
+			content.textContent = plaintext;
+			inner.appendChild(content);
+			div.appendChild(inner);
+			container.appendChild(div);
+			container.scrollTop = container.scrollHeight;
+		}
+	} catch {}
+});
