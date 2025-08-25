@@ -130,6 +130,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		form.addEventListener("submit", async (e) => {
 			if (!activeDm) return; // Let global chat handler proceed
 			e.preventDefault();
+			e.stopPropagation();
+			e.stopImmediatePropagation();
 			const input = document.getElementById("message-input") as HTMLInputElement;
 			const text = input.value.trim();
 			if (!text) return;
