@@ -1,9 +1,11 @@
 import { API_BASE_URL } from "../core/config";
 import { getAuthHeaders } from "../auth/api";
+import { DmPanel, ChatPanelController } from "./panel";
 import { ecdhSharedSecret, deriveWrappingKey } from "../crypto/asymmetric";
 import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../crypto/symmetric";
 import { randomBytes } from "../crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
+import type { Tabs } from "mdui/components/tabs";
 
 function b64(a: Uint8Array): string { return btoa(String.fromCharCode(...a)); }
 function ub64(s: string): Uint8Array {
@@ -69,25 +71,9 @@ export async function decryptDm(envelope: DmEnvelope, senderPublicKeyB64: string
 	return new TextDecoder().decode(msg);
 }
 
-function appendDmMessage(text: string, isAuthor: boolean) {
-	const container = document.getElementById("chat-messages")!;
-	const div = document.createElement("div");
-	div.className = `message ${isAuthor ? "sent" : "received"}`;
-	const inner = document.createElement("div");
-	inner.className = "message-inner";
-	const content = document.createElement("div");
-	content.className = "message-content";
-	content.textContent = text;
-	inner.appendChild(content);
-	div.appendChild(inner);
-	container.appendChild(div);
-	container.scrollTop = container.scrollHeight;
-}
-
-// removed unused helper
-
 let activeDm: { userId: number; username: string; publicKey: string | null } | null = null;
 let usersLoaded = false;
+let dmPanel: DmPanel | null = null;
 
 async function loadUsers() {
 	const res = await fetch(`${API_BASE_URL}/users`, { headers: getAuthHeaders(true) });
@@ -100,8 +86,21 @@ async function loadUsers() {
 		item.setAttribute("headline", u.username);
 		item.addEventListener("click", async () => {
 			activeDm = { userId: u.id, username: u.username, publicKey: null };
-			document.getElementById("chat-name")!.textContent = u.username;
-			(document.getElementById("chat-messages") as HTMLElement).innerHTML = "";
+			if (!dmPanel) {
+				dmPanel = new DmPanel(
+					async (text: string) => {
+						if (activeDm?.publicKey) {
+							try { await sendDm(activeDm.userId, activeDm.publicKey, text); } catch {}
+						}
+					},
+					() => {
+						// For v1, no DM history yet; just clear
+					}
+				);
+			}
+			dmPanel.setTitle(u.username);
+			dmPanel.clearMessages();
+			dmPanel.activate();
 			const resPk = await fetch(`${API_BASE_URL}/crypto/public-key/of/${u.id}`, { headers: getAuthHeaders(true) });
 			if (resPk.ok) {
 				const pkData = await resPk.json();
@@ -112,36 +111,21 @@ async function loadUsers() {
 	});
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-	const tabs = document.querySelector(".chat-tabs mdui-tabs");
-	const dmTab = tabs?.querySelector('mdui-tab[value="dms"]');
+function init() {
+	const tabs = document.querySelector(".chat-tabs mdui-tabs") as Tabs;
+	const dmTab = tabs?.querySelector('mdui-tab[value="dms"]')!;
 	function ensureUsersLoaded() {
 		if (!usersLoaded) {
 			usersLoaded = true;
 			loadUsers();
 		}
 	}
-	dmTab?.addEventListener("click", ensureUsersLoaded);
-	(tabs as any)?.addEventListener("change", (e: any) => {
-		if (e?.detail?.value === "dms") ensureUsersLoaded();
+	dmTab.addEventListener("click", ensureUsersLoaded);
+	tabs.addEventListener("change", (e: any) => {
+		if (e.detail?.value === "dms") {
+			ensureUsersLoaded();
+		}
 	});
-	const form = document.getElementById("message-form");
-	if (form) {
-		form.addEventListener("submit", async (e) => {
-			if (!activeDm) return; // Let global chat handler proceed
-			e.preventDefault();
-			const input = document.getElementById("message-input") as HTMLInputElement;
-			const text = input.value.trim();
-			if (!text) return;
-			appendDmMessage(text, true);
-			input.value = "";
-			if (activeDm.publicKey) {
-				try {
-					await sendDm(activeDm.userId, activeDm.publicKey, text);
-				} catch {}
-			}
-		});
-	}
-});
+}
 
-
+init();
