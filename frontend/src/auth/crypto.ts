@@ -3,6 +3,7 @@ import { getAuthHeaders } from "./api";
 import { generateX25519KeyPair } from "../crypto/asymmetric";
 import { encryptBackupWithPassword, decryptBackupWithPassword, encodeBlob, decodeBlob } from "../crypto/backup";
 import { b64, ub64 } from "../utils/utils";
+import type { BackupBlob, UploadPublicKeyRequest } from "../core/types";
 
 let currentPublicKey: Uint8Array | null = null;
 let currentPrivateKey: Uint8Array | null = null;
@@ -16,25 +17,37 @@ async function fetchPublicKey(): Promise<Uint8Array | null> {
 }
 
 async function uploadPublicKey(publicKey: Uint8Array): Promise<void> {
+	const payload: UploadPublicKeyRequest = { 
+		publicKey: b64(publicKey) 
+	}
+
 	await fetch(`${API_BASE_URL}/crypto/public-key`, {
 		method: "POST",
 		headers: getAuthHeaders(true),
-		body: JSON.stringify({ publicKey: b64(publicKey) })
+		body: JSON.stringify(payload)
 	});
 }
 
 async function fetchBackupBlob(): Promise<string | null> {
-	const res = await fetch(`${API_BASE_URL}/crypto/backup`, { method: "GET", headers: getAuthHeaders(true) });
-	if (!res.ok) return null;
-	const data = await res.json();
-	return data?.blob ?? null;
+	const res = await fetch(`${API_BASE_URL}/crypto/backup`, { 
+		method: "GET",
+		headers: getAuthHeaders(true) 
+	});
+	if (res.ok) {
+		const response: BackupBlob = await res.json();
+		return response.blob;
+	} else {
+		return null;
+	}
 }
 
 async function uploadBackupBlob(blobJson: string): Promise<void> {
+	const payload: BackupBlob = { blob: blobJson }
+
 	await fetch(`${API_BASE_URL}/crypto/backup`, {
 		method: "POST",
 		headers: getAuthHeaders(true),
-		body: JSON.stringify({ blob: blobJson })
+		body: JSON.stringify(payload)
 	});
 }
 

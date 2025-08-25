@@ -6,7 +6,7 @@ import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../crypto/symmetr
 import { randomBytes } from "../crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
 import { request, websocket } from "../websocket";
-import type { WebSocketMessage } from "../core/types";
+import type { SendDMRequest, WebSocketMessage } from "../core/types";
 import type { Tabs } from "mdui/components/tabs";
 import { b64, ub64 } from "../utils/utils";
 
@@ -97,20 +97,22 @@ async function loadUsers() {
 							const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(text));
 							const wrap = await aesGcmEncrypt(wk, mk);
 
+							const payload: SendDMRequest = {
+								recipientId: activeDm.userId,
+								iv: b64(encMsg.iv),
+								ciphertext: b64(encMsg.ciphertext),
+								salt: b64(wkSalt),
+								iv2: b64(wrap.iv),
+								wrappedMk: b64(wrap.ciphertext)
+							}
+
 							request({
 								type: "dmSend",
 								credentials: { 
 									scheme: "Bearer", 
 									credentials: authToken!
 								},
-								data: {
-									recipientId: activeDm.userId,
-									iv: b64(encMsg.iv),
-									ciphertext: b64(encMsg.ciphertext),
-									salt: b64(wkSalt),
-									iv2: b64(wrap.iv),
-									wrappedMk: b64(wrap.ciphertext)
-								}
+								data: payload
 							});
 						}
 					},
