@@ -11,6 +11,7 @@ import type { UserProfile } from "../core/types";
 import { showError, showSuccess } from "../utils/notification";
 import { delay, formatTime, id } from "../utils/utils";
 import defaultAvatar from "../resources/images/default-avatar.png";
+import type { Tabs } from "mdui/components/tabs";
 import type { Dialog } from "mdui/components/dialog";
 import type { TextField } from "mdui/components/text-field";
 
@@ -53,7 +54,7 @@ async function startDm(): Promise<void> {
     hide();
     
     // Switch to DMs tab
-    const tabs = document.querySelector('.chat-tabs mdui-tabs') as any;
+    const tabs = document.querySelector('.chat-tabs mdui-tabs') as Tabs;
     if (tabs) {
         tabs.value = 'dms';
     }
