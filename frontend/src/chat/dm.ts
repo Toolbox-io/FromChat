@@ -117,8 +117,32 @@ async function loadUsers() {
 							websocket.send(JSON.stringify(payload));
 						}
 					},
-					() => {
-						// For v1, load history for this DM
+					async () => {
+						// Load DM history for the active conversation
+						if (!activeDm?.publicKey) return;
+						const res = await fetch(`${API_BASE_URL}/dm/history/${activeDm.userId}`, { headers: getAuthHeaders(true) });
+						if (!res.ok) return;
+						const data = await res.json();
+						const messages: DmEnvelope[] = data.messages || [];
+						const container = document.getElementById("chat-messages")!;
+						container.innerHTML = "";
+						for (const env of messages) {
+							try {
+								const text = await decryptDm(env, activeDm.publicKey);
+								const div = document.createElement("div");
+								const isAuthor = env.senderId !== activeDm.userId;
+								div.className = `message ${isAuthor ? "sent" : "received"}`;
+								const inner = document.createElement("div");
+								inner.className = "message-inner";
+								const content = document.createElement("div");
+								content.className = "message-content";
+								content.textContent = text;
+								inner.appendChild(content);
+								div.appendChild(inner);
+								container.appendChild(div);
+							} catch {}
+						}
+						container.scrollTop = container.scrollHeight;
 					}
 				);
 			}
@@ -159,11 +183,12 @@ init();
 websocket.addEventListener("message", async (e) => {
 	try {
 		const msg = JSON.parse((e as MessageEvent).data);
-		if (msg?.type === "dmNew" && activeDm && msg.data.senderId === activeDm.userId) {
+		if (msg?.type === "dmNew" && activeDm && (msg.data.senderId === activeDm.userId || msg.data.recipientId === activeDm.userId)) {
 			const plaintext = await decryptDm(msg.data, activeDm.publicKey!);
 			const container = document.getElementById("chat-messages")!;
 			const div = document.createElement("div");
-			div.className = "message received";
+			const isAuthor = msg.data.senderId !== activeDm.userId;
+			div.className = `message ${isAuthor ? "sent" : "received"}`;
 			const inner = document.createElement("div");
 			inner.className = "message-inner";
 			const content = document.createElement("div");

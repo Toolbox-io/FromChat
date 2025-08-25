@@ -246,6 +246,12 @@ class MessaggingSocketManager:
                     return None
 
             if type == "ping":
+                try:
+                    current_user = get_current_user_inner()
+                    if current_user:
+                        self.user_by_ws[websocket] = current_user.id
+                except HTTPException:
+                    pass
                 await websocket.send_json({"type": "ping", "data": {"status": "success"}})
             elif type == "getMessages":
                 try:
