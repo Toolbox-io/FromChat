@@ -1,7 +1,8 @@
 import { API_BASE_URL } from "../core/config";
 import { showLogin } from "../navigation";
-import type { Headers, User } from "../core/types";
+import type { Headers, User, WebSocketMessage } from "../core/types";
 import { clearAlerts } from "./auth";
+import { request } from "../websocket";
 
 /**
  * Current authenticated user information
@@ -23,6 +24,21 @@ export let authToken: string | null = null;
 export function setUser(token: string, user: User) {
     authToken = token
     currentUser = user
+
+    try {
+        const payload: WebSocketMessage = {
+            type: "ping",
+            credentials: {
+                scheme: "Bearer",
+                credentials: authToken
+            },
+            data: {}
+        }
+
+        request(payload).then(() => {
+            console.log("Ping succeeded")
+        })
+    } catch {}
 }
 
 /**

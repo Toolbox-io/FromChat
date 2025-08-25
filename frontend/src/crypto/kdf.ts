@@ -13,7 +13,7 @@ export async function deriveKEK(passwordKey: CryptoKey, salt: Uint8Array, iterat
 	);
 }
 
-export async function hkdfExtractAndExpand(inputKeyMaterial: ArrayBuffer, salt: Uint8Array, info: Uint8Array, length = 32): Promise<Uint8Array> {
+export async function hkdfExtractAndExpand(inputKeyMaterial: ArrayBufferLike, salt: Uint8Array, info: Uint8Array, length = 32): Promise<Uint8Array> {
 	const ikmKey = await crypto.subtle.importKey("raw", inputKeyMaterial, { name: "HKDF" }, false, ["deriveBits"]);
 	const bits = await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, ikmKey, length * 8);
 	return new Uint8Array(bits);
@@ -24,5 +24,3 @@ export function randomBytes(length: number): Uint8Array {
 	crypto.getRandomValues(out);
 	return out;
 }
-
-

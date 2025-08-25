@@ -2,17 +2,10 @@ import { API_BASE_URL } from "../core/config";
 import { getAuthHeaders } from "./api";
 import { generateX25519KeyPair } from "../crypto/asymmetric";
 import { encryptBackupWithPassword, decryptBackupWithPassword, encodeBlob, decodeBlob } from "../crypto/backup";
+import { b64, ub64 } from "../utils/utils";
 
 let currentPublicKey: Uint8Array | null = null;
 let currentPrivateKey: Uint8Array | null = null;
-
-function b64(a: Uint8Array): string { return btoa(String.fromCharCode(...a)); }
-function ub64(s: string): Uint8Array {
-	const bin = atob(s);
-	const arr = new Uint8Array(bin.length);
-	for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-	return arr;
-}
 
 async function fetchPublicKey(): Promise<Uint8Array | null> {
 	const res = await fetch(`${API_BASE_URL}/crypto/public-key`, { method: "GET", headers: getAuthHeaders(true) });

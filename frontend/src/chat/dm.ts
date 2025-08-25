@@ -1,21 +1,14 @@
 import { API_BASE_URL } from "../core/config";
-import { getAuthHeaders } from "../auth/api";
-import { DmPanel, ChatPanelController } from "./panel";
+import { authToken, getAuthHeaders } from "../auth/api";
+import { DmPanel } from "./panel";
 import { ecdhSharedSecret, deriveWrappingKey } from "../crypto/asymmetric";
 import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../crypto/symmetric";
 import { randomBytes } from "../crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
-import { websocket } from "../websocket";
+import { request, websocket } from "../websocket";
 import type { WebSocketMessage } from "../core/types";
 import type { Tabs } from "mdui/components/tabs";
-
-function b64(a: Uint8Array): string { return btoa(String.fromCharCode(...a)); }
-function ub64(s: string): Uint8Array {
-	const bin = atob(s);
-	const arr = new Uint8Array(bin.length);
-	for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-	return arr;
-}
+import { b64, ub64 } from "../utils/utils";
 
 export async function sendDm(recipientId: number, recipientPublicKeyB64: string, plaintext: string): Promise<void> {
 	const keys = getCurrentKeys();
@@ -27,11 +20,12 @@ export async function sendDm(recipientId: number, recipientPublicKeyB64: string,
 	const wk = await importAesGcmKey(wkRaw);
 	const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(plaintext));
 	const wrap = await aesGcmEncrypt(wk, mk);
+	
 	await fetch(`${API_BASE_URL}/dm/send`, {
 		method: "POST",
 		headers: getAuthHeaders(true),
 		body: JSON.stringify({
-			recipientId,
+			recipientId: recipientId,
 			iv: b64(encMsg.iv),
 			ciphertext: b64(encMsg.ciphertext),
 			salt: b64(wkSalt),
@@ -102,9 +96,13 @@ async function loadUsers() {
 							const wk = await importAesGcmKey(wkRaw);
 							const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(text));
 							const wrap = await aesGcmEncrypt(wk, mk);
-							const payload: WebSocketMessage = {
+
+							request({
 								type: "dmSend",
-								credentials: { scheme: "Bearer", credentials: (await import("../auth/api")).authToken! },
+								credentials: { 
+									scheme: "Bearer", 
+									credentials: authToken!
+								},
 								data: {
 									recipientId: activeDm.userId,
 									iv: b64(encMsg.iv),
@@ -113,36 +111,38 @@ async function loadUsers() {
 									iv2: b64(wrap.iv),
 									wrappedMk: b64(wrap.ciphertext)
 								}
-							};
-							websocket.send(JSON.stringify(payload));
+							});
 						}
 					},
 					async () => {
 						// Load DM history for the active conversation
 						if (!activeDm?.publicKey) return;
-						const res = await fetch(`${API_BASE_URL}/dm/history/${activeDm.userId}`, { headers: getAuthHeaders(true) });
-						if (!res.ok) return;
-						const data = await res.json();
-						const messages: DmEnvelope[] = data.messages || [];
-						const container = document.getElementById("chat-messages")!;
-						container.innerHTML = "";
-						for (const env of messages) {
-							try {
-								const text = await decryptDm(env, activeDm.publicKey);
-								const div = document.createElement("div");
-								const isAuthor = env.senderId !== activeDm.userId;
-								div.className = `message ${isAuthor ? "sent" : "received"}`;
-								const inner = document.createElement("div");
-								inner.className = "message-inner";
-								const content = document.createElement("div");
-								content.className = "message-content";
-								content.textContent = text;
-								inner.appendChild(content);
-								div.appendChild(inner);
-								container.appendChild(div);
-							} catch {}
+						const response = await fetch(`${API_BASE_URL}/dm/history/${activeDm.userId}`, { 
+							headers: getAuthHeaders(true) 
+						});
+						if (response.ok) {
+							const data = await response.json();
+							const messages: DmEnvelope[] = data.messages || [];
+							const container = document.getElementById("chat-messages")!;
+							container.innerHTML = "";
+							for (const env of messages) {
+								try {
+									const text = await decryptDm(env, activeDm.publicKey);
+									const div = document.createElement("div");
+									const isAuthor = env.senderId !== activeDm.userId;
+									div.className = `message ${isAuthor ? "sent" : "received"}`;
+									const inner = document.createElement("div");
+									inner.className = "message-inner";
+									const content = document.createElement("div");
+									content.className = "message-content";
+									content.textContent = text;
+									inner.appendChild(content);
+									div.appendChild(inner);
+									container.appendChild(div);
+								} catch {}
+							}
+							container.scrollTop = container.scrollHeight;
 						}
-						container.scrollTop = container.scrollHeight;
 					}
 				);
 			}
@@ -182,8 +182,8 @@ init();
 // realtime incoming DMs
 websocket.addEventListener("message", async (e) => {
 	try {
-		const msg = JSON.parse((e as MessageEvent).data);
-		if (msg?.type === "dmNew" && activeDm && (msg.data.senderId === activeDm.userId || msg.data.recipientId === activeDm.userId)) {
+		const msg: WebSocketMessage = JSON.parse((e as MessageEvent).data);
+		if (msg.type === "dmNew" && activeDm && (msg.data.senderId === activeDm.userId || msg.data.recipientId === activeDm.userId)) {
 			const plaintext = await decryptDm(msg.data, activeDm.publicKey!);
 			const container = document.getElementById("chat-messages")!;
 			const div = document.createElement("div");
