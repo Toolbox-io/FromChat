@@ -17,3 +17,4 @@ import "./userPanel/profile/profile";
 import "./chat/contextMenu";
 import "./chat/profileDialog";
 import "./electron/electron";
+import "./chat/dm";

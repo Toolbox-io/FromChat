@@ -147,6 +147,9 @@
                                 <mdui-tab value="contacts">
                                     Контакты
                                 </mdui-tab>
+                                <mdui-tab value="dms">
+                                    ЛС
+                                </mdui-tab>
 
                                 <mdui-tab-panel slot="panel" value="chats">
                                     <mdui-list>
@@ -160,6 +163,18 @@
                                 </mdui-tab-panel>
                                 <mdui-tab-panel slot="panel" value="channels">Скоро будет...</mdui-tab-panel>
                                 <mdui-tab-panel slot="panel" value="contacts">Скоро будет...</mdui-tab-panel>
+                                <mdui-tab-panel slot="panel" value="dms">
+                                    <mdui-list>
+                                        <mdui-list-item>
+                                            <div style="display:flex;gap:8px;align-items:center;width:100%">
+                                                <mdui-text-field id="dm-username" label="Username" variant="outlined" style="flex:0 0 160px"></mdui-text-field>
+                                                <mdui-text-field id="dm-input" label="Сообщение" variant="outlined" style="flex:1"></mdui-text-field>
+                                                <mdui-button id="dm-send">Отправить</mdui-button>
+                                            </div>
+                                        </mdui-list-item>
+                                    </mdui-list>
+                                    <div class="chat-messages" id="dm-messages" style="margin-top:8px"></div>
+                                </mdui-tab-panel>
                             </mdui-tabs>
                         </div>
                         <mdui-bottom-app-bar>

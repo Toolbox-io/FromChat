@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
 from constants import OWNER_USERNAME
-from models import Message, SendMessageRequest, EditMessageRequest, ReplyMessageRequest, User
+from models import Message, SendMessageRequest, EditMessageRequest, ReplyMessageRequest, User, DMEnvelope
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -65,6 +65,52 @@ async def get_messages(db: Session = Depends(get_db)):
     return {
         "status": "success",
         "messages": messages_data
+    }
+
+
+@router.post("/dm/send")
+async def dm_send(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    required = ["recipientId", "iv", "ciphertext", "salt", "iv2", "wrappedMk"]
+    for key in required:
+        if key not in payload:
+            raise HTTPException(status_code=400, detail=f"Missing {key}")
+    env = DMEnvelope(
+        sender_id=current_user.id,
+        recipient_id=int(payload["recipientId"]),
+        iv_b64=payload["iv"],
+        ciphertext_b64=payload["ciphertext"],
+        salt_b64=payload["salt"],
+        iv2_b64=payload["iv2"],
+        wrapped_mk_b64=payload["wrappedMk"],
+    )
+    db.add(env)
+    db.commit()
+    db.refresh(env)
+    return {"status": "ok", "id": env.id}
+
+
+@router.get("/dm/fetch")
+async def dm_fetch(since: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    q = db.query(DMEnvelope).filter(DMEnvelope.recipient_id == current_user.id)
+    if since:
+        q = q.filter(DMEnvelope.id > since)
+    envs = q.order_by(DMEnvelope.id.asc()).all()
+    return {
+        "status": "ok",
+        "messages": [
+            {
+                "id": e.id,
+                "senderId": e.sender_id,
+                "recipientId": e.recipient_id,
+                "iv": e.iv_b64,
+                "ciphertext": e.ciphertext_b64,
+                "salt": e.salt_b64,
+                "iv2": e.iv2_b64,
+                "wrappedMk": e.wrapped_mk_b64,
+                "timestamp": e.timestamp.isoformat(),
+            }
+            for e in envs
+        ]
     }
 
 

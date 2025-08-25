@@ -38,6 +38,36 @@ class Message(Base):
     reply_to = relationship("Message", remote_side=[id])
 
 
+class CryptoPublicKey(Base):
+    __tablename__ = "crypto_public_key"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, unique=True)
+    public_key_b64 = Column(Text, nullable=False)
+
+
+class CryptoBackup(Base):
+    __tablename__ = "crypto_backup"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, unique=True)
+    blob_json = Column(Text, nullable=False)
+
+
+class DMEnvelope(Base):
+    __tablename__ = "dm_envelope"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    recipient_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    iv_b64 = Column(Text, nullable=False)
+    ciphertext_b64 = Column(Text, nullable=False)
+    salt_b64 = Column(Text, nullable=False)
+    iv2_b64 = Column(Text, nullable=False)
+    wrapped_mk_b64 = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.now)
+
+
 # Pydantic модели
 class LoginRequest(BaseModel):
     username: str
