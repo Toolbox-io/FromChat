@@ -202,3 +202,19 @@ def logout(
         "status": "success",
         "message": "Logged out successfully"
     }
+
+
+@router.get("/users")
+def list_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    users = db.query(User).order_by(User.username.asc()).all()
+    return {
+        "users": [
+            convert_user(u) for u in users if u.id != current_user.id
+        ]
+    }
+
+
+@router.get("/crypto/public-key/of/{user_id}")
+def get_public_key_of(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    row = db.query(CryptoPublicKey).filter(CryptoPublicKey.user_id == user_id).first()
+    return {"publicKey": row.public_key_b64 if row else None}

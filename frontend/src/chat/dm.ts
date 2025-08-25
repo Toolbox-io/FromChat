@@ -70,7 +70,7 @@ export async function decryptDm(envelope: DmEnvelope, senderPublicKeyB64: string
 }
 
 function appendDmMessage(text: string, isAuthor: boolean) {
-	const container = document.getElementById("dm-messages")!;
+	const container = document.getElementById("chat-messages")!;
 	const div = document.createElement("div");
 	div.className = `message ${isAuthor ? "sent" : "received"}`;
 	const inner = document.createElement("div");
@@ -84,30 +84,64 @@ function appendDmMessage(text: string, isAuthor: boolean) {
 	container.scrollTop = container.scrollHeight;
 }
 
-async function fetchRecipient(userName: string): Promise<{ id: number; publicKey: string | null } | null> {
-	const res = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(userName)}`);
-	if (!res.ok) return null;
+// removed unused helper
+
+let activeDm: { userId: number; username: string; publicKey: string | null } | null = null;
+let usersLoaded = false;
+
+async function loadUsers() {
+	const res = await fetch(`${API_BASE_URL}/users`, { headers: getAuthHeaders(true) });
+	if (!res.ok) return;
 	const data = await res.json();
-	// This assumes an endpoint returns profile with id; adapt if different
-	const pkRes = await fetch(`${API_BASE_URL}/crypto/public-key`, { headers: getAuthHeaders(true) });
-	// For simplicity, we reuse current user's endpoint; in real case, need GET by userId
-	// Minimal v1: assume recipient has same endpoint at /profile/public-key?userId=... (not implemented)
-	return { id: data.id, publicKey: null };
+	const list = document.getElementById("dm-users")!;
+	list.innerHTML = "";
+	(data.users || []).forEach((u: any) => {
+		const item = document.createElement("mdui-list-item");
+		item.setAttribute("headline", u.username);
+		item.addEventListener("click", async () => {
+			activeDm = { userId: u.id, username: u.username, publicKey: null };
+			document.getElementById("chat-name")!.textContent = u.username;
+			(document.getElementById("chat-messages") as HTMLElement).innerHTML = "";
+			const resPk = await fetch(`${API_BASE_URL}/crypto/public-key/of/${u.id}`, { headers: getAuthHeaders(true) });
+			if (resPk.ok) {
+				const pkData = await resPk.json();
+				activeDm!.publicKey = pkData.publicKey;
+			}
+		});
+		list.appendChild(item);
+	});
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-	const sendBtn = document.getElementById("dm-send");
-	if (!sendBtn) return;
-	sendBtn.addEventListener("click", async () => {
-		const userEl = document.getElementById("dm-username") as HTMLInputElement;
-		const textEl = document.getElementById("dm-input") as HTMLInputElement;
-		const username = userEl.value.trim();
-		const text = textEl.value.trim();
-		if (!username || !text) return;
-		// TODO: replace with real lookup for recipientId and publicKey
-		appendDmMessage(text, true);
-		textEl.value = "";
+	const tabs = document.querySelector(".chat-tabs mdui-tabs");
+	const dmTab = tabs?.querySelector('mdui-tab[value="dms"]');
+	function ensureUsersLoaded() {
+		if (!usersLoaded) {
+			usersLoaded = true;
+			loadUsers();
+		}
+	}
+	dmTab?.addEventListener("click", ensureUsersLoaded);
+	(tabs as any)?.addEventListener("change", (e: any) => {
+		if (e?.detail?.value === "dms") ensureUsersLoaded();
 	});
+	const form = document.getElementById("message-form");
+	if (form) {
+		form.addEventListener("submit", async (e) => {
+			if (!activeDm) return; // Let global chat handler proceed
+			e.preventDefault();
+			const input = document.getElementById("message-input") as HTMLInputElement;
+			const text = input.value.trim();
+			if (!text) return;
+			appendDmMessage(text, true);
+			input.value = "";
+			if (activeDm.publicKey) {
+				try {
+					await sendDm(activeDm.userId, activeDm.publicKey, text);
+				} catch {}
+			}
+		});
+	}
 });
 
 
