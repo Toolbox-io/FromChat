@@ -1,7 +1,9 @@
 import { authToken, currentUser } from "../auth/api";
-import type { WebSocketMessage } from "../core/types";
+import type { Message, WebSocketMessage } from "../core/types";
 import { request } from "../websocket";
 import { loadMessages } from "./chat";
+import { show as showContextMenu } from "./contextMenu";
+import { show as showProfileDialog } from "./profileDialog";
 
 const titleEl = document.getElementById("chat-name")!;
 const messages = document.getElementById("chat-messages")!;
@@ -43,6 +45,7 @@ export abstract class ChatPanelController {
 
 	protected abstract onSubmit(text: string): void | Promise<void>;
 	protected abstract loadMessages(): void | Promise<void>;
+	public abstract onProfileClicked(): void;
 
 	static mountOnce(): void {
 		if (this.mounted) return;
@@ -79,22 +82,68 @@ export class PublicChatPanel extends ChatPanelController {
 	protected loadMessages(): void {
 		return loadMessages();
 	}
+
+	public onProfileClicked(): void {
+		// Public chat doesn't have a specific profile to show
+	}
 }
 
 export class DmPanel extends ChatPanelController {
 	private sender: (text: string) => Promise<void>;
 	private loader: () => Promise<void> | void;
+	private otherUsername: string | null = null;
+
 	constructor(sender: (text: string) => Promise<void>, loader: () => Promise<void> | void) {
 		super();
 		this.sender = sender;
 		this.loader = loader;
 	}
+
+	setOtherUser(username: string): void {
+		this.otherUsername = username;
+	}
+
 	protected async onSubmit(text: string): Promise<void> {
 		this.appendSimple(text, true);
 		await this.sender(text);
 	}
+	
 	protected loadMessages(): void | Promise<void> {
 		return this.loader();
+	}
+	
+	public onProfileClicked(): void {
+		if (this.otherUsername) {
+			// Import and show the profile dialog
+			showProfileDialog(this.otherUsername!);
+		}
+	}
+
+	appendMessageWithId(message: Message): void {
+		const div = document.createElement("div");
+		const isAuthor = message.username === currentUser?.username;
+		div.className = `message ${isAuthor ? "sent" : "received"}`;
+		div.setAttribute("data-message-id", message.id.toString());
+		div.setAttribute("data-timestamp", message.timestamp);
+		
+		const inner = document.createElement("div");
+		inner.className = "message-inner";
+		
+		const content = document.createElement("div");
+		content.className = "message-content";
+		content.textContent = message.content;
+		
+		inner.appendChild(content);
+		div.appendChild(inner);
+		
+		// Add context menu support
+		div.addEventListener("contextmenu", (e) => {
+			e.preventDefault();
+			showContextMenu(message, e.clientX, e.clientY);
+		});
+		
+		messages.appendChild(div);
+		messages.scrollTop = messages.scrollHeight;
 	}
 }
 

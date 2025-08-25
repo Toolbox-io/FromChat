@@ -84,9 +84,16 @@ export function show(message: Message, x: number, y: number): void {
     
     const isAuthor = message.username === currentUser?.username;
     const isOwner = currentUser?.admin;
-
+    
+    // Check if we're in a DM conversation
+    const isInDm = document.querySelector('.chat-tabs mdui-tab[value="dms"]')?.getAttribute('active') === 'true';
+    
+    // Show edit only for own messages
     editItem.style.display = isAuthor ? 'flex' : 'none';
-    deleteItem.style.display = (isAuthor || isOwner) ? 'flex' : 'none';
+    
+    // Show delete for own messages, admin on any message, or in DMs for any message
+    const canDelete = isAuthor || isOwner || isInDm;
+    deleteItem.style.display = canDelete ? 'flex' : 'none';
     
     // Position the menu properly
     menu.style.display = 'block';
