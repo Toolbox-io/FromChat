@@ -111,8 +111,8 @@ function setupFormHandler(): void {
     
     // Get DOM elements
     profileForm = document.getElementById('profile-form')!;
-    nicknameField = document.getElementById('username-field') as any;
-    descriptionField = document.getElementById('description-field') as any;
+    nicknameField = document.getElementById('username-field') as TextField;
+    descriptionField = document.getElementById('description-field') as TextField;
 
     profileForm.addEventListener('submit', handleFormSubmission);
 

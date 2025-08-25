@@ -11,9 +11,12 @@ import type { UserProfile } from "../core/types";
 import { showError, showSuccess } from "../utils/notification";
 import { formatTime } from "../utils/utils";
 import defaultAvatar from "../resources/images/default-avatar.png";
+import type { Tabs } from "mdui/components/tabs";
+import type { Dialog } from "mdui/components/dialog";
+import type { TextField } from "mdui/components/text-field";
 
 
-let dialog = document.getElementById("user-profile-dialog")!;
+let dialog = document.getElementById("user-profile-dialog") as Dialog;
 let currentProfile: UserProfile | null = null;
 let isOwnProfile: boolean = false;
 
@@ -34,13 +37,6 @@ function bindEvents(): void {
     editBioBtn?.addEventListener('click', () => startEditBio());
     saveBioBtn?.addEventListener('click', () => saveBio());
     cancelBioBtn?.addEventListener('click', () => cancelEditBio());
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && dialog?.getAttribute('open') !== null) {
-            hide();
-        }
-    });
 }
 
 /**
@@ -63,7 +59,7 @@ export async function show(username: string): Promise<void> {
         currentProfile = profile;
         isOwnProfile = profile.username === currentUser?.username;
         populateDialog(profile);
-        (dialog as any).open = true;
+        dialog.open = true;
 
     } catch (error) {
         showError('Failed to load user profile');
@@ -108,7 +104,7 @@ function populateDialog(profile: UserProfile): void {
 
     // Bio
     const bioDisplay = dialog.querySelector('.bio-display') as HTMLElement;
-    const bioEdit = dialog.querySelector('#bio-edit-field') as any;
+    const bioEdit = dialog.querySelector('#bio-edit-field') as TextField;
     
     if (profile.bio) {
         bioDisplay.textContent = profile.bio;
@@ -136,7 +132,7 @@ function startEditBio(): void {
     if (!dialog) return;
 
     const bioDisplay = dialog.querySelector('.bio-display') as HTMLElement;
-    const bioEdit = dialog.querySelector('#bio-edit-field') as any;
+    const bioEdit = dialog.querySelector('#bio-edit-field') as TextField;
     const bioActions = dialog.querySelector('.bio-actions') as HTMLElement;
     const editBioBtn = dialog.querySelector('#edit-bio-btn') as HTMLElement;
 
@@ -158,7 +154,7 @@ function startEditBio(): void {
 export async function saveBio(): Promise<void> {
     if (!dialog || !currentProfile) return;
 
-    const bioEdit = dialog.querySelector('#bio-edit-field') as any;
+    const bioEdit = dialog.querySelector('#bio-edit-field') as TextField;
     const newBio = bioEdit?.value?.trim() || '';
 
     try {
@@ -195,7 +191,7 @@ function cancelEditBio(): void {
     if (!dialog) return;
 
     const bioDisplay = dialog.querySelector('.bio-display') as HTMLElement;
-    const bioEdit = dialog.querySelector('#bio-edit-field') as any;
+    const bioEdit = dialog.querySelector('#bio-edit-field') as TextField;
     const bioActions = dialog.querySelector('.bio-actions') as HTMLElement;
     const editBioBtn = dialog.querySelector('#edit-bio-btn') as HTMLElement;
 
@@ -214,9 +210,7 @@ function cancelEditBio(): void {
  * Hides the dialog
  */
 export function hide(): void {
-    if (dialog) {
-        (dialog as any).open = false;
-    }
+    dialog.open = false;
     currentProfile = null;
     isOwnProfile = false;
 }
