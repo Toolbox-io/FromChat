@@ -10,6 +10,7 @@ import type { ErrorResponse, LoginResponse, LoginRequest, RegisterRequest } from
 import { API_BASE_URL } from "../core/config";
 import { loadChat, showLogin, showRegister } from "../navigation";
 import { setUser } from "./api";
+import { ensureKeysOnLogin } from "./crypto";
 import { id } from "../utils/utils";
 
 /**
@@ -71,6 +72,11 @@ async function handleLogin(e: Event): Promise<void> {
             const data: LoginResponse = await response.json();
             // Store the JWT token
             setUser(data.token, data.user)
+            try {
+                await ensureKeysOnLogin(password);
+            } catch (e) {
+                console.error("Key setup failed:", e);
+            }
             loadChat();
             initializeProfile(); // Initialize profile after login
         } else {
