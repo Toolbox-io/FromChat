@@ -8,6 +8,7 @@
 import { Dialog } from "mdui/components/dialog";
 import { loadProfilePicture } from "./profile/upload";
 import { id } from "../utils/utils";
+import { publicChatPanel } from "../chat/chat";
 
 // сварачивание и разворачивание чата
 const chatCollapseBtn = id('hide-chat')!;
@@ -39,12 +40,14 @@ function setupChatSwitching(): void {
         chatCollapseBtn.style.display = 'flex';
         chatInner.style.display = 'flex';
         chatName.textContent = 'общий чат';
+        publicChatPanel.activate();
     });
     
     chat2.addEventListener('click', () => {
         chatCollapseBtn.style.display = 'flex';
         chatInner.style.display = 'flex';
         chatName.textContent = 'общий чат 2';
+        publicChatPanel.activate();
     });
 }
 

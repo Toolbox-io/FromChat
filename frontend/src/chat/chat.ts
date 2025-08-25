@@ -13,6 +13,8 @@ import { show as showContextMenu } from "./contextMenu";
 import { show as showUserProfileDialog } from "./profileDialog";
 import defaultAvatar from "../resources/images/default-avatar.png";
 import { authToken, currentUser, getAuthHeaders } from "../auth/api";
+import { ChatPanelController, PublicChatPanel } from "./panel";
+import type { Tabs } from "mdui/components/tabs";
 
 /**
  * Adds a new message to the chat interface
@@ -142,6 +144,7 @@ export function loadMessages(): void {
                 
                 // Добавляем только новые сообщения
                 data.messages.forEach(msg => {
+                    console.log(msg);
                     if (msg.id > lastMessageId) {
                         addMessage(msg, msg.username == currentUser!.username);
                     }
@@ -183,12 +186,6 @@ export function sendMessage(): void {
         websocket.send(JSON.stringify(payload));
     }
 }
-
-
-document.getElementById('message-form')!.addEventListener('submit', (e) => {
-    e.preventDefault();
-    sendMessage();
-});
 
 /**
  * Updates an existing message in the chat interface
@@ -249,3 +246,7 @@ export function handleWebSocketMessage(response: WebSocketMessage): void {
             break;
     }
 }
+
+export const publicChatPanel = new PublicChatPanel();
+
+publicChatPanel.activate();
