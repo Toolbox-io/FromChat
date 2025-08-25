@@ -31,3 +31,7 @@ export function formatTime(dateString: string): string {
 export function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export function id<T extends Element = HTMLElement>(id: string): T {
+    return document.getElementById(id) as unknown as T
+}

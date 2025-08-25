@@ -6,10 +6,11 @@
  */
 
 import type { Dialog } from "mdui/components/dialog";
+import { id } from "../utils/utils";
 
-const dialog = document.getElementById('settings-dialog') as Dialog;
-const openButton = document.getElementById('settings-open')!;
-const closeButton = document.getElementById('settings-close')!;
+const dialog = id<Dialog>('settings-dialog');
+const openButton = id('settings-open')!;
+const closeButton = id('settings-close')!;
 
 // Settings panel management
 const settingsList = document.querySelector('#settings-menu mdui-list')!;
@@ -48,7 +49,7 @@ function handleListItemClick(item: Element): void {
     const panelId = panelMapping[itemText as keyof typeof panelMapping];
     
     if (panelId) {
-        const targetPanel = document.getElementById(panelId);
+        const targetPanel = id(panelId);
         if (targetPanel) {
             targetPanel.classList.add('active');
         }

@@ -8,11 +8,12 @@
 import { updateProfile } from './api';
 import { loadProfile } from './api';
 import { showSuccess, showError } from '../../utils/notification';
-import type { TextField } from 'mdui/components/text-field';
+import { TextField } from 'mdui/components/text-field';
+import { id } from '../../utils/utils';
 
-let profileForm = document.getElementById('profile-form')!;
-let nicknameField = document.getElementById('username-field') as unknown as TextField;
-let descriptionField = document.getElementById('description-field') as unknown as TextField;
+let profileForm = id('profile-form')!;
+let nicknameField = id<TextField>('username-field');
+let descriptionField = id<TextField>('description-field');
 
 /**
  * Initialization state flag
@@ -107,16 +108,10 @@ async function handleFormSubmission(e: Event): Promise<void> {
  * @private
  */
 function setupFormHandler(): void {
-    if (isInitialized) return;
-    
-    // Get DOM elements
-    profileForm = document.getElementById('profile-form')!;
-    nicknameField = document.getElementById('username-field') as TextField;
-    descriptionField = document.getElementById('description-field') as TextField;
-
-    profileForm.addEventListener('submit', handleFormSubmission);
-
-    isInitialized = true;
+    if (!isInitialized) {
+        profileForm.addEventListener('submit', handleFormSubmission);
+        isInitialized = true;
+    }
 }
 
 /**

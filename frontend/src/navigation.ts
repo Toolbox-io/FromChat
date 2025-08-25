@@ -1,37 +1,43 @@
 import { clearAlerts } from "./auth/auth";
 import { loadMessages } from "./chat/chat";
+import { id } from "./utils/utils";
+
+const loginForm = id("login-form");
+const registerForm = id("register-form");
+const chatInterface = id("chat-interface");
+const titleBar = id("electron-title-bar");
 
 /**
  * Shows the login form and hides other interfaces.
  */
 export function showLogin(): void {
-    document.getElementById('login-form')!.style.display = 'flex';
-    document.getElementById('register-form')!.style.display = 'none';
-    document.getElementById('chat-interface')!.style.display = 'none';
+    loginForm.style.display = 'flex';
+    registerForm.style.display = 'none';
+    chatInterface.style.display = 'none';
     clearAlerts();
-    document.getElementById("electron-title-bar")!.classList.add("color-surface");
+    titleBar.classList.add("color-surface");
 }
 
 /**
  * Shows the registration form and hides other interfaces.
  */
 export function showRegister(): void {
-    document.getElementById('login-form')!.style.display = 'none';
-    document.getElementById('register-form')!.style.display = 'flex';
-    document.getElementById('chat-interface')!.style.display = 'none';
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'flex';
+    chatInterface.style.display = 'none';
     clearAlerts();
-    document.getElementById("electron-title-bar")!.classList.add("color-surface");
+    titleBar.classList.add("color-surface");
 }
 
 /**
  * Shows the chat interface and hides authentication forms.
  */
 export function showChat(): void {
-    document.getElementById('login-form')!.style.display = 'none';
-    document.getElementById('register-form')!.style.display = 'none';
-    document.getElementById('chat-interface')!.style.display = 'block';
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'none';
+    chatInterface.style.display = 'block';
     loadMessages();
-    document.getElementById("electron-title-bar")!.classList.remove("color-surface");
+    titleBar.classList.remove("color-surface");
 }
 
 /**

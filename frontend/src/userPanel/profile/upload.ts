@@ -10,26 +10,25 @@ import { ImageCropper } from './imageCropper';
 import { uploadProfilePicture } from './api';
 import { loadProfile } from './api';
 import { showSuccess, showError } from '../../utils/notification';
+import { id } from "../../utils/utils";
 
 /**
  * Global image cropper instance
- * @type {ImageCropper | null}
  */
 let cropper: ImageCropper | null = null;
 
 /**
  * Initialization state flag
- * @type {boolean}
  */
 let isInitialized = false;
 
-let cropperDialog = document.getElementById('cropper-dialog') as Dialog;
-let fileInput = document.getElementById('pfp-file-input') as HTMLInputElement;
-let uploadBtn = document.getElementById('upload-pfp-btn')!;
-let cropSaveBtn = document.getElementById('crop-save')!;
-let cropCancelBtn = document.getElementById('crop-cancel')!;
-let cropperCloseBtn = document.getElementById('cropper-close')!;
-let cropperArea = document.getElementById('cropper-area')!;
+let cropperDialog = id<Dialog>('cropper-dialog');
+let fileInput = id<HTMLInputElement>('pfp-file-input');
+let uploadBtn = id('upload-pfp-btn');
+let cropSaveBtn = id('crop-save');
+let cropCancelBtn = id('crop-cancel');
+let cropperCloseBtn = id('cropper-close');
+let cropperArea = id('cropper-area');
 
 /**
  * Opens the image cropper with the selected file
@@ -81,7 +80,7 @@ async function saveCroppedImage(): Promise<void> {
     
     if (result) {
         // Update profile picture display
-        const profilePicture = document.getElementById('profile-picture') as HTMLImageElement;
+        const profilePicture = id<HTMLInputElement>('profile-picture');
         profilePicture.src = `${result.profile_picture_url}?t=${Date.now()}`; // Cache bust
         
         // Close cropper
@@ -136,8 +135,8 @@ export async function loadProfilePicture(): Promise<void> {
     if (userData?.profile_picture) {
         const url = `${userData.profile_picture}?t=${Date.now()}`;
 
-        const profilePicture = document.getElementById('profile-picture') as HTMLImageElement;
-        const profilePicture2 = document.getElementById("preview1") as HTMLImageElement;
+        const profilePicture = id<HTMLImageElement>('profile-picture');
+        const profilePicture2 = id<HTMLImageElement>("preview1");
         profilePicture.src = url;
         profilePicture2.src = url;
     }

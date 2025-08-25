@@ -9,14 +9,13 @@ import { getAuthHeaders, currentUser } from "../auth/api";
 import { API_BASE_URL } from "../core/config";
 import type { UserProfile } from "../core/types";
 import { showError, showSuccess } from "../utils/notification";
-import { formatTime } from "../utils/utils";
+import { formatTime, id } from "../utils/utils";
 import defaultAvatar from "../resources/images/default-avatar.png";
-import type { Tabs } from "mdui/components/tabs";
 import type { Dialog } from "mdui/components/dialog";
 import type { TextField } from "mdui/components/text-field";
 
 
-let dialog = document.getElementById("user-profile-dialog") as Dialog;
+let dialog = id<Dialog>("user-profile-dialog");
 let currentProfile: UserProfile | null = null;
 let isOwnProfile: boolean = false;
 

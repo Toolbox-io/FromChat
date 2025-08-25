@@ -10,14 +10,15 @@ import type { ErrorResponse, LoginResponse, LoginRequest, RegisterRequest } from
 import { API_BASE_URL } from "../core/config";
 import { loadChat, showLogin, showRegister } from "../navigation";
 import { setUser } from "./api";
+import { id } from "../utils/utils";
 
 /**
  * Clears all alert messages from authentication forms
  * @private
  */
 export function clearAlerts(): void {
-    document.getElementById('login-alerts')!.innerHTML = '';
-    document.getElementById('register-alerts')!.innerHTML = '';
+    id('login-alerts').innerHTML = '';
+    id('register-alerts').innerHTML = '';
 }
 
 /**
@@ -27,7 +28,7 @@ export function clearAlerts(): void {
  * @param {'success' | 'danger'} type - Type of alert (success or danger)
  */
 export function showAlert(containerId: string, message: string, type: "success" | "danger" = 'danger'): void {
-    const container = document.getElementById(containerId)!;
+    const container = id(containerId);
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type}`;
     alertDiv.textContent = message;
@@ -41,8 +42,8 @@ export function showAlert(containerId: string, message: string, type: "success" 
 async function handleLogin(e: Event): Promise<void> {
     e.preventDefault();
 
-    const usernameElement = document.getElementById('login-username') as HTMLInputElement;
-    const passwordElement = document.getElementById('login-password') as HTMLInputElement;
+    const usernameElement = id<HTMLInputElement>('login-username');
+    const passwordElement = id<HTMLInputElement>('login-password');
     
     const username = usernameElement.value.trim();
     const password = passwordElement.value.trim();
@@ -89,9 +90,9 @@ async function handleLogin(e: Event): Promise<void> {
 async function handleRegister(e: Event): Promise<void> {
     e.preventDefault();
 
-    const usernameElement = document.getElementById('register-username') as HTMLInputElement;
-    const passwordElement = document.getElementById('register-password') as HTMLInputElement;
-    const confirmPasswordElement = document.getElementById('register-confirm-password') as HTMLInputElement;
+    const usernameElement = id<HTMLInputElement>('register-username');
+    const passwordElement = id<HTMLInputElement>('register-password');
+    const confirmPasswordElement = id<HTMLInputElement>('register-confirm-password');
     
     const username = usernameElement.value.trim();
     const password = passwordElement.value.trim();
@@ -152,11 +153,11 @@ async function handleRegister(e: Event): Promise<void> {
  * @private
  */
 function init(): void {
-    document.getElementById('login-form-element')!.addEventListener('submit', handleLogin);
-    document.getElementById('register-form-element')!.addEventListener('submit', handleRegister);
+    id('login-form-element').addEventListener('submit', handleLogin);
+    id('register-form-element').addEventListener('submit', handleRegister);
 
-    document.getElementById("login-link")!.addEventListener("click", showLogin);
-    document.getElementById("register-link")!.addEventListener("click", showRegister);
+    id("login-link").addEventListener("click", showLogin);
+    id("register-link").addEventListener("click", showRegister);
 }
 
 init();

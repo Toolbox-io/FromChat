@@ -8,15 +8,15 @@
 import { websocket } from "../websocket";
 import type { Message, WebSocketMessage } from "../core/types";
 import { showSuccess, showError } from "../utils/notification";
-import { delay } from "../utils/utils";
+import { delay, id } from "../utils/utils";
 import type { Dialog } from "mdui/components/dialog";
 import type { TextField } from "mdui/components/text-field";
 import { currentUser, authToken } from "../auth/api";
 
 
-let menu = document.getElementById("message-context-menu")!;
-let editDialog = document.getElementById("edit-message-dialog") as Dialog;
-let replyDialog = document.getElementById("reply-message-dialog") as Dialog;
+let menu = id("message-context-menu")!;
+let editDialog = id<Dialog>("edit-message-dialog");
+let replyDialog = id<Dialog>("reply-message-dialog");
 let currentMessage: Message | null = null;
 
 function init() {

@@ -5,18 +5,19 @@
  * @version 1.0.0
  */
 
-import type { Dialog } from "mdui/components/dialog";
+import { Dialog } from "mdui/components/dialog";
 import { loadProfilePicture } from "./profile/upload";
+import { id } from "../utils/utils";
 
 // сварачивание и разворачивание чата
-const chatCollapseBtn = document.getElementById('hide-chat')!;
-const chat1 = document.getElementById('chat-list-chat-1')!;
-const chat2 = document.getElementById('chat-list-chat-2')!;
-const chatInner = document.getElementById('chat-inner')!;
-const chatName = document.getElementById('chat-name')!;
-const profileButton = document.getElementById('profile-open')!;
-const dialog = document.getElementById("profile-dialog") as Dialog;
-const dialogClose = document.getElementById("profile-dialog-close")!;
+const chatCollapseBtn = id('hide-chat')!;
+const chat1 = id('chat-list-chat-1')!;
+const chat2 = id('chat-list-chat-2')!;
+const chatInner = id('chat-inner')!;
+const chatName = id('chat-name')!;
+const profileButton = id('profile-open')!;
+const dialog = id<Dialog>("profile-dialog");
+const dialogClose = id("profile-dialog-close")!;
 
 /**
  * Sets up chat collapse functionality

@@ -9,10 +9,11 @@ import type { Dialog } from "mdui/components/dialog";
 import { loadProfileData } from './editor';
 import { loadProfilePicture, initializeProfileUpload } from "./upload";
 import { initializeProfileEditor } from './editor';
+import { id } from "../../utils/utils";
 
 // Handle profile form submission
-const form = document.getElementById("profile-form")!;
-const dialog = document.getElementById("profile-dialog") as Dialog;
+const form = id("profile-form")!;
+const dialog = id<Dialog>("profile-dialog");
 
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
