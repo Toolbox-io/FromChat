@@ -1,12 +1,12 @@
 import { API_BASE_URL } from "../core/config";
-import { authToken, getAuthHeaders } from "../auth/api";
+import { authToken, getAuthHeaders, currentUser } from "../auth/api";
 import { DmPanel } from "./panel";
 import { ecdhSharedSecret, deriveWrappingKey } from "../crypto/asymmetric";
 import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../crypto/symmetric";
 import { randomBytes } from "../crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
 import { request, websocket } from "../websocket";
-import type { FetchDMResponse, SendDMRequest, WebSocketMessage } from "../core/types";
+import type { FetchDMResponse, SendDMRequest, WebSocketMessage, User } from "../core/types";
 import type { Tabs } from "mdui/components/tabs";
 import { b64, ub64 } from "../utils/utils";
 
@@ -88,9 +88,48 @@ async function loadUsers() {
 	const data = await res.json();
 	const list = document.getElementById("dm-users")!;
 	list.innerHTML = "";
-	(data.users || []).forEach((u: any) => {
+	(data.users || []).forEach((u: User) => {
 		const item = document.createElement("mdui-list-item");
+		
+		// Add avatar
+		const avatar = document.createElement("img");
+		avatar.src = u.profile_picture || "./src/resources/images/default-avatar.png";
+		avatar.alt = u.username;
+		avatar.slot = "icon";
+		avatar.style.width = "40px";
+		avatar.style.height = "40px";
+		avatar.style.borderRadius = "50%";
+		avatar.style.objectFit = "cover";
+		
+		// Handle avatar load error
+		avatar.addEventListener("error", () => {
+			avatar.src = "./src/resources/images/default-avatar.png";
+		});
+		
+		item.appendChild(avatar);
+		
+		// Set headline (username)
 		item.setAttribute("headline", u.username);
+		
+		// Add last message placeholder (will be loaded lazily)
+		const lastMessageEl = document.createElement("div");
+		lastMessageEl.slot = "supporting-text";
+		lastMessageEl.textContent = "Loading...";
+		lastMessageEl.style.fontSize = "12px";
+		lastMessageEl.style.color = "var(--mdui-color-on-surface-variant)";
+		item.appendChild(lastMessageEl);
+		
+		// Load last message when element becomes visible
+		const observer = new IntersectionObserver((entries) => {
+			entries.forEach((entry) => {
+				if (entry.isIntersecting) {
+					loadLastMessage(u.id, lastMessageEl);
+					observer.unobserve(entry.target);
+				}
+			});
+		});
+		observer.observe(item);
+		
 		item.addEventListener("click", async () => {
 			activeDm = { userId: u.id, username: u.username, publicKey: null };
 			if (!dmPanel) {
@@ -133,7 +172,7 @@ async function loadUsers() {
 					},
 					async () => {
 						// Load DM history for the active conversation
-						if (!activeDm?.publicKey) return;
+						if (!activeDm?.publicKey || !dmPanel) return;
 						const response = await fetch(`${API_BASE_URL}/dm/history/${activeDm.userId}`, { 
 							headers: getAuthHeaders(true) 
 						});
@@ -145,17 +184,16 @@ async function loadUsers() {
 							for (const env of messages) {
 								try {
 									const text = await decryptDm(env, activeDm.publicKey);
-									const div = document.createElement("div");
 									const isAuthor = env.senderId !== activeDm.userId;
-									div.className = `message ${isAuthor ? "sent" : "received"}`;
-									const inner = document.createElement("div");
-									inner.className = "message-inner";
-									const content = document.createElement("div");
-									content.className = "message-content";
-									content.textContent = text;
-									inner.appendChild(content);
-									div.appendChild(inner);
-									container.appendChild(div);
+									const username = isAuthor ? (currentUser?.username || "Unknown") : (activeDm.username || "Unknown");
+									dmPanel.appendMessageWithId({
+										id: env.id,
+										content: text,
+										username: username,
+										timestamp: env.timestamp,
+										is_read: false,
+										is_edited: false
+									});
 								} catch {}
 							}
 							container.scrollTop = container.scrollHeight;
@@ -163,9 +201,18 @@ async function loadUsers() {
 					}
 				);
 			}
+			dmPanel.setOtherUser(u.username);
 			dmPanel.setTitle(u.username);
 			dmPanel.clearMessages();
 			dmPanel.activate();
+			
+			// Add profile click functionality to chat header
+			const chatHeaderAvatar = document.querySelector('.chat-header-avatar') as HTMLElement;
+			if (chatHeaderAvatar) {
+				chatHeaderAvatar.style.cursor = 'pointer';
+				chatHeaderAvatar.onclick = () => dmPanel?.onProfileClicked();
+			}
+			
 			const resPk = await fetch(`${API_BASE_URL}/crypto/public-key/of/${u.id}`, { headers: getAuthHeaders(true) });
 			if (resPk.ok) {
 				const pkData = await resPk.json();
@@ -174,6 +221,30 @@ async function loadUsers() {
 		});
 		list.appendChild(item);
 	});
+}
+
+async function loadLastMessage(userId: number, element: HTMLElement): Promise<void> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/dm/history/${userId}?limit=1`, { 
+			headers: getAuthHeaders(true) 
+		});
+		if (response.ok) {
+			const data = await response.json();
+			const messages: DmEnvelope[] = data.messages || [];
+			if (messages.length > 0) {
+				const lastMessage = messages[messages.length - 1];
+				// For now, just show "Last message" since we can't decrypt without the public key
+				// In a real implementation, you'd need to store the public key or decrypt here
+				element.textContent = "Last message";
+			} else {
+				element.textContent = "No messages yet";
+			}
+		} else {
+			element.textContent = "No messages yet";
+		}
+	} catch (error) {
+		element.textContent = "No messages yet";
+	}
 }
 
 function init() {
@@ -203,19 +274,17 @@ websocket.addEventListener("message", async (e) => {
 		if (msg.type === "dmNew" && activeDm && (msg.data.senderId === activeDm.userId || msg.data.recipientId === activeDm.userId)) {
 			const plaintext = await decryptDm(msg.data, activeDm.publicKey!);
 			
-			const container = document.getElementById("chat-messages")!;
-			const div = document.createElement("div");
-			const isAuthor = msg.data.senderId !== activeDm.userId;
-			div.className = `message ${isAuthor ? "sent" : "received"}`;
-			const inner = document.createElement("div");
-			inner.className = "message-inner";
-			const content = document.createElement("div");
-			content.className = "message-content";
-			content.textContent = plaintext;
-			inner.appendChild(content);
-			div.appendChild(inner);
-			container.appendChild(div);
-			container.scrollTop = container.scrollHeight;
+			if (dmPanel) {
+				const isAuthor = msg.data.senderId !== activeDm.userId;
+				dmPanel.appendMessageWithId({
+					id: msg.data.id,
+					content: plaintext,
+					username: isAuthor ? (currentUser?.username || "Unknown") : (activeDm.username || "Unknown"),
+					timestamp: msg.data.timestamp,
+					is_read: false,
+					is_edited: false
+				});
+			}
 		}
 	} catch {}
 });

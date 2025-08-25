@@ -85,6 +85,7 @@ export interface User {
     username: string;
     admin?: boolean;
     bio?: string;
+    profile_picture: string;
 }
 
 /**

@@ -9,7 +9,7 @@ import { getAuthHeaders, currentUser } from "../auth/api";
 import { API_BASE_URL } from "../core/config";
 import type { UserProfile } from "../core/types";
 import { showError, showSuccess } from "../utils/notification";
-import { formatTime, id } from "../utils/utils";
+import { delay, formatTime, id } from "../utils/utils";
 import defaultAvatar from "../resources/images/default-avatar.png";
 import type { Dialog } from "mdui/components/dialog";
 import type { TextField } from "mdui/components/text-field";
@@ -36,6 +36,41 @@ function bindEvents(): void {
     editBioBtn?.addEventListener('click', () => startEditBio());
     saveBioBtn?.addEventListener('click', () => saveBio());
     cancelBioBtn?.addEventListener('click', () => cancelEditBio());
+
+    // DM button event
+    const dmButton = dialog?.querySelector('#dm-button');
+    dmButton?.addEventListener('click', () => startDm());
+}
+
+/**
+ * Starts a direct message conversation
+ * @private
+ */
+async function startDm(): Promise<void> {
+    if (!currentProfile || isOwnProfile) return;
+    
+    // Hide the profile dialog
+    hide();
+    
+    // Switch to DMs tab
+    const tabs = document.querySelector('.chat-tabs mdui-tabs') as any;
+    if (tabs) {
+        tabs.value = 'dms';
+    }
+    
+    // Find and click on the user in the DM users list
+    await delay(100);
+    const dmUsersList = document.getElementById("dm-users");
+    if (dmUsersList) {
+        const userItems = dmUsersList.querySelectorAll('mdui-list-item');
+        for (const item of userItems) {
+            const headline = item.getAttribute('headline');
+            if (headline === currentProfile?.username) {
+                (item as HTMLElement).click();
+                break;
+            }
+        }
+    }
 }
 
 /**
