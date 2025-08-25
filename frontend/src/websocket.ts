@@ -7,6 +7,7 @@
 
 import { handleWebSocketMessage } from "./chat/chat";
 import { API_WS_BASE_URL } from "./core/config";
+import type { WebSocketMessage } from "./core/types";
 import { delay } from "./utils/utils";
 
 /**
@@ -28,6 +29,20 @@ function create(): WebSocket {
  * @type {WebSocket}
  */
 export let websocket: WebSocket = create();
+
+export function request(payload: WebSocketMessage): Promise<WebSocketMessage> {
+    return new Promise((resolve, reject) => {
+        let listener: ((e: MessageEvent) => void) | null = null;
+        listener = (e) => {
+            resolve(JSON.parse(e.data));
+            websocket.removeEventListener("message", listener!);
+        }
+        websocket.addEventListener("message", listener);
+        websocket.send(JSON.stringify(payload))
+
+        setTimeout(() => reject("Request timed out"), 10000);
+    })
+}
 
 /**
  * This function will wait 3 seconds and them attempts to reconnect the WebSocket.

@@ -17,7 +17,5 @@ export function ecdhSharedSecret(myPrivateKey: Uint8Array, theirPublicKey: Uint8
 }
 
 export async function deriveWrappingKey(sharedSecret: Uint8Array, salt: Uint8Array, info: Uint8Array): Promise<Uint8Array> {
-	return hkdfExtractAndExpand(sharedSecret.buffer, salt, info, 32);
+	return hkdfExtractAndExpand(sharedSecret.buffer as ArrayBuffer, salt, info, 32);
 }
-
-

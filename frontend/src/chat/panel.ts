@@ -1,6 +1,6 @@
 import { authToken, currentUser } from "../auth/api";
 import type { WebSocketMessage } from "../core/types";
-import { websocket } from "../websocket";
+import { request } from "../websocket";
 import { loadMessages } from "./chat";
 
 const titleEl = document.getElementById("chat-name")!;
@@ -73,15 +73,7 @@ export class PublicChatPanel extends ChatPanelController {
             credentials: { scheme: "Bearer", credentials: authToken! },
             type: "sendMessage"
         };
-        await new Promise<void>((resolve) => {
-            let callback: ((e: MessageEvent) => void) | null = null;
-            callback = (e) => {
-                websocket.removeEventListener("message", callback!);
-                resolve();
-            };
-            websocket.addEventListener("message", callback);
-            websocket.send(JSON.stringify(payload));
-        });
+        await request(payload);
 	}
 
 	protected loadMessages(): void {

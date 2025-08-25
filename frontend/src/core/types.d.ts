@@ -5,6 +5,8 @@
  * @version 1.0.0
  */
 
+import type { DmEnvelope } from "../chat/dm";
+
 /**
  * HTTP headers object type
  * @typedef {Object.<string, string>} Headers
@@ -136,6 +138,19 @@ export interface RegisterRequest {
     confirm_password: string;
 }
 
+export interface UploadPublicKeyRequest {
+    publicKey: string;
+}
+
+export interface SendDMRequest {
+    recipientId: number;
+    iv: string;
+    ciphertext: string;
+    salt: string;
+    iv2: string;
+    wrappedMk: string;
+}
+
 // Responses
 
 /**
@@ -147,6 +162,14 @@ export interface RegisterRequest {
 export interface LoginResponse {
     user: User;
     token: string;
+}
+
+export interface BackupBlob {
+    blob: string;
+}
+
+export interface FetchDMResponse {
+    messages: DmEnvelope[]
 }
 
 // ---------------

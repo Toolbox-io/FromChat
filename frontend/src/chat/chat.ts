@@ -6,15 +6,14 @@
  */
 
 import { API_BASE_URL } from "../core/config";
-import { websocket } from "../websocket";
+import { request } from "../websocket";
 import type { Message, Messages, WebSocketMessage } from "../core/types";
 import { formatTime } from "../utils/utils";
 import { show as showContextMenu } from "./contextMenu";
 import { show as showUserProfileDialog } from "./profileDialog";
 import defaultAvatar from "../resources/images/default-avatar.png";
 import { authToken, currentUser, getAuthHeaders } from "../auth/api";
-import { ChatPanelController, PublicChatPanel } from "./panel";
-import type { Tabs } from "mdui/components/tabs";
+import { PublicChatPanel } from "./panel";
 
 /**
  * Adds a new message to the chat interface
@@ -156,12 +155,12 @@ export function loadMessages(): void {
 /**
  * Sends a message via WebSocket
  */
-export function sendMessage(): void {
+export async function sendMessage(): Promise<void> {
     const input = document.querySelector('.message-input') as HTMLInputElement;
     const message = input.value.trim();
 
     if (message) {
-        const payload: WebSocketMessage = {
+        const response = await request({
             data: {
                 content: message
             }, 
@@ -170,20 +169,12 @@ export function sendMessage(): void {
                 credentials: authToken!
             },
             type: "sendMessage"
-        }
+        })
 
-        let callback: ((e: MessageEvent) => void) | null = null
-        callback = (e) => {
-            websocket.removeEventListener("message", callback!);
-            const response: WebSocketMessage = JSON.parse(e.data)
-            console.log(response)
-            if (!response.error) {
-                input.value = "";
-            }
+        console.log(response)
+        if (!response.error) {
+            input.value = "";
         }
-        websocket.addEventListener("message", callback);
-
-        websocket.send(JSON.stringify(payload));
     }
 }
 
