@@ -5,6 +5,8 @@
  * @version 1.0.0
  */
 
+import type { DmEnvelope } from "../chat/dm";
+
 /**
  * HTTP headers object type
  * @typedef {Object.<string, string>} Headers
@@ -164,6 +166,10 @@ export interface LoginResponse {
 
 export interface BackupBlob {
     blob: string;
+}
+
+export interface FetchDMResponse {
+    messages: DmEnvelope[]
 }
 
 // ---------------

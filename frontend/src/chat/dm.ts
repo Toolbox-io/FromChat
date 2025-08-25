@@ -6,7 +6,7 @@ import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../crypto/symmetr
 import { randomBytes } from "../crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
 import { request, websocket } from "../websocket";
-import type { SendDMRequest, WebSocketMessage } from "../core/types";
+import type { FetchDMResponse, SendDMRequest, WebSocketMessage } from "../core/types";
 import type { Tabs } from "mdui/components/tabs";
 import { b64, ub64 } from "../utils/utils";
 
@@ -50,19 +50,30 @@ export interface DmEnvelope {
 export async function fetchDm(since?: number): Promise<DmEnvelope[]> {
 	const url = new URL(`${API_BASE_URL}/dm/fetch`);
 	if (since) url.searchParams.set("since", String(since));
-	const res = await fetch(url, { headers: getAuthHeaders(true) });
-	if (!res.ok) return [];
-	const data = await res.json();
-	return data.messages ?? [];
+
+	const response = await fetch(url, { 
+		headers: getAuthHeaders(true) 
+	});
+
+	if (response.ok) {
+		const data: FetchDMResponse = await response.json();
+		return data.messages ?? [];
+	} else {
+		return [];
+	}
 }
 
 export async function decryptDm(envelope: DmEnvelope, senderPublicKeyB64: string): Promise<string> {
 	const keys = getCurrentKeys();
 	if (!keys) throw new Error("Keys not initialized");
+
+	// Obtain the key
 	const shared = ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
 	const wkRaw = await deriveWrappingKey(shared, ub64(envelope.salt), new Uint8Array([1]));
 	const wk = await importAesGcmKey(wkRaw);
 	const mk = await aesGcmDecrypt(wk, ub64(envelope.iv2), ub64(envelope.wrappedMk));
+
+	// Decrypt
 	const msg = await aesGcmDecrypt(await importAesGcmKey(mk), ub64(envelope.iv), ub64(envelope.ciphertext));
 	return new TextDecoder().decode(msg);
 }
@@ -89,11 +100,15 @@ async function loadUsers() {
 							// WebSocket realtime send
 							const keys = getCurrentKeys();
 							if (!keys) return;
+
+							// Encryption key
 							const mk = randomBytes(32);
 							const wkSalt = randomBytes(16);
 							const shared = ecdhSharedSecret(keys.privateKey, ub64(activeDm.publicKey));
 							const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
 							const wk = await importAesGcmKey(wkRaw);
+
+							// Encrypt the message
 							const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(text));
 							const wrap = await aesGcmEncrypt(wk, mk);
 
@@ -187,6 +202,7 @@ websocket.addEventListener("message", async (e) => {
 		const msg: WebSocketMessage = JSON.parse((e as MessageEvent).data);
 		if (msg.type === "dmNew" && activeDm && (msg.data.senderId === activeDm.userId || msg.data.recipientId === activeDm.userId)) {
 			const plaintext = await decryptDm(msg.data, activeDm.publicKey!);
+			
 			const container = document.getElementById("chat-messages")!;
 			const div = document.createElement("div");
 			const isAuthor = msg.data.senderId !== activeDm.userId;
