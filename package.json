@@ -10,7 +10,8 @@
         "backend:reinstall": "rm -rf .venv && npm run backend:dependencies",
         "backend:clean": "rm -rf backend/data",
         "frontend:dev": "vite frontend",
-        "frontend:build": "tsc --project frontend && vite build frontend",
+        "frontend:typecheck": "tsc --project frontend",
+        "frontend:build": "npm run frontend:typecheck && vite build frontend",
         "frontend:electron:dev": "VITE_ELECTRON=true npm run frontend:dev",
         "frontend:electron:dependencies": "cd frontend/electron/forge && npm install",
         "frontend:electron:build": "VITE_ELECTRON=true npm run frontend:build && cp -r frontend/dist frontend/dist-electron frontend/electron/forge && cd frontend/electron/forge && npm run make",
@@ -24,13 +25,15 @@
         "preview": "cd deployment && docker compose up --build --watch",
         "preview:clean": "cd deployment && docker compose down -v",
         "clean": "npm run backend:clean && npm run frontend:clean && npm run preview:clean",
-        "install": "npm run backend:dependencies && npm run frontend:electron:dependencies && cp deployment/.env.example deployment/.env"
+        "install": "npm run backend:dependencies && npm run frontend:electron:dependencies && cp deployment/.env.example deployment/.env",
+        "prepare": "husky"
     },
     "devDependencies": {
         "autoprefixer": "^10.4.21",
         "concurrently": "^9.2.0",
-        "electron": "^37.3.1",
         "dotenv-cli": "^10.0.0",
+        "electron": "^37.3.1",
+        "husky": "^9.1.7",
         "postcss": "^8.5.6",
         "sass-embedded": "^1.90.0",
         "terser": "^5.43.1",
