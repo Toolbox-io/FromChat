@@ -1,4 +1,4 @@
-import nacl from "tweetnacl";
+import nacl from "./tweetnacl";
 import { hkdfExtractAndExpand } from "../crypto/kdf";
 
 export interface X25519KeyPair {
