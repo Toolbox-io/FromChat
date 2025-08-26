@@ -226,7 +226,9 @@ async function loadUsers() {
 									if (env.senderId === activeDm.userId && env.id > maxIncomingId) {
 										maxIncomingId = env.id;
 									}
-								} catch {}
+								} catch (e) {
+									console.error("Error while loading message:", e);
+								}
 							}
 							container.scrollTop = container.scrollHeight;
 							if (maxIncomingId > 0) {
