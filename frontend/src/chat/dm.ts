@@ -6,7 +6,7 @@ import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../crypto/symmetr
 import { randomBytes } from "../crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
 import { request, websocket } from "../websocket";
-import type { FetchDMResponse, SendDMRequest, WebSocketMessage, User } from "../core/types";
+import type { FetchDMResponse, SendDMRequest, WebSocketMessage, User, DmEnvelope } from "../core/types";
 import type { Tabs } from "mdui/components/tabs";
 import { b64, ub64 } from "../utils/utils";
 
@@ -35,17 +35,7 @@ export async function sendDm(recipientId: number, recipientPublicKeyB64: string,
 	});
 }
 
-export interface DmEnvelope {
-	id: number;
-	senderId: number;
-	recipientId: number;
-	iv: string;
-	ciphertext: string;
-	salt: string;
-	iv2: string;
-	wrappedMk: string;
-	timestamp: string;
-}
+
 
 export async function fetchDm(since?: number): Promise<DmEnvelope[]> {
 	const url = new URL(`${API_BASE_URL}/dm/fetch`);
