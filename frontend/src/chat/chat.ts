@@ -13,7 +13,7 @@ import { show as showContextMenu } from "./contextMenu";
 import { show as showUserProfileDialog } from "./profileDialog";
 import defaultAvatar from "../resources/images/default-avatar.png";
 import { authToken, currentUser, getAuthHeaders } from "../auth/api";
-import { PublicChatPanel } from "./panel";
+import { ChatPanelController, PublicChatPanel } from "./panel";
 
 /**
  * Adds a new message to the chat interface
@@ -189,23 +189,25 @@ export function removeMessage(messageId: number): void {
  * @param {WebSocketMessage} response - WebSocket response
  */
 export function handleWebSocketMessage(response: WebSocketMessage): void {
-    switch (response.type) {
-        case 'messageEdited':
-            if (response.data) {
-                updateMessage(response.data);
-            }
-            break;
-        case 'messageDeleted':
-            if (response.data && response.data.message_id) {
-                removeMessage(response.data.message_id);
-            }
-            break;
-        case 'newMessage':
-            if (response.data) {
-                const isAuthor = response.data.username === currentUser?.username;
-                addMessage(response.data, isAuthor);
-            }
-            break;
+    if (ChatPanelController.active == publicChatPanel) {
+        switch (response.type) {
+            case 'messageEdited':
+                if (response.data) {
+                    updateMessage(response.data);
+                }
+                break;
+            case 'messageDeleted':
+                if (response.data && response.data.message_id) {
+                    removeMessage(response.data.message_id);
+                }
+                break;
+            case 'newMessage':
+                if (response.data) {
+                    const isAuthor = response.data.username === currentUser?.username;
+                    addMessage(response.data, isAuthor);
+                }
+                break;
+        }
     }
 }
 
