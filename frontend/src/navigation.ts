@@ -1,5 +1,5 @@
 import { clearAlerts } from "./auth/auth";
-import { loadMessages } from "./chat/chat";
+import { publicChatPanel } from "./chat/chat";
 import { id } from "./utils/utils";
 
 const loginForm = id("login-form");
@@ -36,14 +36,7 @@ export function showChat(): void {
     loginForm.style.display = 'none';
     registerForm.style.display = 'none';
     chatInterface.style.display = 'block';
-    loadMessages();
     titleBar.classList.remove("color-surface");
-}
 
-/**
- * Loads the chat interface and initializes messaging.
- */
-export function loadChat(): void {
-    showChat();
-    loadMessages();
+    publicChatPanel.activate();
 }
