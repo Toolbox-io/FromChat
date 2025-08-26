@@ -81,6 +81,23 @@ export async function decryptDm(envelope: DmEnvelope, senderPublicKeyB64: string
 let activeDm: { userId: number; username: string; publicKey: string | null } | null = null;
 let usersLoaded = false;
 let dmPanel: DmPanel | null = null;
+const dmBadgeByUserId: Map<number, HTMLElement> = new Map();
+const dmSupportingTextByUserId: Map<number, HTMLElement> = new Map();
+
+function getLastReadId(userId: number): number {
+    try {
+        const v = localStorage.getItem(`dmLastRead:${userId}`);
+        return v ? Number(v) : 0;
+    } catch {
+        return 0;
+    }
+}
+
+function setLastReadId(userId: number, id: number): void {
+    try {
+        localStorage.setItem(`dmLastRead:${userId}`, String(id));
+    } catch {}
+}
 
 async function loadUsers() {
 	const res = await fetch(`${API_BASE_URL}/users`, { headers: getAuthHeaders(true) });
@@ -90,6 +107,7 @@ async function loadUsers() {
 	list.innerHTML = "";
 	(data.users || []).forEach((u: User) => {
 		const item = document.createElement("mdui-list-item");
+		item.id = `dm-user-${u.id}`;
 		
 		// Add avatar
 		const avatar = document.createElement("img");
@@ -111,19 +129,28 @@ async function loadUsers() {
 		// Set headline (username)
 		item.setAttribute("headline", u.username);
 		
-		// Add last message placeholder (will be loaded lazily)
+		// Add supporting text container (hidden until loaded)
 		const lastMessageEl = document.createElement("div");
-		lastMessageEl.slot = "supporting-text";
-		lastMessageEl.textContent = "Loading...";
+		lastMessageEl.slot = "description";
 		lastMessageEl.style.fontSize = "12px";
 		lastMessageEl.style.color = "var(--mdui-color-on-surface-variant)";
+		lastMessageEl.style.whiteSpace = "pre-line";
+		lastMessageEl.style.display = "none";
 		item.appendChild(lastMessageEl);
+		dmSupportingTextByUserId.set(u.id, lastMessageEl);
+
+		// Add unread badge (hidden by default)
+		const badge = document.createElement("mdui-badge");
+		badge.setAttribute("slot", "end-icon");
+		badge.style.display = "none";
+		item.appendChild(badge);
+		dmBadgeByUserId.set(u.id, badge);
 		
 		// Load last message when element becomes visible
 		const observer = new IntersectionObserver((entries) => {
 			entries.forEach((entry) => {
 				if (entry.isIntersecting) {
-					loadLastMessage(u.id, lastMessageEl);
+					loadLastMessage(u.id);
 					observer.unobserve(entry.target);
 				}
 			});
@@ -181,9 +208,11 @@ async function loadUsers() {
 							const messages: DmEnvelope[] = data.messages || [];
 							const container = document.getElementById("chat-messages")!;
 							container.innerHTML = "";
+							let maxIncomingId = 0;
 							for (const env of messages) {
 								try {
-									const text = await decryptDm(env, activeDm.publicKey);
+									// Always use other user's public key for ECDH (our private + their public)
+									const text = await decryptDm(env, activeDm.publicKey!);
 									const isAuthor = env.senderId !== activeDm.userId;
 									const username = isAuthor ? (currentUser?.username || "Unknown") : (activeDm.username || "Unknown");
 									dmPanel.appendMessageWithId({
@@ -194,9 +223,20 @@ async function loadUsers() {
 										is_read: false,
 										is_edited: false
 									});
+									if (env.senderId === activeDm.userId && env.id > maxIncomingId) {
+										maxIncomingId = env.id;
+									}
 								} catch {}
 							}
 							container.scrollTop = container.scrollHeight;
+							if (maxIncomingId > 0) {
+								setLastReadId(activeDm.userId, maxIncomingId);
+								const badgeEl = dmBadgeByUserId.get(activeDm.userId);
+								if (badgeEl) {
+									badgeEl.style.display = "none";
+									badgeEl.textContent = "";
+								}
+							}
 						}
 					}
 				);
@@ -204,7 +244,6 @@ async function loadUsers() {
 			dmPanel.setOtherUser(u.username);
 			dmPanel.setTitle(u.username);
 			dmPanel.clearMessages();
-			dmPanel.activate();
 			
 			// Add profile click functionality to chat header
 			const chatHeaderAvatar = document.querySelector('.chat-header-avatar') as HTMLElement;
@@ -218,32 +257,76 @@ async function loadUsers() {
 				const pkData = await resPk.json();
 				activeDm!.publicKey = pkData.publicKey;
 			}
+			
+			// Only activate after we have the public key so loader can decrypt
+			dmPanel.activate();
+			// Clear unread badge on open
+			const badgeEl = dmBadgeByUserId.get(u.id);
+			if (badgeEl) {
+				badgeEl.textContent = "";
+				badgeEl.style.display = "none";
+			}
 		});
 		list.appendChild(item);
 	});
 }
 
-async function loadLastMessage(userId: number, element: HTMLElement): Promise<void> {
+async function loadLastMessage(userId: number): Promise<void> {
 	try {
-		const response = await fetch(`${API_BASE_URL}/dm/history/${userId}?limit=1`, { 
+		const pkRes = await fetch(`${API_BASE_URL}/crypto/public-key/of/${userId}`, { headers: getAuthHeaders(true) });
+		if (!pkRes.ok) return;
+		const pkData = await pkRes.json();
+		const otherPk = pkData.publicKey as string;
+		const response = await fetch(`${API_BASE_URL}/dm/history/${userId}?limit=50`, { 
 			headers: getAuthHeaders(true) 
 		});
 		if (response.ok) {
 			const data = await response.json();
 			const messages: DmEnvelope[] = data.messages || [];
-			if (messages.length > 0) {
-				const lastMessage = messages[messages.length - 1];
-				// For now, just show "Last message" since we can't decrypt without the public key
-				// In a real implementation, you'd need to store the public key or decrypt here
-				element.textContent = "Last message";
+			const supporting = dmSupportingTextByUserId.get(userId);
+			const badgeEl = dmBadgeByUserId.get(userId);
+			if (!supporting || !badgeEl) return;
+			let lastPlaintext: string | null = null;
+			let lastEnv: DmEnvelope | null = null;
+			for (const env of messages) {
+				if (!lastEnv || env.id > lastEnv.id) lastEnv = env;
+			}
+			if (lastEnv) {
+				try { lastPlaintext = await decryptDm(lastEnv, otherPk); } catch {}
+			}
+			if (lastPlaintext && lastPlaintext.trim().length > 0) {
+				const lines = lastPlaintext.split(/\r?\n/).slice(0, 2);
+				supporting.textContent = lines.join("\n");
+				supporting.style.display = "block";
 			} else {
-				element.textContent = "No messages yet";
+				supporting.textContent = "";
+				supporting.style.display = "none";
+			}
+			const lastRead = getLastReadId(userId);
+			let unread = 0;
+			for (const env of messages) {
+				if (env.senderId === userId && env.id > lastRead) unread++;
+			}
+			if (unread > 0) {
+				badgeEl.textContent = String(unread);
+				badgeEl.style.display = "inline-flex";
+			} else {
+				badgeEl.textContent = "";
+				badgeEl.style.display = "none";
 			}
 		} else {
-			element.textContent = "No messages yet";
+			const supporting = dmSupportingTextByUserId.get(userId);
+			if (supporting) {
+				supporting.textContent = "";
+				supporting.style.display = "none";
+			}
 		}
 	} catch (error) {
-		element.textContent = "No messages yet";
+		const supporting = dmSupportingTextByUserId.get(userId);
+		if (supporting) {
+			supporting.textContent = "";
+			supporting.style.display = "none";
+		}
 	}
 }
 
@@ -271,19 +354,46 @@ init();
 websocket.addEventListener("message", async (e) => {
 	try {
 		const msg: WebSocketMessage = JSON.parse((e as MessageEvent).data);
-		if (msg.type === "dmNew" && activeDm && (msg.data.senderId === activeDm.userId || msg.data.recipientId === activeDm.userId)) {
-			const plaintext = await decryptDm(msg.data, activeDm.publicKey!);
-			
-			if (dmPanel) {
-				const isAuthor = msg.data.senderId !== activeDm.userId;
-				dmPanel.appendMessageWithId({
-					id: msg.data.id,
-					content: plaintext,
-					username: isAuthor ? (currentUser?.username || "Unknown") : (activeDm.username || "Unknown"),
-					timestamp: msg.data.timestamp,
-					is_read: false,
-					is_edited: false
-				});
+		if (msg.type === "dmNew") {
+			if (activeDm && (msg.data.senderId === activeDm.userId || msg.data.recipientId === activeDm.userId)) {
+				// Always use other user's public key (our private is implied by getCurrentKeys)
+				const plaintext = await decryptDm(msg.data, activeDm.publicKey!);
+				if (dmPanel) {
+					const isAuthor = msg.data.senderId !== activeDm.userId;
+					dmPanel.appendMessageWithId({
+						id: msg.data.id,
+						content: plaintext,
+						username: isAuthor ? (currentUser?.username || "Unknown") : (activeDm.username || "Unknown"),
+						timestamp: msg.data.timestamp,
+						is_read: false,
+						is_edited: false
+					});
+				}
+				if (msg.data.senderId === activeDm.userId) {
+					setLastReadId(activeDm.userId, Math.max(getLastReadId(activeDm.userId), msg.data.id));
+				}
+			} else {
+				const otherUserId = msg.data.senderId;
+				const badgeEl = dmBadgeByUserId.get(otherUserId);
+				if (badgeEl) {
+					const current = Number(badgeEl.textContent || 0);
+					const next = (current || 0) + 1;
+					badgeEl.textContent = String(next);
+					badgeEl.style.display = "inline-flex";
+				}
+				try {
+					const pkRes = await fetch(`${API_BASE_URL}/crypto/public-key/of/${otherUserId}`, { headers: getAuthHeaders(true) });
+					if (pkRes.ok) {
+						const pkData = await pkRes.json();
+						const plaintext = await decryptDm(msg.data, pkData.publicKey);
+						const supporting = dmSupportingTextByUserId.get(otherUserId);
+						if (supporting && plaintext) {
+							const lines = plaintext.split(/\r?\n/).slice(0, 2);
+							supporting.textContent = lines.join("\n");
+							supporting.style.display = lines.length ? "block" : "none";
+						}
+					}
+				} catch {}
 			}
 		}
 	} catch {}

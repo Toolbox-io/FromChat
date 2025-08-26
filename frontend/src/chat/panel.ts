@@ -1,7 +1,8 @@
-import { authToken, currentUser } from "../auth/api";
-import type { Message, WebSocketMessage } from "../core/types";
+import { authToken, currentUser, getAuthHeaders } from "../auth/api";
+import { API_BASE_URL } from "../core/config";
+import type { Message, Messages, WebSocketMessage } from "../core/types";
 import { request } from "../websocket";
-import { loadMessages } from "./chat";
+import { addMessage } from "./chat";
 import { show as showContextMenu } from "./contextMenu";
 import { show as showProfileDialog } from "./profileDialog";
 
@@ -80,7 +81,31 @@ export class PublicChatPanel extends ChatPanelController {
 	}
 
 	protected loadMessages(): void {
-		return loadMessages();
+		fetch(`${API_BASE_URL}/get_messages`, {
+			headers: getAuthHeaders()
+		})
+			.then(response => response.json())
+			.then((data: Messages) => {
+				if (data.messages && data.messages.length > 0) {
+					messages.innerHTML = "";
+
+					const messagesContainer = document.querySelector('.chat-messages') as HTMLElement;
+	
+					const lastMessage = messagesContainer.lastElementChild as HTMLElement
+					let lastMessageId: number = 0
+					if (lastMessage) {
+						lastMessageId = Number(lastMessage.dataset.id)
+					}
+					
+					// Добавляем только новые сообщения
+					data.messages.forEach(msg => {
+						console.log(msg);
+						if (msg.id > lastMessageId) {
+							addMessage(msg, msg.username == currentUser!.username);
+						}
+					});
+				}
+			});
 	}
 
 	public onProfileClicked(): void {

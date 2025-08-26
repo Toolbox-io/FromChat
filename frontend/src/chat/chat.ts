@@ -124,35 +124,6 @@ export function addMessage(message: Message, isAuthor: boolean): void {
 }
 
 /**
- * Loads chat messages from the server
- */
-export function loadMessages(): void {
-    fetch(`${API_BASE_URL}/get_messages`, {
-        headers: getAuthHeaders()
-    })
-        .then(response => response.json())
-        .then((data: Messages) => {
-            if (data.messages && data.messages.length > 0) {
-                const messagesContainer = document.querySelector('.chat-messages') as HTMLElement;
-
-                const lastMessage = messagesContainer.lastElementChild as HTMLElement
-                let lastMessageId: number = 0
-                if (lastMessage) {
-                    lastMessageId = Number(lastMessage.dataset.id)
-                }
-                
-                // Добавляем только новые сообщения
-                data.messages.forEach(msg => {
-                    console.log(msg);
-                    if (msg.id > lastMessageId) {
-                        addMessage(msg, msg.username == currentUser!.username);
-                    }
-                });
-            }
-        });
-}
-
-/**
  * Sends a message via WebSocket
  */
 export async function sendMessage(): Promise<void> {

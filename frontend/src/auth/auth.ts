@@ -8,7 +8,7 @@
 import { initializeProfile } from "../userPanel/profile/profile";
 import type { ErrorResponse, LoginResponse, LoginRequest, RegisterRequest } from "../core/types";
 import { API_BASE_URL } from "../core/config";
-import { loadChat, showLogin, showRegister } from "../navigation";
+import { showChat, showLogin, showRegister } from "../navigation";
 import { setUser } from "./api";
 import { ensureKeysOnLogin } from "./crypto";
 import { id } from "../utils/utils";
@@ -77,7 +77,7 @@ async function handleLogin(e: Event): Promise<void> {
             } catch (e) {
                 console.error("Key setup failed:", e);
             }
-            loadChat();
+            showChat();
             initializeProfile(); // Initialize profile after login
         } else {
             const data: ErrorResponse = await response.json();
