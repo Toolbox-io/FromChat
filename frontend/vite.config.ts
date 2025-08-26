@@ -46,6 +46,7 @@ export default defineConfig({
                 ws: true
             }
         },
+        allowedHosts: ["beta.fromchat.toolbox-io.ru"]
     },
     appType: "mpa",
     css: {
