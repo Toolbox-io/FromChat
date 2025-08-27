@@ -214,8 +214,6 @@ export class ImageCropper {
      * Destroys the cropper and removes the canvas from DOM
      */
     destroy(): void {
-        if (this.canvas.parentNode) {
-            this.canvas.parentNode.removeChild(this.canvas);
-        }
+        this.canvas.remove();
     }
 }
