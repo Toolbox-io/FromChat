@@ -11,7 +11,7 @@ import "mdui/mdui.css";
 import "./utils/material";
 import "./chat/chat";
 import "./userPanel/settings";
-import "./userPanel/leftpanel";
+import "./userPanel/userpanel";
 import "./core/init";
 import "./userPanel/profile/profile";
 import "./chat/contextMenu";
