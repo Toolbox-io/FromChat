@@ -2,4 +2,7 @@
 alwaysApply: true
 ---
 
+When working with this project, follow these rules:
+
 - NEVER do anything i didn't ask you for!
+- Use double quotes ("") for strings.
