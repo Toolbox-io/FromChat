@@ -9,8 +9,8 @@ import type { Dialog } from "mdui/components/dialog";
 import { id } from "../utils/utils";
 
 const dialog = id<Dialog>('settings-dialog');
-const openButton = id('settings-open')!;
-const closeButton = id('settings-close')!;
+const openButton = id('settings-open');
+const closeButton = id('settings-close');
 
 // Settings panel management
 const settingsList = document.querySelector('#settings-menu mdui-list')!;
@@ -18,9 +18,8 @@ const settingsPanels = document.querySelectorAll('.settings-panel');
 
 /**
  * Mapping between list item text and their corresponding panel IDs
- * @type {Object.<string, string>}
  */
-const panelMapping = {
+const panelMapping: {[x: string]: string} = {
     'Уведомления': 'notifications-settings',
     'Внешний вид': 'appearance-settings',
     'Безопасность': 'security-settings',
@@ -45,8 +44,8 @@ function handleListItemClick(item: Element): void {
     item.setAttribute('active', '');
     
     // Show corresponding panel using the mapping
-    const itemText = item.textContent?.trim();
-    const panelId = panelMapping[itemText as keyof typeof panelMapping];
+    const itemText = item.textContent!.trim();
+    const panelId = panelMapping[itemText];
     
     if (panelId) {
         const targetPanel = id(panelId);
@@ -54,17 +53,6 @@ function handleListItemClick(item: Element): void {
             targetPanel.classList.add('active');
         }
     }
-}
-
-/**
- * Sets up click listeners for all settings list items
- * @private
- */
-function setupSettingsNavigation(): void {
-    const listItems = settingsList.querySelectorAll('mdui-list-item');
-    listItems.forEach((item) => {
-        item.addEventListener('click', () => handleListItemClick(item));
-    });
 }
 
 /**
@@ -83,10 +71,16 @@ function resetToFirstPanel(): void {
 }
 
 /**
- * Sets up dialog event listeners
+ * Initializes settings.
  * @private
  */
-function setupDialogListeners(): void {
+function init() {
+    // Set up settings navigation
+    settingsList.querySelectorAll('mdui-list-item').forEach((item) => {
+        item.addEventListener('click', () => handleListItemClick(item));
+    });
+
+    // Set up dialog listeners
     openButton.addEventListener('click', () => {
         dialog.open = true;
         resetToFirstPanel();
@@ -97,5 +91,4 @@ function setupDialogListeners(): void {
     });
 }
 
-setupSettingsNavigation();
-setupDialogListeners();
+init();
