@@ -30,7 +30,7 @@ jobs:
       HOME: "/root"
     environment:
       name: production
-      url: https://fromchat.toolbox-io.ru
+      url: https://fromchat.ru
     steps:
       - name: Checkout
         uses: actions/checkout@v4

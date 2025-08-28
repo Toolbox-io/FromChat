@@ -6,9 +6,11 @@
  */
 
 import { showLogin } from "../navigation";
-import { id } from "../utils/utils";
 import { PRODUCT_NAME } from "./config";
 
 showLogin();
-id("productname").textContent = PRODUCT_NAME;
+
+document.querySelectorAll(".product-name").forEach(el => {
+    el.textContent = PRODUCT_NAME;
+});
 document.title = PRODUCT_NAME;
