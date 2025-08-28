@@ -62,6 +62,7 @@ function handleListItemClick(item: Element): void {
 function resetToFirstPanel(): void {
     const firstItem = settingsList.querySelector('mdui-list-item');
     const firstPanel = document.querySelector('.settings-panel');
+    
     if (firstItem && firstPanel) {
         settingsList.querySelectorAll('mdui-list-item').forEach(li => li.removeAttribute('active'));
         settingsPanels.forEach(panel => panel.classList.remove('active'));
