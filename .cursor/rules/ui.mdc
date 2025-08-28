@@ -6,3 +6,4 @@ When you work with UI:
 
 1. Use MDUI components as HTML elements
 2. Do NOT dynamically create HTML if it's going to be loaded when the page loads, instead put it statically in the HTML.
+3. The supporting text slot for MDUI lists is "description".

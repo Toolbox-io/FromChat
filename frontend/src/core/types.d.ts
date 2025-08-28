@@ -5,6 +5,7 @@
  * @version 1.0.0
  */
 
+
 /**
  * HTTP headers object type
  * @typedef {Object.<string, string>} Headers
@@ -83,6 +84,7 @@ export interface User {
     username: string;
     admin?: boolean;
     bio?: string;
+    profile_picture: string;
 }
 
 /**
@@ -136,6 +138,19 @@ export interface RegisterRequest {
     confirm_password: string;
 }
 
+export interface UploadPublicKeyRequest {
+    publicKey: string;
+}
+
+export interface SendDMRequest {
+    recipientId: number;
+    iv: string;
+    ciphertext: string;
+    salt: string;
+    iv2: string;
+    wrappedMk: string;
+}
+
 // Responses
 
 /**
@@ -147,6 +162,26 @@ export interface RegisterRequest {
 export interface LoginResponse {
     user: User;
     token: string;
+}
+
+export interface BackupBlob {
+    blob: string;
+}
+
+export interface DmEnvelope {
+    id: number;
+    senderId: number;
+    recipientId: number;
+    iv: string;
+    ciphertext: string;
+    salt: string;
+    iv2: string;
+    wrappedMk: string;
+    timestamp: string;
+}
+
+export interface FetchDMResponse {
+    messages: DmEnvelope[]
 }
 
 // ---------------

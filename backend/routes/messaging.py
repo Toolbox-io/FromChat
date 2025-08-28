@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
 from constants import OWNER_USERNAME
-from models import Message, SendMessageRequest, EditMessageRequest, ReplyMessageRequest, User
+from models import Message, SendMessageRequest, EditMessageRequest, ReplyMessageRequest, User, DMEnvelope
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -65,6 +65,82 @@ async def get_messages(db: Session = Depends(get_db)):
     return {
         "status": "success",
         "messages": messages_data
+    }
+
+
+@router.post("/dm/send")
+async def dm_send(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    required = ["recipientId", "iv", "ciphertext", "salt", "iv2", "wrappedMk"]
+    for key in required:
+        if key not in payload:
+            raise HTTPException(status_code=400, detail=f"Missing {key}")
+    env = DMEnvelope(
+        sender_id=current_user.id,
+        recipient_id=int(payload["recipientId"]),
+        iv_b64=payload["iv"],
+        ciphertext_b64=payload["ciphertext"],
+        salt_b64=payload["salt"],
+        iv2_b64=payload["iv2"],
+        wrapped_mk_b64=payload["wrappedMk"],
+    )
+    db.add(env)
+    db.commit()
+    db.refresh(env)
+    return {"status": "ok", "id": env.id}
+
+
+@router.get("/dm/fetch")
+async def dm_fetch(since: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    q = db.query(DMEnvelope).filter(DMEnvelope.recipient_id == current_user.id)
+    if since:
+        q = q.filter(DMEnvelope.id > since)
+    envs = q.order_by(DMEnvelope.id.asc()).all()
+    return {
+        "status": "ok",
+        "messages": [
+            {
+                "id": e.id,
+                "senderId": e.sender_id,
+                "recipientId": e.recipient_id,
+                "iv": e.iv_b64,
+                "ciphertext": e.ciphertext_b64,
+                "salt": e.salt_b64,
+                "iv2": e.iv2_b64,
+                "wrappedMk": e.wrapped_mk_b64,
+                "timestamp": e.timestamp.isoformat(),
+            }
+            for e in envs
+        ]
+    }
+
+
+@router.get("/dm/history/{other_user_id}")
+async def dm_history(other_user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    envs = (
+        db.query(DMEnvelope)
+        .filter(
+            ((DMEnvelope.sender_id == current_user.id) & (DMEnvelope.recipient_id == other_user_id))
+            | ((DMEnvelope.sender_id == other_user_id) & (DMEnvelope.recipient_id == current_user.id))
+        )
+        .order_by(DMEnvelope.id.asc())
+        .all()
+    )
+    return {
+        "status": "ok",
+        "messages": [
+            {
+                "id": e.id,
+                "senderId": e.sender_id,
+                "recipientId": e.recipient_id,
+                "iv": e.iv_b64,
+                "ciphertext": e.ciphertext_b64,
+                "salt": e.salt_b64,
+                "iv2": e.iv2_b64,
+                "wrappedMk": e.wrapped_mk_b64,
+                "timestamp": e.timestamp.isoformat(),
+            }
+            for e in envs
+        ]
     }
 
 
@@ -147,6 +223,7 @@ async def reply_message(
 class MessaggingSocketManager:
     def __init__(self) -> None:
         self.connections: list[WebSocket] = []
+        self.user_by_ws: dict[WebSocket, int] = {}
 
     async def send_error(self, websocket: WebSocket, type: str, e: HTTPException):
         await websocket.send_json({"type": type, "error": {"code": e.status_code, "detail": e.detail}})
@@ -169,12 +246,19 @@ class MessaggingSocketManager:
                     return None
 
             if type == "ping":
+                try:
+                    current_user = get_current_user_inner()
+                    if current_user:
+                        self.user_by_ws[websocket] = current_user.id
+                except HTTPException:
+                    pass
                 await websocket.send_json({"type": "ping", "data": {"status": "success"}})
             elif type == "getMessages":
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
                         raise HTTPException(401)
+                    self.user_by_ws[websocket] = current_user.id
 
                     await websocket.send_json({"type": type, "data": await get_messages(current_user, db)})
                 except HTTPException as e:
@@ -184,6 +268,7 @@ class MessaggingSocketManager:
                     current_user = get_current_user_inner()
                     if not current_user:
                         raise HTTPException(401)
+                    self.user_by_ws[websocket] = current_user.id
                     
                     request: SendMessageRequest = SendMessageRequest.model_validate(data["data"])
 
@@ -194,6 +279,46 @@ class MessaggingSocketManager:
                     })
 
                     await websocket.send_json({"type": type, "data": response})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "dmSend":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+                    self.user_by_ws[websocket] = current_user.id
+                    payload = data["data"]
+                    required = ["recipientId", "iv", "ciphertext", "salt", "iv2", "wrappedMk"]
+                    for key in required:
+                        if key not in payload:
+                            raise HTTPException(status_code=400, detail=f"Missing {key}")
+                    env = DMEnvelope(
+                        sender_id=current_user.id,
+                        recipient_id=int(payload["recipientId"]),
+                        iv_b64=payload["iv"],
+                        ciphertext_b64=payload["ciphertext"],
+                        salt_b64=payload["salt"],
+                        iv2_b64=payload["iv2"],
+                        wrapped_mk_b64=payload["wrappedMk"],
+                    )
+                    db.add(env)
+                    db.commit()
+                    db.refresh(env)
+                    await self.send_to_user(env.recipient_id, {
+                        "type": "dmNew",
+                        "data": {
+                            "id": env.id,
+                            "senderId": env.sender_id,
+                            "recipientId": env.recipient_id,
+                            "iv": env.iv_b64,
+                            "ciphertext": env.ciphertext_b64,
+                            "salt": env.salt_b64,
+                            "iv2": env.iv2_b64,
+                            "wrappedMk": env.wrapped_mk_b64,
+                            "timestamp": env.timestamp.isoformat(),
+                        }
+                    })
+                    await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}})
                 except HTTPException as e:
                     await self.send_error(websocket, type, e)
             elif type == "editMessage":
@@ -264,10 +389,17 @@ class MessaggingSocketManager:
             logger.info(f"WebSocket disconnected with code {e.code}: {e.reason}")
         finally:
             self.connections.remove(websocket)
+            if websocket in self.user_by_ws:
+                del self.user_by_ws[websocket]
 
     async def broadcast(self, message: dict):
         for websocket in self.connections:
             await websocket.send_json(message)
+
+    async def send_to_user(self, user_id: int, message: dict):
+        for websocket in self.connections:
+            if self.user_by_ws.get(websocket) == user_id:
+                await websocket.send_json(message)
 
 messagingManager = MessaggingSocketManager()
 

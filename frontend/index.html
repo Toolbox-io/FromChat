@@ -147,6 +147,9 @@
                                 <mdui-tab value="contacts">
                                     Контакты
                                 </mdui-tab>
+                                <mdui-tab value="dms">
+                                    ЛС
+                                </mdui-tab>
 
                                 <mdui-tab-panel slot="panel" value="chats">
                                     <mdui-list>
@@ -160,6 +163,9 @@
                                 </mdui-tab-panel>
                                 <mdui-tab-panel slot="panel" value="channels">Скоро будет...</mdui-tab-panel>
                                 <mdui-tab-panel slot="panel" value="contacts">Скоро будет...</mdui-tab-panel>
+                                <mdui-tab-panel slot="panel" value="dms">
+                                    <mdui-list id="dm-users"></mdui-list>
+                                </mdui-tab-panel>
                             </mdui-tabs>
                         </div>
                         <mdui-bottom-app-bar>
@@ -410,6 +416,12 @@
                             <span class="stat-label">Last seen:</span>
                             <span class="stat-value last-seen"></span>
                         </div>
+                    </div>
+                    <div class="profile-actions">
+                        <mdui-button id="dm-button" variant="filled">
+                            <mdui-icon slot="icon" name="chat--filled"></mdui-icon>
+                            Send Message
+                        </mdui-button>
                     </div>
                 </div>
             </div>

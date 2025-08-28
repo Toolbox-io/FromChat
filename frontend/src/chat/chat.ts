@@ -6,13 +6,14 @@
  */
 
 import { API_BASE_URL } from "../core/config";
-import { websocket } from "../websocket";
+import { request } from "../websocket";
 import type { Message, Messages, WebSocketMessage } from "../core/types";
 import { formatTime } from "../utils/utils";
 import { show as showContextMenu } from "./contextMenu";
 import { show as showUserProfileDialog } from "./profileDialog";
 import defaultAvatar from "../resources/images/default-avatar.png";
 import { authToken, currentUser, getAuthHeaders } from "../auth/api";
+import { ChatPanelController, PublicChatPanel } from "./panel";
 
 /**
  * Adds a new message to the chat interface
@@ -123,42 +124,14 @@ export function addMessage(message: Message, isAuthor: boolean): void {
 }
 
 /**
- * Loads chat messages from the server
- */
-export function loadMessages(): void {
-    fetch(`${API_BASE_URL}/get_messages`, {
-        headers: getAuthHeaders()
-    })
-        .then(response => response.json())
-        .then((data: Messages) => {
-            if (data.messages && data.messages.length > 0) {
-                const messagesContainer = document.querySelector('.chat-messages') as HTMLElement;
-
-                const lastMessage = messagesContainer.lastElementChild as HTMLElement
-                let lastMessageId: number = 0
-                if (lastMessage) {
-                    lastMessageId = Number(lastMessage.dataset.id)
-                }
-                
-                // Добавляем только новые сообщения
-                data.messages.forEach(msg => {
-                    if (msg.id > lastMessageId) {
-                        addMessage(msg, msg.username == currentUser!.username);
-                    }
-                });
-            }
-        });
-}
-
-/**
  * Sends a message via WebSocket
  */
-export function sendMessage(): void {
+export async function sendMessage(): Promise<void> {
     const input = document.querySelector('.message-input') as HTMLInputElement;
     const message = input.value.trim();
 
     if (message) {
-        const payload: WebSocketMessage = {
+        const response = await request({
             data: {
                 content: message
             }, 
@@ -167,28 +140,14 @@ export function sendMessage(): void {
                 credentials: authToken!
             },
             type: "sendMessage"
-        }
+        })
 
-        let callback: ((e: MessageEvent) => void) | null = null
-        callback = (e) => {
-            websocket.removeEventListener("message", callback!);
-            const response: WebSocketMessage = JSON.parse(e.data)
-            console.log(response)
-            if (!response.error) {
-                input.value = "";
-            }
+        console.log(response)
+        if (!response.error) {
+            input.value = "";
         }
-        websocket.addEventListener("message", callback);
-
-        websocket.send(JSON.stringify(payload));
     }
 }
-
-
-document.getElementById('message-form')!.addEventListener('submit', (e) => {
-    e.preventDefault();
-    sendMessage();
-});
 
 /**
  * Updates an existing message in the chat interface
@@ -230,22 +189,28 @@ export function removeMessage(messageId: number): void {
  * @param {WebSocketMessage} response - WebSocket response
  */
 export function handleWebSocketMessage(response: WebSocketMessage): void {
-    switch (response.type) {
-        case 'messageEdited':
-            if (response.data) {
-                updateMessage(response.data);
-            }
-            break;
-        case 'messageDeleted':
-            if (response.data && response.data.message_id) {
-                removeMessage(response.data.message_id);
-            }
-            break;
-        case 'newMessage':
-            if (response.data) {
-                const isAuthor = response.data.username === currentUser?.username;
-                addMessage(response.data, isAuthor);
-            }
-            break;
+    if (ChatPanelController.active == publicChatPanel) {
+        switch (response.type) {
+            case 'messageEdited':
+                if (response.data) {
+                    updateMessage(response.data);
+                }
+                break;
+            case 'messageDeleted':
+                if (response.data && response.data.message_id) {
+                    removeMessage(response.data.message_id);
+                }
+                break;
+            case 'newMessage':
+                if (response.data) {
+                    const isAuthor = response.data.username === currentUser?.username;
+                    addMessage(response.data, isAuthor);
+                }
+                break;
+        }
     }
 }
+
+export const publicChatPanel = new PublicChatPanel();
+
+publicChatPanel.activate();

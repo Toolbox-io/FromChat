@@ -5,8 +5,8 @@
  * @version 1.0.0
  */
 
-import { websocket } from "../websocket";
-import type { Message, WebSocketMessage } from "../core/types";
+import { request } from "../websocket";
+import type { Message } from "../core/types";
 import { showSuccess, showError } from "../utils/notification";
 import { delay, id } from "../utils/utils";
 import type { Dialog } from "mdui/components/dialog";
@@ -84,9 +84,16 @@ export function show(message: Message, x: number, y: number): void {
     
     const isAuthor = message.username === currentUser?.username;
     const isOwner = currentUser?.admin;
-
+    
+    // Check if we're in a DM conversation
+    const isInDm = document.querySelector('.chat-tabs mdui-tab[value="dms"]')?.getAttribute('active') === 'true';
+    
+    // Show edit only for own messages
     editItem.style.display = isAuthor ? 'flex' : 'none';
-    deleteItem.style.display = (isAuthor || isOwner) ? 'flex' : 'none';
+    
+    // Show delete for own messages, admin on any message, or in DMs for any message
+    const canDelete = isAuthor || isOwner || isInDm;
+    deleteItem.style.display = canDelete ? 'flex' : 'none';
     
     // Position the menu properly
     menu.style.display = 'block';
@@ -184,7 +191,7 @@ function hideEditDialog(): void {
  * Saves the edited message
  * @private
  */
-function saveEdit(): void {
+async function saveEdit(): Promise<void> {
     if (!currentMessage) return;
 
     const textField = editDialog.querySelector('#edit-message-input') as TextField;
@@ -195,7 +202,7 @@ function saveEdit(): void {
         return;
     }
 
-    const payload: WebSocketMessage = {
+    const response = await request({
         type: "editMessage",
         data: {
             message_id: currentMessage.id,
@@ -205,22 +212,14 @@ function saveEdit(): void {
             scheme: "Bearer",
             credentials: authToken!
         }
-    };
+    });
 
-    let callback: ((e: MessageEvent) => void) | null = null;
-    callback = (e) => {
-        websocket.removeEventListener("message", callback!);
-        const response: WebSocketMessage = JSON.parse(e.data);
-        
-        if (response.error) {
-            showError(response.error.detail);
-        } else {
-            showSuccess('Message edited successfully');
-            hideEditDialog();
-        }
-    };
-    websocket.addEventListener("message", callback);
-    websocket.send(JSON.stringify(payload));
+    if (response.error) {
+        showError(response.error.detail);
+    } else {
+        showSuccess('Message edited successfully');
+        hideEditDialog();
+    }
 }
 
 /**
@@ -257,7 +256,7 @@ function hideReplyDialog(): void {
  * Sends the reply message
  * @private
  */
-function sendReply(): void {
+async function sendReply(): Promise<void> {
     if (!currentMessage) return;
 
     const textField = replyDialog.querySelector('#reply-message-input') as TextField;
@@ -268,7 +267,7 @@ function sendReply(): void {
         return;
     }
 
-    const payload: WebSocketMessage = {
+    const response = await request({
         type: "replyMessage",
         data: {
             content: content,
@@ -278,25 +277,17 @@ function sendReply(): void {
             scheme: "Bearer",
             credentials: authToken!
         }
-    };
+    });
 
-    let callback: ((e: MessageEvent) => void) | null = null;
-    callback = (e) => {
-        websocket.removeEventListener("message", callback!);
-        const response: WebSocketMessage = JSON.parse(e.data);
-        
-        if (response.error) {
-            showError(response.error.detail);
-        } else {
-            showSuccess('Reply sent successfully');
-            hideReplyDialog();
-            if (textField) {
-                textField.value = '';
-            }
+    if (response.error) {
+        showError(response.error.detail);
+    } else {
+        showSuccess('Reply sent successfully');
+        hideReplyDialog();
+        if (textField) {
+            textField.value = '';
         }
-    };
-    websocket.addEventListener("message", callback);
-    websocket.send(JSON.stringify(payload));
+    }
 }
 
 /**
@@ -304,12 +295,12 @@ function sendReply(): void {
  * @param {Message} message - The message to delete
  * @private
  */
-function deleteMessage(message: Message): void {
+async function deleteMessage(message: Message): Promise<void> {
     if (!confirm('Are you sure you want to delete this message?')) {
         return;
     }
 
-    const payload: WebSocketMessage = {
+    const response = await request({
         type: "deleteMessage",
         data: {
             message_id: message.id
@@ -318,21 +309,13 @@ function deleteMessage(message: Message): void {
             scheme: "Bearer",
             credentials: authToken!
         }
-    };
+    });
 
-    let callback: ((e: MessageEvent) => void) | null = null;
-    callback = (e) => {
-        websocket.removeEventListener("message", callback!);
-        const response: WebSocketMessage = JSON.parse(e.data);
-        
-        if (response.error) {
-            showError(response.error.detail);
-        } else {
-            showSuccess('Message deleted successfully');
-        }
-    };
-    websocket.addEventListener("message", callback);
-    websocket.send(JSON.stringify(payload));
+    if (response.error) {
+        showError(response.error.detail);
+    } else {
+        showSuccess('Message deleted successfully');
+    }
 }
 
 init();
