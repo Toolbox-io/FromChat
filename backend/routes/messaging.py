@@ -1,4 +1,7 @@
 from datetime import datetime
+import time
+import asyncio
+from collections import deque, defaultdict
 import logging
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPAuthorizationCredentials
@@ -6,9 +9,32 @@ from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
 from constants import OWNER_USERNAME
 from models import Message, SendMessageRequest, EditMessageRequest, ReplyMessageRequest, User, DMEnvelope
+from utils import filter_profanity
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
+
+# Simple in-memory rate limiter (per-process)
+_rate_limit_buckets: dict[int, deque[float]] = defaultdict(deque)
+_rate_limit_lock = asyncio.Lock()
+
+# Configuration: max N messages per window_seconds
+_RATE_LIMIT_MAX = 20
+_RATE_LIMIT_WINDOW_SECONDS = 60
+
+async def _check_rate_limit(user_id: int):
+    now = time.monotonic()
+    window_start = now - _RATE_LIMIT_WINDOW_SECONDS
+    async with _rate_limit_lock:
+        bucket = _rate_limit_buckets[user_id]
+        # Drop timestamps outside window
+        while bucket and bucket[0] < window_start:
+            bucket.popleft()
+        if len(bucket) >= _RATE_LIMIT_MAX:
+            # Calculate retry-after as time until oldest entry exits window
+            retry_after = max(1, int(bucket[0] - window_start))
+            raise HTTPException(status_code=429, detail="Rate limit exceeded. Please slow down.", headers={"Retry-After": str(retry_after)})
+        bucket.append(now)
 
 def convert_message(msg: Message) -> dict:
     return {
@@ -29,6 +55,7 @@ async def send_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    await _check_rate_limit(current_user.id)
     if not request.content.strip():
         raise HTTPException(
             status_code=400,
@@ -41,8 +68,11 @@ async def send_message(
             detail="Message too long"
         )
 
+    # Apply profanity filter to public chat messages
+    filtered_content = filter_profanity(request.content.strip())
+
     new_message = Message(
-        content=request.content.strip(),
+        content=filtered_content,
         user_id=current_user.id,
         timestamp=datetime.now()
     )
@@ -162,7 +192,9 @@ async def edit_message(
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="Message content cannot be empty")
     
-    message.content = request.content.strip()
+    # Apply profanity filter to public chat messages
+    filtered_content = filter_profanity(request.content.strip())
+    message.content = filtered_content
     message.is_edited = True
     
     db.commit()
@@ -206,8 +238,11 @@ async def reply_message(
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="No content provided")
     
+    # Apply profanity filter to reply messages
+    filtered_content = filter_profanity(request.content.strip())
+    
     new_message = Message(
-        content=request.content.strip(),
+        content=filtered_content,
         user_id=current_user.id,
         timestamp=datetime.now(),
         reply_to_id=request.reply_to_id
@@ -269,8 +304,13 @@ class MessaggingSocketManager:
                     if not current_user:
                         raise HTTPException(401)
                     self.user_by_ws[websocket] = current_user.id
+                    await _check_rate_limit(current_user.id)
                     
                     request: SendMessageRequest = SendMessageRequest.model_validate(data["data"])
+
+                    # Apply profanity filter to public chat messages via WebSocket
+                    if request.content.strip():
+                        request.content = filter_profanity(request.content.strip())
 
                     response = await send_message(request, current_user, db)
                     await self.broadcast({
@@ -330,6 +370,10 @@ class MessaggingSocketManager:
                     message_id = data["data"]["message_id"]
                     request: EditMessageRequest = EditMessageRequest.model_validate(data["data"])
 
+                    # Apply profanity filter to public chat messages via WebSocket
+                    if request.content.strip():
+                        request.content = filter_profanity(request.content.strip())
+
                     response = await edit_message(message_id, request, current_user, db)
                     await self.broadcast({
                         "type": "messageEdited",
@@ -362,6 +406,11 @@ class MessaggingSocketManager:
                         raise HTTPException(401)
                     
                     request: ReplyMessageRequest = ReplyMessageRequest.model_validate(data["data"])
+                    
+                    # Apply profanity filter to reply messages via WebSocket
+                    if request.content.strip():
+                        request.content = filter_profanity(request.content.strip())
+                        
                     response = await reply_message(request, current_user, db)
                     await self.broadcast({
                         "type": "newMessage",

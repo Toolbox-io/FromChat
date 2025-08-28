@@ -2,8 +2,21 @@ from datetime import datetime, timedelta
 import jwt
 from typing import Optional
 import bcrypt
+import profanity
 
 from constants import *
+
+def filter_profanity(text: str) -> str:
+    """
+    Filter profanity from text using the profanity library.
+    Provides good multi-language support including Russian.
+    Only applies to public chat messages.
+    """
+    if not text:
+        return text
+    
+    # Use the profanity library to censor inappropriate content
+    return profanity.censor(text)
 
 # JWT Helper Functions
 def create_token(user_id: int, username: str) -> str:
