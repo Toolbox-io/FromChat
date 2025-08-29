@@ -1,3 +1,33 @@
+import ChatScreen from "./screen/ChatScreen";
+import LoginScreen from "./screen/LoginScreen";
+import RegisterScreen from "./screen/RegisterScreen";
+import { useAppState } from "./state"
+
 export default function App() {
-    return <></>
+    const { currentPage } = useAppState();
+
+    let page = <LoginScreen />;
+
+    switch (currentPage) {
+        case "login": {
+            page = <LoginScreen />
+            break;
+        }
+        case "register": {
+            page = <RegisterScreen />
+            break;
+        }
+        case "chat": {
+            page = <ChatScreen />
+            break;
+        }
+    }
+
+    return (
+        <>
+            <div id="main-wrapper">
+                {page}
+            </div>
+        </>
+    )
 }

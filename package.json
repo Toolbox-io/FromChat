@@ -29,6 +29,9 @@
         "prepare": "husky"
     },
     "devDependencies": {
+        "@types/react": "^19.1.12",
+        "@types/react-dom": "^19.1.9",
+        "@vitejs/plugin-react": "^5.0.2",
         "autoprefixer": "^10.4.21",
         "concurrently": "^9.2.0",
         "dotenv-cli": "^10.0.0",
@@ -41,15 +44,13 @@
         "vite": "^7.1.2",
         "vite-plugin-electron": "^0.29.0",
         "vite-plugin-electron-renderer": "^0.14.6",
-        "vite-plugin-html": "^3.2.2",
-        "@vitejs/plugin-react": "^5.0.2",
-        "@types/react": "^19.1.12",
-        "@types/react-dom": "^19.1.9"
+        "vite-plugin-html": "^3.2.2"
     },
     "dependencies": {
         "mdui": "^2.1.4",
-        "tweetnacl": "^1.0.3",
         "react": "^19.1.1",
-        "react-dom": "^19.1.1"
+        "react-dom": "^19.1.1",
+        "tweetnacl": "^1.0.3",
+        "zustand": "^5.0.8"
     }
 }

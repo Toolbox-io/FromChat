@@ -161,9 +161,6 @@ async function handleRegister(e: Event): Promise<void> {
 function init(): void {
     id('login-form-element').addEventListener('submit', handleLogin);
     id('register-form-element').addEventListener('submit', handleRegister);
-
-    id("login-link").addEventListener("click", showLogin);
-    id("register-link").addEventListener("click", showRegister);
 }
 
 init();
