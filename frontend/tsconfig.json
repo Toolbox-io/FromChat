@@ -17,7 +17,11 @@
         "strict": true,
         "erasableSyntaxOnly": true,
         "noFallthroughCasesInSwitch": true,
-        "noUncheckedSideEffectImports": true
+        "noUncheckedSideEffectImports": true,
+
+        /* React JSX Support */
+        "jsx": "react-jsx",
+        "jsxImportSource": "react"
     },
     "include": ["src", "electron.d.ts"]
 }

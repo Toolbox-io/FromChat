@@ -1,0 +1,26 @@
+/**
+ * @fileoverview Application entry point for FromChat frontend
+ * @description Main module that initializes all required components and styles
+ * @author Cursor
+ * @version 1.0.0
+ */
+
+import './resources/css/style.scss';
+import "mdui/mdui.css";
+
+import "./utils/material";
+// import "./chat/chat";
+// import "./userPanel/settings";
+// import "./userPanel/userpanel";
+// import "./core/init";
+// import "./userPanel/profile/profile";
+// import "./chat/contextMenu";
+// import "./chat/profileDialog";
+// import "./electron/electron";
+// import "./chat/panel";
+// import "./chat/dm";
+import { createRoot } from 'react-dom/client';
+import App from './ui/App';
+
+// Initialize React app
+createRoot(document.getElementById("root")!).render(<App />);
