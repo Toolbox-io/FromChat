@@ -7,18 +7,17 @@
         <link rel="icon" href="./src/resources/images/logo.png" />
     </head>
     <body>
-        <div id="electron-title-bar">
+        <!-- <div id="electron-title-bar">
             <div class="macos-padding"></div>
             <div id="window-title"></div>
-            <!-- <div class="window-controls">
+            <div class="window-controls">
                 <mdui-button-icon icon="remove" id="window-minimize"></mdui-button-icon>
                 <mdui-button-icon icon="stack--outlined" id="window-restore" class="hidden"></mdui-button-icon>
                 <mdui-button-icon icon="ad--outlined" id="window-maximize"></mdui-button-icon>
                 <mdui-button-icon icon="close" id="window-close"></mdui-button-icon>
-            </div> -->
+            </div> 
         </div>
         <div id="main-wrapper">
-            <!-- Login Form -->
             <div id="login-form" class="auth-container">
                 <div class="auth-card fade-in">
                     <div class="auth-header">
@@ -62,8 +61,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Register Form -->
             <div id="register-form" class="auth-container" style="display: none;">
                 <div class="auth-card fade-in">
                     <div class="auth-header">
@@ -123,8 +120,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Chat Interface -->
             <div id="chat-interface" style="display: none;">
                 <div class="all-container">
                     <div class="chat-list" id="chat-list">
@@ -192,7 +187,6 @@
                             </div>
                             
                             <div class="chat-messages" id="chat-messages">
-                                <!-- Messages will be loaded here dynamically -->
                             </div>
                             
                             <div class="chat-input-wrapper">
@@ -239,7 +233,6 @@
             </div>
         </mdui-dialog>
 
-        <!-- Profile Picture Cropper Dialog -->
         <mdui-dialog id="cropper-dialog" close-on-overlay-click close-on-esc>
             <div class="cropper-dialog-content">
                 <div class="cropper-header">
@@ -425,8 +418,10 @@
                     </div>
                 </div>
             </div>
-        </mdui-dialog>
+        </mdui-dialog> -->
 
-        <script src="src/main.ts" type="module"></script>
+        <div id="root"></div>
+
+        <script src="src/main.tsx" type="module"></script>
     </body>
 </html>
