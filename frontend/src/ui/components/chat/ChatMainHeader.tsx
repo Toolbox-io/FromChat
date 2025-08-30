@@ -1,5 +1,6 @@
 import { useChat } from "../../hooks/useChat";
 import { useState } from "react";
+import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 export function ChatMainHeader() {
     const { currentChat } = useChat();
@@ -12,7 +13,7 @@ export function ChatMainHeader() {
 
     return (
         <div className="chat-header">
-            <img src="./src/resources/images/default-avatar.png" alt="Avatar" className="chat-header-avatar" />
+            <img src={defaultAvatar} alt="Avatar" className="chat-header-avatar" />
             <div className="chat-header-info">
                 <div className="info-chat">
                     <h4 id="chat-name">{currentChat}</h4>

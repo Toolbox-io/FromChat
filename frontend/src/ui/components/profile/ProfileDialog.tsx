@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { useAppState } from "../../state";
 import { useDialog } from "../../contexts/DialogContext";
+import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 export function ProfileDialog() {
     const [username, setUsername] = useState("user123");
     const [description, setDescription] = useState("");
-    const { user } = useAppState();
     const { isProfileOpen, closeProfile } = useDialog();
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -20,7 +19,7 @@ export function ProfileDialog() {
             <div className="content">
                 <div className="header-top">
                     <div className="profile-picture-container">
-                        <img id="profile-picture" src="./src/resources/images/default-avatar.png" alt="Ваше фото" />
+                        <img id="profile-picture" src={defaultAvatar} alt="Ваше фото" />
                         <mdui-button-icon icon="camera_alt--filled" id="upload-pfp-btn" className="upload-overlay" variant="filled"></mdui-button-icon>
                         <input type="file" id="pfp-file-input" accept="image/*" style={{ display: "none" }} />
                     </div>
