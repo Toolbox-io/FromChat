@@ -5,12 +5,9 @@
  * @version 1.0.0
  */
 
-import { initializeProfile } from "../userPanel/profile/profile";
-import type { ErrorResponse, LoginResponse, LoginRequest, RegisterRequest } from "../core/types";
+import type { ErrorResponse, RegisterRequest } from "../core/types";
 import { API_BASE_URL } from "../core/config";
-import { showChat, showLogin, showRegister } from "../navigation";
-import { setUser } from "./api";
-import { ensureKeysOnLogin } from "./crypto";
+import { showLogin } from "../navigation";
 import { id } from "../utils/utils";
 
 /**
@@ -34,58 +31,6 @@ export function showAlert(containerId: string, message: string, type: "success" 
     alertDiv.className = `alert alert-${type}`;
     alertDiv.textContent = message;
     container.appendChild(alertDiv);
-}
-
-/**
- * Handles login form submission
- * @param {Event} e - Form submission event
- */
-async function handleLogin(e: Event): Promise<void> {
-    e.preventDefault();
-
-    const usernameElement = id<HTMLInputElement>('login-username');
-    const passwordElement = id<HTMLInputElement>('login-password');
-    
-    const username = usernameElement.value.trim();
-    const password = passwordElement.value.trim();
-    
-    if (!username || !password) {
-        showAlert('login-alerts', 'Пожалуйста, заполните все поля', 'danger');
-        return;
-    }
-    
-    try {
-        const request: LoginRequest = {
-            username: username,
-            password: password
-        }
-
-        const response = await fetch(`${API_BASE_URL}/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(request)
-        });
-        
-        if (response.ok) {
-            const data: LoginResponse = await response.json();
-            // Store the JWT token
-            setUser(data.token, data.user)
-            try {
-                await ensureKeysOnLogin(password);
-            } catch (e) {
-                console.error("Key setup failed:", e);
-            }
-            showChat();
-            initializeProfile(); // Initialize profile after login
-        } else {
-            const data: ErrorResponse = await response.json();
-            showAlert('login-alerts', data.message || 'Неверное имя пользователя или пароль', 'danger');
-        }
-    } catch (error) {
-        showAlert('login-alerts', 'Ошибка соединения с сервером', 'danger');
-    }
 }
 
 /**
@@ -159,7 +104,6 @@ async function handleRegister(e: Event): Promise<void> {
  * @private
  */
 function init(): void {
-    id('login-form-element').addEventListener('submit', handleLogin);
     id('register-form-element').addEventListener('submit', handleRegister);
 }
 

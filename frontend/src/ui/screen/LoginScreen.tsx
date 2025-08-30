@@ -1,7 +1,24 @@
-import { showLogin, showRegister } from "../../navigation";
+import { useImmer } from "use-immer";
+import { showChat, showRegister } from "../../navigation";
+import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
 import { AuthContainer } from "../components/Auth";
+import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
+import { setUser } from "../../auth/api";
+import { ensureKeysOnLogin } from "../../auth/crypto";
+import { API_BASE_URL } from "../../core/config";
+import { initializeProfile } from "../../userPanel/profile/profile";
+import { useRef } from "react";
 
 export default function LoginScreen() {
+    const [alerts, updateAlerts] = useImmer<Alert[]>([]);
+
+    function showAlert(type: AlertType, message: string) {
+        updateAlerts((alerts) => alerts.push({type: type, message: message}));
+    }
+
+    const usernameElement = useRef<HTMLInputElement>(null);
+    const passwordElement = useRef<HTMLInputElement>(null);
+
     return (
         <AuthContainer>
             <div className="auth-header">
@@ -12,28 +29,74 @@ export default function LoginScreen() {
                 <p>Войдите в свой аккаунт</p>
             </div>
             <div className="auth-body">
-                <div id="login-alerts"></div>
+                <AlertsContainer alerts={alerts} />
                 
-                <form id="login-form-element">
+                <form 
+                    onSubmit={async (e) => {
+                        e.preventDefault();
+                        
+                        const username = usernameElement.current!.value.trim();
+                        const password = passwordElement.current!.value.trim();
+                        
+                        if (!username || !password) {
+                            showAlert("danger", "Пожалуйста, заполните все поля");
+                            return;
+                        }
+                        
+                        try {
+                            const request: LoginRequest = {
+                                username: username,
+                                password: password
+                            }
+
+                            const response = await fetch(`${API_BASE_URL}/login`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(request)
+                            });
+                            
+                            if (response.ok) {
+                                const data: LoginResponse = await response.json();
+                                // Store the JWT token
+                                setUser(data.token, data.user)
+                                try {
+                                    await ensureKeysOnLogin(password);
+                                } catch (e) {
+                                    console.error("Key setup failed:", e);
+                                }
+                                showChat();
+                                initializeProfile(); // Initialize profile after login
+                            } else {
+                                const data: ErrorResponse = await response.json();
+                                showAlert("danger", data.message || "Неверное имя пользователя или пароль");
+                            }
+                        } catch (error) {
+                            showAlert("danger", "Ошибка соединения с сервером");
+                        }
+                    }}>
                     <mdui-text-field
-                        label="Имя пользователя" 
-                        id="login-username" 
-                        name="username" 
+                        label="Имя пользователя"
+                        id="login-username"
+                        name="username"
                         variant="outlined"
                         icon="person--filled"
                         autocomplete="username"
-                        required>
+                        required
+                        ref={usernameElement}>
                     </mdui-text-field>
                     <mdui-text-field
-                        label="Пароль" 
-                        id="login-password" 
-                        name="password" 
-                        variant="outlined" 
-                        type="password" 
+                        label="Пароль"
+                        id="login-password"
+                        name="password"
+                        variant="outlined"
+                        type="password"
                         toggle-password
                         icon="password--filled"
                         autocomplete="current-password"
-                        required>
+                        required
+                        ref={passwordElement}>
                     </mdui-text-field>
 
                     <mdui-button type="submit">Войти</mdui-button>
@@ -42,9 +105,8 @@ export default function LoginScreen() {
                 <div className="text-center">
                     <p>
                         Ещё нет аккаунта? 
-                        <a 
-                            href="#" 
-                            id="register-link" 
+                        <a
+                            href="#"
                             className="link" 
                             onClick={showRegister}>
                             Зарегистрируйтесь
