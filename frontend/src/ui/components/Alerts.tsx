@@ -8,8 +8,8 @@ export interface Alert {
 export function AlertsContainer({ alerts }: { alerts: Alert[]}) {
     return (
         <div>
-            {alerts.map(alert => {
-                return <div className={`alert alert-${alert.type}`}>{alert.message}</div>
+            {alerts.slice(-3).map((alert, i) => {
+                return <div className={`alert alert-${alert.type}`} key={i}>{alert.message}</div>
             })}
         </div>
     )

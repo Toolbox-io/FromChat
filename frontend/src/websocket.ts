@@ -5,7 +5,6 @@
  * @version 1.0.0
  */
 
-import { handleWebSocketMessage } from "./chat/chat";
 import { API_WS_BASE_URL } from "./core/config";
 import type { WebSocketMessage } from "./core/types";
 import { delay } from "./utils/utils";
@@ -71,6 +70,6 @@ async function onError() {
 // --------------
 
 websocket.addEventListener("message", (e) => {
-    handleWebSocketMessage(JSON.parse(e.data));
+    // handleWebSocketMessage(JSON.parse(e.data));
 });
 websocket.addEventListener("error", onError);
