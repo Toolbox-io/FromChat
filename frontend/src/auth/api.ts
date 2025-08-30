@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../core/config";
-import { showLogin } from "../navigation";
+// import { showLogin } from "../navigation";
 import type { Headers, User, WebSocketMessage } from "../core/types";
 import { clearAlerts } from "./auth";
 import { request } from "../websocket";
@@ -65,7 +65,7 @@ export function getAuthHeaders(json: boolean = true): Headers {
 export async function checkAuthStatus(): Promise<void> {
     // For JWT, we don't have a persistent token on page load
     // So we'll just show the login form
-    showLogin();
+    // showLogin();
 }
 
 /**
@@ -83,6 +83,6 @@ export async function logout(): Promise<void> {
     
     currentUser = null;
     authToken = null;
-    showLogin();
+    // showLogin();
     clearAlerts();
 }

@@ -1,5 +1,5 @@
 import { useImmer } from "use-immer";
-import { showLogin } from "../../navigation";
+// import { showLogin } from "../../navigation";
 import { AuthContainer, AuthHeader } from "../components/Auth";
 import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
 import { useRef } from "react";
@@ -7,12 +7,14 @@ import { TextField } from "mdui/components/text-field";
 import type { ErrorResponse, RegisterRequest } from "../../core/types";
 import { API_BASE_URL } from "../../core/config";
 import { delay } from "../../utils/utils";
+import { useAppState } from "../state";
 
 export default function RegisterScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
+    const setCurrentPage = useAppState(state => state.setCurrentPage);
 
     function showAlert(type: AlertType, message: string) {
-        updateAlerts((alerts) => alerts.push({type: type, message: message}));
+        updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
     }
 
     const usernameElement = useRef<TextField>(null);
@@ -71,7 +73,7 @@ export default function RegisterScreen() {
                             // Registration successful
                             showAlert("success", "Регистрация прошла успешно! Теперь вы можете войти.");
                             await delay(2000);
-                            showLogin();
+                            setCurrentPage("login");
                         } else {
                             const data: ErrorResponse = await response.json();
                             showAlert("danger", data.message || "Ошибка при регистрации");
@@ -127,7 +129,7 @@ export default function RegisterScreen() {
                             href="#" 
                             id="login-link" 
                             className="link" 
-                            onClick={showLogin}>
+                            onClick={() => setCurrentPage("login")}>
                             Войдите
                         </a>
                     </p>
