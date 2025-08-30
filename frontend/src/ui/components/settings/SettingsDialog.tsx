@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useDialog } from "../../contexts/DialogContext";
 import { PRODUCT_NAME } from "../../../core/config";
+import type { DialogProps } from "../../../core/types";
+import { MaterialDialog } from "../Dialog";
 
-export function SettingsDialog() {
-    const { isSettingsOpen, closeSettings } = useDialog();
+export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     const [activePanel, setActivePanel] = useState("notifications-settings");
 
     const handlePanelChange = (panelId: string) => {
@@ -11,11 +11,11 @@ export function SettingsDialog() {
     };
 
     return (
-        <mdui-dialog id="settings-dialog" close-on-overlay-click close-on-esc fullscreen open={isSettingsOpen}>
+        <MaterialDialog close-on-overlay-click close-on-esc fullscreen open={isOpen} onOpenChange={onOpenChange}>
             <div className="fullscreen-wrapper">
                 <div id="settings-dialog-inner">
                     <div className="header">
-                        <mdui-button-icon icon="close" id="settings-close" onClick={closeSettings}></mdui-button-icon>
+                        <mdui-button-icon icon="close" id="settings-close" onClick={() => onOpenChange(false)}></mdui-button-icon>
                         <mdui-top-app-bar-title>Настройки</mdui-top-app-bar-title>
                     </div>
                     <div id="settings-menu">
@@ -148,6 +148,6 @@ export function SettingsDialog() {
                     </div>
                 </div>
             </div>
-        </mdui-dialog>
+        </MaterialDialog>
     );
 }

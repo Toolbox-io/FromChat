@@ -38,5 +38,5 @@ export function MaterialDialog(props: FullDialogProps) {
         };
     }, [dialogRef.current, props.open, props.onOpenChange]);
 
-    return <mdui-dialog {...props} ref={dialogRef} />;
+    return <mdui-dialog {...props} ref={dialogRef} style={{ all: "revert" }} />;
 }
