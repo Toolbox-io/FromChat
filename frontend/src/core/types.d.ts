@@ -224,3 +224,11 @@ export interface WebSocketCredentials {
     scheme: string;
     credentials: string;
 }
+
+// -----------
+// React types
+// -----------
+export interface DialogProps {
+    isOpen: boolean;
+    onOpenChange: (value: boolean) => void;
+}

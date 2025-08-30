@@ -2,6 +2,8 @@ import { PRODUCT_NAME } from "../../../core/config";
 import { useDialog } from "../../contexts/DialogContext";
 import { useChat } from "../../hooks/useChat";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
+import { useState } from "react";
+import { ProfileDialog } from "../profile/ProfileDialog";
 
 function BottomAppBar() {
     const { openSettings } = useDialog();
@@ -70,20 +72,17 @@ function ChatTabs() {
 
 
 function ChatHeader() {
-    const { openProfile } = useDialog();
-
-    const handleProfileClick = () => {
-        openProfile();
-    };
+    const [isProfileOpen, setProfileOpen] = useState(false);
 
     return (
         <header className="chat-header-left">
             <div className="product-name">{PRODUCT_NAME}</div>
             <div className="profile">
-                <a href="#" id="profile-open" onClick={handleProfileClick}>
+                <a href="#" id="profile-open" onClick={() => setProfileOpen(true)}>
                     <img src={defaultAvatar} alt="" id="preview1" />
                 </a>
             </div>
+            <ProfileDialog isOpen={isProfileOpen} onOpenChange={setProfileOpen} />
         </header>
     );
 }

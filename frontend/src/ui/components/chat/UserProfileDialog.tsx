@@ -3,7 +3,7 @@ export function UserProfileDialog() {
         <mdui-dialog id="user-profile-dialog" close-on-overlay-click close-on-esc>
             <div className="content">
                 <div className="profile-picture-section">
-                    <img className="profile-picture" src="" alt="Profile Picture" />
+                    <img className="profile-picture" alt="Profile Picture" />
                 </div>
                 <div className="profile-info">
                     <div className="username-section">
