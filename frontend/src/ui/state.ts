@@ -49,12 +49,20 @@ export const useAppState = create<AppState>((set, get) => ({
         dmUsers: [],
         activeDm: null
     },
-    addMessage: (message: Message) => set((state) => ({
-        chat: {
-            ...state.chat,
-            messages: [...state.chat.messages, message]
+    addMessage: (message: Message) => set((state) => {
+        // Check if message already exists to prevent duplicates
+        const messageExists = state.chat.messages.some(msg => msg.id === message.id);
+        if (messageExists) {
+            return state; // Return unchanged state if message already exists
         }
-    })),
+        
+        return {
+            chat: {
+                ...state.chat,
+                messages: [...state.chat.messages, message]
+            }
+        };
+    }),
     updateMessage: (messageId: number, updatedMessage: Partial<Message>) => set((state) => ({
         chat: {
             ...state.chat,
