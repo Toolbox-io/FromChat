@@ -1,6 +1,6 @@
 import { ChatMain } from "./ChatMain";
 
-export function ChatContainer() {
+export function RightPanel() {
     return (
         <div className="chat-container">
             <ChatMain />

@@ -11,6 +11,7 @@ export default function ChatScreen() {
     return (
         <>
             <ChatInterface />
+            
             <ProfileDialog />
             <CropperDialog />
             <SettingsDialog />

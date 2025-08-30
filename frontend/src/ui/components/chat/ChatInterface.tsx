@@ -1,12 +1,12 @@
-import { ChatList } from "./ChatList";
-import { ChatContainer } from "./ChatContainer";
+import { LeftPanel } from "./LeftPanel";
+import { RightPanel } from "./RightPanel";
 
 export function ChatInterface() {
     return (
         <div id="chat-interface">
             <div className="all-container">
-                <ChatList />
-                <ChatContainer />
+                <LeftPanel />
+                <RightPanel />
             </div>
         </div>
     );
