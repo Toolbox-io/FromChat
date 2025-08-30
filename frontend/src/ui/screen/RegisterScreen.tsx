@@ -1,20 +1,85 @@
+import { useImmer } from "use-immer";
 import { showLogin } from "../../navigation";
-import { AuthContainer } from "../components/Auth";
+import { AuthContainer, AuthHeader } from "../components/Auth";
+import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
+import { useRef } from "react";
+import { TextField } from "mdui/components/text-field";
+import type { ErrorResponse, RegisterRequest } from "../../core/types";
+import { API_BASE_URL } from "../../core/config";
+import { delay } from "../../utils/utils";
 
 export default function RegisterScreen() {
+    const [alerts, updateAlerts] = useImmer<Alert[]>([]);
+
+    function showAlert(type: AlertType, message: string) {
+        updateAlerts((alerts) => alerts.push({type: type, message: message}));
+    }
+
+    const usernameElement = useRef<TextField>(null);
+    const passwordElement = useRef<TextField>(null);
+    const confirmPasswordElement = useRef<TextField>(null);
+
     return (
         <AuthContainer>
-            <div className="auth-header">
-                <h2>
-                    <span className="material-symbols filled large">person_add</span> 
-                    Регистрация
-                </h2>
-                <p>Создайте новый аккаунт</p>
-            </div>
+            <AuthHeader icon="person_add" title="Регистрация" subtitle="Создайте новый аккаунт" />
             <div className="auth-body">
-                <div id="register-alerts"></div>
+                <AlertsContainer alerts={alerts} />
                 
-                <form id="register-form-element">
+                <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    
+                    const username = usernameElement.current!.value.trim();
+                    const password = passwordElement.current!.value.trim();
+                    const confirmPassword = confirmPasswordElement.current!.value.trim();
+                    
+                    if (!username || !password || !confirmPassword) {
+                        showAlert("danger", "Пожалуйста, заполните все поля");
+                        return;
+                    }
+                    
+                    if (password !== confirmPassword) {
+                        showAlert("danger", "Пароли не совпадают");
+                        return;
+                    }
+                    
+                    if (username.length < 3 || username.length > 20) {
+                        showAlert("danger", "Имя пользователя должно быть от 3 до 20 символов");
+                        return;
+                    }
+                    
+                    if (password.length < 5 || password.length > 50) {
+                        showAlert("danger", "Пароль должен быть от 5 до 50 символов");
+                        return;
+                    }
+                    
+                    try {
+                        const request: RegisterRequest = {
+                            username: username,
+                            password: password,
+                            confirm_password: confirmPassword
+                        }
+                
+                        const response = await fetch(`${API_BASE_URL}/register`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(request)
+                        });
+                        
+                        if (response.ok) {
+                            // Registration successful
+                            showAlert("success", "Регистрация прошла успешно! Теперь вы можете войти.");
+                            await delay(2000);
+                            showLogin();
+                        } else {
+                            const data: ErrorResponse = await response.json();
+                            showAlert("danger", data.message || "Ошибка при регистрации");
+                        }
+                    } catch (error) {
+                        showAlert("danger", "Ошибка соединения с сервером");
+                    }
+                }}>
                     <mdui-text-field 
                         label="Имя пользователя" 
                         id="register-username" 
@@ -24,7 +89,8 @@ export default function RegisterScreen() {
                         autocomplete="username"
                         maxlength={20}
                         counter
-                        required>
+                        required
+                        ref={usernameElement as React.RefObject<HTMLElement & TextField>}>
                     </mdui-text-field>
                     <mdui-text-field 
                         label="Пароль" 
@@ -35,7 +101,8 @@ export default function RegisterScreen() {
                         toggle-password
                         icon="password--filled"
                         autocomplete="new-password"
-                        required>
+                        required
+                        ref={passwordElement as React.RefObject<HTMLElement & TextField>}>
                     </mdui-text-field>
                     <mdui-text-field 
                         label="Подтвердите пароль" 
@@ -46,7 +113,8 @@ export default function RegisterScreen() {
                         toggle-password
                         icon="password--filled"
                         autocomplete="new-password"
-                        required>
+                        required
+                        ref={confirmPasswordElement as React.RefObject<HTMLElement & TextField>}>
                     </mdui-text-field>
 
                     <mdui-button type="submit">Зарегистрироваться</mdui-button>
