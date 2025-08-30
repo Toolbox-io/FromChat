@@ -2,7 +2,6 @@ import { useImmer } from "use-immer";
 import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
 import { AuthContainer, AuthHeader } from "../components/Auth";
 import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
-import { setUser } from "../../auth/api";
 import { ensureKeysOnLogin } from "../../auth/crypto";
 import { API_BASE_URL } from "../../core/config";
 // import { initializeProfile } from "../../userPanel/profile/profile";
@@ -13,6 +12,7 @@ import { useAppState } from "../state";
 export default function LoginScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
     const setCurrentPage = useAppState(state => state.setCurrentPage);
+    const setUser = useAppState(state => state.setUser);
 
     function showAlert(type: AlertType, message: string) {
         updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
