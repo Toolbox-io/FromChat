@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useAppState } from "../state";
 import { request, websocket } from "../../websocket";
 import { API_BASE_URL } from "../../core/config";
@@ -19,9 +19,11 @@ export function useChat() {
         user 
     } = useAppState();
 
+    const messagesLoadedRef = useRef(false);
+
     // Load messages for the current chat
     const loadMessages = useCallback(async () => {
-        if (!user.authToken) return;
+        if (!user.authToken || messagesLoadedRef.current) return;
 
         try {
             const response = await fetch(`${API_BASE_URL}/get_messages`, {
@@ -38,6 +40,7 @@ export function useChat() {
                     });
                 }
             }
+            messagesLoadedRef.current = true;
         } catch (error) {
             console.error("Error loading messages:", error);
         }
@@ -99,12 +102,20 @@ export function useChat() {
         return () => {
             websocket.removeEventListener("message", handleWebSocketMessage);
         };
-    }, [addMessage, user.currentUser]);
+    }, [addMessage, updateMessage, removeMessage, user.currentUser]);
 
-    // Load messages when component mounts or chat changes
+    // Load messages only once when component mounts and user is authenticated
     useEffect(() => {
-        loadMessages();
-    }, [loadMessages]);
+        if (user.authToken && !messagesLoadedRef.current) {
+            loadMessages();
+        }
+    }, [user.authToken, loadMessages]);
+
+    // Reset messages loaded flag and clear messages when chat changes
+    useEffect(() => {
+        messagesLoadedRef.current = false;
+        clearMessages(); // Clear messages when switching chats
+    }, [chat.currentChat, clearMessages]);
 
     return {
         messages: chat.messages,

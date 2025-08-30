@@ -55,13 +55,16 @@ export default function LoginScreen() {
                             
                             if (response.ok) {
                                 const data: LoginResponse = await response.json();
-                                // Store the JWT token
-                                setUser(data.token, data.user)
+                                // Store the JWT token first
+                                setUser(data.token, data.user);
+                                
+                                // Setup keys with the token we just received
                                 try {
-                                    await ensureKeysOnLogin(password);
+                                    await ensureKeysOnLogin(password, data.token);
                                 } catch (e) {
                                     console.error("Key setup failed:", e);
                                 }
+                                
                                 setCurrentPage("chat");
                                 // initializeProfile(); // Initialize profile after login
                             } else {
