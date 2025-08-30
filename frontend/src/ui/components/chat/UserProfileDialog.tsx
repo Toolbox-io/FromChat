@@ -1,6 +1,9 @@
-export function UserProfileDialog() {
+import type { DialogProps } from "../../../core/types";
+import { MaterialDialog } from "../Dialog";
+
+export function UserProfileDialog({ isOpen, onOpenChange }: DialogProps) {
     return (
-        <mdui-dialog id="user-profile-dialog" close-on-overlay-click close-on-esc>
+        <MaterialDialog open={isOpen} onOpenChange={onOpenChange} close-on-overlay-click close-on-esc>
             <div className="content">
                 <div className="profile-picture-section">
                     <img className="profile-picture" alt="Profile Picture" />
@@ -32,6 +35,6 @@ export function UserProfileDialog() {
                     </div>
                 </div>
             </div>
-        </mdui-dialog>
+        </MaterialDialog>
     );
 }

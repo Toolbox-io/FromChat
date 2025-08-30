@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import type { TextField } from "mdui/components/text-field";
 import type { DialogProps } from "../../../core/types";
+import { MaterialDialog } from "../Dialog";
 
 export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
     const [username, setUsername] = useState("user123");
@@ -15,7 +16,7 @@ export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
     };
 
     return (
-        <mdui-dialog id="profile-dialog" close-on-overlay-click close-on-esc open={isOpen}>
+        <MaterialDialog id="profile-dialog" close-on-overlay-click close-on-esc open={isOpen} onOpenChange={onOpenChange}>
             <div className="content">
                 <div className="header-top">
                     <div className="profile-picture-container">
@@ -49,6 +50,6 @@ export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
                     </div>
                 </form>
             </div>
-        </mdui-dialog>
+        </MaterialDialog>
     );
 }
