@@ -27,7 +27,7 @@ export function useChat() {
 
         try {
             const response = await fetch(`${API_BASE_URL}/get_messages`, {
-                headers: getAuthHeaders()
+                headers: getAuthHeaders(user.authToken)
             });
 
             if (response.ok) {

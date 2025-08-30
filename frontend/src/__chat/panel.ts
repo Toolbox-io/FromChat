@@ -1,10 +1,10 @@
-import { authToken, currentUser, getAuthHeaders } from "../auth/api";
-import { API_BASE_URL } from "../core/config";
+import { authToken, currentUser, getAuthHeaders } from "../auth/api.ts";
+import { API_BASE_URL } from "../core/config.ts";
 import type { Message, Messages, WebSocketMessage } from "../core/types";
-import { request } from "../websocket";
-import { addMessage } from "./chat";
-import { show as showContextMenu } from "./contextMenu";
-import { show as showProfileDialog } from "./profileDialog";
+import { request } from "../websocket.ts";
+import { addMessage } from "./chat.ts";
+import { show as showContextMenu } from "./contextMenu.ts";
+import { show as showProfileDialog } from "./profileDialog.ts";
 
 const titleEl = document.getElementById("chat-name")!;
 const messages = document.getElementById("chat-messages")!;

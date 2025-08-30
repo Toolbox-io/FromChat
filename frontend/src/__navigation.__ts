@@ -1,6 +1,6 @@
-import { clearAlerts } from "./auth/auth";
-import { publicChatPanel } from "./chat/chat";
-import { id } from "./utils/utils";
+import { clearAlerts } from "./auth/auth.ts";
+import { publicChatPanel } from "./chat/chat.ts";
+import { id } from "./utils/utils.ts";
 
 const loginForm = id("login-form");
 const registerForm = id("register-form");

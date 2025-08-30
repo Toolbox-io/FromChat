@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { Message, User, UserProfile } from "../core/types";
+import type { Message, User, UserProfile, WebSocketMessage } from "../core/types";
+import { request } from "../websocket";
 
 type Page = "login" | "register" | "chat"
 
@@ -113,13 +114,30 @@ export const useAppState = create<AppState>((set, get) => ({
         currentUser: null,
         authToken: null
     },
-    setUser: (token: string, user: User) => set((state) => ({
-        user: {
-            currentUser: user,
-            authToken: token
-        }
-    })),
-    logout: () => set((state) => ({
+    setUser: (token: string, user: User) => {
+        set(() => ({
+            user: {
+                currentUser: user,
+                authToken: token
+            }
+        }));
+
+        try {
+            const payload: WebSocketMessage = {
+                type: "ping",
+                credentials: {
+                    scheme: "Bearer",
+                    credentials: token
+                },
+                data: {}
+            }
+    
+            request(payload).then(() => {
+                console.log("Ping succeeded")
+            })
+        } catch {}
+    },
+    logout: () => set(() => ({
         user: {
             currentUser: null,
             authToken: null

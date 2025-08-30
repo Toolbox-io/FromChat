@@ -1,5 +1,4 @@
 import { ChatInterface } from "../components/chat/ChatInterface";
-import { ProfileDialog } from "../components/profile/ProfileDialog";
 import { CropperDialog } from "../components/profile/CropperDialog";
 import { SettingsDialog } from "../components/settings/SettingsDialog";
 import { MessageContextMenu } from "../components/chat/MessageContextMenu";
@@ -11,12 +10,12 @@ export default function ChatScreen() {
     return (
         <>
             <ChatInterface />
-            
             <CropperDialog />
             <SettingsDialog />
             <MessageContextMenu />
             <EditMessageDialog />
             <ReplyMessageDialog />
+            <UserProfileDialog isOpen={false} onOpenChange={() => {}} />
         </>
     );
 }

@@ -8,8 +8,8 @@ import type { BackupBlob, UploadPublicKeyRequest } from "../core/types";
 let currentPublicKey: Uint8Array | null = null;
 let currentPrivateKey: Uint8Array | null = null;
 
-async function fetchPublicKey(token?: string): Promise<Uint8Array | null> {
-	const headers = token ? { 'Authorization': `Bearer ${token}` } : getAuthHeaders(true);
+async function fetchPublicKey(token: string): Promise<Uint8Array | null> {
+	const headers = getAuthHeaders(token, true);
 	const res = await fetch(`${API_BASE_URL}/crypto/public-key`, { method: "GET", headers });
 	if (!res.ok) return null;
 	const data = await res.json();
@@ -17,12 +17,12 @@ async function fetchPublicKey(token?: string): Promise<Uint8Array | null> {
 	return ub64(data.publicKey);
 }
 
-async function uploadPublicKey(publicKey: Uint8Array, token?: string): Promise<void> {
+async function uploadPublicKey(publicKey: Uint8Array, token: string): Promise<void> {
 	const payload: UploadPublicKeyRequest = { 
 		publicKey: b64(publicKey) 
 	}
 
-	const headers = token ? { 'Authorization': `Bearer ${token}` } : getAuthHeaders(true);
+	const headers = getAuthHeaders(token, true);
 	await fetch(`${API_BASE_URL}/crypto/public-key`, {
 		method: "POST",
 		headers,
@@ -30,8 +30,8 @@ async function uploadPublicKey(publicKey: Uint8Array, token?: string): Promise<v
 	});
 }
 
-async function fetchBackupBlob(token?: string): Promise<string | null> {
-	const headers = token ? { 'Authorization': `Bearer ${token}` } : getAuthHeaders(true);
+async function fetchBackupBlob(token: string): Promise<string | null> {
+	const headers = getAuthHeaders(token, true);
 	const res = await fetch(`${API_BASE_URL}/crypto/backup`, { 
 		method: "GET",
 		headers 
@@ -44,10 +44,10 @@ async function fetchBackupBlob(token?: string): Promise<string | null> {
 	}
 }
 
-async function uploadBackupBlob(blobJson: string, token?: string): Promise<void> {
+async function uploadBackupBlob(blobJson: string, token: string): Promise<void> {
 	const payload: BackupBlob = { blob: blobJson }
 
-	const headers = token ? { 'Authorization': `Bearer ${token}` } : getAuthHeaders(true);
+	const headers = getAuthHeaders(token, true);
 	await fetch(`${API_BASE_URL}/crypto/backup`, {
 		method: "POST",
 		headers,
@@ -65,7 +65,7 @@ export function getCurrentKeys(): UserKeyPairMemory | null {
 	return null;
 }
 
-export async function ensureKeysOnLogin(password: string, token?: string): Promise<UserKeyPairMemory> {
+export async function ensureKeysOnLogin(password: string, token: string): Promise<UserKeyPairMemory> {
 	// Try to restore from backup
 	const blobJson = await fetchBackupBlob(token);
 	if (blobJson) {

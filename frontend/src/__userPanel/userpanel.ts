@@ -8,7 +8,7 @@
 import { Dialog } from "mdui/components/dialog";
 import { loadProfilePicture } from "./profile/upload";
 import { id } from "../utils/utils";
-import { publicChatPanel } from "../chat/chat";
+import { publicChatPanel } from "../chat/chat.ts";
 
 // сварачивание и разворачивание чата
 const chatCollapseBtn = id('hide-chat')!;
