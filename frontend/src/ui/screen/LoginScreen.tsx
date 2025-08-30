@@ -1,13 +1,14 @@
 import { useImmer } from "use-immer";
 import { showChat, showRegister } from "../../navigation";
 import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
-import { AuthContainer } from "../components/Auth";
+import { AuthContainer, AuthHeader } from "../components/Auth";
 import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
 import { setUser } from "../../auth/api";
 import { ensureKeysOnLogin } from "../../auth/crypto";
 import { API_BASE_URL } from "../../core/config";
 import { initializeProfile } from "../../userPanel/profile/profile";
 import { useRef } from "react";
+import type { TextField } from "mdui/components/text-field";
 
 export default function LoginScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
@@ -16,18 +17,12 @@ export default function LoginScreen() {
         updateAlerts((alerts) => alerts.push({type: type, message: message}));
     }
 
-    const usernameElement = useRef<HTMLInputElement>(null);
-    const passwordElement = useRef<HTMLInputElement>(null);
+    const usernameElement = useRef<TextField>(null);
+    const passwordElement = useRef<TextField>(null);
 
     return (
         <AuthContainer>
-            <div className="auth-header">
-                <h2>
-                    <span className="material-symbols filled large">login</span> 
-                    Добро пожаловать!
-                </h2>
-                <p>Войдите в свой аккаунт</p>
-            </div>
+            <AuthHeader icon="login" title="Добро пожаловать!" subtitle="Войдите в свой аккаунт" />
             <div className="auth-body">
                 <AlertsContainer alerts={alerts} />
                 
@@ -84,7 +79,7 @@ export default function LoginScreen() {
                         icon="person--filled"
                         autocomplete="username"
                         required
-                        ref={usernameElement}>
+                        ref={usernameElement as React.RefObject<HTMLElement & TextField>}>
                     </mdui-text-field>
                     <mdui-text-field
                         label="Пароль"
@@ -96,7 +91,7 @@ export default function LoginScreen() {
                         icon="password--filled"
                         autocomplete="current-password"
                         required
-                        ref={passwordElement}>
+                        ref={passwordElement as React.RefObject<HTMLElement & TextField>}>
                     </mdui-text-field>
 
                     <mdui-button type="submit">Войти</mdui-button>
