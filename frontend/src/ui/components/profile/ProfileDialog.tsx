@@ -1,21 +1,21 @@
-import { useState } from "react";
-import { useDialog } from "../../contexts/DialogContext";
+import { useState, type FormEvent } from "react";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
+import type { TextField } from "mdui/components/text-field";
+import type { DialogProps } from "../../../core/types";
 
-export function ProfileDialog() {
+export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
     const [username, setUsername] = useState("user123");
     const [description, setDescription] = useState("");
-    const { isProfileOpen, closeProfile } = useDialog();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         // TODO: Implement profile update logic
         console.log("Profile update:", { username, description });
-        closeProfile();
+        onOpenChange(false);
     };
 
     return (
-        <mdui-dialog id="profile-dialog" close-on-overlay-click close-on-esc open={isProfileOpen}>
+        <mdui-dialog id="profile-dialog" close-on-overlay-click close-on-esc open={isOpen}>
             <div className="content">
                 <div className="header-top">
                     <div className="profile-picture-container">
@@ -28,7 +28,7 @@ export function ProfileDialog() {
                         label="Имя пользователя" 
                         variant="outlined" 
                         value={username}
-                        onChange={(e: any) => setUsername(e.target.value)}
+                        onChange={(e: FormEvent<HTMLElement & TextField>) => setUsername((e.target as TextField).value)}
                         autocomplete="username">
                     </mdui-text-field>
                 </div>
@@ -39,13 +39,13 @@ export function ProfileDialog() {
                         label="О себе" 
                         variant="outlined" 
                         value={description}
-                        onChange={(e: any) => setDescription(e.target.value)}
+                        onChange={(e: FormEvent<HTMLElement & TextField>) => setDescription((e.target as TextField).value)}
                         placeholder="Расскажите о себе..."
                         autocomplete="none">
                     </mdui-text-field>
                     <div className="dialog-actions">
                         <mdui-button type="submit" id="profile-submit">Сохранить изменения</mdui-button>
-                        <mdui-button id="profile-dialog-close" variant="outlined" onClick={closeProfile}>Закрыть</mdui-button>
+                        <mdui-button id="profile-dialog-close" variant="outlined" onClick={() => onOpenChange(false)}>Закрыть</mdui-button>
                     </div>
                 </form>
             </div>

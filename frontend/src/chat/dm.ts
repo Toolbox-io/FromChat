@@ -9,6 +9,7 @@ import { request, websocket } from "../websocket";
 import type { FetchDMResponse, SendDMRequest, WebSocketMessage, User, DmEnvelope } from "../core/types";
 import type { Tabs } from "mdui/components/tabs";
 import { b64, ub64 } from "../utils/utils";
+import defaultAvatar from "../resources/images/default-avatar.png";
 
 export async function sendDm(recipientId: number, recipientPublicKeyB64: string, plaintext: string): Promise<void> {
 	const keys = getCurrentKeys();
@@ -101,7 +102,7 @@ async function loadUsers() {
 		
 		// Add avatar
 		const avatar = document.createElement("img");
-		avatar.src = u.profile_picture || "./src/resources/images/default-avatar.png";
+		avatar.src = u.profile_picture || defaultAvatar;
 		avatar.alt = u.username;
 		avatar.slot = "icon";
 		avatar.style.width = "40px";
@@ -111,7 +112,7 @@ async function loadUsers() {
 		
 		// Handle avatar load error
 		avatar.addEventListener("error", () => {
-			avatar.src = "./src/resources/images/default-avatar.png";
+			avatar.src = defaultAvatar;
 		});
 		
 		item.appendChild(avatar);
