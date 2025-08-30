@@ -1,3 +1,4 @@
+import { ElectronTitleBar } from "./components/Electron";
 import ChatScreen from "./screen/ChatScreen";
 import LoginScreen from "./screen/LoginScreen";
 import RegisterScreen from "./screen/RegisterScreen";
@@ -25,6 +26,7 @@ export default function App() {
 
     return (
         <>
+            <ElectronTitleBar />
             <div id="main-wrapper">
                 {page}
             </div>
