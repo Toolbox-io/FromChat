@@ -1,5 +1,7 @@
 import type { Dialog as MduiDialog } from "mdui/components/dialog";
 import React, { useEffect, useRef } from "react"
+import { createPortal } from "react-dom";
+import { id } from "../../utils/utils";
 
 export interface BaseDialogProps {
     onOpenChange: (value: boolean) => void;
@@ -38,5 +40,5 @@ export function MaterialDialog(props: FullDialogProps) {
         };
     }, [dialogRef.current, props.open, props.onOpenChange]);
 
-    return <mdui-dialog {...props} ref={dialogRef} style={{ all: "revert" }} />;
+    return createPortal(<mdui-dialog {...props} ref={dialogRef} />, id("root"));
 }

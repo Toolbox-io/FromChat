@@ -11,7 +11,7 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     };
 
     return (
-        <MaterialDialog close-on-overlay-click close-on-esc fullscreen open={isOpen} onOpenChange={onOpenChange}>
+        <MaterialDialog close-on-overlay-click close-on-esc fullscreen open={isOpen} onOpenChange={onOpenChange} id="settings-dialog">
             <div className="fullscreen-wrapper">
                 <div id="settings-dialog-inner">
                     <div className="header">
