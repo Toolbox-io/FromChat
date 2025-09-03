@@ -21,6 +21,11 @@ import "./utils/material";
 // import "./chat/dm";
 import { createRoot } from 'react-dom/client';
 import App from './ui/App';
+import { StrictMode } from 'react';
 
 // Initialize React app
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+        <App />
+    </StrictMode>
+);
