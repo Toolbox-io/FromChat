@@ -40,7 +40,7 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
         reader.readAsDataURL(imageFile);
     }, [imageFile]);
 
-    const handleMouseDown = (e: React.MouseEvent) => {
+    function handleMouseDown(e: React.MouseEvent) {
         if (!isLoaded) return;
         
         const rect = canvasRef.current?.getBoundingClientRect();
@@ -57,7 +57,7 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
         }
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    function handleMouseMove(e: React.MouseEvent) {
         if (!isDragging || !isLoaded) return;
 
         const rect = canvasRef.current?.getBoundingClientRect();
@@ -72,11 +72,11 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
         setCropArea(prev => ({ ...prev, x: newX, y: newY }));
     };
 
-    const handleMouseUp = () => {
+    function handleMouseUp() {
         setIsDragging(false);
     };
 
-    const handleCrop = () => {
+    function handleCrop() {
         if (!canvasRef.current || !imageRef.current || !isLoaded) return;
 
         const canvas = canvasRef.current;
@@ -99,7 +99,7 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
         onCrop(croppedImageData);
     };
 
-    const drawCropArea = () => {
+    function drawCropArea() {
         if (!canvasRef.current || !imageRef.current || !isLoaded) return;
 
         const canvas = canvasRef.current;
