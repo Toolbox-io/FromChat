@@ -7,9 +7,10 @@ interface MessageProps {
     isAuthor: boolean;
     onProfileClick: (username: string) => void;
     onContextMenu: (e: React.MouseEvent, message: MessageType) => void;
+    isLoadingProfile?: boolean;
 }
 
-export function Message({ message, isAuthor, onProfileClick, onContextMenu }: MessageProps) {
+export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false }: MessageProps) {
     return (
         <div 
             className={`message ${isAuthor ? "sent" : "received"}`}
@@ -23,8 +24,9 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu }: Me
                         <img
                             src={message.profile_picture || defaultAvatar}
                             alt={message.username}
-                            onClick={() => onProfileClick(message.username)}
-                            style={{ cursor: "pointer" }}
+                            onClick={() => !isLoadingProfile && onProfileClick(message.username)}
+                            style={{ cursor: isLoadingProfile ? "default" : "pointer" }}
+                            className={isLoadingProfile ? "loading" : ""}
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 target.src = defaultAvatar;
@@ -35,9 +37,9 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu }: Me
 
                 {!isAuthor && (
                     <div 
-                        className="message-username" 
-                        onClick={() => onProfileClick(message.username)} 
-                        style={{ cursor: "pointer" }}> {/* TODO extract to SCSS */}
+                        className={`message-username ${isLoadingProfile ? "loading" : ""}`}
+                        onClick={() => !isLoadingProfile && onProfileClick(message.username)} 
+                        style={{ cursor: isLoadingProfile ? "default" : "pointer" }}> {/* TODO extract to SCSS */}
                         {message.username}
                     </div>
                 )}

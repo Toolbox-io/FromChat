@@ -1,40 +1,71 @@
 import type { DialogProps } from "../../../core/types";
+import type { UserProfile } from "../../../core/types";
 import { MaterialDialog } from "../Dialog";
+import { formatTime } from "../../../utils/utils";
+import defaultAvatar from "../../../resources/images/default-avatar.png";
 
-export function UserProfileDialog({ isOpen, onOpenChange }: DialogProps) {
-    return (
-        <MaterialDialog open={isOpen} onOpenChange={onOpenChange} close-on-overlay-click close-on-esc>
-            <div className="content">
-                <div className="profile-picture-section">
-                    <img className="profile-picture" alt="Profile Picture" />
+interface UserProfileDialogProps extends DialogProps {
+    userProfile: UserProfile | null;
+}
+
+export function UserProfileDialog({ isOpen, onOpenChange, userProfile }: UserProfileDialogProps) {
+    const content = userProfile ? (
+        <div className="content">
+            <div className="profile-picture-section">
+                <img 
+                    className="profile-picture" 
+                    alt="Profile Picture" 
+                    src={userProfile.profile_picture || defaultAvatar}
+                    onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = defaultAvatar;
+                    }}
+                />
+            </div>
+            <div className="profile-info">
+                <div className="username-section">
+                    <h4 className="username">{userProfile.username}</h4>
+                    <div className={`online-status ${userProfile.online ? "online" : "offline"}`}>
+                        {userProfile.online ? (
+                            <>
+                                <span className="online-indicator"></span> Online
+                            </>
+                        ) : (
+                            <>
+                                <span className="offline-indicator"></span> Last seen {formatTime(userProfile.last_seen)}
+                            </>
+                        )}
+                    </div>
                 </div>
-                <div className="profile-info">
-                    <div className="username-section">
-                        <h4 className="username"></h4>
-                        <div className="online-status"></div>
+                <div className="bio-section">
+                    <label>Bio:</label>
+                    <div className="bio-display">
+                        {userProfile.bio || "No bio available."}
                     </div>
-                    <div className="bio-section">
-                        <label>Bio:</label>
-                        <div className="bio-display"></div>
+                </div>
+                <div className="profile-stats">
+                    <div className="stat">
+                        <span className="stat-label">Member since:</span>
+                        <span className="stat-value member-since">{formatTime(userProfile.created_at)}</span>
                     </div>
-                    <div className="profile-stats">
-                        <div className="stat">
-                            <span className="stat-label">Member since:</span>
-                            <span className="stat-value member-since"></span>
-                        </div>
-                        <div className="stat">
-                            <span className="stat-label">Last seen:</span>
-                            <span className="stat-value last-seen"></span>
-                        </div>
+                    <div className="stat">
+                        <span className="stat-label">Last seen:</span>
+                        <span className="stat-value last-seen">{formatTime(userProfile.last_seen)}</span>
                     </div>
-                    <div className="profile-actions">
-                        <mdui-button id="dm-button" variant="filled">
-                            <mdui-icon slot="icon" name="chat--filled"></mdui-icon>
-                            Send Message
-                        </mdui-button>
-                    </div>
+                </div>
+                <div className="profile-actions">
+                    <mdui-button id="dm-button" variant="filled">
+                        <mdui-icon slot="icon" name="chat--filled"></mdui-icon>
+                        Send Message
+                    </mdui-button>
                 </div>
             </div>
+        </div>
+    ) : null
+
+    return (
+        <MaterialDialog open={isOpen} onOpenChange={onOpenChange} close-on-overlay-click close-on-esc id="user-profile-dialog">
+            {content}
         </MaterialDialog>
     );
 }

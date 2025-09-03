@@ -1,5 +1,6 @@
 import { getAuthHeaders } from "../../auth/api";
 import { API_BASE_URL } from "../../core/config";
+import type { UserProfile } from "../../core/types";
 
 export interface ProfileData {
     profile_picture?: string;
@@ -88,5 +89,25 @@ export async function updateBio(token: string, bio: string): Promise<boolean> {
     } catch (error) {
         console.error('Error updating bio:', error);
         return false;
+    }
+}
+
+/**
+ * Fetches user profile data by username
+ */
+export async function fetchUserProfile(token: string, username: string): Promise<UserProfile | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/${username}`, {
+            headers: getAuthHeaders(token)
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
     }
 }

@@ -340,3 +340,25 @@
     }
 }
 
+.message-profile-pic {
+    img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid $color-dark-outline;
+        
+        &.loading {
+            opacity: 0.6;
+            cursor: default;
+        }
+    }
+}
+
+.message-username {
+    &.loading {
+        opacity: 0.6;
+        cursor: default;
+    }
+}
+
