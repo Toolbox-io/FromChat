@@ -4,9 +4,13 @@ import { useAppState } from "../../state";
 import type { Message as MessageType } from "../../../core/types";
 import type { UserProfile } from "../../../core/types";
 import { UserProfileDialog } from "./UserProfileDialog";
+import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
 import { fetchUserProfile } from "../../api/profileApi";
 import { useState } from "react";
 import { delay } from "../../../utils/utils";
+import { request } from "../../../websocket";
+
+
 
 export function ChatMessages() {
     const { messages } = useChat();
@@ -14,6 +18,13 @@ export function ChatMessages() {
     const [profileDialogOpen, setProfileDialogOpen] = useState(false);
     const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
     const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+    
+    // Context menu state
+    const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+        isOpen: false,
+        message: null,
+        position: { x: 0, y: 0 }
+    });
 
     const handleProfileClick = async (username: string) => {
         if (!user.authToken) return;
@@ -34,13 +45,94 @@ export function ChatMessages() {
 
     const handleContextMenu = (e: React.MouseEvent, message: MessageType) => {
         e.preventDefault();
-        // TODO: Show context menu
-        console.log("Show context menu for message:", message.id);
+        console.log("Context menu triggered for message:", message.id, "at position:", e.clientX, e.clientY);
+        setContextMenu({
+            isOpen: true,
+            message,
+            position: { x: e.clientX, y: e.clientY }
+        });
+    };
+
+    const handleContextMenuClose = () => {
+        setContextMenu({
+            isOpen: false,
+            message: null,
+            position: { x: 0, y: 0 }
+        });
+    };
+
+    const handleEdit = async (message: MessageType) => {
+        // This will be called when the edit dialog is saved
+        if (!user.authToken) return;
+        
+        try {
+            await request({
+                type: "editMessage",
+                data: { 
+                    message_id: message.id,
+                    content: message.content // This should be updated content from the dialog
+                },
+                credentials: {
+                    scheme: "Bearer",
+                    credentials: user.authToken
+                }
+            });
+        } catch (error) {
+            console.error("Failed to edit message:", error);
+        }
+    };
+
+    const handleReply = async (message: MessageType) => {
+        // This will be called when the reply dialog is sent
+        if (!user.authToken) return;
+        
+        try {
+            await request({
+                type: "replyMessage",
+                data: {
+                    content: message.content, // This should be the reply content from the dialog
+                    reply_to_id: message.id
+                },
+                credentials: {
+                    scheme: "Bearer",
+                    credentials: user.authToken
+                }
+            });
+        } catch (error) {
+            console.error("Failed to send reply:", error);
+        }
+    };
+
+    const handleDelete = async (message: MessageType) => {
+        if (!user.authToken) return;
+        
+        try {
+            await request({
+                type: "deleteMessage",
+                data: { message_id: message.id },
+                credentials: {
+                    scheme: "Bearer",
+                    credentials: user.authToken
+                }
+            });
+        } catch (error) {
+            console.error("Failed to delete message:", error);
+        }
+    };
+
+    // Close context menu when clicking outside
+    const handleClickOutside = (e: React.MouseEvent) => {
+        if (contextMenu.isOpen) {
+            // Only close if clicking on the chat messages container, not on the context menu itself
+            if (e.target === e.currentTarget) {
+                handleContextMenuClose();
+            }
+        }
     };
 
     return (
         <>
-            <div className="chat-messages" id="chat-messages">
+            <div className="chat-messages" id="chat-messages" onClick={handleClickOutside}>
                 {messages.map((message) => (
                     <Message
                         key={message.id}
@@ -64,6 +156,19 @@ export function ChatMessages() {
                 }}
                 userProfile={selectedUserProfile}
             />
+            
+            {/* Context Menu */}
+            {contextMenu.isOpen && contextMenu.message && (
+                <MessageContextMenu
+                    message={contextMenu.message}
+                    isAuthor={contextMenu.message.username === user.currentUser?.username}
+                    onEdit={handleEdit}
+                    onReply={handleReply}
+                    onDelete={handleDelete}
+                    onClose={handleContextMenuClose}
+                    position={contextMenu.position}
+                />
+            )}
         </>
     );
 }

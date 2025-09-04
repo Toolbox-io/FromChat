@@ -11,11 +11,18 @@ interface MessageProps {
 }
 
 export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false }: MessageProps) {
+    const handleContextMenu = (e: React.MouseEvent) => {
+        console.log("Message context menu event triggered for message:", message.id);
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu(e, message);
+    };
+
     return (
         <div 
             className={`message ${isAuthor ? "sent" : "received"}`}
             data-id={message.id}
-            onContextMenu={(e) => onContextMenu(e, message)}
+            onContextMenu={handleContextMenu}
         >
             <div className="message-inner">
                 {/* Add profile picture for received messages */}
