@@ -321,25 +321,6 @@
     }
 }
 
-// Reply preview styles
-.reply-preview {
-    background-color: $color-dark-surface;
-    border-radius: 8px;
-    padding: 0.75rem;
-    margin-bottom: 1rem;
-    border-left: 3px solid $color-dark-primary;
-
-    .reply-preview-content {
-        color: $color-dark-on-surface-variant;
-        font-size: 0.9rem;
-        line-height: 1.4;
-
-        strong {
-            color: $color-dark-primary;
-        }
-    }
-}
-
 .message-profile-pic {
     img {
         width: 40px;
@@ -359,55 +340,6 @@
     &.loading {
         opacity: 0.6;
         cursor: default;
-    }
-}
-
-.dialog-content {
-    padding: 1.5rem;
-    
-    h3 {
-        margin: 0 0 1rem 0;
-        color: $color-dark-on-surface;
-        font-size: 1.2rem;
-        font-weight: 600;
-    }
-    
-    mdui-text-field {
-        width: 100%;
-        margin-bottom: 1.5rem;
-    }
-    
-    .reply-preview {
-        margin-bottom: 1rem;
-        padding: 0.75rem;
-        background-color: $color-dark-surface-container;
-        border-radius: 8px;
-        border: 1px solid $color-dark-outline;
-        
-        .reply-content {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            
-            .reply-username {
-                font-weight: 600;
-                color: $color-dark-on-surface;
-                font-size: 0.85rem;
-            }
-            
-            .reply-text {
-                color: $color-dark-on-surface-variant;
-                font-size: 0.9rem;
-                line-height: 1.4;
-            }
-        }
-    }
-    
-    .dialog-actions {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: flex-end;
-        margin-top: 1rem;
     }
 }
 

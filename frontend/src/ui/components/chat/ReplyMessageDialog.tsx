@@ -33,10 +33,10 @@ export function ReplyMessageDialog({ isOpen, onOpenChange, replyToMessage, onSen
     if (!replyToMessage) return null;
 
     return (
-        <MaterialDialog open={isOpen} onOpenChange={onOpenChange} close-on-overlay-click close-on-esc>
+        <MaterialDialog open={isOpen} onOpenChange={onOpenChange} close-on-overlay-click close-on-esc className="reply-dialog">
             <div className="dialog-content">
                 <h3>Reply to Message</h3>
-                <div className="reply-preview">
+                <div className="reply-preview-dialog">
                     <div className="reply-content">
                         <span className="reply-username">{replyToMessage.username}</span>
                         <span className="reply-text">{replyToMessage.content}</span>

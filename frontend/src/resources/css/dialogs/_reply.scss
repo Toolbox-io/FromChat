@@ -1,0 +1,31 @@
+@use "../common/material" as *;
+
+.reply-dialog .dialog-content {
+    width: 300px;
+    overflow-x:hidden;
+
+    .reply-preview-dialog {
+        margin-bottom: 1rem;
+        padding: 16px;
+        background-color: $color-dark-surface-container;
+        border-radius: 16px;
+        
+        .reply-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            
+            .reply-username {
+                font-weight: 600;
+                color: $color-dark-on-surface;
+                font-size: 0.85rem;
+            }
+            
+            .reply-text {
+                color: $color-dark-on-surface-variant;
+                font-size: 0.9rem;
+                line-height: 1.4;
+            }
+        }
+    }
+}
