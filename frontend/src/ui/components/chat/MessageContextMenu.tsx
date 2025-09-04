@@ -36,6 +36,46 @@ export function MessageContextMenu({
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [replyDialogOpen, setReplyDialogOpen] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
+    const [calculatedPosition, setCalculatedPosition] = useState(position);
+    const [animationClass, setAnimationClass] = useState('entering');
+
+    // Calculate smart positioning when component opens
+    useEffect(() => {
+        if (isOpen) {
+            const menuWidth = 160; // min-width from CSS
+            const menuHeight = isAuthor ? 120 : 60; // Approximate height based on items
+            const padding = 10; // Padding from viewport edges
+            
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            let x = position.x;
+            let y = position.y;
+            let animation = 'entering';
+            
+            // Check if menu would overflow right edge
+            if (x + menuWidth + padding > viewportWidth) {
+                x = viewportWidth - menuWidth - padding;
+                animation = 'entering-left'; // Animation from left side
+            }
+            
+            // Check if menu would overflow bottom edge
+            if (y + menuHeight + padding > viewportHeight) {
+                y = viewportHeight - menuHeight - padding;
+                animation = 'entering-up'; // Animation from bottom
+            }
+            
+            // If both edges would overflow, use top-left positioning
+            if (x + menuWidth + padding > viewportWidth && y + menuHeight + padding > viewportHeight) {
+                x = Math.max(padding, position.x - menuWidth);
+                y = Math.max(padding, position.y - menuHeight);
+                animation = 'entering-up-left';
+            }
+            
+            setCalculatedPosition({ x, y });
+            setAnimationClass(animation);
+        }
+    }, [isOpen, position, isAuthor]);
 
     // Effect to handle clicks outside the context menu
     useEffect(() => {
@@ -97,10 +137,15 @@ export function MessageContextMenu({
 
     const handleClose = () => {
         setIsClosing(true);
+        // Set appropriate closing animation based on opening animation
+        const closingAnimation = animationClass.replace('entering', 'closing');
+        setAnimationClass(closingAnimation);
+        
         // Wait for animation to complete before calling onOpenChange
         setTimeout(() => {
             onOpenChange(false);
             setIsClosing(false);
+            setAnimationClass('entering'); // Reset for next opening
         }, 200); // Match the animation duration from _animations.scss
     };
 
@@ -122,12 +167,12 @@ export function MessageContextMenu({
 
     const content = (
         <div 
-            className={`context-menu ${isClosing ? 'closing' : 'entering'}`}
+            className={`context-menu ${animationClass}`}
             style={{
                 position: "fixed",
                 display: "block",
-                top: position.y,
-                left: position.x,
+                top: calculatedPosition.y,
+                left: calculatedPosition.x,
                 zIndex: 1000
             }}
             onClick={(e) => e.stopPropagation()}
