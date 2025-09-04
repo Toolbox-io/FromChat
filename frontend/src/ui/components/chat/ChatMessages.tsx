@@ -6,11 +6,9 @@ import type { UserProfile } from "../../../core/types";
 import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
 import { fetchUserProfile } from "../../api/profileApi";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { delay } from "../../../utils/utils";
 import { request } from "../../../websocket";
-
-
 
 export function ChatMessages() {
     const { messages } = useChat();
@@ -25,6 +23,44 @@ export function ChatMessages() {
         message: null,
         position: { x: 0, y: 0 }
     });
+
+    // Effect to handle clicks outside the context menu
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (contextMenu.isOpen) {
+                // Check if the click is on a context menu element
+                const target = event.target as Element;
+                if (!target.closest('.context-menu')) {
+                    handleContextMenuClose();
+                }
+            }
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && contextMenu.isOpen) {
+                handleContextMenuClose();
+            }
+        };
+
+        const handleWindowBlur = () => {
+            // Close context menu when browser window loses focus
+            if (contextMenu.isOpen) {
+                handleContextMenuClose();
+            }
+        };
+
+        // Add event listeners
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('blur', handleWindowBlur);
+
+        // Cleanup
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('blur', handleWindowBlur);
+        };
+    }, [contextMenu.isOpen]);
 
     const handleProfileClick = async (username: string) => {
         if (!user.authToken) return;
@@ -120,19 +156,9 @@ export function ChatMessages() {
         }
     };
 
-    // Close context menu when clicking outside
-    const handleClickOutside = (e: React.MouseEvent) => {
-        if (contextMenu.isOpen) {
-            // Only close if clicking on the chat messages container, not on the context menu itself
-            if (e.target === e.currentTarget) {
-                handleContextMenuClose();
-            }
-        }
-    };
-
     return (
         <>
-            <div className="chat-messages" id="chat-messages" onClick={handleClickOutside}>
+            <div className="chat-messages" id="chat-messages">
                 {messages.map((message) => (
                     <Message
                         key={message.id}

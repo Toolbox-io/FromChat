@@ -33,6 +33,7 @@ export function MessageContextMenu({
     // Internal state for dialogs
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
     
     const handleAction = (action: string) => {
         console.log("Context menu action triggered:", action);
@@ -48,10 +49,18 @@ export function MessageContextMenu({
             case "delete":
                 if (isAuthor) {
                     onDelete(message);
-                    onClose();
+                    handleClose();
                 }
                 break;
         }
+    };
+
+    const handleClose = () => {
+        setIsClosing(true);
+        // Wait for animation to complete before calling onClose
+        setTimeout(() => {
+            onClose();
+        }, 200); // Match the animation duration from _animations.scss
     };
 
     const handleEditSave = (messageId: number, newContent: string) => {
@@ -71,7 +80,7 @@ export function MessageContextMenu({
     return (
         <>
             <div 
-                className="context-menu"
+                className={`context-menu ${isClosing ? 'closing' : 'entering'}`}
                 style={{
                     position: "fixed",
                     display: "block",
