@@ -23,11 +23,12 @@ export function ChatMessages() {
         message: null,
         position: { x: 0, y: 0 }
     });
+    const [isContextMenuClosing, setIsContextMenuClosing] = useState(false);
 
     // Effect to handle clicks outside the context menu
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (contextMenu.isOpen) {
+            if (contextMenu.isOpen && !isContextMenuClosing) {
                 // Check if the click is on a context menu element
                 const target = event.target as Element;
                 if (!target.closest('.context-menu')) {
@@ -37,14 +38,14 @@ export function ChatMessages() {
         };
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && contextMenu.isOpen) {
+            if (event.key === 'Escape' && contextMenu.isOpen && !isContextMenuClosing) {
                 handleContextMenuClose();
             }
         };
 
         const handleWindowBlur = () => {
             // Close context menu when browser window loses focus
-            if (contextMenu.isOpen) {
+            if (contextMenu.isOpen && !isContextMenuClosing) {
                 handleContextMenuClose();
             }
         };
@@ -60,7 +61,7 @@ export function ChatMessages() {
             document.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('blur', handleWindowBlur);
         };
-    }, [contextMenu.isOpen]);
+    }, [contextMenu.isOpen, isContextMenuClosing]);
 
     const handleProfileClick = async (username: string) => {
         if (!user.authToken) return;
@@ -82,6 +83,7 @@ export function ChatMessages() {
     const handleContextMenu = (e: React.MouseEvent, message: MessageType) => {
         e.preventDefault();
         console.log("Context menu triggered for message:", message.id, "at position:", e.clientX, e.clientY);
+        setIsContextMenuClosing(false);
         setContextMenu({
             isOpen: true,
             message,
@@ -90,11 +92,16 @@ export function ChatMessages() {
     };
 
     const handleContextMenuClose = () => {
-        setContextMenu({
-            isOpen: false,
-            message: null,
-            position: { x: 0, y: 0 }
-        });
+        setIsContextMenuClosing(true);
+        // Wait for animation to complete before removing from DOM
+        setTimeout(() => {
+            setContextMenu({
+                isOpen: false,
+                message: null,
+                position: { x: 0, y: 0 }
+            });
+            setIsContextMenuClosing(false);
+        }, 200); // Match the animation duration from _animations.scss
     };
 
     const handleEdit = async (message: MessageType) => {
@@ -193,6 +200,7 @@ export function ChatMessages() {
                     onDelete={handleDelete}
                     onClose={handleContextMenuClose}
                     position={contextMenu.position}
+                    isClosing={isContextMenuClosing}
                 />
             )}
         </>

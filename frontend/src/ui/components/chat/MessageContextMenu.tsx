@@ -11,6 +11,7 @@ interface MessageContextMenuProps {
     onDelete: (message: Message) => void;
     onClose: () => void;
     position: { x: number; y: number };
+    isClosing: boolean;
 }
 
 export interface ContextMenuState {
@@ -26,14 +27,14 @@ export function MessageContextMenu({
     onReply, 
     onDelete, 
     onClose, 
-    position 
+    position,
+    isClosing
 }: MessageContextMenuProps) {
     console.log("MessageContextMenu rendered with position:", position, "message:", message.id);
     
     // Internal state for dialogs
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [replyDialogOpen, setReplyDialogOpen] = useState(false);
-    const [isClosing, setIsClosing] = useState(false);
     
     const handleAction = (action: string) => {
         console.log("Context menu action triggered:", action);
@@ -49,18 +50,10 @@ export function MessageContextMenu({
             case "delete":
                 if (isAuthor) {
                     onDelete(message);
-                    handleClose();
+                    onClose();
                 }
                 break;
         }
-    };
-
-    const handleClose = () => {
-        setIsClosing(true);
-        // Wait for animation to complete before calling onClose
-        setTimeout(() => {
-            onClose();
-        }, 200); // Match the animation duration from _animations.scss
     };
 
     const handleEditSave = (messageId: number, newContent: string) => {
