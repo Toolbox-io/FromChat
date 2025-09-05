@@ -8,6 +8,7 @@ import type { ErrorResponse, RegisterRequest } from "../../core/types";
 import { API_BASE_URL } from "../../core/config";
 import { delay } from "../../utils/utils";
 import { useAppState } from "../state";
+import { MaterialTextField } from "../components/core/TextField";
 
 export default function RegisterScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
@@ -82,7 +83,7 @@ export default function RegisterScreen() {
                         showAlert("danger", "Ошибка соединения с сервером");
                     }
                 }}>
-                    <mdui-text-field 
+                    <MaterialTextField
                         label="Имя пользователя" 
                         id="register-username" 
                         name="username" 
@@ -92,9 +93,8 @@ export default function RegisterScreen() {
                         maxlength={20}
                         counter
                         required
-                        ref={usernameElement as React.RefObject<HTMLElement & TextField>}>
-                    </mdui-text-field>
-                    <mdui-text-field 
+                        ref={usernameElement} />
+                    <MaterialTextField
                         label="Пароль" 
                         id="register-password" 
                         name="password" 
@@ -104,9 +104,8 @@ export default function RegisterScreen() {
                         icon="password--filled"
                         autocomplete="new-password"
                         required
-                        ref={passwordElement as React.RefObject<HTMLElement & TextField>}>
-                    </mdui-text-field>
-                    <mdui-text-field 
+                        ref={passwordElement} />
+                    <MaterialTextField
                         label="Подтвердите пароль" 
                         id="register-confirm-password" 
                         name="confirm_password" 
@@ -116,8 +115,7 @@ export default function RegisterScreen() {
                         icon="password--filled"
                         autocomplete="new-password"
                         required
-                        ref={confirmPasswordElement as React.RefObject<HTMLElement & TextField>}>
-                    </mdui-text-field>
+                        ref={confirmPasswordElement} />
 
                     <mdui-button type="submit">Зарегистрироваться</mdui-button>
                 </form>

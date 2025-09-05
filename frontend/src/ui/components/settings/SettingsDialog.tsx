@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PRODUCT_NAME } from "../../../core/config";
 import type { DialogProps } from "../../../core/types";
-import { MaterialDialog } from "../Dialog";
+import { MaterialDialog } from "../core/Dialog";
 
 export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     const [activePanel, setActivePanel] = useState("notifications-settings");

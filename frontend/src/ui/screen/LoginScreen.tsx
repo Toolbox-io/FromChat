@@ -8,6 +8,7 @@ import { API_BASE_URL } from "../../core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../state";
+import { MaterialTextField } from "../components/core/TextField";
 
 export default function LoginScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
@@ -75,7 +76,7 @@ export default function LoginScreen() {
                             showAlert("danger", "Ошибка соединения с сервером");
                         }
                     }}>
-                    <mdui-text-field
+                    <MaterialTextField
                         label="Имя пользователя"
                         id="login-username"
                         name="username"
@@ -83,9 +84,9 @@ export default function LoginScreen() {
                         icon="person--filled"
                         autocomplete="username"
                         required
-                        ref={usernameElement as React.RefObject<HTMLElement & TextField>}>
-                    </mdui-text-field>
-                    <mdui-text-field
+                        ref={usernameElement} />
+                    
+                    <MaterialTextField
                         label="Пароль"
                         id="login-password"
                         name="password"
@@ -95,8 +96,7 @@ export default function LoginScreen() {
                         icon="password--filled"
                         autocomplete="current-password"
                         required
-                        ref={passwordElement as React.RefObject<HTMLElement & TextField>}>
-                    </mdui-text-field>
+                        ref={passwordElement} />
 
                     <mdui-button type="submit">Войти</mdui-button>
                 </form>

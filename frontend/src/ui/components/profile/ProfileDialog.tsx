@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, type FormEvent } from "react";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import type { TextField } from "mdui/components/text-field";
 import type { DialogProps } from "../../../core/types";
-import { MaterialDialog } from "../Dialog";
+import { MaterialDialog } from "../core/Dialog";
 import { useProfile } from "../../hooks/useProfile";
 import { ImageCropper } from "./ImageCropper";
+import { MaterialTextField } from "../core/TextField";
 
 export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
     const { profileData, isLoading, isUpdating, updateProfileData, uploadProfilePictureData } = useProfile();
@@ -109,19 +110,18 @@ export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
                                 onChange={handleImageSelect}
                             />
                         </div>
-                        <mdui-text-field 
+                        <MaterialTextField
                             id="username-field" 
                             label="Имя пользователя" 
                             variant="outlined" 
                             value={username}
                             onChange={(e: FormEvent<HTMLElement & TextField>) => setUsername((e.target as TextField).value)}
                             autocomplete="username"
-                            disabled={isLoading || isUpdating}
-                        />
+                            disabled={isLoading || isUpdating} />
                     </div>
 
                     <form id="profile-form" onSubmit={handleSubmit}>
-                        <mdui-text-field 
+                        <MaterialTextField
                             id="description-field"
                             label="О себе" 
                             variant="outlined" 
@@ -129,8 +129,7 @@ export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
                             onChange={(e: FormEvent<HTMLElement & TextField>) => setDescription((e.target as TextField).value)}
                             placeholder="Расскажите о себе..."
                             autocomplete="none"
-                            disabled={isLoading || isUpdating}
-                        />
+                            disabled={isLoading || isUpdating} />
                         <div className="dialog-actions">
                             <mdui-button 
                                 type="submit" 

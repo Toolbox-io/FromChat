@@ -1,7 +1,7 @@
 import type { Dialog as MduiDialog } from "mdui/components/dialog";
 import React, { useEffect, useRef } from "react"
 import { createPortal } from "react-dom";
-import { id } from "../../utils/utils";
+import { id } from "../../../utils/utils";
 
 export interface BaseDialogProps {
     onOpenChange: (value: boolean) => void;

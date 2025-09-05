@@ -1,6 +1,6 @@
 import type { DialogProps } from "../../../core/types";
 import type { UserProfile } from "../../../core/types";
-import { MaterialDialog } from "../Dialog";
+import { MaterialDialog } from "../core/Dialog";
 import { formatTime } from "../../../utils/utils";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 

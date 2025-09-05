@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Message } from "../../../core/types";
-import { MaterialDialog } from "../Dialog";
+import { MaterialDialog } from "../core/Dialog";
 
 interface EditMessageDialogProps {
     isOpen: boolean;
