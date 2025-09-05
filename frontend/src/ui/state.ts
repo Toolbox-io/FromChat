@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Message, User, UserProfile, WebSocketMessage } from "../core/types";
+import type { Message, User, WebSocketMessage } from "../core/types";
 import { request } from "../websocket";
 
 type Page = "login" | "register" | "chat"

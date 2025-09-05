@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { useAppState } from "../state";
 import { request, websocket } from "../../websocket";
 import { API_BASE_URL } from "../../core/config";
-import type { Message, WebSocketMessage, User } from "../../core/types";
+import type { Message, WebSocketMessage } from "../../core/types";
 import { getAuthHeaders } from "../../auth/api";
 
 export function useChat() {
@@ -12,11 +12,11 @@ export function useChat() {
         updateMessage,
         removeMessage,
         clearMessages,
-        setCurrentChat, 
-        setActiveTab, 
-        setDmUsers, 
+        setCurrentChat,
+        setActiveTab,
+        setDmUsers,
         setActiveDm,
-        user 
+        user
     } = useAppState();
 
     const messagesLoadedRef = useRef(false);
@@ -87,7 +87,6 @@ export function useChat() {
                         break;
                     case 'newMessage':
                         if (response.data) {
-                            const isAuthor = response.data.username === user.currentUser?.username;
                             addMessage(response.data);
                         }
                         break;
