@@ -6,15 +6,16 @@ import type { UserProfile } from "../../../core/types";
 import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
 import { fetchUserProfile } from "../../api/profileApi";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { delay } from "../../../utils/utils";
 import { request } from "../../../websocket";
 
 interface ChatMessagesProps {
     messages?: MessageType[];
+    children?: ReactNode;
 }
 
-export function ChatMessages({ messages: propMessages }: ChatMessagesProps) {
+export function ChatMessages({ messages: propMessages, children }: ChatMessagesProps) {
     const { messages: hookMessages } = useChat();
     const { user } = useAppState();
     
@@ -137,6 +138,7 @@ export function ChatMessages({ messages: propMessages }: ChatMessagesProps) {
                         isLoadingProfile={isLoadingProfile}
                     />
                 ))}
+                {children}
             </div>
             
             <UserProfileDialog

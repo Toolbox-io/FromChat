@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { MessagePanel, type MessagePanelState } from "../../panels/MessagePanel";
-import { ChatMainHeader } from "./ChatMainHeader";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
@@ -105,9 +104,9 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         <a href="#" id="hide-chat">Свернуть чат</a>
                     </div>
                 </div>
-                
-                <div className="chat-messages" id="chat-messages">
-                    {panelState.isLoading ? (
+
+                {panelState.isLoading ? (
+                    <div className="chat-messages" id="chat-messages">
                         <div style={{ 
                             display: "flex", 
                             justifyContent: "center", 
@@ -117,13 +116,12 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         }}>
                             Loading messages...
                         </div>
-                    ) : (
-                        <>
-                            <ChatMessages messages={panelState.messages} />
-                            <div ref={messagesEndRef} />
-                        </>
-                    )}
-                </div>
+                    </div>
+                ): (
+                    <ChatMessages messages={panelState.messages}>
+                        <div ref={messagesEndRef} />
+                    </ChatMessages>
+                )}
                 
                 <ChatInputWrapper onSendMessage={panel.handleSendMessage} />
             </div>
