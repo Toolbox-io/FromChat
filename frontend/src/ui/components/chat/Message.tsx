@@ -13,7 +13,6 @@ interface MessageProps {
 
 export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false }: MessageProps) {
     const handleContextMenu = (e: React.MouseEvent) => {
-        console.log("Message context menu event triggered for message:", message.id);
         e.preventDefault();
         e.stopPropagation();
         onContextMenu(e, message);

@@ -114,7 +114,6 @@ export function MessageContextMenu({
     }, [isOpen, isClosing, editDialogOpen, replyDialogOpen]);
     
     const handleAction = (action: string) => {
-        console.log("Context menu action triggered:", action);
         switch (action) {
             case "reply":
                 setReplyDialogOpen(true);

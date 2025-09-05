@@ -52,7 +52,6 @@ export function ChatMessages({ messages: propMessages, children, isDm = false }:
 
     const handleContextMenu = (e: React.MouseEvent, message: MessageType) => {
         e.preventDefault();
-        console.log("Context menu triggered for message:", message.id, "at position:", e.clientX, e.clientY);
         setContextMenu({
             isOpen: true,
             message,
