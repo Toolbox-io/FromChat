@@ -9,9 +9,11 @@ When working with this project, follow these rules:
 - Do NOT "test the implementation" when you are done. The only exception is when you 
   need to typecheck or build the app, in that case:
 
-  - To typecheck, run "npm run frontend:typecheck".
-  - To build, run "npm run frontend:build".
+  - To typecheck, run `npm run frontend:typecheck`.
+  - To build, run `npm run frontend:build`.
 
   Do NOT execute other commands like "cd".
 - Do NOT "cd" to the project directory.
 - If possible, try to update files in a single edit.
+- When you need a delay, use `await delay(millis);` in an async function. If the current function is not async,
+  make it async. The import is `<project>/frontend/src/utils/utils`.
