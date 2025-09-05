@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Message } from "../../../core/types";
+import type { Message, Size2D } from "../../../core/types";
 import { EditMessageDialog } from "./EditMessageDialog";
 import { ReplyMessageDialog } from "./ReplyMessageDialog";
 
@@ -9,7 +9,7 @@ interface MessageContextMenuProps {
     onEdit: (message: Message) => void;
     onReply: (message: Message) => void;
     onDelete: (message: Message) => void;
-    position: { x: number; y: number };
+    position: Size2D;
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
 }
@@ -17,7 +17,7 @@ interface MessageContextMenuProps {
 export interface ContextMenuState {
     isOpen: boolean;
     message: Message | null;
-    position: { x: number; y: number };
+    position: Size2D;
 }
 
 export function MessageContextMenu({ 
