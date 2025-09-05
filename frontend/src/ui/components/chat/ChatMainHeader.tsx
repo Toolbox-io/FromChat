@@ -1,15 +1,8 @@
 import { useChat } from "../../hooks/useChat";
-import { useState } from "react";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 export function ChatMainHeader() {
     const { currentChat } = useChat();
-    const [isCollapsed, setIsCollapsed] = useState(false);
-
-    const handleCollapse = () => {
-        setIsCollapsed(!isCollapsed);
-        // TODO: Implement chat collapse animation
-    };
 
     return (
         <div className="chat-header">
@@ -22,7 +15,6 @@ export function ChatMainHeader() {
                         Онлайн
                     </p>
                 </div>
-                <a href="#" id="hide-chat" onClick={handleCollapse}>Свернуть чат</a>
             </div>
         </div>
     );

@@ -4,12 +4,19 @@ import { request } from "../websocket";
 
 type Page = "login" | "register" | "chat"
 
+interface ActiveDM {
+    userId: number; 
+    username: string;
+    publicKey: string | null
+}
+
 interface ChatState {
     messages: Message[];
     currentChat: string;
     activeTab: "chats" | "channels" | "contacts" | "dms";
     dmUsers: User[];
-    activeDm: { userId: number; username: string; publicKey: string | null } | null;
+    activeDm: ActiveDM | null;
+    isChatSwitching: boolean;
 }
 
 interface UserState {
@@ -31,6 +38,7 @@ interface AppState {
     setDmUsers: (users: User[]) => void;
     setActiveDm: (dm: ChatState["activeDm"]) => void;
     clearMessages: () => void;
+    setIsChatSwitching: (value: boolean) => void;
     
     // User state
     user: UserState;
@@ -48,8 +56,15 @@ export const useAppState = create<AppState>((set, get) => ({
         currentChat: "Общий чат",
         activeTab: "chats",
         dmUsers: [],
-        activeDm: null
+        activeDm: null,
+        isChatSwitching: false
     },
+    setIsChatSwitching: (value: boolean) => set((state) => ({
+        chat: {
+            ...state.chat,
+            isChatSwitching: value
+        }
+    })),
     addMessage: (message: Message) => set((state) => {
         // Check if message already exists to prevent duplicates
         const messageExists = state.chat.messages.some(msg => msg.id === message.id);

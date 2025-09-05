@@ -4,6 +4,7 @@ import { request, websocket } from "../../websocket";
 import { API_BASE_URL } from "../../core/config";
 import type { Message, WebSocketMessage } from "../../core/types";
 import { getAuthHeaders } from "../../auth/api";
+import { delay } from "../../utils/utils";
 
 export function useChat() {
     const { 
@@ -16,6 +17,7 @@ export function useChat() {
         setActiveTab,
         setDmUsers,
         setActiveDm,
+        setIsChatSwitching,
         user
     } = useAppState();
 
@@ -112,9 +114,14 @@ export function useChat() {
 
     // Reset messages loaded flag and clear messages when chat changes
     useEffect(() => {
-        messagesLoadedRef.current = false;
-        clearMessages(); // Clear messages when switching chats
-        loadMessages();
+        (async () => {
+            setIsChatSwitching(true);
+            await delay(250);
+            messagesLoadedRef.current = false;
+            clearMessages(); // Clear messages when switching chats
+            loadMessages();
+            setIsChatSwitching(false);
+        })();
     }, [chat.currentChat, clearMessages]);
 
     return {
@@ -123,6 +130,8 @@ export function useChat() {
         activeTab: chat.activeTab,
         dmUsers: chat.dmUsers,
         activeDm: chat.activeDm,
+        isChatSwitching: chat.isChatSwitching,
+        setIsChatSwitching,
         sendMessage,
         updateMessage,
         removeMessage,
