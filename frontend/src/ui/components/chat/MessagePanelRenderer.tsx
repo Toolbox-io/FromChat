@@ -101,7 +101,6 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                                 {panelState.isTyping && " • Typing..."}
                             </p>
                         </div>
-                        <a href="#" id="hide-chat">Свернуть чат</a>
                     </div>
                 </div>
 
