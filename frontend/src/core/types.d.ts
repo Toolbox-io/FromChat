@@ -32,6 +32,11 @@ export interface Size2D {
     y: number;
 }
 
+export interface Rect extends Size2D {
+    width: number;
+    height: number;
+}
+
 // App types
 
 /**

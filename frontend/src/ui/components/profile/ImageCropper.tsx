@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { Size2D, Rect } from "../../../core/types";
 
 interface ImageCropperProps {
     onCrop: (croppedImageData: string) => void;
@@ -9,35 +10,47 @@ interface ImageCropperProps {
 export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imageRef = useRef<HTMLImageElement>(null);
+    const [src, setSrc] = useState<string | undefined>(undefined);
     const [isLoaded, setIsLoaded] = useState(false);
-    const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 200, height: 200 });
+    const [cropArea, setCropArea] = useState<Rect>({ x: 0, y: 0, width: 200, height: 200 });
     const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [dragStart, setDragStart] = useState<Size2D>({ x: 0, y: 0 });
 
     useEffect(() => {
-        if (!imageFile) return;
+        if (imageFile) {
+            const reader = new FileReader();
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            if (imageRef.current) {
-                imageRef.current.src = e.target?.result as string;
-                imageRef.current.onload = () => {
-                    setIsLoaded(true);
-                    // Initialize crop area to center of image
-                    if (imageRef.current) {
-                        const img = imageRef.current;
-                        const size = Math.min(img.naturalWidth, img.naturalHeight) * 0.8;
-                        setCropArea({
-                            x: (img.naturalWidth - size) / 2,
-                            y: (img.naturalHeight - size) / 2,
-                            width: size,
-                            height: size
-                        });
-                    }
-                };
+            function handleImageLoad() {
+                setIsLoaded(true);
+                // Initialize crop area to center of image
+                const img = imageRef.current;
+                if (img) {
+                    const size = Math.min(img.naturalWidth, img.naturalHeight) * 0.8;
+                    setCropArea({
+                        x: (img.naturalWidth - size) / 2,
+                        y: (img.naturalHeight - size) / 2,
+                        width: size,
+                        height: size
+                    });
+                }
             }
-        };
-        reader.readAsDataURL(imageFile);
+
+            function handleReaderLoad() {
+                if (imageRef.current) {
+                    setSrc(reader.result as string);
+                    imageRef.current.addEventListener("load", handleImageLoad);
+                }
+            }
+
+            reader.addEventListener("load", handleReaderLoad);
+            reader.readAsDataURL(imageFile);
+
+            return () => {
+                reader.abort();
+                reader.removeEventListener("load", handleReaderLoad);
+                imageRef.current?.removeEventListener("load", handleImageLoad);
+            }
+        }
     }, [imageFile]);
 
     function handleMouseDown(e: React.MouseEvent) {
@@ -58,18 +71,28 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
     };
 
     function handleMouseMove(e: React.MouseEvent) {
-        if (!isDragging || !isLoaded) return;
-
         const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect || !imageRef.current) return;
+        if (isDragging && isLoaded && rect && imageRef.current) {
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
 
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+            const newX = Math.max(
+                0, 
+                Math.min(
+                    x - dragStart.x, 
+                    imageRef.current.naturalWidth - cropArea.width
+                )
+            );
+            const newY = Math.max(
+                0, 
+                Math.min(
+                    y - dragStart.y, 
+                    imageRef.current.naturalHeight - cropArea.height
+                )
+            );
 
-        const newX = Math.max(0, Math.min(x - dragStart.x, imageRef.current.naturalWidth - cropArea.width));
-        const newY = Math.max(0, Math.min(y - dragStart.y, imageRef.current.naturalHeight - cropArea.height));
-
-        setCropArea(prev => ({ ...prev, x: newX, y: newY }));
+            setCropArea(prev => ({ ...prev, x: newX, y: newY }));
+        }
     };
 
     function handleMouseUp() {
@@ -152,6 +175,7 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
             />
             <img
                 ref={imageRef}
+                src={src}
                 style={{ display: 'none' }}
                 alt="Crop source"
             />
