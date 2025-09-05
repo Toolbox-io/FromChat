@@ -12,10 +12,11 @@ import { request } from "../../../websocket";
 
 interface ChatMessagesProps {
     messages?: MessageType[];
+    isDm?: boolean;
     children?: ReactNode;
 }
 
-export function ChatMessages({ messages: propMessages, children }: ChatMessagesProps) {
+export function ChatMessages({ messages: propMessages, children, isDm = false }: ChatMessagesProps) {
     const { messages: hookMessages } = useChat();
     const { user } = useAppState();
     
@@ -136,7 +137,7 @@ export function ChatMessages({ messages: propMessages, children }: ChatMessagesP
                         onProfileClick={handleProfileClick}
                         onContextMenu={handleContextMenu}
                         isLoadingProfile={isLoadingProfile}
-                    />
+                        isDm={isDm} />
                 ))}
                 {children}
             </div>

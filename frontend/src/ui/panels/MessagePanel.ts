@@ -49,6 +49,7 @@ export abstract class MessagePanel {
     abstract deactivate(): void;
     abstract loadMessages(): Promise<void>;
     abstract sendMessage(content: string): Promise<void>;
+    abstract isDm(): boolean;
 
     // Common methods
     protected updateState(updates: Partial<MessagePanelState>): void {

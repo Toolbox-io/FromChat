@@ -28,6 +28,10 @@ export class DMPanel extends MessagePanel {
         super("dm", user, callbacks, onStateChange);
     }
 
+    isDm(): boolean {
+        return true;
+    }
+
     async activate(): Promise<void> {
         if (this.dmData && !this.messagesLoaded) {
             await this.loadMessages();

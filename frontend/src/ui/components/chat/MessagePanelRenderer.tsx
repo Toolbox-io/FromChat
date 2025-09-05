@@ -118,7 +118,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         </div>
                     </div>
                 ): (
-                    <ChatMessages messages={panelState.messages}>
+                    <ChatMessages messages={panelState.messages} isDm={panel.isDm()}>
                         <div ref={messagesEndRef} />
                     </ChatMessages>
                 )}

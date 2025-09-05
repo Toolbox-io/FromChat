@@ -23,6 +23,10 @@ export class PublicChatPanel extends MessagePanel {
         });
     }
 
+    isDm(): boolean {
+        return false;
+    }
+
     async activate(): Promise<void> {
         if (!this.messagesLoaded) {
             await this.loadMessages();
