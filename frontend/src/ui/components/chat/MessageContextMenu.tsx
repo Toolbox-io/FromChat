@@ -30,8 +30,6 @@ export function MessageContextMenu({
     isOpen,
     onOpenChange
 }: MessageContextMenuProps) {
-    console.log("MessageContextMenu rendered with position:", position, "message:", message.id);
-    
     // Internal state for dialogs and closing animation
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [replyDialogOpen, setReplyDialogOpen] = useState(false);

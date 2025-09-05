@@ -3,6 +3,7 @@ import type { Message, User, WebSocketMessage } from "../core/types";
 import { request } from "../websocket";
 
 type Page = "login" | "register" | "chat"
+export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
 
 interface ActiveDM {
     userId: number; 
@@ -13,7 +14,7 @@ interface ActiveDM {
 interface ChatState {
     messages: Message[];
     currentChat: string;
-    activeTab: "chats" | "channels" | "contacts" | "dms";
+    activeTab: ChatTabs;
     dmUsers: User[];
     activeDm: ActiveDM | null;
     isChatSwitching: boolean;

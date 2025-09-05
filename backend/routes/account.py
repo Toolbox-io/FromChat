@@ -17,6 +17,8 @@ def convert_user(user: User) -> dict:
         "last_seen": user.last_seen.isoformat(),
         "online": user.online,
         "username": user.username,
+        "profile_picture": user.profile_picture,
+        "bio": user.bio,
         "admin": user.username == OWNER_USERNAME
     }
 

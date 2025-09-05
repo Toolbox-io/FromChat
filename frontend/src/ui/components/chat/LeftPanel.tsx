@@ -2,9 +2,12 @@ import { PRODUCT_NAME } from "../../../core/config";
 import { useDialog } from "../../contexts/DialogContext";
 import { useChat } from "../../hooks/useChat";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { ProfileDialog } from "../profile/ProfileDialog";
 import { SettingsDialog } from "../settings/SettingsDialog";
+import { DMUsersList } from "./DMUsersList";
+import type { Tabs } from "mdui";
+import type { ChatTabs } from "../../state";
 
 function BottomAppBar() {
     const [settingsOpen, onSettingsOpenChange] = useState(false);
@@ -30,9 +33,13 @@ function ChatTabs() {
         setCurrentChat(chatName);
     };
 
+    const handleTabChange = (e: FormEvent<Tabs>) => {
+        setActiveTab((e.target as Tabs).value as ChatTabs);
+    };
+
     return (
         <div className="chat-tabs">
-            <mdui-tabs value={activeTab} full-width onChange={(e: Event & any) => setActiveTab(e.value)}>
+            <mdui-tabs value={activeTab} full-width onChange={handleTabChange}>
                 <mdui-tab value="chats">Чаты</mdui-tab>
                 <mdui-tab value="channels">Каналы</mdui-tab>
                 <mdui-tab value="contacts">Контакты</mdui-tab>
@@ -63,7 +70,7 @@ function ChatTabs() {
                 <mdui-tab-panel slot="panel" value="channels">Скоро будет...</mdui-tab-panel>
                 <mdui-tab-panel slot="panel" value="contacts">Скоро будет...</mdui-tab-panel>
                 <mdui-tab-panel slot="panel" value="dms">
-                    <mdui-list id="dm-users"></mdui-list>
+                    <DMUsersList />
                 </mdui-tab-panel>
             </mdui-tabs>
         </div>
