@@ -114,6 +114,7 @@ export function useChat() {
     useEffect(() => {
         messagesLoadedRef.current = false;
         clearMessages(); // Clear messages when switching chats
+        loadMessages();
     }, [chat.currentChat, clearMessages]);
 
     return {
