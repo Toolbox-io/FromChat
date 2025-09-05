@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { useDM } from "../../../hooks/useDM";
 import { useAppState } from "../../state";
+import { fetchUserPublicKey } from "../../../api/dmApi";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 export function DMUsersList() {
-    const { dmUsers, isLoadingUsers, loadUsers, startDMConversation } = useDM();
-    const { chat } = useAppState();
+    const { dmUsers, isLoadingUsers, loadUsers } = useDM();
+    const { chat, switchToDM } = useAppState();
 
     useEffect(() => {
         if (chat.activeTab === "dms") {
@@ -33,6 +34,33 @@ export function DMUsersList() {
         );
     }
 
+    const handleUserClick = async (user: any) => {
+        if (!user.publicKey) {
+            // Get public key if not already loaded
+            const authToken = useAppState.getState().user.authToken;
+            if (!authToken) {
+                console.error("No auth token available");
+                return;
+            }
+            
+            const publicKey = await fetchUserPublicKey(user.id, authToken);
+            if (publicKey) {
+                user.publicKey = publicKey;
+            } else {
+                console.error("Failed to get public key for user:", user.id);
+                return;
+            }
+        }
+        
+        await switchToDM({
+            userId: user.id,
+            username: user.username,
+            publicKey: user.publicKey,
+            profilePicture: user.profile_picture,
+            online: user.online || false
+        });
+    };
+
     return (
         <mdui-list>
             {dmUsers.map((user) => (
@@ -40,7 +68,7 @@ export function DMUsersList() {
                     key={user.id}
                     headline={user.username}
                     description={user.lastMessage || "Нет сообщений"}
-                    onClick={() => startDMConversation(user)}
+                    onClick={() => handleUserClick(user)}
                     style={{ cursor: "pointer" }}
                 >
                     <img 

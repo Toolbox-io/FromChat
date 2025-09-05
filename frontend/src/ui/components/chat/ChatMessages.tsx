@@ -10,9 +10,16 @@ import { useState } from "react";
 import { delay } from "../../../utils/utils";
 import { request } from "../../../websocket";
 
-export function ChatMessages() {
-    const { messages } = useChat();
+interface ChatMessagesProps {
+    messages?: MessageType[];
+}
+
+export function ChatMessages({ messages: propMessages }: ChatMessagesProps) {
+    const { messages: hookMessages } = useChat();
     const { user } = useAppState();
+    
+    // Use prop messages if provided, otherwise use hook messages
+    const messages = propMessages || hookMessages;
     const [profileDialogOpen, setProfileDialogOpen] = useState(false);
     const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
     const [isLoadingProfile, setIsLoadingProfile] = useState(false);

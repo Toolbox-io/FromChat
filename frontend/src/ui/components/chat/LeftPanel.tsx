@@ -1,6 +1,7 @@
 import { PRODUCT_NAME } from "../../../core/config";
 import { useDialog } from "../../contexts/DialogContext";
 import { useChat } from "../../hooks/useChat";
+import { useAppState } from "../../state";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import { useState, type FormEvent } from "react";
 import { ProfileDialog } from "../profile/ProfileDialog";
@@ -27,14 +28,16 @@ function BottomAppBar() {
 
 
 function ChatTabs() {
-    const { activeTab, setActiveTab, setCurrentChat } = useChat();
+    const { chat, switchToTab, switchToPublicChat } = useAppState();
+    const { activeTab } = chat;
 
-    const handleChatClick = (chatName: string) => {
-        setCurrentChat(chatName);
+    const handleChatClick = async (chatName: string) => {
+        await switchToPublicChat(chatName);
     };
 
-    const handleTabChange = (e: FormEvent<Tabs>) => {
-        setActiveTab((e.target as Tabs).value as ChatTabs);
+    const handleTabChange = async (e: FormEvent<Tabs>) => {
+        const tab = (e.target as Tabs).value as ChatTabs;
+        await switchToTab(tab);
     };
 
     return (

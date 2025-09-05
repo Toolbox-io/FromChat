@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import type { Message, User, WebSocketMessage } from "../core/types";
 import { request } from "../websocket";
+import { MessagePanel } from "./panels/MessagePanel";
+import { PublicChatPanel } from "./panels/PublicChatPanel";
+import { DMPanel, type DMPanelData } from "./panels/DMPanel";
 
 type Page = "login" | "register" | "chat"
 export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
@@ -18,9 +21,12 @@ interface ChatState {
     dmUsers: User[];
     activeDm: ActiveDM | null;
     isChatSwitching: boolean;
+    activePanel: MessagePanel | null;
+    publicChatPanel: PublicChatPanel | null;
+    dmPanel: DMPanel | null;
 }
 
-interface UserState {
+export interface UserState {
     currentUser: User | null;
     authToken: string | null;
 }
@@ -40,6 +46,10 @@ interface AppState {
     setActiveDm: (dm: ChatState["activeDm"]) => void;
     clearMessages: () => void;
     setIsChatSwitching: (value: boolean) => void;
+    setActivePanel: (panel: MessagePanel | null) => void;
+    switchToPublicChat: (chatName: string) => Promise<void>;
+    switchToDM: (dmData: DMPanelData) => Promise<void>;
+    switchToTab: (tab: ChatTabs) => Promise<void>;
     
     // User state
     user: UserState;
@@ -58,7 +68,10 @@ export const useAppState = create<AppState>((set, get) => ({
         activeTab: "chats",
         dmUsers: [],
         activeDm: null,
-        isChatSwitching: false
+        isChatSwitching: false,
+        activePanel: null,
+        publicChatPanel: null,
+        dmPanel: null
     },
     setIsChatSwitching: (value: boolean) => set((state) => ({
         chat: {
@@ -159,5 +172,134 @@ export const useAppState = create<AppState>((set, get) => ({
             authToken: null
         },
         currentPage: "login"
-    }))
+    })),
+    
+    // Panel management
+    setActivePanel: (panel: MessagePanel | null) => set((state) => ({
+        chat: {
+            ...state.chat,
+            activePanel: panel
+        }
+    })),
+    
+    switchToPublicChat: async (chatName: string) => {
+        const state = get();
+        const { user, chat } = state;
+        
+        if (!user.authToken) return;
+        
+        // Start chat switching animation
+        state.setIsChatSwitching(true);
+        
+        // Create or get public chat panel
+        let publicChatPanel = chat.publicChatPanel;
+        if (!publicChatPanel) {
+            const callbacks = {
+                onSendMessage: (content: string) => {},
+                onEditMessage: (messageId: number, content: string) => {},
+                onDeleteMessage: (messageId: number) => {},
+                onReplyToMessage: (messageId: number, content: string) => {},
+                onProfileClick: () => {}
+            };
+            
+            publicChatPanel = new PublicChatPanel(
+                chatName,
+                user,
+                callbacks,
+                () => {} // State change handled by MessagePanelRenderer
+            );
+        } else {
+            publicChatPanel.setChatName(chatName);
+            publicChatPanel.setAuthToken(user.authToken);
+        }
+        
+        // Wait for animation
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
+        // Activate panel
+        await publicChatPanel.activate();
+        
+        // Update state
+        set((state) => ({
+            chat: {
+                ...state.chat,
+                activePanel: publicChatPanel,
+                publicChatPanel: publicChatPanel,
+                currentChat: chatName,
+                activeTab: "chats"
+            }
+        }));
+        
+        // End animation
+        state.setIsChatSwitching(false);
+    },
+    
+    switchToDM: async (dmData: DMPanelData) => {
+        const state = get();
+        const { user, chat } = state;
+        
+        if (!user.authToken) return;
+        
+        // Start chat switching animation
+        state.setIsChatSwitching(true);
+        
+        // Create or get DM panel
+        let dmPanel = chat.dmPanel;
+        if (!dmPanel) {
+            const callbacks = {
+                onSendMessage: (content: string) => {},
+                onEditMessage: (messageId: number, content: string) => {},
+                onDeleteMessage: (messageId: number) => {},
+                onReplyToMessage: (messageId: number, content: string) => {},
+                onProfileClick: () => {}
+            };
+            
+            dmPanel = new DMPanel(
+                user,
+                callbacks,
+                () => {} // State change handled by MessagePanelRenderer
+            );
+        } else {
+            dmPanel.setAuthToken(user.authToken);
+        }
+        
+        // Set DM data
+        dmPanel.setDMData(dmData);
+        
+        // Wait for animation
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
+        // Activate panel
+        await dmPanel.activate();
+        
+        // Update state
+        set((state) => ({
+            chat: {
+                ...state.chat,
+                activePanel: dmPanel,
+                dmPanel: dmPanel,
+                activeDm: {
+                    userId: dmData.userId,
+                    username: dmData.username,
+                    publicKey: dmData.publicKey
+                },
+                activeTab: "dms"
+            }
+        }));
+        
+        // End animation
+        state.setIsChatSwitching(false);
+    },
+    
+    switchToTab: async (tab: ChatTabs) => {
+        const state = get();
+        state.setActiveTab(tab);
+        
+        if (tab === "chats") {
+            await state.switchToPublicChat("Общий чат");
+        } else if (tab === "dms") {
+            // DM tab - no specific panel until user is selected
+            state.setActivePanel(null);
+        }
+    }
 }));
