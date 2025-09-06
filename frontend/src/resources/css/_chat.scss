@@ -321,22 +321,86 @@
     }
 }
 
-// Reply preview styles
-.reply-preview {
-    background-color: $color-dark-surface;
-    border-radius: 8px;
-    padding: 0.75rem;
-    margin-bottom: 1rem;
-    border-left: 3px solid $color-dark-primary;
-
-    .reply-preview-content {
-        color: $color-dark-on-surface-variant;
-        font-size: 0.9rem;
-        line-height: 1.4;
-
-        strong {
-            color: $color-dark-primary;
+.message-profile-pic {
+    img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid $color-dark-outline;
+        
+        &.loading {
+            opacity: 0.6;
+            cursor: default;
         }
     }
 }
 
+.message-username {
+    &.loading {
+        opacity: 0.6;
+        cursor: default;
+    }
+}
+
+.context-menu {
+    position: fixed;
+    background: $color-dark-surface;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    padding: 0.5rem 0;
+    min-width: 160px;
+    z-index: 1000;
+    
+    &.entering {
+        animation: fadeInDown 0.2s ease forwards;
+    }
+    
+    &.entering-left {
+        animation: fadeInLeft 0.2s ease forwards;
+    }
+    
+    &.entering-up {
+        animation: fadeInUp 0.2s ease forwards;
+    }
+    
+    &.entering-up-left {
+        animation: fadeInUpLeft 0.2s ease forwards;
+    }
+    
+    &.closing {
+        animation: fadeOutUp 0.2s ease forwards;
+    }
+    
+    &.closing-left {
+        animation: fadeOutRight 0.2s ease forwards;
+    }
+    
+    &.closing-up {
+        animation: fadeOutDown 0.2s ease forwards;
+    }
+    
+    &.closing-up-left {
+        animation: fadeOutDownRight 0.2s ease forwards;
+    }
+    
+    .context-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        color: $color-dark-on-surface;
+        font-size: 0.9rem;
+        transition: background-color 0.2s ease;
+        
+        &:hover {
+            background-color: $color-dark-surface-container;
+        }
+        
+        .material-symbols {
+            font-size: 1.1rem;
+            color: $color-dark-on-surface-variant;
+        }
+    }
+}

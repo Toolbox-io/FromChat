@@ -32,6 +32,11 @@ export interface Size2D {
     y: number;
 }
 
+export interface Rect extends Size2D {
+    width: number;
+    height: number;
+}
+
 // App types
 
 /**
@@ -223,4 +228,12 @@ export interface WebSocketError {
 export interface WebSocketCredentials {
     scheme: string;
     credentials: string;
+}
+
+// -----------
+// React types
+// -----------
+export interface DialogProps {
+    isOpen: boolean;
+    onOpenChange: (value: boolean) => void;
 }

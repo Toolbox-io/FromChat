@@ -8,6 +8,7 @@
 @use "common/colors" as *;
 @use "common/material" as *;
 @use "electron";
+@use "dialogs/reply";
 
 @use "lib/fonts/montserrat";
 @use "lib/fonts/material-symbols";

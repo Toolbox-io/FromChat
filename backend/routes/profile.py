@@ -8,8 +8,14 @@ import io
 
 from dependencies import get_db, get_current_user
 from models import User, UpdateBioRequest, UserProfileResponse
+from pydantic import BaseModel
 
 router = APIRouter()
+
+# Request models
+class UpdateProfileRequest(BaseModel):
+    nickname: str | None = None
+    description: str | None = None
 
 # Create uploads directory if it doesn't exist
 PROFILE_PICTURES_DIR = Path("data/uploads/pfp")
@@ -97,6 +103,56 @@ async def get_user_profile(
         "last_seen": current_user.last_seen,
         "created_at": current_user.created_at
     }
+
+@router.put("/user/profile")
+async def update_user_profile(
+    request: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update current user's profile information
+    """
+    updated = False
+    
+    # Update username if provided
+    if request.nickname is not None:
+        nickname = request.nickname.strip()
+        if len(nickname) < 3:
+            raise HTTPException(status_code=400, detail="Username must be at least 3 characters long")
+        if len(nickname) > 50:
+            raise HTTPException(status_code=400, detail="Username must be 50 characters or less")
+        
+        # Check if username is already taken by another user
+        existing_user = db.query(User).filter(User.username == nickname, User.id != current_user.id).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already taken")
+        
+        current_user.username = nickname
+        updated = True
+    
+    # Update bio if provided
+    if request.description is not None:
+        bio = request.description.strip()
+        if len(bio) > 500:
+            raise HTTPException(status_code=400, detail="Bio must be 500 characters or less")
+        
+        current_user.bio = bio
+        updated = True
+    
+    if updated:
+        db.commit()
+        return {
+            "message": "Profile updated successfully",
+            "username": current_user.username,
+            "bio": current_user.bio
+        }
+    else:
+        return {
+            "message": "No changes made",
+            "username": current_user.username,
+            "bio": current_user.bio
+        }
 
 
 @router.put("/user/bio")

@@ -1,0 +1,43 @@
+import type { Dialog as MduiDialog } from "mdui/components/dialog";
+import React, { useEffect, useRef } from "react"
+import { createPortal } from "react-dom";
+import { id } from "../../../utils/utils";
+
+export interface BaseDialogProps {
+    onOpenChange: (value: boolean) => void;
+}
+
+export type FullDialogProps = React.ComponentPropsWithoutRef<"mdui-dialog"> & BaseDialogProps;
+
+export function MaterialDialog(props: FullDialogProps) {
+    const dialogRef = useRef<MduiDialog>(null);
+
+    useEffect(() => {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === "attributes" && mutation.attributeName === "open") {
+                    const isOpen = dialog.hasAttribute("open");
+                    if (isOpen !== props.open) {
+                        props.onOpenChange(isOpen);
+                    }
+                }
+            });
+        });
+
+        // Start observing the dialog element for attribute changes
+        observer.observe(dialog, {
+            attributes: true,
+            attributeFilter: ["open"]
+        });
+
+        // Cleanup observer
+        return () => {
+            observer.disconnect();
+        };
+    }, [dialogRef.current, props.open, props.onOpenChange]);
+
+    return createPortal(<mdui-dialog {...props} ref={dialogRef} />, id("root"));
+}
