@@ -3,7 +3,6 @@ import ChatScreen from "./screen/ChatScreen";
 import LoginScreen from "./screen/LoginScreen";
 import RegisterScreen from "./screen/RegisterScreen";
 import { useAppState } from "./state";
-import { DialogProvider } from "./contexts/DialogContext";
 import { useEffect } from "react";
 
 export default function App() {
@@ -32,11 +31,11 @@ export default function App() {
     }
 
     return (
-        <DialogProvider>
+        <>
             <ElectronTitleBar />
             <div id="main-wrapper">
                 {page}
             </div>
-        </DialogProvider>
+        </>
     )
 }
