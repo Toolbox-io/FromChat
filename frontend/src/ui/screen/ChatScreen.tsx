@@ -1,11 +1,13 @@
-import { ChatInterface } from "../components/chat/ChatInterface";
-import { CropperDialog } from "../components/profile/CropperDialog";
+import { LeftPanel } from "../components/chat/LeftPanel";
+import { RightPanel } from "../components/chat/RightPanel";
 
 export default function ChatScreen() {
     return (
-        <>
-            <ChatInterface />
-            <CropperDialog />
-        </>
+        <div id="chat-interface">
+            <div className="all-container">
+                <LeftPanel />
+                <RightPanel />
+            </div>
+        </div>
     );
 }
