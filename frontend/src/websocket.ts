@@ -29,6 +29,20 @@ function create(): WebSocket {
  */
 export let websocket: WebSocket = create();
 
+/**
+ * Global WebSocket message handler reference
+ * This will be set by the active panel to handle incoming messages
+ */
+let globalMessageHandler: ((response: WebSocketMessage) => void) | null = null;
+
+/**
+ * Set the global WebSocket message handler
+ * @param handler - Function to handle WebSocket messages
+ */
+export function setGlobalMessageHandler(handler: ((response: WebSocketMessage) => void) | null): void {
+    globalMessageHandler = handler;
+}
+
 export function request(payload: WebSocketMessage): Promise<WebSocketMessage> {
     return new Promise((resolve, reject) => {
         let listener: ((e: MessageEvent) => void) | null = null;
@@ -65,11 +79,28 @@ async function onError() {
     websocket.addEventListener("error", onError);
 }
 
+/**
+ * Recreate WebSocket connection (useful when user logs in)
+ */
+export function reconnectWebSocket(): void {
+    websocket = create();
+    websocket.addEventListener("error", onError);
+}
+
 // --------------
 // Initialization
 // --------------
 
 websocket.addEventListener("message", (e) => {
-    // handleWebSocketMessage(JSON.parse(e.data));
+    try {
+        const response: WebSocketMessage = JSON.parse(e.data);
+        
+        // Route message to global handler if set
+        if (globalMessageHandler) {
+            globalMessageHandler(response);
+        }
+    } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+    }
 });
 websocket.addEventListener("error", onError);

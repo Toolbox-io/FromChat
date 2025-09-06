@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { MessagePanel, type MessagePanelState } from "../../panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
+import { setGlobalMessageHandler } from "../../../websocket";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 interface MessagePanelRendererProps {
@@ -26,10 +27,24 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
             };
             
             // Store the handler for cleanup
-            (panel as any).onStateChange = handleStateChange;
+            panel.onStateChange = handleStateChange;
+            
+            // Set up WebSocket message handler for this panel
+            if (panel.handleWebSocketMessage) {
+                setGlobalMessageHandler(panel.handleWebSocketMessage);
+            }
         } else {
             setPanelState(null);
+            // Clear global message handler when no panel is active
+            setGlobalMessageHandler(null);
         }
+        
+        // Cleanup function
+        return () => {
+            if (panel && (panel as any).onStateChange) {
+                (panel as any).onStateChange = null;
+            }
+        };
     }, [panel]);
 
     // Handle chat switching animation

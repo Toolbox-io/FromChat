@@ -22,7 +22,7 @@ export interface MessagePanelCallbacks {
 export abstract class MessagePanel {
     protected state: MessagePanelState;
     protected callbacks: MessagePanelCallbacks;
-    protected onStateChange: (state: MessagePanelState) => void;
+    public onStateChange: (state: MessagePanelState) => void;
     protected currentUser: UserState;
 
     constructor(
@@ -50,6 +50,9 @@ export abstract class MessagePanel {
     abstract loadMessages(): Promise<void>;
     abstract sendMessage(content: string): Promise<void>;
     abstract isDm(): boolean;
+    
+    // Optional WebSocket message handler (can be overridden by subclasses)
+    handleWebSocketMessage?: (response: any) => void;
 
     // Common methods
     protected updateState(updates: Partial<MessagePanelState>): void {
