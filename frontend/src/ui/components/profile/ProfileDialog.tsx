@@ -9,8 +9,9 @@ import { MaterialTextField } from "../core/TextField";
 
 export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
     const { profileData, isLoading, isUpdating, updateProfileData, uploadProfilePictureData } = useProfile();
-    const [username, setUsername] = useState("");
-    const [description, setDescription] = useState("");
+
+    const [username, setUsername] = useState(profileData?.nickname ?? "");
+    const [description, setDescription] = useState(profileData?.description ?? "");
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [showCropper, setShowCropper] = useState(false);
     

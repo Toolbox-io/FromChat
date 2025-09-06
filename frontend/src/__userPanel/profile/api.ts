@@ -25,7 +25,13 @@ export async function loadProfile(): Promise<ProfileData | null> {
         });
 
         if (response.ok) {
-            return await response.json();
+            const data = await response.json();
+            // Map backend fields to frontend fields
+            return {
+                profile_picture: data.profile_picture,
+                nickname: data.username,
+                description: data.bio
+            };
         }
         
         return null;
@@ -83,10 +89,19 @@ export async function uploadProfilePicture(file: Blob): Promise<UploadResponse |
  */
 export async function updateProfile(data: Partial<ProfileData>): Promise<boolean> {
     try {
+        // Map frontend fields to backend fields
+        const backendData = {
+            nickname: data.nickname,
+            description: data.description
+        };
+
         const response = await fetch('/api/user/profile', {
             method: 'PUT',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(data)
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(backendData)
         });
 
         return response.ok;
