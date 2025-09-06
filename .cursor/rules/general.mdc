@@ -17,3 +17,4 @@ When working with this project, follow these rules:
 - If possible, try to update files in a single edit.
 - When you need a delay, use `await delay(millis);` in an async function. If the current function is not async,
   make it async. The import is `<project>/frontend/src/utils/utils`.
+- When you complete your task, remove unused imports if there are any.
