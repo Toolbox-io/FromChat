@@ -236,10 +236,10 @@ export const useAppState = create<AppState>((set, get) => ({
         let publicChatPanel = chat.publicChatPanel;
         if (!publicChatPanel) {
             const callbacks = {
-                onSendMessage: (content: string) => {},
-                onEditMessage: (messageId: number, content: string) => {},
-                onDeleteMessage: (messageId: number) => {},
-                onReplyToMessage: (messageId: number, content: string) => {},
+                onSendMessage: (_content: string) => {},
+                onEditMessage: (_messageId: number, _content: string) => {},
+                onDeleteMessage: (_messageId: number) => {},
+                onReplyToMessage: (_messageId: number, _content: string) => {},
                 onProfileClick: () => {}
             };
             
@@ -288,10 +288,10 @@ export const useAppState = create<AppState>((set, get) => ({
         let dmPanel = chat.dmPanel;
         if (!dmPanel) {
             const callbacks = {
-                onSendMessage: (content: string) => {},
-                onEditMessage: (messageId: number, content: string) => {},
-                onDeleteMessage: (messageId: number) => {},
-                onReplyToMessage: (messageId: number, content: string) => {},
+                onSendMessage: (_content: string) => {},
+                onEditMessage: (_messageId: number, _content: string) => {},
+                onDeleteMessage: (_messageId: number) => {},
+                onReplyToMessage: (_messageId: number, _content: string) => {},
                 onProfileClick: () => {}
             };
             

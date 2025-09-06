@@ -1,6 +1,4 @@
 import { PRODUCT_NAME } from "../../../core/config";
-import { useDialog } from "../../contexts/DialogContext";
-import { useChat } from "../../hooks/useChat";
 import { useAppState } from "../../state";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import { useState, type FormEvent } from "react";

@@ -1,8 +1,5 @@
-import { API_BASE_URL } from "../core/config";
 // import { showLogin } from "../navigation";
-import type { Headers, User, WebSocketMessage } from "../core/types";
-import { clearAlerts } from "./auth";
-import { request } from "../websocket";
+import type { Headers } from "../core/types";
 
 /**
  * Generates authentication headers for API requests

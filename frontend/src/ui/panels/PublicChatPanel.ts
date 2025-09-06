@@ -6,7 +6,6 @@ import type { Message, WebSocketMessage } from "../../core/types";
 import type { UserState } from "../state";
 
 export class PublicChatPanel extends MessagePanel {
-    private chatName: string;
     private messagesLoaded: boolean = false;
 
     constructor(
@@ -16,7 +15,6 @@ export class PublicChatPanel extends MessagePanel {
         onStateChange: (state: any) => void
     ) {
         super(`public-${chatName}`, currentUser, callbacks, onStateChange);
-        this.chatName = chatName;
         this.updateState({
             title: chatName,
             online: true // Public chats are always "online"
@@ -113,7 +111,6 @@ export class PublicChatPanel extends MessagePanel {
 
     // Update chat name
     setChatName(chatName: string): void {
-        this.chatName = chatName;
         this.updateState({
             id: `public-${chatName}`,
             title: chatName

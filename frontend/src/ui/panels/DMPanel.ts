@@ -1,11 +1,10 @@
 import { MessagePanel, type MessagePanelCallbacks } from "./MessagePanel";
 import { 
-    fetchUserPublicKey, 
     fetchDMHistory, 
     decryptDm, 
     sendDMViaWebSocket 
 } from "../../api/dmApi";
-import type { Message, DmEnvelope } from "../../core/types";
+import type { Message } from "../../core/types";
 import type { UserState } from "../state";
 
 export interface DMPanelData {

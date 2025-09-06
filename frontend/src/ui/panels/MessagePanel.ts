@@ -1,4 +1,4 @@
-import type { User, Message } from "../../core/types";
+import type { Message } from "../../core/types";
 import type { UserState } from "../state";
 
 export interface MessagePanelState {

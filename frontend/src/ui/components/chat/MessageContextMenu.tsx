@@ -146,7 +146,7 @@ export function MessageContextMenu({
         }, 200); // Match the animation duration from _animations.scss
     };
 
-    const handleEditSave = (messageId: number, newContent: string) => {
+    const handleEditSave = (_messageId: number, newContent: string) => {
         // Create a temporary message object with the updated content
         const updatedMessage = { ...message, content: newContent };
         onEdit(updatedMessage);

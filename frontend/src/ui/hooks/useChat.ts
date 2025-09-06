@@ -1,8 +1,8 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useAppState } from "../state";
-import { request, websocket } from "../../websocket";
+import { request } from "../../websocket";
 import { API_BASE_URL } from "../../core/config";
-import type { Message, WebSocketMessage } from "../../core/types";
+import type { Message } from "../../core/types";
 import { getAuthHeaders } from "../../auth/api";
 import { delay } from "../../utils/utils";
 
