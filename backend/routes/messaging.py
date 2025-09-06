@@ -304,7 +304,8 @@ class MessaggingSocketManager:
                     db.add(env)
                     db.commit()
                     db.refresh(env)
-                    await self.send_to_user(env.recipient_id, {
+
+                    payload = {
                         "type": "dmNew",
                         "data": {
                             "id": env.id,
@@ -317,8 +318,11 @@ class MessaggingSocketManager:
                             "wrappedMk": env.wrapped_mk_b64,
                             "timestamp": env.timestamp.isoformat(),
                         }
-                    })
-                    await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}})
+                    }
+
+                    await self.send_to_user(env.recipient_id, payload);
+                    await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}});
+                    await self.send_to_user(env.sender_id, payload);
                 except HTTPException as e:
                     await self.send_error(websocket, type, e)
             elif type == "editMessage":

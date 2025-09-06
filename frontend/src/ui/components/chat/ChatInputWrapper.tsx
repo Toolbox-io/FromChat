@@ -1,14 +1,22 @@
 import { useState } from "react";
 import { useChat } from "../../hooks/useChat";
 
-export function ChatInputWrapper() {
+interface ChatInputWrapperProps {
+    onSendMessage?: (message: string) => void;
+}
+
+export function ChatInputWrapper({ onSendMessage }: ChatInputWrapperProps) {
     const [message, setMessage] = useState("");
     const { sendMessage } = useChat();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (message.trim()) {
-            await sendMessage(message);
+            if (onSendMessage) {
+                onSendMessage(message);
+            } else {
+                await sendMessage(message);
+            }
             setMessage("");
         }
     };

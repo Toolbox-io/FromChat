@@ -29,17 +29,41 @@ function create(): WebSocket {
  */
 export let websocket: WebSocket = create();
 
-export function request(payload: WebSocketMessage): Promise<WebSocketMessage> {
-    return new Promise((resolve, reject) => {
-        let listener: ((e: MessageEvent) => void) | null = null;
-        listener = (e) => {
-            resolve(JSON.parse(e.data));
-            websocket.removeEventListener("message", listener!);
-        }
-        websocket.addEventListener("message", listener);
-        websocket.send(JSON.stringify(payload))
+/**
+ * Global WebSocket message handler reference
+ * This will be set by the active panel to handle incoming messages
+ */
+let globalMessageHandler: ((response: WebSocketMessage) => void) | null = null;
 
-        setTimeout(() => reject("Request timed out"), 10000);
+/**
+ * Set the global WebSocket message handler
+ * @param handler - Function to handle WebSocket messages
+ */
+export function setGlobalMessageHandler(handler: ((response: WebSocketMessage) => void) | null): void {
+    globalMessageHandler = handler;
+}
+
+export function request(payload: WebSocketMessage): Promise<WebSocketMessage> {
+    console.log("WebSocket request:", payload);
+    return new Promise((resolve, reject) => {
+        function requestInner() {
+            let listener: ((e: MessageEvent) => void) | null = null;
+            listener = (e) => {
+                resolve(JSON.parse(e.data));
+                websocket.removeEventListener("message", listener!);
+            }
+            websocket.addEventListener("message", listener);
+            websocket.send(JSON.stringify(payload))
+
+            setTimeout(() => reject("Request timed out"), 10000);
+        }
+
+        if (websocket.readyState == 0) {
+            websocket.addEventListener("open", requestInner);
+            setTimeout(() => reject("Request timed out"), 10000);
+        } else {
+            requestInner();
+        }
     })
 }
 
@@ -70,6 +94,15 @@ async function onError() {
 // --------------
 
 websocket.addEventListener("message", (e) => {
-    // handleWebSocketMessage(JSON.parse(e.data));
+    try {
+        const response: WebSocketMessage = JSON.parse(e.data);
+        
+        // Route message to global handler if set
+        if (globalMessageHandler) {
+            globalMessageHandler(response);
+        }
+    } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+    }
 });
 websocket.addEventListener("error", onError);

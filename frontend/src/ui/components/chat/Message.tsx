@@ -8,11 +8,11 @@ interface MessageProps {
     onProfileClick: (username: string) => void;
     onContextMenu: (e: React.MouseEvent, message: MessageType) => void;
     isLoadingProfile?: boolean;
+    isDm?: boolean;
 }
 
-export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false }: MessageProps) {
+export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false }: MessageProps) {
     const handleContextMenu = (e: React.MouseEvent) => {
-        console.log("Message context menu event triggered for message:", message.id);
         e.preventDefault();
         e.stopPropagation();
         onContextMenu(e, message);
@@ -26,7 +26,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         >
             <div className="message-inner">
                 {/* Add profile picture for received messages */}
-                {!isAuthor && (
+                {!isAuthor && !isDm && (
                     <div className="message-profile-pic">
                         <img
                             src={message.profile_picture || defaultAvatar}
@@ -42,7 +42,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                     </div>
                 )}
 
-                {!isAuthor && (
+                {!isAuthor && !isDm && (
                     <div 
                         className={`message-username ${isLoadingProfile ? "loading" : ""}`}
                         onClick={() => !isLoadingProfile && onProfileClick(message.username)} 

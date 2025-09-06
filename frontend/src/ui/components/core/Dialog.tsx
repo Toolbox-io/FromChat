@@ -20,7 +20,6 @@ export function MaterialDialog(props: FullDialogProps) {
             mutations.forEach((mutation) => {
                 if (mutation.type === "attributes" && mutation.attributeName === "open") {
                     const isOpen = dialog.hasAttribute("open");
-                    console.log("isOpen:", isOpen);
                     if (isOpen !== props.open) {
                         props.onOpenChange(isOpen);
                     }

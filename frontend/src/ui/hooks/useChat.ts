@@ -70,40 +70,8 @@ export function useChat() {
         }
     }, [user.authToken]);
 
-    // Handle WebSocket messages
-    useEffect(() => {
-        const handleWebSocketMessage = (event: MessageEvent) => {
-            try {
-                const response: WebSocketMessage = JSON.parse(event.data);
-                
-                switch (response.type) {
-                    case 'messageEdited':
-                        if (response.data) {
-                            updateMessage(response.data.id, response.data);
-                        }
-                        break;
-                    case 'messageDeleted':
-                        if (response.data && response.data.message_id) {
-                            removeMessage(response.data.message_id);
-                        }
-                        break;
-                    case 'newMessage':
-                        if (response.data) {
-                            addMessage(response.data);
-                        }
-                        break;
-                }
-            } catch (error) {
-                console.error("Error parsing WebSocket message:", error);
-            }
-        };
-
-        websocket.addEventListener("message", handleWebSocketMessage);
-
-        return () => {
-            websocket.removeEventListener("message", handleWebSocketMessage);
-        };
-    }, [addMessage, updateMessage, removeMessage, user.currentUser]);
+    // WebSocket messages are now handled by the active panel
+    // No need for duplicate handling here
 
     // Load messages only once when component mounts and user is authenticated
     useEffect(() => {

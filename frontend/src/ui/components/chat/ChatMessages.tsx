@@ -6,13 +6,22 @@ import type { UserProfile } from "../../../core/types";
 import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
 import { fetchUserProfile } from "../../api/profileApi";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { delay } from "../../../utils/utils";
 import { request } from "../../../websocket";
 
-export function ChatMessages() {
-    const { messages } = useChat();
+interface ChatMessagesProps {
+    messages?: MessageType[];
+    isDm?: boolean;
+    children?: ReactNode;
+}
+
+export function ChatMessages({ messages: propMessages, children, isDm = false }: ChatMessagesProps) {
+    const { messages: hookMessages } = useChat();
     const { user } = useAppState();
+    
+    // Use prop messages if provided, otherwise use hook messages
+    const messages = propMessages || hookMessages;
     const [profileDialogOpen, setProfileDialogOpen] = useState(false);
     const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
     const [isLoadingProfile, setIsLoadingProfile] = useState(false);
@@ -43,7 +52,6 @@ export function ChatMessages() {
 
     const handleContextMenu = (e: React.MouseEvent, message: MessageType) => {
         e.preventDefault();
-        console.log("Context menu triggered for message:", message.id, "at position:", e.clientX, e.clientY);
         setContextMenu({
             isOpen: true,
             message,
@@ -128,8 +136,9 @@ export function ChatMessages() {
                         onProfileClick={handleProfileClick}
                         onContextMenu={handleContextMenu}
                         isLoadingProfile={isLoadingProfile}
-                    />
+                        isDm={isDm} />
                 ))}
+                {children}
             </div>
             
             <UserProfileDialog
