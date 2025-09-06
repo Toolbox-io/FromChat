@@ -44,16 +44,26 @@ export function setGlobalMessageHandler(handler: ((response: WebSocketMessage) =
 }
 
 export function request(payload: WebSocketMessage): Promise<WebSocketMessage> {
+    console.log("WebSocket request:", payload);
     return new Promise((resolve, reject) => {
-        let listener: ((e: MessageEvent) => void) | null = null;
-        listener = (e) => {
-            resolve(JSON.parse(e.data));
-            websocket.removeEventListener("message", listener!);
-        }
-        websocket.addEventListener("message", listener);
-        websocket.send(JSON.stringify(payload))
+        function requestInner() {
+            let listener: ((e: MessageEvent) => void) | null = null;
+            listener = (e) => {
+                resolve(JSON.parse(e.data));
+                websocket.removeEventListener("message", listener!);
+            }
+            websocket.addEventListener("message", listener);
+            websocket.send(JSON.stringify(payload))
 
-        setTimeout(() => reject("Request timed out"), 10000);
+            setTimeout(() => reject("Request timed out"), 10000);
+        }
+
+        if (websocket.readyState == 0) {
+            websocket.addEventListener("open", requestInner);
+            setTimeout(() => reject("Request timed out"), 10000);
+        } else {
+            requestInner();
+        }
     })
 }
 
@@ -76,14 +86,6 @@ async function onError() {
     }
 
     websocket.addEventListener("open", listener);
-    websocket.addEventListener("error", onError);
-}
-
-/**
- * Recreate WebSocket connection (useful when user logs in)
- */
-export function reconnectWebSocket(): void {
-    websocket = create();
     websocket.addEventListener("error", onError);
 }
 

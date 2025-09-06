@@ -130,7 +130,7 @@ export class DMPanel extends MessagePanel {
                     this.addMessage({
                         id: envelope.id,
                         content: plaintext,
-                        username: isAuthor ? "You" : this.dmData.username,
+                        username: isAuthor ? this.currentUser.currentUser?.username ?? "You" : this.dmData.username,
                         timestamp: envelope.timestamp,
                         is_read: false,
                         is_edited: false

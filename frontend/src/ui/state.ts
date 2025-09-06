@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Message, User, WebSocketMessage } from "../core/types";
-import { request, reconnectWebSocket } from "../websocket";
+import { request } from "../websocket";
 import { MessagePanel } from "./panels/MessagePanel";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./panels/DMPanel";
@@ -150,9 +150,6 @@ export const useAppState = create<AppState>((set, get) => ({
                 authToken: token
             }
         }));
-
-        // Reconnect WebSocket with new auth token
-        reconnectWebSocket();
 
         try {
             const payload: WebSocketMessage = {
