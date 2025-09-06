@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "../core/config";
 import { getAuthHeaders } from "./api";
-import { generateX25519KeyPair } from "../crypto/asymmetric";
-import { encryptBackupWithPassword, decryptBackupWithPassword, encodeBlob, decodeBlob } from "../crypto/backup";
+import { generateX25519KeyPair } from "../utils/crypto/asymmetric";
+import { encryptBackupWithPassword, decryptBackupWithPassword, encodeBlob, decodeBlob } from "../utils/crypto/backup";
 import { b64, ub64 } from "../utils/utils";
 import type { BackupBlob, UploadPublicKeyRequest } from "../core/types";
 
@@ -98,5 +98,3 @@ export async function ensureKeysOnLogin(password: string, token: string): Promis
 	await uploadBackupBlob(encodeBlob(encBlob), token);
 	return { publicKey: currentPublicKey, privateKey: currentPrivateKey };
 }
-
-

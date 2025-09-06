@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useAppState } from "../ui/state";
+import { useAppState } from "../state";
 import { 
     fetchUsers, 
     fetchUserPublicKey, 
     fetchDMHistory, 
     decryptDm, 
     sendDMViaWebSocket 
-} from "../api/dmApi";
-import type { User, Message } from "../core/types";
-import { websocket } from "../websocket";
+} from "../../api/dmApi";
+import type { User, Message } from "../../core/types";
+import { websocket } from "../../core/websocket";
 
 interface DMUser extends User {
     lastMessage?: string;

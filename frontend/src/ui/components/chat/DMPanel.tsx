@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAppState } from "../../state";
-import { useDM } from "../../../hooks/useDM";
+import { useDM } from "../../hooks/useDM";
 import { ChatMessages } from "./ChatMessages";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 

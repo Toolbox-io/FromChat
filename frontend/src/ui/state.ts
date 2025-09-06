@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Message, User, WebSocketMessage } from "../core/types";
-import { request } from "../websocket";
+import { request } from "../core/websocket";
 import { MessagePanel } from "./panels/MessagePanel";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./panels/DMPanel";

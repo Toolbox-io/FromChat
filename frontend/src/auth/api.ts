@@ -1,4 +1,3 @@
-// import { showLogin } from "../navigation";
 import type { Headers } from "../core/types";
 
 /**
@@ -18,31 +17,3 @@ export function getAuthHeaders(token: string | null, json: boolean = true): Head
     }
     return headers;
 }
-
-/**
- * Checks authentication status on page load
- */
-export async function checkAuthStatus(): Promise<void> {
-    // For JWT, we don't have a persistent token on page load
-    // So we'll just show the login form
-    // showLogin();
-}
-
-/**
- * Logs out the current user and clears session data
- */
-// export async function logout(): Promise<void> {
-//     try {
-//         await fetch(`${API_BASE_URL}/logout`, {
-//             method: 'GET',
-//             headers: getAuthHeaders()
-//         });
-//     } catch (error) {
-//         console.error('Logout error:', error);
-//     }
-    
-//     currentUser = null;
-//     authToken = null;
-//     // showLogin();
-//     clearAlerts();
-// }

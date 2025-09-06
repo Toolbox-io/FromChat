@@ -9,16 +9,7 @@ import './resources/css/style.scss';
 import "mdui/mdui.css";
 
 import "./utils/material";
-// import "./chat/chat";
-// import "./userPanel/settings";
-// import "./userPanel/userpanel";
-// import "./core/init";
-// import "./userPanel/profile/profile";
-// import "./chat/contextMenu";
-// import "./chat/profileDialog";
-// import "./electron/electron";
-// import "./chat/panel";
-// import "./chat/dm";
+import "./core/init";
 import { createRoot } from 'react-dom/client';
 import App from './ui/App';
 import { StrictMode } from 'react';

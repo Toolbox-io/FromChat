@@ -5,10 +5,10 @@ import type { Message as MessageType } from "../../../core/types";
 import type { UserProfile } from "../../../core/types";
 import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
-import { fetchUserProfile } from "../../api/profileApi";
+import { fetchUserProfile } from "../../../api/profileApi";
 import { useState, type ReactNode } from "react";
 import { delay } from "../../../utils/utils";
-import { request } from "../../../websocket";
+import { request } from "../../../core/websocket";
 
 interface ChatMessagesProps {
     messages?: MessageType[];

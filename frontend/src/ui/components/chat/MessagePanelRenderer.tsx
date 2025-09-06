@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { MessagePanel, type MessagePanelState } from "../../panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
-import { setGlobalMessageHandler } from "../../../websocket";
+import { setGlobalMessageHandler } from "../../../core/websocket";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 interface MessagePanelRendererProps {

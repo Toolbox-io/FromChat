@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useDM } from "../../../hooks/useDM";
+import { useDM } from "../../hooks/useDM";
 import { useAppState } from "../../state";
 import { fetchUserPublicKey } from "../../../api/dmApi";
 import defaultAvatar from "../../../resources/images/default-avatar.png";

@@ -19,9 +19,6 @@ import 'mdui/components/text-field';
 import 'mdui/components/button-icon';
 import 'mdui/components/top-app-bar';
 import 'mdui/components/top-app-bar-title';
-import 'mdui/components/dropdown.js';
-import 'mdui/components/menu.js';
-import 'mdui/components/menu-item.js';
 
 import { setColorScheme } from 'mdui/functions/setColorScheme.js';
 

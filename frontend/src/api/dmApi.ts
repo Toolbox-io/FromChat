@@ -1,10 +1,10 @@
 import { API_BASE_URL } from "../core/config";
 import { getAuthHeaders } from "../auth/api";
-import { ecdhSharedSecret, deriveWrappingKey } from "../crypto/asymmetric";
-import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../crypto/symmetric";
-import { randomBytes } from "../crypto/kdf";
+import { ecdhSharedSecret, deriveWrappingKey } from "../utils/crypto/asymmetric";
+import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../utils/crypto/symmetric";
+import { randomBytes } from "../utils/crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
-import { request } from "../websocket";
+import { request } from "../core/websocket";
 import type { FetchDMResponse, SendDMRequest, DmEnvelope, User } from "../core/types";
 import { b64, ub64 } from "../utils/utils";
 

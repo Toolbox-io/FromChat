@@ -1,7 +1,7 @@
 import { MessagePanel, type MessagePanelCallbacks } from "./MessagePanel";
 import { API_BASE_URL } from "../../core/config";
 import { getAuthHeaders } from "../../auth/api";
-import { request } from "../../websocket";
+import { request } from "../../core/websocket";
 import type { Message, WebSocketMessage } from "../../core/types";
 import type { UserState } from "../state";
 
