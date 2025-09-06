@@ -4,9 +4,15 @@ import LoginScreen from "./screen/LoginScreen";
 import RegisterScreen from "./screen/RegisterScreen";
 import { useAppState } from "./state";
 import { DialogProvider } from "./contexts/DialogContext";
+import { useEffect } from "react";
 
 export default function App() {
-    const { currentPage } = useAppState();
+    const { currentPage, restoreUserFromStorage } = useAppState();
+
+    // Restore user from localStorage on app initialization
+    useEffect(() => {
+        restoreUserFromStorage();
+    }, [restoreUserFromStorage]);
 
     let page = <LoginScreen />;
 

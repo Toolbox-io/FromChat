@@ -55,6 +55,7 @@ interface AppState {
     user: UserState;
     setUser: (token: string, user: User) => void;
     logout: () => void;
+    restoreUserFromStorage: () => void;
 }
 
 export const useAppState = create<AppState>((set, get) => ({
@@ -151,6 +152,14 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }));
 
+        // Store credentials in localStorage
+        try {
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('currentUser', JSON.stringify(user));
+        } catch (error) {
+            console.error('Failed to store credentials in localStorage:', error);
+        }
+
         try {
             const payload: WebSocketMessage = {
                 type: "ping",
@@ -166,13 +175,45 @@ export const useAppState = create<AppState>((set, get) => ({
             })
         } catch {}
     },
-    logout: () => set(() => ({
-        user: {
-            currentUser: null,
-            authToken: null
-        },
-        currentPage: "login"
-    })),
+    logout: () => {
+        // Clear localStorage
+        try {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+        } catch (error) {
+            console.error('Failed to clear localStorage:', error);
+        }
+
+        set(() => ({
+            user: {
+                currentUser: null,
+                authToken: null
+            },
+            currentPage: "login"
+        }));
+    },
+    restoreUserFromStorage: () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const userStr = localStorage.getItem('currentUser');
+            
+            if (token && userStr) {
+                const user = JSON.parse(userStr) as User;
+                set(() => ({
+                    user: {
+                        currentUser: user,
+                        authToken: token
+                    },
+                    currentPage: "chat"
+                }));
+            }
+        } catch (error) {
+            console.error('Failed to restore user from localStorage:', error);
+            // Clear invalid data
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+        }
+    },
     
     // Panel management
     setActivePanel: (panel: MessagePanel | null) => set((state) => ({
