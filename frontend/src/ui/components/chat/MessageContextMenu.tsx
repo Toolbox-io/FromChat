@@ -176,17 +176,17 @@ export function MessageContextMenu({
         >
             <div className="context-menu-item" onClick={() => handleAction("reply")}>
                 <span className="material-symbols">reply</span>
-                Reply
+                Ответить
             </div>
             {isAuthor && (
                 <>
                     <div className="context-menu-item" onClick={() => handleAction("edit")}>
                         <span className="material-symbols">edit</span>
-                        Edit
+                        Редактировать
                     </div>
                     <div className="context-menu-item" onClick={() => handleAction("delete")}>
                         <span className="material-symbols">delete</span>
-                        Delete
+                        Удалить
                     </div>
                 </>
             )}

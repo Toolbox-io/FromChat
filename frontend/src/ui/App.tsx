@@ -1,5 +1,6 @@
 import { ElectronTitleBar } from "./components/Electron";
 import ChatScreen from "./screen/ChatScreen";
+import LoadappScreen from "./screen/LoadappScreen";
 import LoginScreen from "./screen/LoginScreen";
 import RegisterScreen from "./screen/RegisterScreen";
 import { useAppState } from "./state";
@@ -7,6 +8,7 @@ import { useEffect } from "react";
 
 export default function App() {
     const { currentPage, restoreUserFromStorage } = useAppState();
+    const widthscreen = window.innerWidth;
 
     // Restore user from localStorage on app initialization
     useEffect(() => {
@@ -28,14 +30,25 @@ export default function App() {
             page = <ChatScreen />
             break;
         }
+    }   
+    if(widthscreen>600){
+        return (
+            <>
+                <ElectronTitleBar />
+                <div id="main-wrapper">
+                    {page}
+                </div>
+            </>
+        )
     }
-
-    return (
-        <>
-            <ElectronTitleBar />
-            <div id="main-wrapper">
-                {page}
-            </div>
-        </>
-    )
+    else{
+        return (
+            <>
+                <ElectronTitleBar />
+                <div id="main-wrapper">
+                    <LoadappScreen />
+                </div>
+            </>
+        )  
+    }
 }

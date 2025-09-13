@@ -14,7 +14,6 @@ export default function LoginScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
     const setCurrentPage = useAppState(state => state.setCurrentPage);
     const setUser = useAppState(state => state.setUser);
-    const widthscreen = window.innerWidth
 
     function showAlert(type: AlertType, message: string) {
         updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
@@ -23,7 +22,6 @@ export default function LoginScreen() {
     const usernameElement = useRef<TextField>(null);
     const passwordElement = useRef<TextField>(null);
 
-    if (widthscreen>600){
     return (
         <AuthContainer>
             <AuthHeader icon="login" title="Добро пожаловать!" subtitle="Войдите в свой аккаунт" />
@@ -117,10 +115,4 @@ export default function LoginScreen() {
             </div>
         </AuthContainer>
     )
- }
- else{
-    return(
-        <div>Скачайте приложение</div>
-    )
- }
 }
