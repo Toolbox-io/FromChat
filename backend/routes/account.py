@@ -121,7 +121,6 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         "message": "Регистрация прошла успешно Теперь вы можете войти."
     }
 
-
 @router.get("/crypto/public-key")
 def get_public_key(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = db.query(CryptoPublicKey).filter(CryptoPublicKey.user_id == current_user.id).first()

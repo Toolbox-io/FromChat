@@ -4,6 +4,7 @@ import { request } from "../core/websocket";
 import { MessagePanel } from "./panels/MessagePanel";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./panels/DMPanel";
+import { getAuthHeaders } from "../auth/api";
 
 type Page = "login" | "register" | "chat"
 export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
@@ -192,13 +193,15 @@ export const useAppState = create<AppState>((set, get) => ({
             currentPage: "login"
         }));
     },
-    restoreUserFromStorage: () => {
+    restoreUserFromStorage: async () => {
         try {
             const token = localStorage.getItem('authToken');
-            const userStr = localStorage.getItem('currentUser');
             
-            if (token && userStr) {
-                const user = JSON.parse(userStr) as User;
+            if (token) {
+                const user: User = await (await fetch("/api/user/profile", {
+                    headers: getAuthHeaders(token)
+                })).json();
+                
                 set(() => ({
                     user: {
                         currentUser: user,
