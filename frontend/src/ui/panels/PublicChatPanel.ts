@@ -1,4 +1,4 @@
-import { MessagePanel, type MessagePanelCallbacks } from "./MessagePanel";
+import { MessagePanel, type MessagePanelCallbacks, type MessagePanelState } from "./MessagePanel";
 import { API_BASE_URL } from "../../core/config";
 import { getAuthHeaders } from "../../auth/api";
 import { request } from "../../core/websocket";
@@ -12,7 +12,7 @@ export class PublicChatPanel extends MessagePanel {
         chatName: string,
         currentUser: UserState,
         callbacks: MessagePanelCallbacks,
-        onStateChange: (state: any) => void
+        onStateChange: (state: MessagePanelState) => void
     ) {
         super(`public-${chatName}`, currentUser, callbacks, onStateChange);
         this.updateState({

@@ -22,7 +22,7 @@ export interface MessagePanelCallbacks {
 export abstract class MessagePanel {
     protected state: MessagePanelState;
     protected callbacks: MessagePanelCallbacks;
-    public onStateChange: (state: MessagePanelState) => void;
+    public onStateChange: ((state: MessagePanelState) => void) | null;
     protected currentUser: UserState;
 
     constructor(
@@ -57,7 +57,9 @@ export abstract class MessagePanel {
     // Common methods
     protected updateState(updates: Partial<MessagePanelState>): void {
         this.state = { ...this.state, ...updates };
-        this.onStateChange(this.state);
+        if (this.onStateChange) {
+            this.onStateChange(this.state);
+        }
     }
 
     protected addMessage(message: Message): void {

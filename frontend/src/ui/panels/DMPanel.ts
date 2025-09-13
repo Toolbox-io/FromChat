@@ -1,10 +1,10 @@
-import { MessagePanel, type MessagePanelCallbacks } from "./MessagePanel";
+import { MessagePanel, type MessagePanelCallbacks, type MessagePanelState } from "./MessagePanel";
 import { 
     fetchDMHistory, 
     decryptDm, 
     sendDMViaWebSocket 
 } from "../../api/dmApi";
-import type { Message } from "../../core/types";
+import type { Message, WebSocketMessage } from "../../core/types";
 import type { UserState } from "../state";
 
 export interface DMPanelData {
@@ -22,7 +22,7 @@ export class DMPanel extends MessagePanel {
     constructor(
         user: UserState,
         callbacks: MessagePanelCallbacks,
-        onStateChange: (state: any) => void
+        onStateChange: (state: MessagePanelState) => void
     ) {
         super("dm", user, callbacks, onStateChange);
     }
@@ -116,7 +116,7 @@ export class DMPanel extends MessagePanel {
     }
 
     // Handle incoming WebSocket DM messages
-    handleWebSocketMessage = async (response: any): Promise<void> => {
+    handleWebSocketMessage = async (response: WebSocketMessage): Promise<void> => {
         if (response.type === "dmNew" && this.dmData) {
             const { senderId, recipientId, ...envelope } = response.data;
             
