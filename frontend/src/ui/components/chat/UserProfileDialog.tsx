@@ -28,24 +28,24 @@ export function UserProfileDialog({ isOpen, onOpenChange, userProfile }: UserPro
                     <div className={`online-status ${userProfile.online ? "online" : "offline"}`}>
                         {userProfile.online ? (
                             <>
-                                <span className="online-indicator"></span> Online
+                                <span className="online-indicator"></span> Онлайн
                             </>
                         ) : (
                             <>
-                                <span className="offline-indicator"></span> Last seen {formatTime(userProfile.last_seen)}
+                                <span className="offline-indicator"></span> Последний заход {formatTime(userProfile.last_seen)}
                             </>
                         )}
                     </div>
                 </div>
                 <div className="bio-section">
-                    <label>Bio:</label>
+                    <label>О себе:</label>
                     <div className="bio-display">
                         {userProfile.bio || "No bio available."}
                     </div>
                 </div>
                 <div className="profile-stats">
                     <div className="stat">
-                        <span className="stat-label">Member since:</span>
+                        <span className="stat-label">Зарегистрирован:</span>
                         <span className="stat-value member-since">{formatTime(userProfile.created_at)}</span>
                     </div>
                     <div className="stat">

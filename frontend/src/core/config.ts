@@ -28,3 +28,5 @@ export const API_WS_BASE_URL = `${location.host || BASE_DOMAIN}/api`;
  * @constant
  */
 export const PRODUCT_NAME = "FromChat";
+
+export const MINIMUM_WIDTH = 800;

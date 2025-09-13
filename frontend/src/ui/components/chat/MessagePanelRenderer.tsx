@@ -41,8 +41,8 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
         
         // Cleanup function
         return () => {
-            if (panel && (panel as any).onStateChange) {
-                (panel as any).onStateChange = null;
+            if (panel && panel.onStateChange) {
+                panel.onStateChange = null;
             }
         };
     }, [panel]);
@@ -72,10 +72,10 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         <img src={defaultAvatar} alt="Avatar" className="chat-header-avatar" />
                         <div className="chat-header-info">
                             <div className="info-chat">
-                                <h4 id="chat-name">Select a chat</h4>
+                                <h4 id="chat-name">Выбор чата</h4>
                                 <p>
                                     <span className="online-status"></span>
-                                    Choose a chat to start messaging
+                                    Выберите чат, чтобы начать переписку
                                 </p>
                             </div>
                         </div>
@@ -88,7 +88,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                             height: "100%",
                             color: "var(--mdui-color-on-surface-variant)"
                         }}>
-                            Select a chat from the sidebar to start messaging
+                            Выберите чат на боковой панели, чтобы начать переписку
                         </div>
                     </div>
                 </div>
@@ -128,7 +128,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                             height: "100%",
                             color: "var(--mdui-color-on-surface-variant)"
                         }}>
-                            Loading messages...
+                            Загрузка сообщений...
                         </div>
                     </div>
                 ): (
