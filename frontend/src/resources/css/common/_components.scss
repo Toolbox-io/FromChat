@@ -115,3 +115,12 @@ button, input {
         margin-top: 1rem;
     }
 }
+
+.rich-text-area {
+    width: 100%;
+    resize: none;
+    transition: height 0.2s ease;
+    overflow-y: hidden;
+    background-color: transparent;
+    display: block;
+}

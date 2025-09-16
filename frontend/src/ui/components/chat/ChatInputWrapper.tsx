@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useChat } from "../../hooks/useChat";
+import { RichTextArea } from "../core/RichTextArea";
 
 interface ChatInputWrapperProps {
     onSendMessage?: (message: string) => void;
@@ -23,22 +24,21 @@ export function ChatInputWrapper({ onSendMessage }: ChatInputWrapperProps) {
 
     return (
         <div className="chat-input-wrapper">
-            <div className="chat-input">
-                <form className="input-group" id="message-form" onSubmit={handleSubmit}>
-                    <input 
-                        type="text" 
+            <form className="input-group" id="message-form" onSubmit={handleSubmit}>
+                <div className="chat-input">
+                    <RichTextArea
                         className="message-input" 
                         id="message-input" 
                         placeholder="Напишите сообщение..." 
                         autoComplete="off"
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                    />
+                        text={message}
+                        rows={1}
+                        onTextChange={(value) => setMessage(value)} />
                     <button type="submit" className="send-btn">
                         <span className="material-symbols filled">send</span>
                     </button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     );
 }
