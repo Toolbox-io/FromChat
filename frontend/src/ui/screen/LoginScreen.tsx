@@ -4,7 +4,6 @@ import { AuthContainer, AuthHeader } from "../components/Auth";
 import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
 import { ensureKeysOnLogin } from "../../auth/crypto";
 import { API_BASE_URL } from "../../core/config";
-// import { initializeProfile } from "../../userPanel/profile/profile";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../state";
@@ -28,7 +27,7 @@ export default function LoginScreen() {
             <div className="auth-body">
                 <AlertsContainer alerts={alerts} />
                 
-                <form 
+                <form
                     onSubmit={async (e) => {
                         e.preventDefault();
                         
