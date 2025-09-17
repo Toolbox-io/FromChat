@@ -189,6 +189,7 @@
                         .message-content {
                             word-wrap: break-word;
                             margin-bottom: 0.3rem;
+                            white-space: pre-wrap;
                         }
 
                         .message-reply {
@@ -197,6 +198,7 @@
                             padding: 0.5rem;
                             margin-bottom: 0.5rem;
                             border-left: 3px solid $color-dark-primary;
+                            user-select: none;
 
                             .reply-content {
                                 display: flex;
@@ -225,6 +227,7 @@
                             color: $color-dark-on-surface-variant;
                             margin-top: 0.3rem;
                             text-align: right;
+                            user-select: none;
                         }
                     }
 

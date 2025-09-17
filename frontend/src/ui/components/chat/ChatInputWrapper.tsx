@@ -8,7 +8,7 @@ interface ChatInputWrapperProps {
 export function ChatInputWrapper({ onSendMessage }: ChatInputWrapperProps) {
     const [message, setMessage] = useState("");
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent | Event) => {
         e.preventDefault();
         if (message.trim()) {
             onSendMessage(message);
@@ -27,7 +27,8 @@ export function ChatInputWrapper({ onSendMessage }: ChatInputWrapperProps) {
                         autoComplete="off"
                         text={message}
                         rows={1}
-                        onTextChange={(value) => setMessage(value)} />
+                        onTextChange={(value) => setMessage(value)}
+                        onEnter={handleSubmit} />
                     <button type="submit" className="send-btn">
                         <span className="material-symbols filled">send</span>
                     </button>

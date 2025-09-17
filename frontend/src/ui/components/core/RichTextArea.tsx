@@ -3,8 +3,8 @@ import { useEffect, useRef, useCallback, useLayoutEffect } from "react";
 interface RichTextAreaProps {
     text: string;
     onTextChange: (value: string) => void;
-    onEnter?: "newLine" | null | (() => void);
-    onCtrlEnter?: (() => void) | null;
+    onEnter?: "newLine" | null | ((e: React.KeyboardEvent<HTMLTextAreaElement>) => void);
+    onCtrlEnter?: ((e: React.KeyboardEvent<HTMLTextAreaElement>) => void) | null;
     placeholder?: string;
     id?: string;
     className?: string;
@@ -155,7 +155,7 @@ export function RichTextArea({
         if (isCtrlEnter) {
             e.preventDefault();
             if (typeof onCtrlEnter === "function") {
-                onCtrlEnter();
+                onCtrlEnter(e);
             }
             return;
         }
@@ -171,7 +171,7 @@ export function RichTextArea({
             }
             if (typeof onEnter === "function") {
                 e.preventDefault();
-                onEnter();
+                onEnter(e);
                 return;
             }
         }
