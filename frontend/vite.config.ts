@@ -53,8 +53,8 @@ export default defineConfig({
     appType: "mpa",
     css: {
         postcss: {
-            plugins: [autoprefixer()],
-        },
+            plugins: [autoprefixer()]
+        }
     },
     build: {
         minify: 'terser',

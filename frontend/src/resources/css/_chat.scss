@@ -180,6 +180,11 @@
                         border-radius: 12px;
                         position: relative;
                         word-wrap: break-word;
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
+                        width: fit-content;
+                        max-width: 100%;
+                        display: inline-block;
 
                         .message-content {
                             word-wrap: break-word;
