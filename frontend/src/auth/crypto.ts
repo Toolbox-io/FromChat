@@ -65,6 +65,17 @@ export function getCurrentKeys(): UserKeyPairMemory | null {
 	return null;
 }
 
+function saveKeys(
+	publicKey: Uint8Array<ArrayBufferLike>, 
+	privateKey: Uint8Array<ArrayBufferLike>
+) {
+	const encodedPublicKey = b64(publicKey);
+	const encodedPrivateKey = b64(privateKey);
+
+	localStorage.setItem("publicKey", encodedPublicKey);
+	localStorage.setItem("privateKey", encodedPrivateKey);
+}
+
 export async function ensureKeysOnLogin(password: string, token: string): Promise<UserKeyPairMemory> {
 	// Try to restore from backup
 	const blobJson = await fetchBackupBlob(token);
@@ -86,7 +97,13 @@ export async function ensureKeysOnLogin(password: string, token: string): Promis
 			const newBlob = await encryptBackupWithPassword(password, { version: 1, privateKey: currentPrivateKey });
 			await uploadBackupBlob(encodeBlob(newBlob), token);
 		}
-		return { publicKey: currentPublicKey!, privateKey: currentPrivateKey! };
+
+		saveKeys(currentPublicKey!, currentPrivateKey!);
+
+		return { 
+			publicKey: currentPublicKey!, 
+			privateKey: currentPrivateKey! 
+		};
 	}
 
 	// First-time setup: generate keys and upload
@@ -96,5 +113,13 @@ export async function ensureKeysOnLogin(password: string, token: string): Promis
 	await uploadPublicKey(currentPublicKey, token);
 	const encBlob = await encryptBackupWithPassword(password, { version: 1, privateKey: currentPrivateKey });
 	await uploadBackupBlob(encodeBlob(encBlob), token);
-	return { publicKey: currentPublicKey, privateKey: currentPrivateKey };
+
+	saveKeys(pair.publicKey, pair.privateKey);
+
+	return pair;
+}
+
+export function restoreKeys() {
+	currentPublicKey = ub64(localStorage.getItem("publicKey")!);
+	currentPrivateKey = ub64(localStorage.getItem("privateKey")!);
 }

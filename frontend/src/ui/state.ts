@@ -5,6 +5,7 @@ import { MessagePanel } from "./panels/MessagePanel";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./panels/DMPanel";
 import { getAuthHeaders } from "../auth/api";
+import { restoreKeys } from "../auth/crypto";
 
 type Page = "login" | "register" | "chat"
 export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
@@ -202,6 +203,8 @@ export const useAppState = create<AppState>((set, get) => ({
                     headers: getAuthHeaders(token)
                 })).json();
                 
+                restoreKeys();
+
                 set(() => ({
                     user: {
                         currentUser: user,

@@ -6,6 +6,8 @@ export interface X25519KeyPair {
 	privateKey: Uint8Array;
 }
 
+export type KeyPair = X25519KeyPair;
+
 export function generateX25519KeyPair(): X25519KeyPair {
 	const kp = nacl.box.keyPair();
 	return { publicKey: kp.publicKey, privateKey: kp.secretKey };
