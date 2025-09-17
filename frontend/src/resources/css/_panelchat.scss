@@ -52,6 +52,7 @@
     background-color: $color-dark-surface-container;
     height: 100%;
     z-index: 1000;
+    min-height: 0; // allow children to manage their own scrolling
 
     .chat-header-left {
         display: flex;
@@ -100,6 +101,10 @@
     .chat-tabs {
         margin-top: 5px;
         width: 100%;
+        height: calc(100% - 80px);
+        display: flex;
+        flex-direction: column;
+        min-height: 0; // prevent flex collapse when inner overflows
         --mdui-color-surface: $color-dark-surface-container;
         --mdui-color-surface-variant: transparent;
 
@@ -109,6 +114,29 @@
             border-radius: 20%;
             object-fit: cover;
             margin-right: 1rem;
+        }
+
+        mdui-tabs {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            min-height: 0; // enable inner panel to scroll
+        }
+
+        mdui-tab-panel[active] {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0; // critical to avoid collapsing
+            overflow: hidden;
+        }
+
+        mdui-list {
+            flex: 1;
+            min-height: 0; // allow scroll area to size correctly
+            overflow-y: auto;
+            padding: 0;
+            margin: 0;
         }
     }
 
