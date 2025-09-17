@@ -1,23 +1,17 @@
 import { useState } from "react";
-import { useChat } from "../../hooks/useChat";
 import { RichTextArea } from "../core/RichTextArea";
 
 interface ChatInputWrapperProps {
-    onSendMessage?: (message: string) => void;
+    onSendMessage: (message: string) => void;
 }
 
 export function ChatInputWrapper({ onSendMessage }: ChatInputWrapperProps) {
     const [message, setMessage] = useState("");
-    const { sendMessage } = useChat();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (message.trim()) {
-            if (onSendMessage) {
-                onSendMessage(message);
-            } else {
-                await sendMessage(message);
-            }
+            onSendMessage(message);
             setMessage("");
         }
     };
