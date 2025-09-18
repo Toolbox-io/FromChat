@@ -192,15 +192,11 @@
                             white-space: pre-wrap;
                         }
 
-                        .message-reply {
-                            background-color: rgba(255, 255, 255, 0.1);
-                            border-radius: 8px;
-                            padding: 0.5rem;
-                            margin-bottom: 0.5rem;
-                            border-left: 3px solid $color-dark-primary;
+                        .quote.message-reply {
                             user-select: none;
+                            margin-bottom: 10px;
 
-                            .reply-content {
+                            .quote-inner {
                                 display: flex;
                                 flex-direction: column;
                                 gap: 0.2rem;
@@ -289,10 +285,11 @@
 
                 .input-group {
                     display: flex;
+                    background-color: $color-dark-surface-container;
+                    border-radius: 30px;
+                    flex-direction: column;
 
                     .chat-input {
-                        background-color: $color-dark-surface-container;
-                        border-radius: 30px;
                         flex: 1;
                         display: flex;
                         flex-direction: row;
@@ -313,24 +310,24 @@
                             height: 100%;
                             width: 100%;
                         }
-                    } 
 
-                    .send-btn {
-                        margin: 10px;
-                        width: 50px;
-                        height: 50px;
-                        border-radius: 50%;
-                        background-color: $color-dark-primary;
-                        color: $color-dark-on-primary;
-                        border: none;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        transition: background-color 0.25s ease;
-                        align-self: flex-end;
-
-                        @include hoverStateLayer($background: $color-dark-primary);
+                        .send-btn {
+                            margin: 10px;
+                            width: 50px;
+                            height: 50px;
+                            border-radius: 50%;
+                            background-color: $color-dark-primary;
+                            color: $color-dark-on-primary;
+                            border: none;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            transition: background-color 0.25s ease;
+                            align-self: flex-end;
+    
+                            @include hoverStateLayer($background: $color-dark-primary);
+                        }
                     }
                 }
             }

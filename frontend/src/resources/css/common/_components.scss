@@ -1,4 +1,5 @@
 @use "material" as *;
+@use "sass:color";
 
 .text-center {
     text-align: center;
@@ -123,4 +124,23 @@ button, input {
     overflow-y: hidden;
     background-color: transparent;
     display: block;
+}
+
+.quote {
+    background-color: $color-dark-surface-primary-container-lightened;
+    border-radius: 8px;
+    overflow: hidden;
+
+    &.bg-surfaceContainer {
+        background-color: $color-dark-secondary-container;
+
+        .quote-inner {
+            border-left: 3px solid $color-dark-secondary;
+        }
+    }
+
+    .quote-inner {
+        border-left: 3px solid $color-dark-primary;
+        padding: 0.5rem;
+    }
 }

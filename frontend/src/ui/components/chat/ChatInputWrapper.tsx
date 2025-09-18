@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { RichTextArea } from "../core/RichTextArea";
 import type { Message } from "../../../core/types";
+import Quote from "../core/Quote";
+import AnimatedHeight from "../core/animations/AnimatedHeight";
 
 interface ChatInputWrapperProps {
-    onSendMessage: (message: string) => void | ((message: string) => void);
+    onSendMessage: (message: string) => void;
     replyTo?: Message | null;
+    replyToVisible: boolean;
     onClearReply?: () => void;
+    onCloseReply?: () => void;
 }
 
-export function ChatInputWrapper({ onSendMessage, replyTo, onClearReply }: ChatInputWrapperProps) {
+export function ChatInputWrapper({ onSendMessage, replyTo, replyToVisible, onClearReply, onCloseReply }: ChatInputWrapperProps) {
     const [message, setMessage] = useState("");
 
     const handleSubmit = async (e: React.FormEvent | Event) => {
@@ -23,15 +27,17 @@ export function ChatInputWrapper({ onSendMessage, replyTo, onClearReply }: ChatI
     return (
         <div className="chat-input-wrapper">
             <form className="input-group" id="message-form" onSubmit={handleSubmit}>
-                {replyTo && (
-                    <div className="reply-preview">
-                        <div className="reply-content">
-                            <span className="reply-username">{replyTo.username}</span>
-                            <span className="reply-text">{replyTo.content}</span>
+                <AnimatedHeight visible={replyToVisible} onFinish={onCloseReply}>
+                    {replyTo && (
+                        <div className="reply-preview">
+                            <Quote className="reply-content" background="surfaceContainer">
+                                <span className="reply-username">{replyTo!.username}</span>
+                                <span className="reply-text">{replyTo!.content}</span>
+                            </Quote>
+                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply}></mdui-button-icon>
                         </div>
-                        <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply}></mdui-button-icon>
-                    </div>
-                )}
+                    )}
+                </AnimatedHeight>
                 <div className="chat-input">
                     <RichTextArea
                         className="message-input" 

@@ -17,6 +17,13 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     const [switchOut, setSwitchOut] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [replyTo, setReplyTo] = useState<Message | null>(null);
+    const [replyToVisible, setReplyToVisible] = useState(Boolean(replyTo));
+
+    useEffect(() => {
+        if (replyTo) {
+            setReplyToVisible(true);
+        }
+    }, [replyTo]);
 
     // Handle panel state changes
     useEffect(() => {
@@ -144,8 +151,10 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         panel.handleSendMessage(text, replyTo?.id);
                         setReplyTo(null);
                     }} 
-                    replyTo={replyTo} 
-                    onClearReply={() => setReplyTo(null)}
+                    replyTo={replyTo}
+                    replyToVisible={replyToVisible}
+                    onClearReply={() => setReplyToVisible(false)}
+                    onCloseReply={() => setReplyTo(null)}
                 />
             </div>
         </div>

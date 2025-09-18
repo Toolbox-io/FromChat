@@ -50,6 +50,9 @@ $color-dark-surface-container-low: rgb(24 28 31);
 $color-dark-surface-container: rgb(28 32 36);
 $color-dark-surface-container-high: rgb(38 43 46);
 $color-dark-surface-container-highest: rgb(49 53 57);
+$color-dark-surface-primary-container-lightened: color.adjust($color-dark-primary-container, $lightness: 5%);
+$color-dark-surface-container-lightened: color.adjust($color-dark-surface-container, $lightness: 5%);
+
 // custom colors
 $color-1: rgb(82, 109, 246);   
 $color-2: rgb(65, 11, 113);   
