@@ -3,6 +3,7 @@ import { MessagePanel, type MessagePanelState } from "../../panels/MessagePanel"
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
 import { setGlobalMessageHandler } from "../../../core/websocket";
+import type { Message } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 interface MessagePanelRendererProps {
@@ -15,6 +16,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     const [switchIn, setSwitchIn] = useState(false);
     const [switchOut, setSwitchOut] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [replyTo, setReplyTo] = useState<Message | null>(null);
 
     // Handle panel state changes
     useEffect(() => {
@@ -132,12 +134,19 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         </div>
                     </div>
                 ): (
-                    <ChatMessages messages={panelState.messages} isDm={panel.isDm()}>
+                    <ChatMessages messages={panelState.messages} isDm={panel.isDm()} onReplySelect={(m) => setReplyTo(m)}>
                         <div ref={messagesEndRef} />
                     </ChatMessages>
                 )}
                 
-                <ChatInputWrapper onSendMessage={panel.handleSendMessage} />
+                <ChatInputWrapper 
+                    onSendMessage={(text) => {
+                        panel.handleSendMessage(text, replyTo?.id);
+                        setReplyTo(null);
+                    }} 
+                    replyTo={replyTo} 
+                    onClearReply={() => setReplyTo(null)}
+                />
             </div>
         </div>
     );

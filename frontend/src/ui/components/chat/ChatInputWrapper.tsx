@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { RichTextArea } from "../core/RichTextArea";
+import type { Message } from "../../../core/types";
 
 interface ChatInputWrapperProps {
-    onSendMessage: (message: string) => void;
+    onSendMessage: (message: string) => void | ((message: string) => void);
+    replyTo?: Message | null;
+    onClearReply?: () => void;
 }
 
-export function ChatInputWrapper({ onSendMessage }: ChatInputWrapperProps) {
+export function ChatInputWrapper({ onSendMessage, replyTo, onClearReply }: ChatInputWrapperProps) {
     const [message, setMessage] = useState("");
 
     const handleSubmit = async (e: React.FormEvent | Event) => {
@@ -13,6 +16,7 @@ export function ChatInputWrapper({ onSendMessage }: ChatInputWrapperProps) {
         if (message.trim()) {
             onSendMessage(message);
             setMessage("");
+            if (onClearReply) onClearReply();
         }
     };
 
@@ -20,6 +24,17 @@ export function ChatInputWrapper({ onSendMessage }: ChatInputWrapperProps) {
         <div className="chat-input-wrapper">
             <form className="input-group" id="message-form" onSubmit={handleSubmit}>
                 <div className="chat-input">
+                    {replyTo && (
+                        <div className="reply-preview">
+                            <div className="reply-content">
+                                <span className="reply-username">{replyTo.username}</span>
+                                <span className="reply-text">{replyTo.content}</span>
+                            </div>
+                            <button type="button" className="reply-cancel" onClick={onClearReply}>
+                                <span className="material-symbols">close</span>
+                            </button>
+                        </div>
+                    )}
                     <RichTextArea
                         className="message-input" 
                         id="message-input" 
