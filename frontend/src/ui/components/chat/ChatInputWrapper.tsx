@@ -23,18 +23,16 @@ export function ChatInputWrapper({ onSendMessage, replyTo, onClearReply }: ChatI
     return (
         <div className="chat-input-wrapper">
             <form className="input-group" id="message-form" onSubmit={handleSubmit}>
-                <div className="chat-input">
-                    {replyTo && (
-                        <div className="reply-preview">
-                            <div className="reply-content">
-                                <span className="reply-username">{replyTo.username}</span>
-                                <span className="reply-text">{replyTo.content}</span>
-                            </div>
-                            <button type="button" className="reply-cancel" onClick={onClearReply}>
-                                <span className="material-symbols">close</span>
-                            </button>
+                {replyTo && (
+                    <div className="reply-preview">
+                        <div className="reply-content">
+                            <span className="reply-username">{replyTo.username}</span>
+                            <span className="reply-text">{replyTo.content}</span>
                         </div>
-                    )}
+                        <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply}></mdui-button-icon>
+                    </div>
+                )}
+                <div className="chat-input">
                     <RichTextArea
                         className="message-input" 
                         id="message-input" 
