@@ -54,7 +54,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
 
                 {/* Add reply preview if this is a reply */}
                 {message.reply_to && (
-                    <Quote className="message-reply">
+                    <Quote className="reply-preview contextual-content">
                         <span className="reply-username">{message.reply_to.username}</span>
                         <span className="reply-text">{message.reply_to.content}</span>
                     </Quote>

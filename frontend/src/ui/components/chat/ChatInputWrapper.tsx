@@ -29,8 +29,9 @@ export function ChatInputWrapper({ onSendMessage, replyTo, replyToVisible, onCle
             <form className="input-group" id="message-form" onSubmit={handleSubmit}>
                 <AnimatedHeight visible={replyToVisible} onFinish={onCloseReply}>
                     {replyTo && (
-                        <div className="reply-preview">
-                            <Quote className="reply-content" background="surfaceContainer">
+                        <div className="reply-preview contextual-preview">
+                            <mdui-icon name="reply" />
+                            <Quote className="reply-content contextual-content" background="surfaceContainer">
                                 <span className="reply-username">{replyTo!.username}</span>
                                 <span className="reply-text">{replyTo!.content}</span>
                             </Quote>
