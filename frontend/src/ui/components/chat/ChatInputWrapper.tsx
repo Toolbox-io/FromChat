@@ -24,6 +24,8 @@ export function ChatInputWrapper({ onSendMessage, onSaveEdit, replyTo, replyToVi
     useEffect(() => {
         if (editingMessage) {
             setMessage(editingMessage.content || "");
+        } else {
+            setMessage("");
         }
     }, [editingMessage]);
 
