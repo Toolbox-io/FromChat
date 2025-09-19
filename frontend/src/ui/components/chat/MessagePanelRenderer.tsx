@@ -18,12 +18,21 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [replyToVisible, setReplyToVisible] = useState(Boolean(replyTo));
+    const [editMessage, setEditMessage] = useState<Message | null>(null);
+    const [editVisible, setEditVisible] = useState(Boolean(editMessage));
+    const [pendingAction, setPendingAction] = useState<null | { type: "reply" | "edit"; message: Message }>(null);
 
     useEffect(() => {
         if (replyTo) {
             setReplyToVisible(true);
         }
     }, [replyTo]);
+
+    useEffect(() => {
+        if (editMessage) {
+            setEditVisible(true);
+        }
+    }, [editMessage]);
 
     // Handle panel state changes
     useEffect(() => {
@@ -141,7 +150,26 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         </div>
                     </div>
                 ): (
-                    <ChatMessages messages={panelState.messages} isDm={panel.isDm()} onReplySelect={(m) => setReplyTo(m)}>
+                    <ChatMessages 
+                        messages={panelState.messages} 
+                        isDm={panel.isDm()} 
+                        onReplySelect={(m) => {
+                            if (editMessage || editVisible) {
+                                setPendingAction({ type: "reply", message: m });
+                                setEditVisible(false); // onCloseEdit will apply pending
+                            } else {
+                                setReplyTo(m);
+                            }
+                        }}
+                        onEditSelect={(m) => {
+                            if (replyTo || replyToVisible) {
+                                setPendingAction({ type: "edit", message: m });
+                                setReplyToVisible(false); // onCloseReply will apply pending
+                            } else {
+                                setEditMessage(m);
+                            }
+                        }}
+                    >
                         <div ref={messagesEndRef} />
                     </ChatMessages>
                 )}
@@ -151,10 +179,38 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         panel.handleSendMessage(text, replyTo?.id);
                         setReplyTo(null);
                     }} 
+                    onSaveEdit={(content) => {
+                        if (editMessage) {
+                            panel.handleEditMessage(editMessage.id, content);
+                            setEditMessage(null);
+                        }
+                    }}
                     replyTo={replyTo}
                     replyToVisible={replyToVisible}
-                    onClearReply={() => setReplyToVisible(false)}
-                    onCloseReply={() => setReplyTo(null)}
+                    onClearReply={() => {
+                        setPendingAction(null);
+                        setReplyToVisible(false);
+                    }}
+                    onCloseReply={() => {
+                        setReplyTo(null);
+                        if (pendingAction && pendingAction.type === "edit") {
+                            setEditMessage(pendingAction.message);
+                            setPendingAction(null);
+                        }
+                    }}
+                    editingMessage={editMessage}
+                    editVisible={editVisible}
+                    onClearEdit={() => {
+                        setPendingAction(null);
+                        setEditVisible(false);
+                    }}
+                    onCloseEdit={() => {
+                        setEditMessage(null);
+                        if (pendingAction && pendingAction.type === "reply") {
+                            setReplyTo(pendingAction.message);
+                            setPendingAction(null);
+                        }
+                    }}
                 />
             </div>
         </div>

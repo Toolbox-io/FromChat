@@ -15,9 +15,10 @@ interface ChatMessagesProps {
     isDm?: boolean;
     children?: ReactNode;
     onReplySelect?: (message: MessageType) => void;
+    onEditSelect?: (message: MessageType) => void;
 }
 
-export function ChatMessages({ messages: propMessages, children, isDm = false, onReplySelect }: ChatMessagesProps) {
+export function ChatMessages({ messages: propMessages, children, isDm = false, onReplySelect, onEditSelect }: ChatMessagesProps) {
     const { messages: hookMessages } = useChat();
     const { user } = useAppState();
     
@@ -67,25 +68,8 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
         }));
     };
 
-    const handleEdit = async (message: MessageType) => {
-        // This will be called when the edit dialog is saved
-        if (!user.authToken) return;
-        
-        try {
-            await request({
-                type: "editMessage",
-                data: { 
-                    message_id: message.id,
-                    content: message.content // This should be updated content from the dialog
-                },
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: user.authToken
-                }
-            });
-        } catch (error) {
-            console.error("Failed to edit message:", error);
-        }
+    const handleEdit = (message: MessageType) => {
+        if (onEditSelect) onEditSelect(message);
     };
 
     const handleReply = (message: MessageType) => {

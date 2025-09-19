@@ -248,7 +248,24 @@ export const useAppState = create<AppState>((set, get) => ({
         if (!publicChatPanel) {
             const callbacks = {
                 onSendMessage: (_content: string) => {},
-                onEditMessage: (_messageId: number, _content: string) => {},
+                onEditMessage: async (messageId: number, content: string) => {
+                    if (!user.authToken) return;
+                    try {
+                        await request({
+                            type: "editMessage",
+                            data: {
+                                message_id: messageId,
+                                content: content
+                            },
+                            credentials: {
+                                scheme: "Bearer",
+                                credentials: user.authToken
+                            }
+                        });
+                    } catch (error) {
+                        console.error("Failed to edit message:", error);
+                    }
+                },
                 onDeleteMessage: (_messageId: number) => {},
                 onReplyToMessage: (_messageId: number, _content: string) => {},
                 onProfileClick: () => {}
