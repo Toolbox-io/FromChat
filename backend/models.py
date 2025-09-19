@@ -82,15 +82,11 @@ class RegisterRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str
+    reply_to_id: int | None
 
 
 class EditMessageRequest(BaseModel):
     content: str
-
-
-class ReplyMessageRequest(BaseModel):
-    content: str
-    reply_to_id: int
 
 
 class DeleteMessageRequest(BaseModel):

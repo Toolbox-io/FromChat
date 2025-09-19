@@ -14,9 +14,11 @@ interface ChatMessagesProps {
     messages?: MessageType[];
     isDm?: boolean;
     children?: ReactNode;
+    onReplySelect?: (message: MessageType) => void;
+    onEditSelect?: (message: MessageType) => void;
 }
 
-export function ChatMessages({ messages: propMessages, children, isDm = false }: ChatMessagesProps) {
+export function ChatMessages({ messages: propMessages, children, isDm = false, onReplySelect, onEditSelect }: ChatMessagesProps) {
     const { messages: hookMessages } = useChat();
     const { user } = useAppState();
     
@@ -66,46 +68,12 @@ export function ChatMessages({ messages: propMessages, children, isDm = false }:
         }));
     };
 
-    const handleEdit = async (message: MessageType) => {
-        // This will be called when the edit dialog is saved
-        if (!user.authToken) return;
-        
-        try {
-            await request({
-                type: "editMessage",
-                data: { 
-                    message_id: message.id,
-                    content: message.content // This should be updated content from the dialog
-                },
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: user.authToken
-                }
-            });
-        } catch (error) {
-            console.error("Failed to edit message:", error);
-        }
+    const handleEdit = (message: MessageType) => {
+        if (onEditSelect) onEditSelect(message);
     };
 
-    const handleReply = async (message: MessageType) => {
-        // This will be called when the reply dialog is sent
-        if (!user.authToken) return;
-        
-        try {
-            await request({
-                type: "replyMessage",
-                data: {
-                    content: message.content, // This should be the reply content from the dialog
-                    reply_to_id: message.id
-                },
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: user.authToken
-                }
-            });
-        } catch (error) {
-            console.error("Failed to send reply:", error);
-        }
+    const handleReply = (message: MessageType) => {
+        if (onReplySelect) onReplySelect(message);
     };
 
     const handleDelete = async (message: MessageType) => {

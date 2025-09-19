@@ -61,12 +61,15 @@ export class PublicChatPanel extends MessagePanel {
         }
     }
 
-    async sendMessage(content: string): Promise<void> {
+    async sendMessage(content: string, replyToId?: number): Promise<void> {
         if (!this.currentUser.authToken || !content.trim()) return;
 
         try {
             const response = await request({
-                data: { content: content.trim() },
+                data: { 
+                    content: content.trim(), 
+                    reply_to_id: replyToId ?? null
+                },
                 credentials: {
                     scheme: "Bearer",
                     credentials: this.currentUser.authToken

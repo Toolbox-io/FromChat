@@ -48,7 +48,7 @@ export abstract class MessagePanel {
     abstract activate(): Promise<void>;
     abstract deactivate(): void;
     abstract loadMessages(): Promise<void>;
-    abstract sendMessage(content: string): Promise<void>;
+    abstract sendMessage(content: string, replyToId?: number): Promise<void>;
     abstract isDm(): boolean;
     
     // Optional WebSocket message handler (can be overridden by subclasses)
@@ -115,8 +115,8 @@ export abstract class MessagePanel {
     }
 
     // Event handlers
-    handleSendMessage = (content: string): void => {
-        this.sendMessage(content);
+    handleSendMessage = (content: string, replyToId?: number): void => {
+        this.sendMessage(content, replyToId);
     };
 
     handleEditMessage = (messageId: number, content: string): void => {

@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import type { Message, Size2D } from "../../../core/types";
-import { EditMessageDialog } from "./EditMessageDialog";
-import { ReplyMessageDialog } from "./ReplyMessageDialog";
 
 interface MessageContextMenuProps {
     message: Message;
@@ -30,9 +28,7 @@ export function MessageContextMenu({
     isOpen,
     onOpenChange
 }: MessageContextMenuProps) {
-    // Internal state for dialogs and closing animation
-    const [editDialogOpen, setEditDialogOpen] = useState(false);
-    const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+    // Internal state for closing animation
     const [isClosing, setIsClosing] = useState(false);
     const [calculatedPosition, setCalculatedPosition] = useState(position);
     const [animationClass, setAnimationClass] = useState('entering');
@@ -78,7 +74,7 @@ export function MessageContextMenu({
     // Effect to handle clicks outside the context menu
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (isOpen && !isClosing && !editDialogOpen && !replyDialogOpen) {
+            if (isOpen && !isClosing) {
                 // Check if the click is on a context menu element
                 const target = event.target as Element;
                 if (!target.closest('.context-menu')) {
@@ -88,14 +84,14 @@ export function MessageContextMenu({
         };
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && isOpen && !isClosing && !editDialogOpen && !replyDialogOpen) {
+            if (event.key === 'Escape' && isOpen && !isClosing) {
                 handleClose();
             }
         };
 
         const handleWindowBlur = () => {
             // Close context menu when browser window loses focus
-            if (isOpen && !isClosing && !editDialogOpen && !replyDialogOpen) {
+            if (isOpen && !isClosing) {
                 handleClose();
             }
         };
@@ -111,17 +107,16 @@ export function MessageContextMenu({
             document.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('blur', handleWindowBlur);
         };
-    }, [isOpen, isClosing, editDialogOpen, replyDialogOpen]);
+    }, [isOpen, isClosing]);
     
     const handleAction = (action: string) => {
         switch (action) {
             case "reply":
-                setReplyDialogOpen(true);
+                onReply(message);
+                handleClose();
                 break;
             case "edit":
-                if (isAuthor) {
-                    setEditDialogOpen(true);
-                }
+                if (isAuthor) onEdit(message);
                 break;
             case "delete":
                 if (isAuthor) {
@@ -146,20 +141,7 @@ export function MessageContextMenu({
         }, 200); // Match the animation duration from _animations.scss
     };
 
-    const handleEditSave = (_messageId: number, newContent: string) => {
-        // Create a temporary message object with the updated content
-        const updatedMessage = { ...message, content: newContent };
-        onEdit(updatedMessage);
-        setEditDialogOpen(false);
-    };
-
-    const handleSendReply = (content: string, replyToId: number) => {
-        // Create a temporary message object with the reply content
-        const replyMessage = { ...message, content, id: replyToId };
-        onReply(replyMessage);
-        setReplyDialogOpen(false);
-    };
-
+    // Inline edit handled by parent via onEdit
 
 
     const content = (
@@ -194,27 +176,11 @@ export function MessageContextMenu({
     )
 
     // Don't render if not open
-    if (!isOpen && !editDialogOpen && !replyDialogOpen) return null;
+    if (!isOpen) return null;
 
     return (
         <>
             {isOpen ? content : null}
-            
-            {/* Edit Dialog */}
-            <EditMessageDialog
-                isOpen={editDialogOpen}
-                onOpenChange={setEditDialogOpen}
-                message={message}
-                onSave={handleEditSave}
-            />
-            
-            {/* Reply Dialog */}
-            <ReplyMessageDialog
-                isOpen={replyDialogOpen}
-                onOpenChange={setReplyDialogOpen}
-                replyToMessage={message}
-                onSendReply={handleSendReply}
-            />
         </>
     );
 }

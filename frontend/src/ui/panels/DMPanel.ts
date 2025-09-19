@@ -88,7 +88,7 @@ export class DMPanel extends MessagePanel {
         }
     }
 
-    async sendMessage(content: string): Promise<void> {
+    async sendMessage(content: string, _replyToId?: number): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData || !content.trim()) return;
 
         try {

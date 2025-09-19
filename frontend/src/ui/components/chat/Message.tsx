@@ -1,6 +1,7 @@
 import { formatTime } from "../../../utils/utils";
 import type { Message as MessageType } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
+import Quote from "../core/Quote";
 
 interface MessageProps {
     message: MessageType;
@@ -53,12 +54,10 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
 
                 {/* Add reply preview if this is a reply */}
                 {message.reply_to && (
-                    <div className="message-reply">
-                        <div className="reply-content">
-                            <span className="reply-username">{message.reply_to.username}</span>
-                            <span className="reply-text">{message.reply_to.content}</span>
-                        </div>
-                    </div>
+                    <Quote className="reply-preview contextual-content">
+                        <span className="reply-username">{message.reply_to.username}</span>
+                        <span className="reply-text">{message.reply_to.content}</span>
+                    </Quote>
                 )}
 
                 <div className="message-content">
