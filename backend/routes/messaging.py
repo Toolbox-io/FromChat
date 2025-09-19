@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
 from constants import OWNER_USERNAME
-from models import Message, SendMessageRequest, EditMessageRequest, ReplyMessageRequest, User, DMEnvelope
+from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")

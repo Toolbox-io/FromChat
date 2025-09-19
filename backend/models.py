@@ -89,11 +89,6 @@ class EditMessageRequest(BaseModel):
     content: str
 
 
-class ReplyMessageRequest(BaseModel):
-    content: str
-    reply_to_id: int
-
-
 class DeleteMessageRequest(BaseModel):
     message_id: int
 
