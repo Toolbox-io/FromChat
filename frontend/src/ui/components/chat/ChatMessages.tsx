@@ -6,9 +6,10 @@ import type { UserProfile } from "../../../core/types";
 import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
 import { fetchUserProfile } from "../../../api/profileApi";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { delay } from "../../../utils/utils";
 import { request } from "../../../core/websocket";
+import { MaterialDialog } from "../core/Dialog";
 
 interface ChatMessagesProps {
     messages?: MessageType[];
@@ -35,7 +36,17 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
         position: { x: 0, y: 0 }
     });
 
-    const handleProfileClick = async (username: string) => {
+    // Delete dialog
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [toBeDeleted, setToBeDeleted] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!deleteDialogOpen) {
+            setToBeDeleted(null);
+        }
+    }, [deleteDialogOpen]);
+
+    async function handleProfileClick(username: string) {
         if (!user.authToken) return;
         
         setIsLoadingProfile(true);
@@ -52,7 +63,7 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
         }
     };
 
-    const handleContextMenu = (e: React.MouseEvent, message: MessageType) => {
+    function handleContextMenu(e: React.MouseEvent, message: MessageType) {
         e.preventDefault();
         setContextMenu({
             isOpen: true,
@@ -61,37 +72,46 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
         });
     };
 
-    const handleContextMenuOpenChange = (isOpen: boolean) => {
+    function handleContextMenuOpenChange(isOpen: boolean) {
         setContextMenu(prev => ({
             ...prev,
             isOpen
         }));
     };
 
-    const handleEdit = (message: MessageType) => {
+    function handleEdit(message: MessageType) {
         if (onEditSelect) onEditSelect(message);
     };
 
-    const handleReply = (message: MessageType) => {
+    function handleReply(message: MessageType) {
         if (onReplySelect) onReplySelect(message);
     };
 
-    const handleDelete = async (message: MessageType) => {
-        if (!user.authToken) return;
+    async function confirmDelete() {
+        if (toBeDeleted) {
+            if (!user.authToken) return;
         
-        try {
-            await request({
-                type: "deleteMessage",
-                data: { message_id: message.id },
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: user.authToken
-                }
-            });
-        } catch (error) {
-            console.error("Failed to delete message:", error);
+            try {
+                await request({
+                    type: "deleteMessage",
+                    data: { message_id: toBeDeleted },
+                    credentials: {
+                        scheme: "Bearer",
+                        credentials: user.authToken
+                    }
+                });
+            } catch (error) {
+                console.error("Failed to delete message:", error);
+            }
+
+            setDeleteDialogOpen(false);
         }
-    };
+    }
+
+    async function handleDelete(message: MessageType) {
+        setToBeDeleted(message.id);
+        setDeleteDialogOpen(true);
+    }
 
     return (
         <>
@@ -120,6 +140,14 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
                 }}
                 userProfile={selectedUserProfile}
             />
+
+            <MaterialDialog
+                headline="Удалить сообщение?"
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}>
+                <mdui-button slot="action" variant="tonal" onClick={() => setDeleteDialogOpen(false)}>Отменить</mdui-button>
+                <mdui-button slot="action" variant="filled" onClick={confirmDelete}>Удалить</mdui-button>
+            </MaterialDialog>
             
             {/* Context Menu */}
             {contextMenu.message && (

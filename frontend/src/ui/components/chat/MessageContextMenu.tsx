@@ -125,6 +125,7 @@ export function MessageContextMenu({
                 }
                 break;
         }
+        onOpenChange(false);
     };
 
     const handleClose = () => {
@@ -141,10 +142,7 @@ export function MessageContextMenu({
         }, 200); // Match the animation duration from _animations.scss
     };
 
-    // Inline edit handled by parent via onEdit
-
-
-    const content = (
+    return isOpen && (
         <div 
             className={`context-menu ${animationClass}`}
             style={{
@@ -154,8 +152,7 @@ export function MessageContextMenu({
                 left: calculatedPosition.x,
                 zIndex: 1000
             }}
-            onClick={(e) => e.stopPropagation()}
-        >
+            onClick={(e) => e.stopPropagation()}>
             <div className="context-menu-item" onClick={() => handleAction("reply")}>
                 <span className="material-symbols">reply</span>
                 Ответить
@@ -174,13 +171,4 @@ export function MessageContextMenu({
             )}
         </div>
     )
-
-    // Don't render if not open
-    if (!isOpen) return null;
-
-    return (
-        <>
-            {isOpen ? content : null}
-        </>
-    );
 }
