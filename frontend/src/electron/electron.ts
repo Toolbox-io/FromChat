@@ -5,13 +5,11 @@
  * @version 1.0.0
  */
 
-import { PRODUCT_NAME } from "../core/config.ts";
-import { id } from "../utils/utils.ts";
+export const isElectron = import.meta.env.VITE_ELECTRON && window.electronInterface != undefined;
 
-if (window.electronInterface !== undefined) {
+if (isElectron) {
     console.log("Running in Electron");
     document.documentElement.classList.add("electron", `platform-${window.electronInterface.platform}`);
-    id("window-title").textContent = PRODUCT_NAME;
 } else {
     console.log("Running in normal browser");
 }

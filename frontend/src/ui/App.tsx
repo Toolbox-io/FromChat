@@ -1,4 +1,5 @@
 import { MINIMUM_WIDTH } from "../core/config";
+import { isElectron } from "../electron/electron";
 import { ElectronTitleBar } from "./components/Electron";
 import useWindowSize from "./hooks/useWindowSize";
 import ChatScreen from "./screen/ChatScreen";
@@ -17,7 +18,7 @@ export default function App() {
         restoreUserFromStorage();
     }, [restoreUserFromStorage]);
 
-    if (width < MINIMUM_WIDTH) {
+    if (!isElectron && width < MINIMUM_WIDTH) {
         return <DownloadAppScreen />
     }
 

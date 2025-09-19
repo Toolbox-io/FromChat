@@ -36,7 +36,7 @@ USER app
 
 # 3.1. Frontend static files
 WORKDIR /app
-COPY --from=frontend --chown=app /app/frontend/dist .
+COPY --from=frontend --chown=app /app/frontend/build/normal/dist .
 
 # 3.2. Static file server
 WORKDIR /server

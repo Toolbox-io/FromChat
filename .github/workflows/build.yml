@@ -17,72 +17,39 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Force npm to use Bash
-        if: runner.os == 'Windows'
-        run: npm config set script-shell "C:\Program Files\Git\bin\bash.exe"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
-      - name: Cache npm (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Cache dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: npm-${{ runner.os }}-node-24-${{ hashFiles('package.json') }}
+          path: node_modules
+          key: npm-ubuntu-latest-node-24-${{ hashFiles('package.json') }}
           restore-keys: |
-            npm-${{ runner.os }}-node-24-
+            npm-ubuntu-latest-node-24-
 
-      - name: Cache npm (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: ~\AppData\Local\npm-cache
-          key: npm-${{ runner.os }}-node-24-${{ hashFiles('package.json') }}
-          restore-keys: |
-            npm-${{ runner.os }}-node-24-
-
-      - name: Install root deps (no scripts)
+      - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
 
-      - name: Install Electron Forge deps
-        run: npm run frontend:electron:dependencies
-
-      - name: Cache Electron downloads (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Cache Electron downloads
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/electron
             ~/.cache/electron-builder
-          key: electron-${{ runner.os }}-${{ hashFiles('package.json', 'frontend/electron/forge/package.json') }}
+          key: electron-ubuntu-latest-${{ hashFiles('package.json', 'package.json') }}
           restore-keys: |
-            electron-${{ runner.os }}-
-
-      - name: Cache Electron downloads (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~\AppData\Local\electron\Cache
-            ~\AppData\Local\electron-builder\Cache
-          key: electron-${{ runner.os }}-${{ hashFiles('package.json', 'frontend/electron/forge/package.json') }}
-          restore-keys: |
-            electron-${{ runner.os }}-
+            electron-ubuntu-latest-
 
       - name: Build Electron app
         shell: bash
@@ -91,8 +58,102 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fromchat-${{ runner.os }}
+          name: FromChat-linux
           path: |
-            frontend/electron/forge/out/**
+            frontend/build/electron/forge/make/*/**
           if-no-files-found: error
 
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: npm-macos-latest-node-24-${{ hashFiles('package.json') }}
+          restore-keys: |
+            npm-macos-latest-node-24-
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      # - name: Cache Electron downloads
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       ~/.cache/electron
+      #       ~/.cache/electron-builder
+      #     key: electron-macos-latest-${{ hashFiles('package.json') }}
+      #     restore-keys: |
+      #       electron-macos-latest-
+
+      - name: Build Electron app
+        shell: bash
+        run: npm run build:electron
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FromChat-macOS
+          path: |
+            frontend/build/electron/forge/make/zip/darwin/*/**.zip
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Force npm to use Bash
+        run: npm config set script-shell "C:\Program Files\Git\bin\bash.exe"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: npm-windows-latest-node-24-${{ hashFiles('package.json') }}
+          restore-keys: |
+            npm-windows-latest-node-24-
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Cache Electron downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-windows-latest-${{ hashFiles('package.json') }}
+          restore-keys: |
+            electron-windows-latest-
+
+      - name: Build Electron app
+        shell: bash
+        run: npm run build:electron
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FromChat-windows
+          path: |
+            frontend/build/electron/forge/make/zip/win32/x64
+          if-no-files-found: error

@@ -153,20 +153,20 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                     <ChatMessages 
                         messages={panelState.messages} 
                         isDm={panel.isDm()} 
-                        onReplySelect={(m) => {
+                        onReplySelect={(message) => {
                             if (editMessage || editVisible) {
-                                setPendingAction({ type: "reply", message: m });
+                                setPendingAction({ type: "reply", message: message });
                                 setEditVisible(false); // onCloseEdit will apply pending
                             } else {
-                                setReplyTo(m);
+                                setReplyTo(message);
                             }
                         }}
-                        onEditSelect={(m) => {
+                        onEditSelect={(message) => {
                             if (replyTo || replyToVisible) {
-                                setPendingAction({ type: "edit", message: m });
+                                setPendingAction({ type: "edit", message: message });
                                 setReplyToVisible(false); // onCloseReply will apply pending
                             } else {
-                                setEditMessage(m);
+                                setEditMessage(message);
                             }
                         }}
                     >

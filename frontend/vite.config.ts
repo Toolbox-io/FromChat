@@ -25,9 +25,19 @@ if (process.env.VITE_ELECTRON) {
         electron({
             main: {
                 entry: "electron/main.ts",
+                vite: {
+                    build: {
+                        outDir: "build/electron/core"
+                    }
+                }
             },
             preload: {
-                input: "frontend/electron/preload.ts"
+                input: "frontend/electron/preload.ts",
+                vite: {
+                    build: {
+                        outDir: "build/electron/core"
+                    }
+                }
             },
             renderer: {},
         })
@@ -68,6 +78,7 @@ export default defineConfig({
             }
         },
         cssMinify: true,
-        assetsInlineLimit: 0
+        assetsInlineLimit: 0,
+        outDir: process.env.VITE_ELECTRON ? "build/electron/dist" : "build/normal/dist"
     }
 });

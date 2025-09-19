@@ -13,7 +13,6 @@ on:
       - ".nvmrc"
       - ".github/workflows/deploy.yml"
       - "!frontend/electron/**"
-      - "!frontend/src/electron/**"
       - "!**.d.ts"
   workflow_dispatch:
 

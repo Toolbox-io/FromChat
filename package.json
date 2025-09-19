@@ -1,9 +1,12 @@
 {
-    "name": "pixelchat",
+    "name": "FromChat",
     "private": true,
     "version": "0.0.0",
     "type": "module",
-    "main": "frontend/dist-electron/main.js",
+    "main": "frontend/build/electron/core/main.js",
+    "description": "A 100% Open Source Messenger",
+    "license": "GPL-3.0",
+    "authors": "denis0001-dev",
     "scripts": {
         "backend:run": "cd backend && dotenv -e ../deployment/.env -- ../.venv/bin/fastapi dev --port 8300 main.py",
         "backend:dependencies": "python3 -m venv .venv && ./.venv/bin/pip3 install -r backend/requirements.txt",
@@ -13,8 +16,7 @@
         "frontend:typecheck": "tsc --project frontend",
         "frontend:build": "npm run frontend:typecheck && vite build frontend",
         "frontend:electron:dev": "VITE_ELECTRON=true npm run frontend:dev",
-        "frontend:electron:dependencies": "cd frontend/electron/forge && npm install",
-        "frontend:electron:build": "VITE_ELECTRON=true npm run frontend:build && cp -r frontend/dist frontend/dist-electron frontend/electron/forge && cd frontend/electron/forge && npm run make",
+        "frontend:electron:build": "VITE_ELECTRON=true npm run frontend:build && rm -rf out && electron-forge make --force",
         "frontend:preview": "vite preview frontend",
         "frontend:dependencies": "npm install --ignore-scripts",
         "frontend:clean": "rm -rf frontend/dist",
@@ -25,10 +27,22 @@
         "preview": "cd deployment && docker compose up --build --watch",
         "preview:clean": "cd deployment && docker compose down -v",
         "clean": "npm run backend:clean && npm run frontend:clean && npm run preview:clean",
-        "install": "npm run backend:dependencies && npm run frontend:electron:dependencies && cp deployment/.env.example deployment/.env",
+        "install": "npm run backend:dependencies && cp deployment/.env.example deployment/.env",
         "prepare": "husky"
     },
+    "files": [
+        "frontend/build/electron"
+    ],
     "devDependencies": {
+        "@electron-forge/cli": "^7.9.0",
+        "@electron-forge/maker-deb": "^7.9.0",
+        "@electron-forge/maker-dmg": "^7.9.0",
+        "@electron-forge/maker-rpm": "^7.9.0",
+        "@electron-forge/maker-squirrel": "^7.9.0",
+        "@electron-forge/maker-zip": "^7.9.0",
+        "@electron-forge/plugin-auto-unpack-natives": "^7.9.0",
+        "@electron-forge/plugin-fuses": "^7.9.0",
+        "@electron/fuses": "^1.8.0",
         "@types/react": "^19.1.12",
         "@types/react-dom": "^19.1.9",
         "@vitejs/plugin-react": "^5.0.2",
@@ -47,11 +61,15 @@
         "vite-plugin-html": "^3.2.2"
     },
     "dependencies": {
+        "electron-squirrel-startup": "^1.0.1",
         "mdui": "^2.1.4",
         "react": "^19.1.1",
         "react-dom": "^19.1.1",
         "tweetnacl": "^1.0.3",
         "use-immer": "^0.11.0",
         "zustand": "^5.0.8"
+    },
+    "config": {
+        "forge": "frontend/forge.config.ts"
     }
 }

@@ -6,6 +6,7 @@ import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./panels/DMPanel";
 import { getAuthHeaders } from "../auth/api";
 import { restoreKeys } from "../auth/crypto";
+import { API_BASE_URL } from "../core/config";
 
 type Page = "login" | "register" | "chat"
 export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
@@ -199,7 +200,7 @@ export const useAppState = create<AppState>((set, get) => ({
             const token = localStorage.getItem('authToken');
             
             if (token) {
-                const response = await fetch("/api/user/profile", {
+                const response = await fetch(`${API_BASE_URL}/user/profile`, {
                     headers: getAuthHeaders(token)
                 });
 

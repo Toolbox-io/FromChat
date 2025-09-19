@@ -1,29 +1,28 @@
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
-import type { ForgeConfig } from "@electron-forge/shared-types";
+import type { ForgeConfig } from '@electron-forge/shared-types';
 
-const config: ForgeConfig = {
+export default {
     packagerConfig: {
-        asar: true
+        asar: true,
     },
+    outDir: "frontend/build/electron/forge",
     rebuildConfig: {},
     makers: [
         {
-            name: '@electron-forge/maker-squirrel',
-            config: {},
-        },
-        {
             name: '@electron-forge/maker-zip',
             config: {},
-            platforms: ['darwin'],
+            platforms: ['win32', 'darwin'],
         },
         {
             name: '@electron-forge/maker-deb',
             config: {},
+            platforms: ['linux'],
         },
         {
             name: '@electron-forge/maker-rpm',
             config: {},
+            platforms: ['linux'],
         },
     ],
     plugins: [
@@ -43,6 +42,4 @@ const config: ForgeConfig = {
             [FuseV1Options.OnlyLoadAppFromAsar]: true,
         }),
     ],
-};
-
-export default config;
+} satisfies ForgeConfig;

@@ -10,6 +10,7 @@ import "mdui/mdui.css";
 
 import "./utils/material";
 import "./core/init";
+import "./electron/electron";
 import { createRoot } from 'react-dom/client';
 import App from './ui/App';
 import { StrictMode } from 'react';
