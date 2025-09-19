@@ -199,19 +199,24 @@ export const useAppState = create<AppState>((set, get) => ({
             const token = localStorage.getItem('authToken');
             
             if (token) {
-                const user: User = await (await fetch("/api/user/profile", {
+                const response = await fetch("/api/user/profile", {
                     headers: getAuthHeaders(token)
-                })).json();
-                
-                restoreKeys();
+                });
 
-                set(() => ({
-                    user: {
-                        currentUser: user,
-                        authToken: token
-                    },
-                    currentPage: "chat"
-                }));
+                if (response.ok) {
+                    const user: User = await response.json();
+                    restoreKeys();
+
+                    set(() => ({
+                        user: {
+                            currentUser: user,
+                            authToken: token
+                        },
+                        currentPage: "chat"
+                    }));
+                } else {
+                    throw new Error("Unable to authenticate");
+                }
             }
         } catch (error) {
             console.error('Failed to restore user from localStorage:', error);
