@@ -1,5 +1,7 @@
 from pathlib import Path
+import re
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from PIL import Image
 import os
@@ -78,12 +80,15 @@ async def get_profile_picture(filename: str):
     """
     Serve profile picture files
     """
+
+    if not re.match(r"^\d+_[0-9a-z]+\.jpg$", filename):
+        raise HTTPException(status_code=400, detail="Invalid file name")
+
     filepath = os.path.join(PROFILE_PICTURES_DIR, filename)
     
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="Profile picture not found")
     
-    from fastapi.responses import FileResponse
     return FileResponse(filepath, media_type="image/jpeg")
 
 @router.get("/user/profile")
