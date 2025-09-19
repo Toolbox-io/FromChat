@@ -66,7 +66,10 @@ export class PublicChatPanel extends MessagePanel {
 
         try {
             const response = await request({
-                data: { content: content.trim(), ...(replyToId ? { reply_to_id: replyToId } : {}) },
+                data: { 
+                    content: content.trim(), 
+                    reply_to_id: replyToId ?? null
+                },
                 credentials: {
                     scheme: "Bearer",
                     credentials: this.currentUser.authToken

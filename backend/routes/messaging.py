@@ -29,6 +29,12 @@ async def send_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    if request.reply_to_id:
+        # Check if the message being replied to exists
+        original_message = db.query(Message).filter(Message.id == request.reply_to_id).first()
+        if not original_message:
+            raise HTTPException(status_code=404, detail="Original message not found")
+
     if not request.content.strip():
         raise HTTPException(
             status_code=400,
@@ -44,6 +50,7 @@ async def send_message(
     new_message = Message(
         content=request.content.strip(),
         user_id=current_user.id,
+        reply_to_id=request.reply_to_id,
         timestamp=datetime.now()
     )
 
@@ -191,35 +198,6 @@ async def delete_message(
     
     return {"status": "success", "message_id": message_id}
 
-
-@router.post("/reply_message")
-async def reply_message(
-    request: ReplyMessageRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    # Check if the message being replied to exists
-    original_message = db.query(Message).filter(Message.id == request.reply_to_id).first()
-    if not original_message:
-        raise HTTPException(status_code=404, detail="Original message not found")
-    
-    if not request.content.strip():
-        raise HTTPException(status_code=400, detail="No content provided")
-    
-    new_message = Message(
-        content=request.content.strip(),
-        user_id=current_user.id,
-        timestamp=datetime.now(),
-        reply_to_id=request.reply_to_id
-    )
-    
-    db.add(new_message)
-    db.commit()
-    db.refresh(new_message)
-    
-    return {"status": "success", "message": convert_message(new_message)}
-
-
 class MessaggingSocketManager:
     def __init__(self) -> None:
         self.connections: list[WebSocket] = []
@@ -354,22 +332,6 @@ class MessaggingSocketManager:
                     await self.broadcast({
                         "type": "messageDeleted",
                         "data": {"message_id": message_id}
-                    })
-
-                    await websocket.send_json({"type": type, "data": response})
-                except HTTPException as e:
-                    await self.send_error(websocket, type, e)
-            elif type == "replyMessage":
-                try:
-                    current_user = get_current_user_inner()
-                    if not current_user:
-                        raise HTTPException(401)
-                    
-                    request: ReplyMessageRequest = ReplyMessageRequest.model_validate(data["data"])
-                    response = await reply_message(request, current_user, db)
-                    await self.broadcast({
-                        "type": "newMessage",
-                        "data": response["message"]
                     })
 
                     await websocket.send_json({"type": type, "data": response})
