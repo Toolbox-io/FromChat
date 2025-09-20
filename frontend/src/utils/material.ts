@@ -19,6 +19,7 @@ import 'mdui/components/text-field';
 import 'mdui/components/button-icon';
 import 'mdui/components/top-app-bar';
 import 'mdui/components/top-app-bar-title';
+import 'mdui/components/switch';
 
 import { setColorScheme } from 'mdui/functions/setColorScheme.js';
 

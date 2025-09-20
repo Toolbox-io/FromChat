@@ -1,13 +1,54 @@
-import { useState } from "react";
-import { PRODUCT_NAME } from "../../../core/config";
+import { useState, useEffect } from "react";
+import { PRODUCT_NAME, API_BASE_URL } from "../../../core/config";
 import type { DialogProps } from "../../../core/types";
 import { MaterialDialog } from "../core/Dialog";
+import { pushNotificationManager } from "../../../utils/pushNotifications";
+import { useAppState } from "../../state";
+import type { Switch } from "mdui/components/switch";
+import { getAuthHeaders } from "../../../auth/api";
 
 export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     const [activePanel, setActivePanel] = useState("notifications-settings");
+    const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
+    const [pushSupported, setPushSupported] = useState(false);
+    const user = useAppState(state => state.user);
+
+    useEffect(() => {
+        setPushSupported(pushNotificationManager.isSupported());
+        setPushNotificationsEnabled(!!pushNotificationManager.getSubscription());
+    }, []);
 
     const handlePanelChange = (panelId: string) => {
         setActivePanel(panelId);
+    };
+
+    const handlePushNotificationToggle = async (enabled: boolean) => {
+        if (!user.authToken) return;
+
+        try {
+            if (enabled) {
+                await pushNotificationManager.initialize();
+                const permission = await pushNotificationManager.requestPermission();
+                
+                if (permission === "granted") {
+                    const subscription = await pushNotificationManager.subscribe();
+                    if (subscription) {
+                        await pushNotificationManager.sendSubscriptionToServer(user.authToken);
+                        setPushNotificationsEnabled(true);
+                    }
+                }
+            } else {
+                await pushNotificationManager.unsubscribe();
+                // Call API to unsubscribe on server
+                await fetch(`${API_BASE_URL}/push/unsubscribe`, {
+                    method: "DELETE",
+                    headers: getAuthHeaders(user.authToken)
+                });
+                setPushNotificationsEnabled(false);
+            }
+        } catch (error) {
+            console.error("Failed to toggle push notifications:", error);
+        }
     };
 
     return (
@@ -87,6 +128,14 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
                         <div className="screen">
                             <div id="notifications-settings" className={`settings-panel ${activePanel === "notifications-settings" ? "active" : ""}`}>
                                 <h3>Уведомления</h3>
+                                {pushSupported && (
+                                    <mdui-switch 
+                                        checked={pushNotificationsEnabled}
+                                        onInput={(e) => handlePushNotificationToggle((e.target as Switch).checked)}
+                                    >
+                                        Push уведомления
+                                    </mdui-switch>
+                                )}
                                 <mdui-switch checked>Новые сообщения</mdui-switch>
                                 <mdui-switch checked>Звуковые уведомления</mdui-switch>
                                 <mdui-switch>Уведомления о статусе</mdui-switch>

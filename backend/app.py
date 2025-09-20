@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routes import account, messaging, profile
+from routes import account, messaging, profile, push
 
 # Инициализация FastAPI
 app = FastAPI(title="PixelChat")
@@ -19,3 +19,4 @@ app.add_middleware(
 app.include_router(account.router)
 app.include_router(messaging.router)
 app.include_router(profile.router)
+app.include_router(push.router, prefix="/push")

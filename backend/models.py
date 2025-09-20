@@ -68,6 +68,18 @@ class DMEnvelope(Base):
     timestamp = Column(DateTime, default=datetime.now)
 
 
+class PushSubscription(Base):
+    __tablename__ = "push_subscription"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    endpoint = Column(Text, nullable=False)
+    p256dh_key = Column(Text, nullable=False)
+    auth_key = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 # Pydantic модели
 class LoginRequest(BaseModel):
     username: str
@@ -95,6 +107,11 @@ class DeleteMessageRequest(BaseModel):
 
 class UpdateBioRequest(BaseModel):
     bio: str
+
+
+class PushSubscriptionRequest(BaseModel):
+    endpoint: str
+    keys: dict
 
 
 class UserProfileResponse(BaseModel):
