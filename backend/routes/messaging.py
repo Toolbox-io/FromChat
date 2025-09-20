@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
 from constants import OWNER_USERNAME
 from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope
+from push_service import push_service
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -58,6 +59,12 @@ async def send_message(
     db.commit()
     db.refresh(new_message)
 
+    # Send push notifications for public messages
+    try:
+        await push_service.send_public_message_notification(db, new_message, exclude_user_id=current_user.id)
+    except Exception as e:
+        logger.error(f"Failed to send push notification for message {new_message.id}: {e}")
+
     return {"status": "success", "message": convert_message(new_message)}
 
 
@@ -93,6 +100,13 @@ async def dm_send(payload: dict, current_user: User = Depends(get_current_user),
     db.add(env)
     db.commit()
     db.refresh(env)
+    
+    # Send push notification for DM
+    try:
+        await push_service.send_dm_notification(db, env, current_user)
+    except Exception as e:
+        logger.error(f"Failed to send push notification for DM {env.id}: {e}")
+    
     return {"status": "ok", "id": env.id}
 
 
@@ -297,6 +311,12 @@ class MessaggingSocketManager:
                             "timestamp": env.timestamp.isoformat(),
                         }
                     }
+
+                    # Send push notification for DM
+                    try:
+                        await push_service.send_dm_notification(db, env, current_user)
+                    except Exception as e:
+                        logger.error(f"Failed to send push notification for DM {env.id}: {e}")
 
                     await self.send_to_user(env.recipient_id, payload);
                     await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}});

@@ -8,6 +8,7 @@ import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../state";
 import { MaterialTextField } from "../components/core/TextField";
+import { pushNotificationManager } from "../../utils/pushNotifications";
 
 export default function LoginScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
@@ -63,6 +64,26 @@ export default function LoginScreen() {
                                     await ensureKeysOnLogin(password, data.token);
                                 } catch (e) {
                                     console.error("Key setup failed:", e);
+                                }
+                                
+                                // Initialize push notifications
+                                try {
+                                    if (pushNotificationManager.isSupported()) {
+                                        await pushNotificationManager.initialize();
+                                        const permission = await pushNotificationManager.requestPermission();
+                                        
+                                        if (permission === "granted") {
+                                            const subscription = await pushNotificationManager.subscribe();
+                                            if (subscription) {
+                                                await pushNotificationManager.sendSubscriptionToServer(data.token);
+                                                console.log("Push notifications enabled");
+                                            }
+                                        } else {
+                                            console.log("Push notification permission denied");
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error("Push notification setup failed:", e);
                                 }
                                 
                                 setCurrentPage("chat");

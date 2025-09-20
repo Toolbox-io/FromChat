@@ -6,3 +6,5 @@ bcrypt>=4.3.0
 websockets>=15.0.1
 Pillow>=10.0.0
 python-multipart>=0.0.6
+pywebpush>=1.14.0
+cryptography>=41.0.0
