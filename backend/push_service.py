@@ -11,8 +11,8 @@ logger = logging.getLogger("uvicorn.error")
 class PushNotificationService:
     def __init__(self):
         # VAPID keys - load from environment variables
-        self.vapid_private_key = os.getenv("VAPID_PRIVATE_KEY", "your-vapid-private-key")
-        self.vapid_public_key = os.getenv("VAPID_PUBLIC_KEY", "BEl62iUYgUivxIkv69yViEuiBIa40HI0lF5NwT8vuewUcTfTWjIKuX-k4asbqZoFNU7Z83QSV4IcaAodAQyRYw")
+        self.vapid_private_key = os.getenv("VAPID_PRIVATE_KEY", "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQghg2CSKiq0KsXXXImE75Z8UAphGBjkpYjUE87zPBmGqKhRANCAATxbNBGMhNl6gLmPL0PAf2YIJCVYX_TZrSqkj7SCqsu5VNMhnDOan6Qc9hEkcTZgvwj286C24SnxfH5CghVMCI6")
+        self.vapid_public_key = os.getenv("VAPID_PUBLIC_KEY", "BPFs0EYyE2XqAuY8vQ8B_ZggkJVhf9NmtKqSPtIKqy7lU0yGcM5qfpBz2ESRxNmC_CPbzoLbhKfF8fkKCFUwIjo")
         self.vapid_claims = {
             "sub": "mailto:admin@fromchat.com"
         }

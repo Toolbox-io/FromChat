@@ -42,12 +42,13 @@ def generate_vapid_keys():
             )
         ).decode('utf-8').rstrip('=')
         
-        public_key_b64 = base64.urlsafe_b64encode(
-            public_key.public_bytes(
-                encoding=serialization.Encoding.DER,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
-            )
-        ).decode('utf-8').rstrip('=')
+        # Get the raw uncompressed public key point (65 bytes: 0x04 + 32 bytes x + 32 bytes y)
+        public_numbers = public_key.public_numbers()
+        x_bytes = public_numbers.x.to_bytes(32, 'big')
+        y_bytes = public_numbers.y.to_bytes(32, 'big')
+        public_key_raw = b'\x04' + x_bytes + y_bytes
+        
+        public_key_b64 = base64.urlsafe_b64encode(public_key_raw).decode('utf-8').rstrip('=')
         
         print("VAPID Keys Generated:")
         print("=" * 50)

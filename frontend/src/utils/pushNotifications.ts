@@ -55,7 +55,7 @@ class PushNotificationManager {
             this.subscription = await this.registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: this.urlBase64ToUint8Array(
-                    "BEl62iUYgUivxIkv69yViEuiBIa40HI0lF5NwT8vuewUcTfTWjIKuX-k4asbqZoFNU7Z83QSV4IcaAodAQyRYw"
+                    "BPFs0EYyE2XqAuY8vQ8B_ZggkJVhf9NmtKqSPtIKqy7lU0yGcM5qfpBz2ESRxNmC_CPbzoLbhKfF8fkKCFUwIjo"
                 ).slice().buffer
             });
 
