@@ -9,7 +9,7 @@
  * Base domain name for all requests in production
  * @constant
  */
-export const BASE_DOMAIN = "fromchat.ru";
+export const BASE_DOMAIN = import.meta.env.VITE_API_BASE_URL ?? "fromchat.ru";
 
 /**
  * Base API endpoint for all backend requests
