@@ -65,6 +65,8 @@ export default function LoginScreen() {
                                 } catch (e) {
                                     console.error("Key setup failed:", e);
                                 }
+
+                                setCurrentPage("chat");
                                 
                                 // Initialize push notifications
                                 try {
@@ -81,13 +83,12 @@ export default function LoginScreen() {
                                         } else {
                                             console.log("Push notification permission denied");
                                         }
+                                    } else {
+                                        console.log("Not supported");
                                     }
                                 } catch (e) {
                                     console.error("Push notification setup failed:", e);
                                 }
-                                
-                                setCurrentPage("chat");
-                                // initializeProfile(); // Initialize profile after login
                             } else {
                                 const data: ErrorResponse = await response.json();
                                 showAlert("danger", data.message || "Неверное имя пользователя или пароль");
