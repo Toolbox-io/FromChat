@@ -8,6 +8,8 @@ import type { Message, WebSocketMessage } from "@/core/types";
 import defaultAvatar from "@/images/default-avatar.png";
 import AnimatedOpacity from "@/core/components/animations/AnimatedOpacity";
 import type { DMPanel } from "./panels/DMPanel";
+import { CallWindow } from "./CallWindow";
+import useAudioCall from "@/pages/chat/hooks/useAudioCall";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
@@ -26,6 +28,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     const [editMessage, setEditMessage] = useState<Message | null>(null);
     const [editVisible, setEditVisible] = useState(Boolean(editMessage));
     const [pendingAction, setPendingAction] = useState<null | { type: "reply" | "edit"; message: Message }>(null);
+    const { initiateCall } = useAudioCall();
 
 
     // Drag & drop
@@ -156,6 +159,19 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
         previousMessageCountRef.current = currentMessageCount;
     }, [panelState?.messages, panelState?.isLoading, chat.isSwitching, switchOut, switchIn]);
 
+    function handleCallClick() {
+        if (panel && panel.isDm() && panelState) {
+            // For DM panels, we need to get the user ID from the panel
+            const dmPanel = panel as DMPanel; // Type assertion for DM panel
+            const userId = dmPanel.getDMUserId();
+            const username = dmPanel.getDMUsername();
+            
+            if (userId && username) {
+                initiateCall(userId, username);
+            }
+        }
+    }
+
     return (
         <div className={`chat-container ${switchIn ? "chat-switch-in" : ""} ${switchOut ? "chat-switch-out" : ""}`}>
             <div 
@@ -208,15 +224,15 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             <p>
                                 <span className={`online-status ${panelState?.online ? "online" : ""}`}></span>
                                 {panelState ? (
-                                    <>
-                                        {panelState.online ? "Online" : "Offline"}
-                                        {panelState.isTyping && " • Typing..."}
-                                    </>
+                                    panelState.online ? "Online" : "Offline"
                                 ) : (
                                     "Выберите чат, чтобы начать переписку"
                                 )}
                             </p>
                         </div>
+                        {panel?.isDm() && (
+                            <mdui-button-icon onClick={handleCallClick} icon="call--filled" />
+                        )}
                     </div>
                 </div>
 
@@ -330,6 +346,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     </>
                 )}
             </div>
+            <CallWindow />
         </div>
     );
 }

@@ -8,6 +8,7 @@
 import { API_WS_BASE_URL } from "./config";
 import type { WebSocketMessage } from "./types";
 import { delay } from "@/utils/utils";
+import { CallSignalingHandler } from "@/core/calls/signaling";
 
 /**
  * Creates a new WebSocket connection to the chat server
@@ -36,11 +37,24 @@ export let websocket: WebSocket = create();
 let globalMessageHandler: ((response: WebSocketMessage<any>) => void) | null = null;
 
 /**
+ * Call signaling handler
+ */
+let callSignalingHandler: CallSignalingHandler | null = null;
+
+/**
  * Set the global WebSocket message handler
  * @param handler - Function to handle WebSocket messages
  */
 export function setGlobalMessageHandler(handler: ((response: WebSocketMessage<any>) => void) | null): void {
     globalMessageHandler = handler;
+}
+
+/**
+ * Set the call signaling handler
+ * @param handler - Call signaling handler instance
+ */
+export function setCallSignalingHandler(handler: CallSignalingHandler | null): void {
+    callSignalingHandler = handler;
 }
 
 export function request<Request, Response = any>(payload: WebSocketMessage<Request>): Promise<WebSocketMessage<Response>> {
@@ -96,6 +110,11 @@ async function onError() {
 websocket.addEventListener("message", (e) => {
     try {
         const response: WebSocketMessage<any> = JSON.parse(e.data);
+        
+        // Handle call signaling messages
+        if (callSignalingHandler && response.type === "call_signaling") {
+            callSignalingHandler.handleWebSocketMessage(response);
+        }
         
         // Route message to global handler if set
         if (globalMessageHandler) {

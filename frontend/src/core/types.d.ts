@@ -429,3 +429,17 @@ export interface DialogProps {
     isOpen: boolean;
     onOpenChange: (value: boolean) => void;
 }
+
+// Call types
+export interface CallInvite {
+    fromUserId: number;
+    fromUsername: string;
+    timestamp: string;
+}
+
+export interface CallSignalingData {
+    type: "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject";
+    fromUserId: number;
+    toUserId: number;
+    data?: any;
+}
