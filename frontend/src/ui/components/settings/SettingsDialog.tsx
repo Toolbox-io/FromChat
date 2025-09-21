@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { PRODUCT_NAME, API_BASE_URL } from "../../../core/config";
 import type { DialogProps } from "../../../core/types";
 import { MaterialDialog } from "../core/Dialog";
-import { initialize, isSupported, startElectronReceiver, stopElectronReceiver, subscribe, unsubscribe } from "../../../utils/notifications";
+import { initialize, isSupported, startElectronReceiver, stopElectronReceiver, subscribe, unsubscribe } from "../../../utils/push-notifications";
 import { isElectron } from "../../../electron/electron";
 import { useAppState } from "../../state";
 import type { Switch } from "mdui/components/switch";

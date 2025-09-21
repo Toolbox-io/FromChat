@@ -27,8 +27,9 @@
         "preview": "cd deployment && docker compose up --build --watch",
         "preview:clean": "cd deployment && docker compose down -v",
         "clean": "npm run backend:clean && npm run frontend:clean && npm run preview:clean",
-        "install": "npm run backend:dependencies && cp deployment/.env.example deployment/.env",
-        "prepare": "husky"
+        "install": "npm run backend:dependencies && npm run generate:env",
+        "prepare": "husky",
+        "generate:env": "echo \"JWT_SECRET=\\\"$(openssl rand -base64 32)\\\"\" > deployment/.env && ./.venv/bin/python3 backend/generate_vapid_keys.py 1>>deployment/.env"
     },
     "files": [
         "frontend/build/electron"

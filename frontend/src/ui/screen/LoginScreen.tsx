@@ -8,7 +8,7 @@ import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../state";
 import { MaterialTextField } from "../components/core/TextField";
-import { initialize, isSupported, startElectronReceiver, subscribe } from "../../utils/notifications";
+import { initialize, isSupported, startElectronReceiver, subscribe } from "../../utils/push-notifications";
 import { isElectron } from "../../electron/electron";
 
 export default function LoginScreen() {

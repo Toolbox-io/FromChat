@@ -7,7 +7,7 @@ import { DMPanel, type DMPanelData } from "./panels/DMPanel";
 import { getAuthHeaders } from "../auth/api";
 import { restoreKeys } from "../auth/crypto";
 import { API_BASE_URL } from "../core/config";
-import { initialize, subscribe, startElectronReceiver, isSupported } from "../utils/notifications";
+import { initialize, subscribe, startElectronReceiver, isSupported } from "../utils/push-notifications";
 import { isElectron } from "../electron/electron";
 
 type Page = "login" | "register" | "chat"
