@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from migration import run_migrations
 
-from routes import account, messaging, profile, push
+from routes import account, messaging, profile, push, webrtc
 
 # Configure logging
 logger = logging.getLogger("uvicorn.error")
@@ -44,3 +44,4 @@ app.include_router(account.router)
 app.include_router(messaging.router)
 app.include_router(profile.router)
 app.include_router(push.router, prefix="/push")
+app.include_router(webrtc.router, prefix="/webrtc")
