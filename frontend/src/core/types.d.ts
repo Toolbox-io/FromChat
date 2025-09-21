@@ -247,6 +247,10 @@ export interface DmEncryptedJSON {
     }
 }
 
+export interface IceServersResponse {
+    iceServers: RTCIceServer[];
+}
+
 // ---------------
 // WebSocket types
 // ---------------
@@ -428,4 +432,19 @@ export interface EncryptedMessageJson {
 export interface DialogProps {
     isOpen: boolean;
     onOpenChange: (value: boolean) => void;
+}
+
+// Call types
+export interface CallInvite extends CallSignalingData {
+    type: "call_invite";
+    fromUserId: number;
+    fromUsername: string;
+    timestamp: string;
+}
+
+export interface CallSignalingData {
+    type: "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject";
+    fromUserId: number;
+    toUserId: number;
+    data?: any;
 }

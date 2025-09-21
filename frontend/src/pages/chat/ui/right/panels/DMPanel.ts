@@ -263,6 +263,16 @@ export class DMPanel extends MessagePanel {
         this.currentUser.authToken = authToken;
     }
 
+    // Get DM user ID for call functionality
+    getDMUserId(): number | null {
+        return this.dmData?.userId || null;
+    }
+
+    // Get DM username for call functionality
+    getDMUsername(): string | null {
+        return this.dmData?.username || null;
+    }
+
     // Helper functions for localStorage
     private getLastReadId(userId: number): number {
         try {

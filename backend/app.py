@@ -5,7 +5,7 @@ import subprocess
 import sys
 import os
 
-from routes import account, messaging, profile, push
+from routes import account, messaging, profile, push, webrtc
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -57,3 +57,4 @@ app.include_router(account.router)
 app.include_router(messaging.router)
 app.include_router(profile.router)
 app.include_router(push.router, prefix="/push")
+app.include_router(webrtc.router, prefix="/webrtc")
