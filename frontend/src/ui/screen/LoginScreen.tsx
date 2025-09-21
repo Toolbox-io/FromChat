@@ -8,7 +8,8 @@ import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../state";
 import { MaterialTextField } from "../components/core/TextField";
-import { pushNotificationManager } from "../../utils/pushNotifications";
+import { initialize, isSupported, startElectronReceiver, subscribe } from "../../utils/notifications";
+import { isElectron } from "../../electron/electron";
 
 export default function LoginScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
@@ -68,26 +69,27 @@ export default function LoginScreen() {
 
                                 setCurrentPage("chat");
                                 
-                                // Initialize push notifications
+                                // Initialize notifications
                                 try {
-                                    if (pushNotificationManager.isSupported()) {
-                                        await pushNotificationManager.initialize();
-                                        const permission = await pushNotificationManager.requestPermission();
-                                        
-                                        if (permission === "granted") {
-                                            const subscription = await pushNotificationManager.subscribe();
-                                            if (subscription) {
-                                                await pushNotificationManager.sendSubscriptionToServer(data.token);
-                                                console.log("Push notifications enabled");
+                                    if (isSupported()) {
+                                        const initialized = await initialize();
+                                        if (initialized) {
+                                            await subscribe(data.token);
+                                            
+                                            // For Electron, start the notification receiver
+                                            if (isElectron) {
+                                                await startElectronReceiver();
                                             }
+                                            
+                                            console.log("Notifications enabled");
                                         } else {
-                                            console.log("Push notification permission denied");
+                                            console.log("Notification permission denied");
                                         }
                                     } else {
-                                        console.log("Not supported");
+                                        console.log("Notifications not supported");
                                     }
                                 } catch (e) {
-                                    console.error("Push notification setup failed:", e);
+                                    console.error("Notification setup failed:", e);
                                 }
                             } else {
                                 const data: ErrorResponse = await response.json();

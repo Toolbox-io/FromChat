@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { PRODUCT_NAME, API_BASE_URL } from "../../../core/config";
 import type { DialogProps } from "../../../core/types";
 import { MaterialDialog } from "../core/Dialog";
-import { pushNotificationManager } from "../../../utils/pushNotifications";
+import { initialize, isSupported, startElectronReceiver, stopElectronReceiver, subscribe, unsubscribe } from "../../../utils/notifications";
+import { isElectron } from "../../../electron/electron";
 import { useAppState } from "../../state";
 import type { Switch } from "mdui/components/switch";
 import { getAuthHeaders } from "../../../auth/api";
@@ -14,8 +15,10 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     const user = useAppState(state => state.user);
 
     useEffect(() => {
-        setPushSupported(pushNotificationManager.isSupported());
-        setPushNotificationsEnabled(!!pushNotificationManager.getSubscription());
+        setPushSupported(isSupported());
+        // For Electron, we assume notifications are enabled if supported
+        // For web browsers, we check if there's a subscription
+        setPushNotificationsEnabled(isSupported());
     }, []);
 
     const handlePanelChange = (panelId: string) => {
@@ -27,19 +30,26 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
 
         try {
             if (enabled) {
-                await pushNotificationManager.initialize();
-                const permission = await pushNotificationManager.requestPermission();
-                
-                if (permission === "granted") {
-                    const subscription = await pushNotificationManager.subscribe();
-                    if (subscription) {
-                        await pushNotificationManager.sendSubscriptionToServer(user.authToken);
-                        setPushNotificationsEnabled(true);
+                const initialized = await initialize();
+                if (initialized) {
+                    await subscribe(user.authToken);
+                    
+                    // For Electron, start the notification receiver
+                    if (isElectron) {
+                        await startElectronReceiver();
                     }
+                    
+                    setPushNotificationsEnabled(true);
                 }
             } else {
-                await pushNotificationManager.unsubscribe();
-                // Call API to unsubscribe on server
+                await unsubscribe();
+                
+                // For Electron, stop the notification receiver
+                if (isElectron) {
+                    stopElectronReceiver();
+                }
+                
+                // Call API to unsubscribe on server (for web browsers)
                 await fetch(`${API_BASE_URL}/push/unsubscribe`, {
                     method: "DELETE",
                     headers: getAuthHeaders(user.authToken)
@@ -47,7 +57,7 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
                 setPushNotificationsEnabled(false);
             }
         } catch (error) {
-            console.error("Failed to toggle push notifications:", error);
+            console.error("Failed to toggle notifications:", error);
         }
     };
 
