@@ -28,7 +28,7 @@ class PushNotificationManager {
         }
 
         try {
-            this.registration = await navigator.serviceWorker.register("/sw.js");
+            this.registration = await navigator.serviceWorker.register("/assets/serviceWorker.js");
             console.log("Service Worker registered successfully");
             return true;
         } catch (error) {
