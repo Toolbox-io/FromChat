@@ -16,7 +16,7 @@
         "frontend:typecheck": "tsc --project frontend",
         "frontend:build": "npm run frontend:typecheck && vite build frontend",
         "frontend:electron:dev": "VITE_ELECTRON=true npm run frontend:dev",
-        "frontend:electron:build": "VITE_ELECTRON=true npm run frontend:build && rm -rf out && electron-forge make --force",
+        "frontend:electron:build": "VITE_ELECTRON=true npm run frontend:build && rm -rf out && electron-forge make --force --arch arm64,x64",
         "frontend:preview": "vite preview frontend",
         "frontend:dependencies": "npm install --ignore-scripts",
         "frontend:clean": "rm -rf frontend/dist",

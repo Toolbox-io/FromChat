@@ -8,6 +8,8 @@ import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../state";
 import { MaterialTextField } from "../components/core/TextField";
+import { initialize, isSupported, startElectronReceiver, subscribe } from "../../utils/notifications";
+import { isElectron } from "../../electron/electron";
 
 export default function LoginScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
@@ -64,9 +66,31 @@ export default function LoginScreen() {
                                 } catch (e) {
                                     console.error("Key setup failed:", e);
                                 }
-                                
+
                                 setCurrentPage("chat");
-                                // initializeProfile(); // Initialize profile after login
+                                
+                                // Initialize notifications
+                                try {
+                                    if (isSupported()) {
+                                        const initialized = await initialize();
+                                        if (initialized) {
+                                            await subscribe(data.token);
+                                            
+                                            // For Electron, start the notification receiver
+                                            if (isElectron) {
+                                                await startElectronReceiver();
+                                            }
+                                            
+                                            console.log("Notifications enabled");
+                                        } else {
+                                            console.log("Notification permission denied");
+                                        }
+                                    } else {
+                                        console.log("Notifications not supported");
+                                    }
+                                } catch (e) {
+                                    console.error("Notification setup failed:", e);
+                                }
                             } else {
                                 const data: ErrorResponse = await response.json();
                                 showAlert("danger", data.message || "Неверное имя пользователя или пароль");

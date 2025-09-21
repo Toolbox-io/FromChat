@@ -1,13 +1,64 @@
-import { useState } from "react";
-import { PRODUCT_NAME } from "../../../core/config";
+import { useState, useEffect } from "react";
+import { PRODUCT_NAME, API_BASE_URL } from "../../../core/config";
 import type { DialogProps } from "../../../core/types";
 import { MaterialDialog } from "../core/Dialog";
+import { initialize, isSupported, startElectronReceiver, stopElectronReceiver, subscribe, unsubscribe } from "../../../utils/notifications";
+import { isElectron } from "../../../electron/electron";
+import { useAppState } from "../../state";
+import type { Switch } from "mdui/components/switch";
+import { getAuthHeaders } from "../../../auth/api";
 
 export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     const [activePanel, setActivePanel] = useState("notifications-settings");
+    const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
+    const [pushSupported, setPushSupported] = useState(false);
+    const user = useAppState(state => state.user);
+
+    useEffect(() => {
+        setPushSupported(isSupported());
+        // For Electron, we assume notifications are enabled if supported
+        // For web browsers, we check if there's a subscription
+        setPushNotificationsEnabled(isSupported());
+    }, []);
 
     const handlePanelChange = (panelId: string) => {
         setActivePanel(panelId);
+    };
+
+    const handlePushNotificationToggle = async (enabled: boolean) => {
+        if (!user.authToken) return;
+
+        try {
+            if (enabled) {
+                const initialized = await initialize();
+                if (initialized) {
+                    await subscribe(user.authToken);
+                    
+                    // For Electron, start the notification receiver
+                    if (isElectron) {
+                        await startElectronReceiver();
+                    }
+                    
+                    setPushNotificationsEnabled(true);
+                }
+            } else {
+                await unsubscribe();
+                
+                // For Electron, stop the notification receiver
+                if (isElectron) {
+                    stopElectronReceiver();
+                }
+                
+                // Call API to unsubscribe on server (for web browsers)
+                await fetch(`${API_BASE_URL}/push/unsubscribe`, {
+                    method: "DELETE",
+                    headers: getAuthHeaders(user.authToken)
+                });
+                setPushNotificationsEnabled(false);
+            }
+        } catch (error) {
+            console.error("Failed to toggle notifications:", error);
+        }
     };
 
     return (
@@ -87,6 +138,14 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
                         <div className="screen">
                             <div id="notifications-settings" className={`settings-panel ${activePanel === "notifications-settings" ? "active" : ""}`}>
                                 <h3>Уведомления</h3>
+                                {pushSupported && (
+                                    <mdui-switch 
+                                        checked={pushNotificationsEnabled}
+                                        onInput={(e) => handlePushNotificationToggle((e.target as Switch).checked)}
+                                    >
+                                        Push уведомления
+                                    </mdui-switch>
+                                )}
                                 <mdui-switch checked>Новые сообщения</mdui-switch>
                                 <mdui-switch checked>Звуковые уведомления</mdui-switch>
                                 <mdui-switch>Уведомления о статусе</mdui-switch>

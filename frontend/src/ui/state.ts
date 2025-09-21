@@ -7,6 +7,8 @@ import { DMPanel, type DMPanelData } from "./panels/DMPanel";
 import { getAuthHeaders } from "../auth/api";
 import { restoreKeys } from "../auth/crypto";
 import { API_BASE_URL } from "../core/config";
+import { initialize, subscribe, startElectronReceiver, isSupported } from "../utils/notifications";
+import { isElectron } from "../electron/electron";
 
 type Page = "login" | "register" | "chat"
 export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
@@ -215,6 +217,23 @@ export const useAppState = create<AppState>((set, get) => ({
                         },
                         currentPage: "chat"
                     }));
+
+                    // Initialize notifications after successful credential restoration
+                    try {
+                        if (isSupported()) {
+                            const initialized = await initialize();
+                            if (initialized) {
+                                await subscribe(token);
+                                
+                                // For Electron, start the notification receiver
+                                if (isElectron) {
+                                    await startElectronReceiver();
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Notification setup failed (restored):", e);
+                    }
                 } else {
                     throw new Error("Unable to authenticate");
                 }
