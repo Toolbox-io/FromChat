@@ -84,6 +84,9 @@
 
                 .chat-header-info {
                     display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex: 1;
 
                     .info-chat {
                         display: flex;

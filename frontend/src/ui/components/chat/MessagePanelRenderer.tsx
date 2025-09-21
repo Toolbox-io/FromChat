@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { MessagePanel, type MessagePanelState } from "../../panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
+import { CallWindow } from "./CallWindow";
+import { useAudioCall } from "../../hooks/useAudioCall";
 import { setGlobalMessageHandler } from "../../../core/websocket";
 import type { Message } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
@@ -23,6 +25,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     const [editMessage, setEditMessage] = useState<Message | null>(null);
     const [editVisible, setEditVisible] = useState(Boolean(editMessage));
     const [pendingAction, setPendingAction] = useState<null | { type: "reply" | "edit"; message: Message }>(null);
+    const { initiateCall } = useAudioCall();
 
     // Drag & drop
     const [isDragging, setIsDragging] = useState(false);
@@ -97,6 +100,19 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [panelState?.messages]);
+
+    const handleCallClick = () => {
+        if (panel && panel.isDm() && panelState) {
+            // For DM panels, we need to get the user ID from the panel
+            const dmPanel = panel as any; // Type assertion for DM panel
+            const userId = dmPanel.getDMUserId?.();
+            const username = dmPanel.getDMUsername?.();
+            
+            if (userId && username) {
+                initiateCall(userId, username);
+            }
+        }
+    };
 
     if (!panel || !panelState) {
         return (
@@ -184,6 +200,9 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                                 {panelState.isTyping && " • Typing..."}
                             </p>
                         </div>
+                        {panel.isDm() && (
+                            <mdui-button-icon onClick={handleCallClick} icon="call--filled" />
+                        )}
                     </div>
                 </div>
 
@@ -279,6 +298,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                     onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
                 />
             </div>
+            <CallWindow />
         </div>
     );
 }
