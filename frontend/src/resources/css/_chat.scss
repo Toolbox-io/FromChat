@@ -205,8 +205,16 @@
 
                         .message-content {
                             word-wrap: break-word;
-                            margin-bottom: 0.3rem;
+                            margin-bottom: 10px;
                             white-space: pre-wrap;
+
+                            > p:first-child {
+                                margin-block-start: 0;
+                            }
+
+                            > p:last-child {
+                                margin-block-end: 0;
+                            }
                         }
 
                         .quote.reply-preview {

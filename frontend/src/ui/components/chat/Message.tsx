@@ -2,6 +2,9 @@ import { formatTime } from "../../../utils/utils";
 import type { Message as MessageType } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import Quote from "../core/Quote";
+import { parse } from "marked";
+import DOMPurify from "dompurify";
+import { useEffect, useState } from "react";
 
 interface MessageProps {
     message: MessageType;
@@ -13,11 +16,23 @@ interface MessageProps {
 }
 
 export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false }: MessageProps) {
-    const handleContextMenu = (e: React.MouseEvent) => {
+    const [formattedMessage, setFormattedMessage] = useState({ __html: DOMPurify.sanitize(message.content).trim() });
+
+    useEffect(() => {
+        (async () => {
+            setFormattedMessage({
+                __html: DOMPurify.sanitize(
+                    await parse(message.content)
+                ).trim()
+            });
+        })();
+    }, [message]);
+
+    function handleContextMenu(e: React.MouseEvent) {
         e.preventDefault();
         e.stopPropagation();
         onContextMenu(e, message);
-    };
+    }
 
     return (
         <div 
@@ -47,7 +62,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                     <div 
                         className={`message-username ${isLoadingProfile ? "loading" : ""}`}
                         onClick={() => !isLoadingProfile && onProfileClick(message.username)} 
-                        style={{ cursor: isLoadingProfile ? "default" : "pointer" }}> {/* TODO extract to SCSS */}
+                        style={{ cursor: isLoadingProfile ? "default" : "pointer" }}>
                         {message.username}
                     </div>
                 )}
@@ -60,17 +75,15 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                     </Quote>
                 )}
 
-                <div className="message-content">
-                    {message.content}
-                </div>
+                <div className="message-content" dangerouslySetInnerHTML={formattedMessage} />
 
                 <div className="message-time">
                     {formatTime(message.timestamp)}
                     {message.is_edited ? " (edited)" : undefined}
                     
-                    {isAuthor && message.is_read ? (
+                    {isAuthor && message.is_read && (
                         <span className="material-symbols outlined"></span>
-                    ) : undefined}
+                    )}
                 </div>
             </div>
         </div>

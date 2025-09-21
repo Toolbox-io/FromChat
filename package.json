@@ -61,6 +61,7 @@
         "vite-plugin-html": "^3.2.2"
     },
     "dependencies": {
+        "dompurify": "^3.2.7",
         "electron-squirrel-startup": "^1.0.1",
         "marked": "^16.3.0",
         "mdui": "^2.1.4",
