@@ -19,6 +19,16 @@ interface ActiveDM {
     publicKey: string | null
 }
 
+interface CallState {
+    isActive: boolean;
+    status: "calling" | "connecting" | "active" | "ended";
+    startTime: number | null;
+    isMuted: boolean;
+    remoteUserId: number | null;
+    remoteUsername: string | null;
+    isInitiator: boolean;
+}
+
 interface ChatState {
     messages: Message[];
     currentChat: string;
@@ -29,6 +39,7 @@ interface ChatState {
     activePanel: MessagePanel | null;
     publicChatPanel: PublicChatPanel | null;
     dmPanel: DMPanel | null;
+    call: CallState;
 }
 
 export interface UserState {
@@ -56,6 +67,13 @@ interface AppState {
     switchToDM: (dmData: DMPanelData) => Promise<void>;
     switchToTab: (tab: ChatTabs) => Promise<void>;
     
+    // Call state
+    startCall: (userId: number, username: string) => void;
+    endCall: () => void;
+    setCallStatus: (status: CallState["status"]) => void;
+    toggleMute: () => void;
+    receiveCall: (userId: number, username: string) => void;
+    
     // User state
     user: UserState;
     setUser: (token: string, user: User) => void;
@@ -77,7 +95,16 @@ export const useAppState = create<AppState>((set, get) => ({
         isChatSwitching: false,
         activePanel: null,
         publicChatPanel: null,
-        dmPanel: null
+        dmPanel: null,
+        call: {
+            isActive: false,
+            status: "ended",
+            startTime: null,
+            isMuted: false,
+            remoteUserId: null,
+            remoteUsername: null,
+            isInitiator: false
+        }
     },
     setIsChatSwitching: (value: boolean) => set((state) => ({
         chat: {
@@ -359,5 +386,72 @@ export const useAppState = create<AppState>((set, get) => ({
             // DM tab - no specific panel until user is selected
             state.setActivePanel(null);
         }
-    }
+    },
+    
+    // Call state management
+    startCall: (userId: number, username: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                isActive: true,
+                status: "calling",
+                startTime: null,
+                isMuted: false,
+                remoteUserId: userId,
+                remoteUsername: username,
+                isInitiator: true
+            }
+        }
+    })),
+    
+    endCall: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                isActive: false,
+                status: "ended",
+                startTime: null,
+                isMuted: false,
+                remoteUserId: null,
+                remoteUsername: null,
+                isInitiator: false
+            }
+        }
+    })),
+    
+    setCallStatus: (status: CallState["status"]) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                status,
+                startTime: status === "active" && !state.chat.call.startTime ? Date.now() : state.chat.call.startTime
+            }
+        }
+    })),
+    
+    toggleMute: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isMuted: !state.chat.call.isMuted
+            }
+        }
+    })),
+
+    receiveCall: (userId: number, username: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                isActive: true,
+                status: "calling",
+                startTime: null,
+                isMuted: false,
+                remoteUserId: userId,
+                remoteUsername: username,
+                isInitiator: false
+            }
+        }
+    }))
 }));
