@@ -9,7 +9,7 @@ on:
         default: "fromchat.ru"
         type: string
   push:
-    branches: ["main"]
+    tags: ["v**"]
     paths:
       - 'frontend/**'
       - 'package.json'
