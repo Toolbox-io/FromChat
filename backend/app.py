@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from migration import run_auto_migration
 from db import engine
 
-from routes import account, messaging, profile, push
+from routes import account, messaging, profile, push, webrtc
 
 # Инициализация FastAPI
 app = FastAPI(title="PixelChat")
@@ -22,7 +22,7 @@ app.include_router(account.router)
 app.include_router(messaging.router)
 app.include_router(profile.router)
 app.include_router(push.router, prefix="/push")
-
+app.include_router(webrtc.router, prefix="/webrtc")
 
 @app.on_event("startup")
 def _auto_migrate_on_startup():

@@ -64,15 +64,33 @@ export class WebRTCService {
         }
     }
 
-    private createPeerConnection(userId: number): RTCPeerConnection {
-        const configuration: RTCConfiguration = {
+    private async fetchIceServers(): Promise<RTCConfiguration> {
+        try {
+            const res = await fetch(`/api/webrtc/ice`);
+            if (res.ok) {
+                const data = await res.json();
+                return { iceServers: data.iceServers || [] } as RTCConfiguration;
+            }
+        } catch {}
+        // Fallback to public STUN only
+        return {
             iceServers: [
                 { urls: "stun:stun.l.google.com:19302" },
                 { urls: "stun:stun1.l.google.com:19302" }
             ]
-        };
+        } as RTCConfiguration;
+    }
+
+    private createPeerConnection(userId: number): RTCPeerConnection {
+        // Start with default; will be replaced if fetch succeeds later (not strictly necessary but keeps sync constructor)
+        const configuration: RTCConfiguration = { iceServers: [] };
 
         const peerConnection = new RTCPeerConnection(configuration);
+
+        // Attempt to update ICE servers dynamically
+        this.fetchIceServers().then(cfg => {
+            try { peerConnection.setConfiguration(cfg); } catch {}
+        });
 
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
