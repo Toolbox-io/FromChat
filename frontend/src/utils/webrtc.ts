@@ -166,33 +166,25 @@ export class WebRTCService {
 
     async acceptCall(userId: number): Promise<boolean> {
         try {
-            const call = this.calls.get(userId);
+            let call = this.calls.get(userId);
             if (!call) {
-                throw new Error("No call found to accept");
+                // In case signaling invite UI was shown but call not created yet
+                await this.handleIncomingCall(userId, "");
+                call = this.calls.get(userId);
+                if (!call) throw new Error("No call found to accept");
             }
 
-            // Get user media
-            const localStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-                video: false
-            });
-
+            // Get user media and attach
+            const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             call.localStream = localStream;
+            localStream.getTracks().forEach(track => call!.peerConnection.addTrack(track, localStream));
 
-            // Add local stream to peer connection
-            localStream.getTracks().forEach(track => {
-                call.peerConnection.addTrack(track, localStream);
-            });
-
-            // Create and send answer
-            const answer = await call.peerConnection.createAnswer();
-            await call.peerConnection.setLocalDescription(answer);
-
+            // Notify initiator that callee accepted; initiator will generate offer
             await this.sendSignalingMessage({
-                type: "call_answer",
+                type: "call_accept",
                 fromUserId: 0, // Will be set by server
                 toUserId: userId,
-                data: answer
+                data: {}
             });
 
             return true;
@@ -256,6 +248,18 @@ export class WebRTCService {
         }
 
         await call.peerConnection.setRemoteDescription(offer);
+
+        // If we are the callee (not initiator), generate and send answer now
+        if (!call.isInitiator) {
+            const answer = await call.peerConnection.createAnswer();
+            await call.peerConnection.setLocalDescription(answer);
+            await this.sendSignalingMessage({
+                type: "call_answer",
+                fromUserId: 0,
+                toUserId: userId,
+                data: answer
+            });
+        }
     }
 
     async handleCallAnswer(userId: number, answer: RTCSessionDescriptionInit): Promise<void> {
@@ -265,6 +269,23 @@ export class WebRTCService {
         }
 
         await call.peerConnection.setRemoteDescription(answer);
+    }
+
+    // Invoked on initiator when remote accepted; create and send offer
+    async onRemoteAccepted(userId: number): Promise<void> {
+        const call = this.calls.get(userId);
+        if (!call) {
+            throw new Error("No call found to create offer");
+        }
+
+        const offer = await call.peerConnection.createOffer();
+        await call.peerConnection.setLocalDescription(offer);
+        await this.sendSignalingMessage({
+            type: "call_offer",
+            fromUserId: 0,
+            toUserId: userId,
+            data: offer
+        });
     }
 
     async handleIceCandidate(userId: number, candidate: RTCIceCandidateInit): Promise<void> {

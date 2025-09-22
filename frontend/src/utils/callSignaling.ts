@@ -56,18 +56,11 @@ export class CallSignalingHandler {
 
     private async handleCallAccept(data: any) {
         const { fromUserId } = data;
-        // Call was accepted, create offer
-        const call = this.webrtcService.getCall(fromUserId);
-        if (call && call.isInitiator) {
-            try {
-                const offer = await call.peerConnection.createOffer();
-                await call.peerConnection.setLocalDescription(offer);
-                
-                // Send offer through WebSocket
-                // This would be handled by the WebRTC service
-            } catch (error) {
-                console.error("Failed to create offer:", error);
-            }
+        // Initiator should create and send offer now
+        try {
+            await this.webrtcService.onRemoteAccepted(fromUserId);
+        } catch (error) {
+            console.error("Failed to proceed after accept:", error);
         }
     }
 
