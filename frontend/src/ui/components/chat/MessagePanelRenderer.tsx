@@ -104,9 +104,9 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     const handleCallClick = () => {
         if (panel && panel.isDm() && panelState) {
             // For DM panels, we need to get the user ID from the panel
-            const dmPanel = panel as any; // Type assertion for DM panel
-            const userId = dmPanel.getDMUserId?.();
-            const username = dmPanel.getDMUsername?.();
+            const dmPanel = panel as DMPanel; // Type assertion for DM panel
+            const userId = dmPanel.getDMUserId();
+            const username = dmPanel.getDMUsername();
             
             if (userId && username) {
                 initiateCall(userId, username);
