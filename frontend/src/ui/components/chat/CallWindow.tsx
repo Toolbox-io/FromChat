@@ -251,11 +251,13 @@ export function CallWindow() {
                 )}
             </div>
 
-            {/* Hidden audio element for remote stream */}
+            {/* Hidden audio element for remote stream (kept visible controls for mobile debugging) */}
             <audio
                 ref={remoteAudioRef}
                 autoPlay
-                style={{ display: "none" }}
+                playsInline
+                controls
+                style={{ position: "fixed", bottom: 8, right: 8, width: 0, height: 0, opacity: 0 }}
             />
         </div>
     );

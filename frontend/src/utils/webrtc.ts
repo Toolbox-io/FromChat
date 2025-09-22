@@ -117,6 +117,11 @@ export class WebRTCService {
             }
         };
 
+        // Optional: log negotiation events
+        peerConnection.onnegotiationneeded = async () => {
+            console.log("negotiationneeded for", userId);
+        };
+
         return peerConnection;
     }
 
@@ -131,10 +136,9 @@ export class WebRTCService {
             // Create peer connection
             const peerConnection = this.createPeerConnection(userId);
 
-            // Add local stream to peer connection
-            localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, localStream);
-            });
+            // Add local stream to peer connection (ensure audio track enabled)
+            localStream.getAudioTracks().forEach(t => (t.enabled = true));
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
             // Store call info
             const call: WebRTCCall = {

@@ -51,8 +51,16 @@ export function useAudioCall() {
         // Set up remote stream handler
         webrtcService.current.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
             if (remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = stream;
-                remoteAudioRef.current.play().catch(console.error);
+                try {
+                    remoteAudioRef.current.srcObject = stream;
+                    remoteAudioRef.current.muted = false;
+                    const p = remoteAudioRef.current.play();
+                    if (p && typeof p.then === "function") {
+                        p.catch((e: any) => console.warn("remote audio play blocked:", e?.message || e));
+                    }
+                } catch (e: any) {
+                    console.warn("failed to attach remote stream:", e?.message || e);
+                }
             }
         });
 
