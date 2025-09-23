@@ -42,6 +42,8 @@ jobs:
           touch deployment/.env
           cat > deployment/.env << EOF
           JWT_SECRET=${{ secrets.JWT_SECRET }}
+          VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}
           EOF
       - name: Build container
         run: |
