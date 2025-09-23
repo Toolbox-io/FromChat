@@ -32,6 +32,7 @@ export function useAudioCall() {
         webrtcService.current.setCallStateChangeHandler((userId: number, state: string) => {
             const call = chat.call;
             if (call.remoteUserId === userId) {
+                console.log("[CALL] state", userId, state);
                 switch (state) {
                     case "connecting":
                         setCallStatus("connecting");
@@ -50,17 +51,35 @@ export function useAudioCall() {
 
         // Set up remote stream handler
         webrtcService.current.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
-            if (remoteAudioRef.current) {
-                try {
-                    remoteAudioRef.current.srcObject = stream;
-                    remoteAudioRef.current.muted = false;
-                    const p = remoteAudioRef.current.play();
-                    if (p && typeof p.then === "function") {
-                        p.catch((e: any) => console.warn("remote audio play blocked:", e?.message || e));
-                    }
-                } catch (e: any) {
-                    console.warn("failed to attach remote stream:", e?.message || e);
+            if (!remoteAudioRef.current) return;
+            const el = remoteAudioRef.current;
+            try {
+                const track = stream.getAudioTracks()[0];
+                console.log("[AUDIO] attach remote stream", {
+                    streamId: stream.id,
+                    trackId: track?.id,
+                    trackEnabled: track?.enabled,
+                    trackReadyState: track?.readyState
+                });
+
+                el.srcObject = stream;
+                el.muted = false;
+                el.volume = 1.0;
+                el.autoplay = true;
+                // Helpful event logs
+                const onPlaying = () => console.log("[AUDIO] element playing");
+                const onPause = () => console.log("[AUDIO] element paused");
+                const onError = () => console.warn("[AUDIO] element error", (el.error && el.error.message) || el.error);
+                el.addEventListener("playing", onPlaying, { once: true });
+                el.addEventListener("pause", onPause, { once: true });
+                el.addEventListener("error", onError, { once: true });
+
+                const p = el.play();
+                if (p && typeof p.then === "function") {
+                    p.catch((e: any) => console.warn("[AUDIO] play() blocked:", e?.message || e));
                 }
+            } catch (e: any) {
+                console.warn("failed to attach remote stream:", e?.message || e);
             }
         });
 

@@ -15,15 +15,16 @@ async def get_ice_servers():
       - TURN_PASSWORD
     """
 
+    # Prefer using your own coturn for both STUN and TURN
+    turn_domain = "fromchat.ru"
     stun_urls = [
-        "stun:stun.l.google.com:19302",
-        "stun:stun1.l.google.com:19302",
+        f"stun:{turn_domain}:3478",
+        f"stuns:{turn_domain}:5349",
     ]
     # TURN configuration
     # Preferred ways to configure:
     # 1) Explicit URL list: TURN_URLS (comma-separated)
-    # 2) Or provide TURN_DOMAIN (e.g. fromchat.ru) and we auto-build turn/turns URLs
-    turn_domain = "fromchat.ru"
+    # 2) Or use TURN_DOMAIN (here defaulting to fromchat.ru) to auto-build URLs
     turn_urls = [
         f"turn:{turn_domain}:3478",
         f"turns:{turn_domain}:5349",
