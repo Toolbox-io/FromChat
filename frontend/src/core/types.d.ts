@@ -60,6 +60,7 @@ export interface Message {
     timestamp: string;
     profile_picture?: string;
     reply_to?: Message;
+    files?: Attachment[];
 }
 
 /**
@@ -228,6 +229,14 @@ export interface WebSocketError {
 export interface WebSocketCredentials {
     scheme: string;
     credentials: string;
+}
+
+export interface Attachment {
+    path: string;
+    encrypted: boolean;
+    filename?: string;
+    content_type?: string;
+    size?: number;
 }
 
 // -----------

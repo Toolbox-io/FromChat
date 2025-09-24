@@ -77,6 +77,25 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
 
                 <div className="message-content" dangerouslySetInnerHTML={formattedMessage} />
 
+                {message.files && message.files.length > 0 && (
+                    <mdui-list className="message-attachments">
+                        {message.files.map((file, idx) => {
+                            const isImage = !file.encrypted && (file.content_type?.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(file.filename || ""));
+                            return (
+                                <div className="attachment" key={idx}>
+                                    {isImage ? (
+                                        <img src={file.path} alt={file.filename || "image"} style={{ maxWidth: "200px", borderRadius: "8px" }} />
+                                    ) : (
+                                        <a href={file.path} download target="_blank" rel="noreferrer">
+                                            <mdui-list-item icon="download--filled">{file.filename || file.path.split("/").pop()}</mdui-list-item>
+                                        </a>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </mdui-list>
+                )}
+
                 <div className="message-time">
                     {formatTime(message.timestamp)}
                     {message.is_edited ? " (edited)" : undefined}

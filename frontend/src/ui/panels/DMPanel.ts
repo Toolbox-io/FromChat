@@ -2,7 +2,8 @@ import { MessagePanel, type MessagePanelCallbacks, type MessagePanelState } from
 import { 
     fetchDMHistory, 
     decryptDm, 
-    sendDMViaWebSocket 
+    sendDMViaWebSocket,
+    sendDmWithFiles
 } from "../../api/dmApi";
 import type { Message, WebSocketMessage } from "../../core/types";
 import type { UserState } from "../state";
@@ -88,16 +89,27 @@ export class DMPanel extends MessagePanel {
         }
     }
 
-    async sendMessage(content: string, _replyToId?: number): Promise<void> {
+    async sendMessage(content: string, _replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData || !content.trim()) return;
 
         try {
-            await sendDMViaWebSocket(
-                this.dmData.userId, 
-                this.dmData.publicKey, 
-                content, 
-                this.currentUser.authToken
-            );
+            if (files.length === 0) {
+                await sendDMViaWebSocket(
+                    this.dmData.userId, 
+                    this.dmData.publicKey, 
+                    content, 
+                    this.currentUser.authToken
+                );
+            } else {
+                const json = JSON.stringify({ type: "text", data: { content: content.trim() } });
+                await sendDmWithFiles(
+                    this.dmData.userId,
+                    this.dmData.publicKey,
+                    json,
+                    files,
+                    this.currentUser.authToken
+                );
+            }
         } catch (error) {
             console.error("Failed to send DM:", error);
         }

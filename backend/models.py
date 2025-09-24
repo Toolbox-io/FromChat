@@ -36,6 +36,21 @@ class Message(Base):
 
     author = relationship("User", back_populates="messages")
     reply_to = relationship("Message", remote_side=[id])
+    files = relationship("MessageFile", back_populates="message", cascade="all, delete-orphan", lazy="select")
+
+
+class MessageFile(Base):
+    __tablename__ = "message_file"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("message.id"), nullable=False, index=True)
+    path = Column(Text, nullable=False)
+    encrypted = Column(Boolean, default=False, nullable=False)
+    filename = Column(String(255), nullable=True)
+    content_type = Column(String(255), nullable=True)
+    size = Column(Integer, nullable=True)
+
+    message = relationship("Message", back_populates="files")
 
 
 class CryptoPublicKey(Base):

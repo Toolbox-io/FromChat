@@ -175,8 +175,8 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                 )}
                 
                 <ChatInputWrapper 
-                    onSendMessage={(text) => {
-                        panel.handleSendMessage(text, replyTo?.id);
+                    onSendMessage={(text, files) => {
+                        panel.handleSendMessage(text, replyTo?.id, files);
                         setReplyTo(null);
                     }} 
                     onSaveEdit={(content) => {

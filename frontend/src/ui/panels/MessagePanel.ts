@@ -12,7 +12,7 @@ export interface MessagePanelState {
 }
 
 export interface MessagePanelCallbacks {
-    onSendMessage: (content: string) => void;
+    onSendMessage: (content: string, files: File[]) => void;
     onEditMessage: (messageId: number, content: string) => void;
     onDeleteMessage: (messageId: number) => void;
     onReplyToMessage: (messageId: number, content: string) => void;
@@ -48,7 +48,7 @@ export abstract class MessagePanel {
     abstract activate(): Promise<void>;
     abstract deactivate(): void;
     abstract loadMessages(): Promise<void>;
-    abstract sendMessage(content: string, replyToId?: number): Promise<void>;
+    abstract sendMessage(content: string, replyToId?: number, files?: File[]): Promise<void>;
     abstract isDm(): boolean;
     
     // Optional WebSocket message handler (can be overridden by subclasses)
@@ -115,8 +115,8 @@ export abstract class MessagePanel {
     }
 
     // Event handlers
-    handleSendMessage = (content: string, replyToId?: number): void => {
-        this.sendMessage(content, replyToId);
+    handleSendMessage = (content: string, replyToId?: number, files: File[] = []): void => {
+        this.sendMessage(content, replyToId, files);
     };
 
     handleEditMessage = (messageId: number, content: string): void => {

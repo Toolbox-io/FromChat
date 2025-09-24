@@ -61,24 +61,37 @@ export class PublicChatPanel extends MessagePanel {
         }
     }
 
-    async sendMessage(content: string, replyToId?: number): Promise<void> {
+    async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !content.trim()) return;
 
         try {
-            const response = await request({
-                data: { 
-                    content: content.trim(), 
-                    reply_to_id: replyToId ?? null
-                },
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: this.currentUser.authToken
-                },
-                type: "sendMessage"
-            });
-
-            if (response.error) {
-                console.error("Error sending message:", response.error);
+            if (files.length === 0) {
+                const response = await request({
+                    data: { 
+                        content: content.trim(), 
+                        reply_to_id: replyToId ?? null
+                    },
+                    credentials: {
+                        scheme: "Bearer",
+                        credentials: this.currentUser.authToken
+                    },
+                    type: "sendMessage"
+                });
+                if (response.error) {
+                    console.error("Error sending message:", response.error);
+                }
+            } else {
+                const form = new FormData();
+                form.append("payload", JSON.stringify({ type: "text", data: { content: content.trim() }, reply_to_id: replyToId ?? null }));
+                for (const f of files) form.append("files", f, f.name);
+                const res = await fetch(`${API_BASE_URL}/send_message`, {
+                    method: "POST",
+                    headers: getAuthHeaders(this.currentUser.authToken, false),
+                    body: form
+                });
+                if (!res.ok) {
+                    console.error("Error sending message with files", await res.text());
+                }
             }
         } catch (error) {
             console.error("Error sending message:", error);
