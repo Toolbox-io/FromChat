@@ -90,7 +90,7 @@ export async function ensureKeysOnLogin(password: string, token: string): Promis
 			currentPublicKey = serverPub;
 		} else {
 			// We don't have the corresponding public key from server; regenerate pair to resync
-			const pair = generateX25519KeyPair();
+			const pair = await generateX25519KeyPair();
 			currentPublicKey = pair.publicKey;
 			currentPrivateKey = pair.privateKey;
 			await uploadPublicKey(currentPublicKey, token);
@@ -107,7 +107,7 @@ export async function ensureKeysOnLogin(password: string, token: string): Promis
 	}
 
 	// First-time setup: generate keys and upload
-	const pair = generateX25519KeyPair();
+	const pair = await generateX25519KeyPair();
 	currentPublicKey = pair.publicKey;
 	currentPrivateKey = pair.privateKey;
 	await uploadPublicKey(currentPublicKey, token);

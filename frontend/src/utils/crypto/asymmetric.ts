@@ -1,4 +1,3 @@
-import nacl from "tweetnacl";
 import { hkdfExtractAndExpand } from "../crypto/kdf";
 
 export interface X25519KeyPair {
@@ -8,12 +7,16 @@ export interface X25519KeyPair {
 
 export type KeyPair = X25519KeyPair;
 
-export function generateX25519KeyPair(): X25519KeyPair {
+export async function generateX25519KeyPair(): Promise<X25519KeyPair> {
+	const nacl = await import("tweetnacl");
+	
 	const kp = nacl.box.keyPair();
 	return { publicKey: kp.publicKey, privateKey: kp.secretKey };
 }
 
-export function ecdhSharedSecret(myPrivateKey: Uint8Array, theirPublicKey: Uint8Array): Uint8Array {
+export async function ecdhSharedSecret(myPrivateKey: Uint8Array, theirPublicKey: Uint8Array): Promise<Uint8Array> {
+	const nacl = await import("tweetnacl");
+
 	// nacl.box.before returns shared key (Curve25519, XSalsa20-Poly1305 context). We use it as IKM into HKDF.
 	return nacl.box.before(theirPublicKey, myPrivateKey);
 }
