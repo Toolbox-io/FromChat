@@ -242,8 +242,28 @@ class MessaggingSocketManager:
                     current_user = get_current_user_inner()
                     if current_user:
                         self.user_by_ws[websocket] = current_user.id
+                    else:
+                        await websocket.send_json({
+                            "type": "ping", 
+                            "data": {
+                                "status": "error", 
+                                "error": {
+                                    "detail": "Failed to authorize", 
+                                    "code": 401
+                                }
+                            }
+                        })
                 except HTTPException:
-                    pass
+                    await websocket.send_json({
+                        "type": "ping", 
+                        "data": {
+                            "status": "error", 
+                            "error": {
+                                "detail": "Failed to authorize",
+                                "code": 401
+                            }
+                        }
+                    })
                 await websocket.send_json({"type": "ping", "data": {"status": "success"}})
             elif type == "getMessages":
                 try:

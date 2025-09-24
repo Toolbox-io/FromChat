@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Message, User, WebSocketMessage } from "../core/types";
+import type { Message, User } from "../core/types";
 import { request } from "../core/websocket";
 import { MessagePanel } from "./panels/MessagePanel";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
@@ -166,16 +166,14 @@ export const useAppState = create<AppState>((set, get) => ({
         }
 
         try {
-            const payload: WebSocketMessage = {
+            request({
                 type: "ping",
                 credentials: {
                     scheme: "Bearer",
                     credentials: token
                 },
                 data: {}
-            }
-    
-            request(payload).then(() => {
+            }).then(() => {
                 console.log("Ping succeeded")
             })
         } catch {}
@@ -217,6 +215,19 @@ export const useAppState = create<AppState>((set, get) => ({
                         },
                         currentPage: "chat"
                     }));
+
+                    try {
+                        request({
+                            type: "ping",
+                            credentials: {
+                                scheme: "Bearer",
+                                credentials: token
+                            },
+                            data: {}
+                        }).then(() => {
+                            console.log("Ping succeeded")
+                        })
+                    } catch {}
 
                     // Initialize notifications after successful credential restoration
                     try {
