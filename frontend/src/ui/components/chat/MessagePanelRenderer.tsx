@@ -153,6 +153,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                     <ChatMessages 
                         messages={panelState.messages} 
                         isDm={panel.isDm()} 
+                        dmRecipientPublicKey={(panel as any).dmData?.publicKey}
                         onReplySelect={(message) => {
                             if (editMessage || editVisible) {
                                 setPendingAction({ type: "reply", message: message });
@@ -169,6 +170,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                                 setEditMessage(message);
                             }
                         }}
+                        onDelete={(id) => panel.handleDeleteMessage(id)}
                     >
                         <div ref={messagesEndRef} />
                     </ChatMessages>

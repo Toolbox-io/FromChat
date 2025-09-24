@@ -1,11 +1,13 @@
-import { MessagePanel, type MessagePanelCallbacks, type MessagePanelState } from "./MessagePanel";
+import { MessagePanel } from "./MessagePanel";
 import { 
     fetchDMHistory, 
     decryptDm, 
     sendDMViaWebSocket,
-    sendDmWithFiles
+    sendDmWithFiles,
+    editDmEnvelope,
+    deleteDmEnvelope
 } from "../../api/dmApi";
-import type { Message, WebSocketMessage } from "../../core/types";
+import type { DmEncryptedJSON, DmEnvelope, EncryptedMessageJson, Message, WebSocketMessage } from "../../core/types";
 import type { UserState } from "../state";
 
 export interface DMPanelData {
@@ -21,11 +23,9 @@ export class DMPanel extends MessagePanel {
     private messagesLoaded: boolean = false;
 
     constructor(
-        user: UserState,
-        callbacks: MessagePanelCallbacks,
-        onStateChange: (state: MessagePanelState) => void
+        user: UserState
     ) {
-        super("dm", user, callbacks, onStateChange);
+        super("dm", user);
     }
 
     isDm(): boolean {
@@ -42,6 +42,45 @@ export class DMPanel extends MessagePanel {
         // DM doesn't need special cleanup
     }
 
+    private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
+        const plaintext = await decryptDm(env, this.dmData!.publicKey);
+        const isAuthor = env.senderId !== this.dmData!.userId;
+        const username = isAuthor ? this.currentUser.currentUser?.username ?? "You" : this.dmData!.username;
+
+        // Try parse JSON payload { type: "text", data: { content, files?, reply_to_id? } }
+        let content = plaintext;
+        let reply_to_id: number | undefined = undefined;
+        try {
+            const obj = JSON.parse(plaintext) as DmEncryptedJSON;
+            if (obj && obj.type === "text" && obj.data) {
+                content = obj.data.content;
+                reply_to_id = Number(obj.data.reply_to_id) || undefined;
+            }
+        } catch {}
+
+        const dmMsg: Message & { dmEnvelope?: { salt: string; iv2: string; wrappedMk: string } } = {
+            id: env.id,
+            content: content,
+            username: username,
+            timestamp: env.timestamp,
+            is_read: false,
+            is_edited: false,
+            files: env.files?.map(file => { return {"filename": file.name, "encrypted": true, "path": file.path} }) || [],
+            dmEnvelope: {
+                salt: env.salt,
+                iv2: env.iv2,
+                wrappedMk: env.wrappedMk
+            }
+        };
+
+        if (reply_to_id) {
+            const referenced = decryptedMessages.find(m => m.id === reply_to_id);
+            if (referenced) dmMsg.reply_to = referenced;
+        }
+
+        return dmMsg;
+    }
+
     async loadMessages(): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData || this.messagesLoaded) return;
 
@@ -53,18 +92,8 @@ export class DMPanel extends MessagePanel {
 
             for (const env of messages) {
                 try {
-                    const text = await decryptDm(env, this.dmData!.publicKey);
-                    const isAuthor = env.senderId !== this.dmData!.userId;
-                    const username = isAuthor ? this.currentUser.currentUser?.username ?? "You" : this.dmData!.username;
-                    
-                    decryptedMessages.push({
-                        id: env.id,
-                        content: text,
-                        username: username,
-                        timestamp: env.timestamp,
-                        is_read: false,
-                        is_edited: false
-                    });
+                    const dmMsg = await this.parseTextPayload(env, decryptedMessages);
+                    decryptedMessages.push(dmMsg);
 
                     if (env.senderId === this.dmData!.userId && env.id > maxIncomingId) {
                         maxIncomingId = env.id;
@@ -89,19 +118,27 @@ export class DMPanel extends MessagePanel {
         }
     }
 
-    async sendMessage(content: string, _replyToId?: number, files: File[] = []): Promise<void> {
+    async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData || !content.trim()) return;
 
         try {
+            const payload: DmEncryptedJSON = { 
+                type: "text", 
+                data: { 
+                    content: content.trim(), 
+                    reply_to_id: replyToId ?? undefined
+                }
+            }
+            const json = JSON.stringify(payload);
+
             if (files.length === 0) {
                 await sendDMViaWebSocket(
-                    this.dmData.userId, 
-                    this.dmData.publicKey, 
-                    content, 
+                    this.dmData.userId,
+                    this.dmData.publicKey,
+                    json,
                     this.currentUser.authToken
                 );
             } else {
-                const json = JSON.stringify({ type: "text", data: { content: content.trim() } });
                 await sendDmWithFiles(
                     this.dmData.userId,
                     this.dmData.publicKey,
@@ -130,31 +167,59 @@ export class DMPanel extends MessagePanel {
     // Handle incoming WebSocket DM messages
     handleWebSocketMessage = async (response: WebSocketMessage): Promise<void> => {
         if (response.type === "dmNew" && this.dmData) {
-            const { senderId, recipientId, ...envelope } = response.data;
+            const envelope = response.data as DmEnvelope;
             
             // If this is for the active DM conversation
-            if (senderId === this.dmData.userId || recipientId === this.dmData.userId) {
+            if (envelope.senderId === this.dmData.userId || envelope.recipientId === this.dmData.userId) {
                 try {
-                    const plaintext = await decryptDm(envelope, this.dmData.publicKey);
-                    const isAuthor = senderId !== this.dmData.userId;
-                    
-                    this.addMessage({
-                        id: envelope.id,
-                        content: plaintext,
-                        username: isAuthor ? this.currentUser.currentUser?.username ?? "You" : this.dmData.username,
-                        timestamp: envelope.timestamp,
-                        is_read: false,
-                        is_edited: false
-                    });
+                    const dmMsg = await this.parseTextPayload(envelope, this.getMessages());
+                    this.addMessage(dmMsg);
 
                     // Update last read if it's from the other user
-                    if (senderId === this.dmData.userId) {
+                    if (envelope.senderId === this.dmData.userId) {
                         this.setLastReadId(this.dmData.userId, Math.max(this.getLastReadId(this.dmData.userId), envelope.id));
                     }
                 } catch (error) {
                     console.error("Failed to decrypt incoming DM:", error);
                 }
             }
+        }
+        if (response.type === "dmEdited" && this.dmData) {
+            const { id, iv, ciphertext, salt, iv2, wrappedMk } = response.data;
+            try {
+                // Decrypt new content in-place
+                const plaintext = await decryptDm(
+                    { 
+                        id, 
+                        senderId: 0, 
+                        recipientId: 0, 
+                        iv, 
+                        ciphertext, 
+                        salt, 
+                        iv2, 
+                        wrappedMk, 
+                        timestamp: new Date().toISOString() 
+                    }, 
+                    this.dmData.publicKey
+                );
+                let content = plaintext;
+                let files: Message["files"] | undefined = undefined;
+                try {
+                    const obj = JSON.parse(plaintext) as EncryptedMessageJson;
+                    if (obj.type === "text" && obj.data) {
+                        content = obj.data.content;
+                        files = obj.data.files;
+                    }
+                } catch {}
+                const updates: Partial<Message> = { content, is_edited: true, files };
+                this.updateMessage(id, updates);
+            } catch (e) {
+                this.updateMessage(id, { is_edited: true });
+            }
+        }
+        if (response.type === "dmDeleted" && this.dmData) {
+            const { id } = response.data;
+            this.removeMessage(id);
         }
     };
 
@@ -191,4 +256,29 @@ export class DMPanel extends MessagePanel {
             localStorage.setItem(`dmLastRead:${userId}`, String(id));
         } catch {}
     }
+
+    async handleDeleteMessage(messageId: number): Promise<void> {
+        if (!this.currentUser.authToken || !this.dmData) return;
+        // Fire and forget; UI will update via dmDeleted
+        await deleteDmEnvelope(messageId, this.dmData.userId, this.currentUser.authToken);
+    }
+
+    async handleEditMessage(messageId: number, content: string): Promise<void> {
+        if (!this.currentUser.authToken || !this.dmData) return;
+        const msg = this.getMessages().find(m => m.id === messageId);
+        // Build encrypted JSON preserving files and reply_to if present
+        const payload: EncryptedMessageJson = {
+            type: "text",
+            data: {
+                content: content,
+                files: msg?.files,
+                reply_to_id: msg?.reply_to?.id ?? undefined
+            }
+        };
+        editDmEnvelope(messageId, this.dmData.publicKey, JSON.stringify(payload), this.currentUser.authToken).catch((e) => {
+            console.error("Failed to edit DM:", e);
+        });
+    }
+    
+    handleProfileClick(): void {}
 }

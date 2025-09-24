@@ -8,7 +8,6 @@ import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu"
 import { fetchUserProfile } from "../../../api/profileApi";
 import { useEffect, useState, type ReactNode } from "react";
 import { delay } from "../../../utils/utils";
-import { request } from "../../../core/websocket";
 import { MaterialDialog } from "../core/Dialog";
 
 interface ChatMessagesProps {
@@ -17,9 +16,11 @@ interface ChatMessagesProps {
     children?: ReactNode;
     onReplySelect?: (message: MessageType) => void;
     onEditSelect?: (message: MessageType) => void;
+    onDelete?: (id: number) => void;
+    dmRecipientPublicKey?: string;
 }
 
-export function ChatMessages({ messages: propMessages, children, isDm = false, onReplySelect, onEditSelect }: ChatMessagesProps) {
+export function ChatMessages({ messages: propMessages, children, isDm = false, onReplySelect, onEditSelect, onDelete, dmRecipientPublicKey }: ChatMessagesProps) {
     const { messages: hookMessages } = useChat();
     const { user } = useAppState();
     
@@ -38,7 +39,7 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
 
     // Delete dialog
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [toBeDeleted, setToBeDeleted] = useState<number | null>(null);
+    const [toBeDeleted, setToBeDeleted] = useState<{ id: number; isDm: boolean } | null>(null);
 
     useEffect(() => {
         if (!deleteDialogOpen) {
@@ -88,28 +89,31 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
     };
 
     async function confirmDelete() {
-        if (toBeDeleted) {
-            if (!user.authToken) return;
-        
-            try {
-                await request({
-                    type: "deleteMessage",
-                    data: { message_id: toBeDeleted },
-                    credentials: {
-                        scheme: "Bearer",
-                        credentials: user.authToken
-                    }
-                });
-            } catch (error) {
-                console.error("Failed to delete message:", error);
-            }
-
-            setDeleteDialogOpen(false);
+        if (!toBeDeleted || !user.authToken) return;
+        try {
+            onDelete?.(toBeDeleted.id);
+            // if (toBeDeleted.isDm) {
+            //     // For DM, send dmDelete
+            //     await request({
+            //         type: "dmDelete",
+            //         data: { id: toBeDeleted.id },
+            //         credentials: { scheme: "Bearer", credentials: user.authToken }
+            //     });
+            // } else {
+            //     await request({
+            //         type: "deleteMessage",
+            //         data: { message_id: toBeDeleted.id },
+            //         credentials: { scheme: "Bearer", credentials: user.authToken }
+            //     });
+            // }
+        } catch (error) {
+            console.error("Failed to delete message:", error);
         }
+        setDeleteDialogOpen(false);
     }
 
     async function handleDelete(message: MessageType) {
-        setToBeDeleted(message.id);
+        setToBeDeleted({ id: message.id, isDm });
         setDeleteDialogOpen(true);
     }
 
@@ -124,7 +128,9 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
                         onProfileClick={handleProfileClick}
                         onContextMenu={handleContextMenu}
                         isLoadingProfile={isLoadingProfile}
-                        isDm={isDm} />
+                        isDm={isDm}
+                        dmRecipientPublicKey={dmRecipientPublicKey}
+                        dmEnvelope={(message as any).dmEnvelope} />
                 ))}
                 {children}
             </div>

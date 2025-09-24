@@ -18,7 +18,20 @@ interface ChatInputWrapperProps {
     onCloseEdit?: () => void;
 }
 
-export function ChatInputWrapper({ onSendMessage, onSaveEdit, replyTo, replyToVisible, onClearReply, onCloseReply, editingMessage, editVisible = false, onClearEdit, onCloseEdit }: ChatInputWrapperProps) {
+export function ChatInputWrapper(
+    { 
+        onSendMessage, 
+        onSaveEdit, 
+        replyTo, 
+        replyToVisible, 
+        onClearReply,
+        onCloseReply, 
+        editingMessage, 
+        editVisible = false, 
+        onClearEdit, 
+        onCloseEdit 
+    }: ChatInputWrapperProps
+) {
     const [message, setMessage] = useState("");
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [attachmentsVisible, setAttachmentsVisible] = useState(false);

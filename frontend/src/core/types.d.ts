@@ -155,6 +155,7 @@ export interface SendDMRequest {
     salt: string;
     iv2: string;
     wrappedMk: string;
+    replyToId?: number;
 }
 
 // Responses
@@ -174,20 +175,52 @@ export interface BackupBlob {
     blob: string;
 }
 
-export interface DmEnvelope {
-    id: number;
-    senderId: number;
-    recipientId: number;
+export interface BaseDmEnvelope {
     iv: string;
     ciphertext: string;
     salt: string;
     iv2: string;
     wrappedMk: string;
+    recipientId: number;
+}
+
+export interface DmEnvelope extends BaseDmEnvelope {
+    id: number;
+    senderId: number;
+    files?: DmFile[];
     timestamp: string;
+}
+
+export interface DmFile {
+    name: string;
+    id: number;
+    path: string;
+}
+
+export interface DmEditedPayload { 
+    id: number; 
+    iv: string; 
+    ciphertext: string; 
+    timestamp: string 
+}
+
+export interface DmDeletedPayload { 
+    id: number; 
+    senderId: number; 
+    recipientId: number 
 }
 
 export interface FetchDMResponse {
     messages: DmEnvelope[]
+}
+
+export interface DmEncryptedJSON {
+    type: "text",
+    data: {
+        content: string;
+        reply_to_id?: number;
+        files?: Attachment[];
+    }
 }
 
 // ---------------
@@ -231,12 +264,41 @@ export interface WebSocketCredentials {
     credentials: string;
 }
 
+export interface DMEditWebSocketMessage extends WebSocketMessage {
+    type: "dmEdit",
+    data: {
+        id: number;
+        iv: string;
+        ciphertext: string;
+        iv2: string;
+        wrappedMk: string;
+        salt: string;
+    }
+}
+
 export interface Attachment {
     path: string;
     encrypted: boolean;
     filename?: string;
     content_type?: string;
     size?: number;
+}
+
+// -----------
+// Encrypted message JSON (plaintext structure before encryption)
+// -----------
+
+export type ChatMessageKind = "text"; // Extendable for future kinds
+
+export interface EncryptedTextMessageData {
+    content: string;
+    files?: Attachment[];
+    reply_to_id?: number | null;
+}
+
+export interface EncryptedMessageJson {
+    type: ChatMessageKind;
+    data: EncryptedTextMessageData;
 }
 
 // -----------

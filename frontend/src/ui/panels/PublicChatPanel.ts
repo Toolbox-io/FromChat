@@ -1,4 +1,4 @@
-import { MessagePanel, type MessagePanelCallbacks, type MessagePanelState } from "./MessagePanel";
+import { MessagePanel } from "./MessagePanel";
 import { API_BASE_URL } from "../../core/config";
 import { getAuthHeaders } from "../../auth/api";
 import { request } from "../../core/websocket";
@@ -10,11 +10,9 @@ export class PublicChatPanel extends MessagePanel {
 
     constructor(
         chatName: string,
-        currentUser: UserState,
-        callbacks: MessagePanelCallbacks,
-        onStateChange: (state: MessagePanelState) => void
+        currentUser: UserState
     ) {
-        super(`public-${chatName}`, currentUser, callbacks, onStateChange);
+        super(`public-${chatName}`, currentUser);
         this.updateState({
             title: chatName,
             online: true // Public chats are always "online"
@@ -137,4 +135,36 @@ export class PublicChatPanel extends MessagePanel {
     setAuthToken(authToken: string): void {
         this.currentUser.authToken = authToken;
     }
+
+    async handleEditMessage(messageId: number, content: string): Promise<void> {
+        if (!this.currentUser.authToken) return;
+        try {
+            await request({
+                type: "editMessage",
+                data: {
+                    message_id: messageId,
+                    content: content
+                },
+                credentials: {
+                    scheme: "Bearer",
+                    credentials: this.currentUser.authToken
+                }
+            });
+        } catch (error) {
+            console.error("Failed to edit message:", error);
+        }
+    }
+
+    async handleDeleteMessage(id: number): Promise<void> {
+        await request({
+            type: "deleteMessage",
+            data: { message_id: id },
+            credentials: { 
+                scheme: "Bearer", 
+                credentials: this.currentUser.authToken! 
+            }
+        });
+    }
+    
+    handleProfileClick(): void {}
 }

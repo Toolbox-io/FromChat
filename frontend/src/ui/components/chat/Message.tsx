@@ -5,6 +5,12 @@ import Quote from "../core/Quote";
 import { parse } from "marked";
 import DOMPurify from "dompurify";
 import { useEffect, useState } from "react";
+import { getCurrentKeys } from "../../../auth/crypto";
+import { ecdhSharedSecret, deriveWrappingKey } from "../../../utils/crypto/asymmetric";
+import { importAesGcmKey, aesGcmDecrypt } from "../../../utils/crypto/symmetric";
+import { getAuthHeaders } from "../../../auth/api";
+import { useAppState } from "../../state";
+import { ub64 } from "../../../utils/utils";
 
 interface MessageProps {
     message: MessageType;
@@ -13,10 +19,18 @@ interface MessageProps {
     onContextMenu: (e: React.MouseEvent, message: MessageType) => void;
     isLoadingProfile?: boolean;
     isDm?: boolean;
+    dmRecipientPublicKey?: string;
+    dmEnvelope?: {
+        salt: string;
+        iv2: string;
+        wrappedMk: string;
+    };
 }
 
-export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false }: MessageProps) {
-    const [formattedMessage, setFormattedMessage] = useState({ __html: DOMPurify.sanitize(message.content).trim() });
+export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false, dmRecipientPublicKey, dmEnvelope }: MessageProps) {
+    const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
+    const [decryptedFiles, setDecryptedFiles] = useState<Map<string, string>>(new Map());
+    const { user } = useAppState();
 
     useEffect(() => {
         (async () => {
@@ -27,6 +41,54 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
             });
         })();
     }, [message]);
+
+    const decryptFile = async (file: any): Promise<string | null> => {
+        if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) return null;
+        
+        // Check if already decrypted
+        if (decryptedFiles.has(file.path)) {
+            return decryptedFiles.get(file.path) || null;
+        }
+        
+        try {
+            // Fetch encrypted file
+            const response = await fetch(file.path, {
+                headers: getAuthHeaders(user.authToken!)
+            });
+            if (!response.ok) throw new Error("Failed to fetch file");
+            
+            const encryptedData = await response.arrayBuffer();
+            
+            // Get current user's keys
+            const keys = getCurrentKeys();
+            if (!keys) throw new Error("Keys not initialized");
+            
+            // Derive shared secret with the recipient's public key
+            const shared = await ecdhSharedSecret(keys.privateKey, ub64(dmRecipientPublicKey));
+            
+            // Derive wrapping key using the salt from the DM envelope
+            const wkRaw = await deriveWrappingKey(shared, ub64(dmEnvelope.salt), new Uint8Array([1]));
+            const wk = await importAesGcmKey(wkRaw);
+            
+            // Unwrap the message key
+            const mk = await aesGcmDecrypt(wk, ub64(dmEnvelope.iv2), ub64(dmEnvelope.wrappedMk));
+            
+            // Decrypt the file using the message key
+            const iv = new Uint8Array(encryptedData, 0, 12);
+            const ciphertext = new Uint8Array(encryptedData, 12);
+            const decrypted = await aesGcmDecrypt(await importAesGcmKey(mk), iv, ciphertext);
+            
+            // Create blob URL for download
+            const blob = new Blob([decrypted.buffer as ArrayBuffer]);
+            const url = URL.createObjectURL(blob);
+            
+            setDecryptedFiles(prev => new Map(prev).set(file.path, url));
+            return url;
+        } catch (error) {
+            console.error("Failed to decrypt file:", error);
+            return null;
+        }
+    };
 
     function handleContextMenu(e: React.MouseEvent) {
         e.preventDefault();
@@ -81,13 +143,31 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                     <mdui-list className="message-attachments">
                         {message.files.map((file, idx) => {
                             const isImage = !file.encrypted && (file.content_type?.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(file.filename || ""));
+                            const downloadUrl = decryptedFiles.get(file.path) || file.path;
                             return (
                                 <div className="attachment" key={idx}>
                                     {isImage ? (
                                         <img src={file.path} alt={file.filename || "image"} style={{ maxWidth: "200px", borderRadius: "8px" }} />
                                     ) : (
-                                        <a href={file.path} download target="_blank" rel="noreferrer">
-                                            <mdui-list-item icon="download--filled">{file.filename || file.path.split("/").pop()}</mdui-list-item>
+                                        <a 
+                                            href={downloadUrl} 
+                                            download={file.filename || "file"} 
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            onClick={async (e) => {
+                                                if (file.encrypted && !decryptedFiles.has(file.path)) {
+                                                    e.preventDefault();
+                                                    const decryptedUrl = await decryptFile(file);
+                                                    if (decryptedUrl) {
+                                                        const link = document.createElement('a');
+                                                        link.href = decryptedUrl;
+                                                        link.download = file.filename || "file";
+                                                        link.click();
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <mdui-list-item icon="download--filled">{(file.filename || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}</mdui-list-item>
                                         </a>
                                     )}
                                 </div>

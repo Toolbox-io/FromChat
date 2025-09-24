@@ -21,15 +21,12 @@ export interface MessagePanelCallbacks {
 
 export abstract class MessagePanel {
     protected state: MessagePanelState;
-    protected callbacks: MessagePanelCallbacks;
-    public onStateChange: ((state: MessagePanelState) => void) | null;
-    protected currentUser: UserState;
+    public onStateChange: ((state: MessagePanelState) => void) | null = () => {};
+    protected readonly currentUser: UserState;
 
     constructor(
         id: string,
         currentUser: UserState,
-        callbacks: MessagePanelCallbacks,
-        onStateChange: (state: MessagePanelState) => void
     ) {
         this.state = {
             id,
@@ -40,8 +37,6 @@ export abstract class MessagePanel {
             isTyping: false
         };
         this.currentUser = currentUser;
-        this.callbacks = callbacks;
-        this.onStateChange = onStateChange;
     }
 
     // Abstract methods that must be implemented by subclasses
@@ -115,23 +110,10 @@ export abstract class MessagePanel {
     }
 
     // Event handlers
-    handleSendMessage = (content: string, replyToId?: number, files: File[] = []): void => {
+    handleSendMessage(content: string, replyToId?: number, files: File[] = []): void {
         this.sendMessage(content, replyToId, files);
     };
-
-    handleEditMessage = (messageId: number, content: string): void => {
-        this.callbacks.onEditMessage(messageId, content);
-    };
-
-    handleDeleteMessage = (messageId: number): void => {
-        this.callbacks.onDeleteMessage(messageId);
-    };
-
-    handleReplyToMessage = (messageId: number, content: string): void => {
-        this.callbacks.onReplyToMessage(messageId, content);
-    };
-
-    handleProfileClick = (): void => {
-        this.callbacks.onProfileClick();
-    };
+    abstract handleEditMessage(messageId: number, content: string): Promise<void>;
+    abstract handleDeleteMessage(messageId: number): Promise<void>;
+    abstract handleProfileClick(): void;
 }
