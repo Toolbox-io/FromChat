@@ -45,6 +45,7 @@ class MessageFile(Base):
     id = Column(Integer, primary_key=True, index=True)
     message_id = Column(Integer, ForeignKey("message.id"), nullable=False, index=True)
     path = Column(Text, nullable=False)
+    name = Column(Text, nullable=False)
 
     message = relationship("Message", back_populates="files")
 

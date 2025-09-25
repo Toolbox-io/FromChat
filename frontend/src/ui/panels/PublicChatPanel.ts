@@ -2,7 +2,7 @@ import { MessagePanel } from "./MessagePanel";
 import { API_BASE_URL } from "../../core/config";
 import { getAuthHeaders } from "../../auth/api";
 import { request } from "../../core/websocket";
-import type { Message, WebSocketMessage } from "../../core/types";
+import type { ChatWebSocketMessage, Message, SendMessageRequest } from "../../core/types";
 import type { UserState } from "../state";
 
 export class PublicChatPanel extends MessagePanel {
@@ -65,7 +65,7 @@ export class PublicChatPanel extends MessagePanel {
         try {
             if (files.length === 0) {
                 const response = await request({
-                    data: { 
+                    data: {
                         content: content.trim(), 
                         reply_to_id: replyToId ?? null
                     },
@@ -74,13 +74,16 @@ export class PublicChatPanel extends MessagePanel {
                         credentials: this.currentUser.authToken
                     },
                     type: "sendMessage"
-                });
+                } satisfies SendMessageRequest);
                 if (response.error) {
                     console.error("Error sending message:", response.error);
                 }
             } else {
                 const form = new FormData();
-                form.append("payload", JSON.stringify({ type: "text", data: { content: content.trim() }, reply_to_id: replyToId ?? null }));
+                form.append("payload", JSON.stringify({
+                    content: content.trim(),
+                    reply_to_id: replyToId ?? null 
+                } satisfies SendMessageRequest["data"]));
                 for (const f of files) form.append("files", f, f.name);
                 const res = await fetch(`${API_BASE_URL}/send_message`, {
                     method: "POST",
@@ -97,7 +100,7 @@ export class PublicChatPanel extends MessagePanel {
     }
 
     // Handle incoming WebSocket messages
-    handleWebSocketMessage = (response: WebSocketMessage): void => {
+    handleWebSocketMessage = (response: ChatWebSocketMessage): void => {
         switch (response.type) {
             case 'messageEdited':
                 if (response.data) {

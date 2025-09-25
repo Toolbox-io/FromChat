@@ -5,7 +5,7 @@ import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../utils/crypto/s
 import { randomBytes } from "../utils/crypto/kdf";
 import { getCurrentKeys } from "../auth/crypto";
 import { request } from "../core/websocket";
-import type { SendDMRequest, DmEnvelope, User, DMEditWebSocketMessage, DmEncryptedJSON, BaseDmEnvelope } from "../core/types";
+import type { SendDMRequest, DmEnvelope, User, DMEditRequest, DmEncryptedJSON, BaseDmEnvelope } from "../core/types";
 import { b64, ub64 } from "../utils/utils";
 
 export async function decryptDm(envelope: DmEnvelope, senderPublicKeyB64: string): Promise<string> {
@@ -159,7 +159,7 @@ export async function editDmEnvelope(id: number, recipientPublicKeyB64: string, 
             wrappedMk: b64(wrap.ciphertext),
             salt: b64(wkSalt)
         }
-    } as DMEditWebSocketMessage);
+    } as DMEditRequest);
 }
 
 export async function deleteDmEnvelope(id: number, recipientId: number, authToken: string): Promise<void> {

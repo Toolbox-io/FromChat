@@ -22,26 +22,24 @@ export default function AnimatedHeight({ visible, duration = 0.25, onFinish, chi
                     setIsAnimating(false);
                 }, duration * 1000);
             }, 0);
-        } else {
-            if (shouldRender) {
-                setIsAnimating(true);
-                if (measureRef.current) {
-                    const contentHeight = measureRef.current.scrollHeight;
-                    setHeight(`${contentHeight}px`);
-                    // Force a reflow before animating to 0
-                    requestAnimationFrame(() => {
-                        setHeight("0px");
-                    });
-                }
-                // Hide content after animation completes
-                setTimeout(() => {
-                    setShouldRender(false);
-                    setIsAnimating(false);
-                    if (onFinish) {
-                        onFinish();
-                    }
-                }, duration * 1000);
+        } else if (shouldRender) {
+            setIsAnimating(true);
+            if (measureRef.current) {
+                const contentHeight = measureRef.current.scrollHeight;
+                setHeight(`${contentHeight}px`);
+                // Force a reflow before animating to 0
+                requestAnimationFrame(() => {
+                    setHeight("0px");
+                });
             }
+            // Hide content after animation completes
+            setTimeout(() => {
+                setShouldRender(false);
+                setIsAnimating(false);
+                if (onFinish) {
+                    onFinish();
+                }
+            }, duration * 1000);
         }
     }, [visible, shouldRender]);
 

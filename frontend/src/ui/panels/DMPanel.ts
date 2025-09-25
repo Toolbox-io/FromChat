@@ -7,7 +7,7 @@ import {
     editDmEnvelope,
     deleteDmEnvelope
 } from "../../api/dmApi";
-import type { DmEncryptedJSON, DmEnvelope, EncryptedMessageJson, Message, WebSocketMessage } from "../../core/types";
+import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "../../core/types";
 import type { UserState } from "../state";
 
 export interface DMPanelData {
@@ -58,19 +58,14 @@ export class DMPanel extends MessagePanel {
             }
         } catch {}
 
-        const dmMsg: Message & { dmEnvelope?: { salt: string; iv2: string; wrappedMk: string } } = {
+        const dmMsg: Message = {
             id: env.id,
             content: content,
             username: username,
             timestamp: env.timestamp,
             is_read: false,
             is_edited: false,
-            files: env.files?.map(file => { return {"filename": file.name, "encrypted": true, "path": file.path} }) || [],
-            dmEnvelope: {
-                salt: env.salt,
-                iv2: env.iv2,
-                wrappedMk: env.wrappedMk
-            }
+            files: env.files?.map(file => { return {"name": file.name, "encrypted": true, "path": file.path} }) || []
         };
 
         if (reply_to_id) {
@@ -165,9 +160,9 @@ export class DMPanel extends MessagePanel {
     }
 
     // Handle incoming WebSocket DM messages
-    handleWebSocketMessage = async (response: WebSocketMessage): Promise<void> => {
+    handleWebSocketMessage = async (response: DMWebSocketMessage): Promise<void> => {
         if (response.type === "dmNew" && this.dmData) {
-            const envelope = response.data as DmEnvelope;
+            const envelope = response.data;
             
             // If this is for the active DM conversation
             if (envelope.senderId === this.dmData.userId || envelope.recipientId === this.dmData.userId) {

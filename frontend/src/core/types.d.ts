@@ -235,10 +235,10 @@ export interface DmEncryptedJSON {
  * @property {any} [data] - Message payload data
  * @property {WebSocketError} [error] - Error information if applicable
  */
-export interface WebSocketMessage {
+export interface WebSocketMessage<T> {
     type: string;
     credentials?: WebSocketCredentials;
-    data?: any;
+    data?: T;
     error?: WebSocketError;
 }
 
@@ -264,25 +264,80 @@ export interface WebSocketCredentials {
     credentials: string;
 }
 
-export interface DMEditWebSocketMessage extends WebSocketMessage {
-    type: "dmEdit",
-    data: {
-        id: number;
-        iv: string;
-        ciphertext: string;
-        iv2: string;
-        wrappedMk: string;
-        salt: string;
-    }
-}
-
 export interface Attachment {
     path: string;
     encrypted: boolean;
-    filename?: string;
-    content_type?: string;
-    size?: number;
+    name: string;
 }
+
+// -----------------------
+// WebSocket message types
+// -----------------------
+
+// Utils
+export interface DMEditPayload {
+    id: number;
+    iv: string;
+    ciphertext: string;
+    iv2: string;
+    wrappedMk: string;
+    salt: string;
+}
+
+// Requests
+export interface DMEditRequest extends WebSocketMessage {
+    type: "dmEdit",
+    credentials: WebSocketCredentials;
+    data: DMEditPayload
+}
+
+export interface SendMessageRequest extends WebSocketMessage {
+    type: "sendMessage",
+    credentials: WebSocketCredentials;
+    data: {
+        content: string;
+        reply_to_id: number | null;
+    }
+}
+
+// Messages
+export interface DMNewWebSocketMessage extends WebSocketMessage {
+    type: "dmNew",
+    data: DmEnvelope
+}
+
+export interface DMEditedWebSocketMessage extends WebSocketMessage {
+    type: "dmEdited",
+    data: DMEditPayload
+}
+
+export interface DMDeletedWebSocketMessage extends WebSocketMessage {
+    type: "dmDeleted",
+    data: {
+        id: number;
+    }
+}
+
+export interface MessageEditedWebSocketMessage extends WebSocketMessage {
+    type: "messageEdited",
+    data: Partial<Message> & { id: number }
+}
+
+export interface MessageDeletedWebSocketMessage extends WebSocketMessage {
+    type: "messageDeleted",
+    data: {
+        message_id: number;
+    }
+}
+
+export interface NewMessageWebSocketMessage extends WebSocketMessage {
+    type: "newMessage",
+    data: Message
+}
+
+// Shared types
+export type DMWebSocketMessage = DMNewWebSocketMessage | DMEditedWebSocketMessage | DMDeletedWebSocketMessage
+export type ChatWebSocketMessage = MessageEditedWebSocketMessage | MessageDeletedWebSocketMessage | NewMessageWebSocketMessage
 
 // -----------
 // Encrypted message JSON (plaintext structure before encryption)

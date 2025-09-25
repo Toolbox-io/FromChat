@@ -4,6 +4,7 @@ import { RichTextArea } from "../core/RichTextArea";
 import type { Message } from "../../../core/types";
 import Quote from "../core/Quote";
 import AnimatedHeight from "../core/animations/AnimatedHeight";
+import { useImmer } from "use-immer";
 
 interface ChatInputWrapperProps {
     onSendMessage: (message: string, files: File[]) => void;
@@ -35,7 +36,7 @@ export function ChatInputWrapper(
     }: ChatInputWrapperProps
 ) {
     const [message, setMessage] = useState("");
-    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [selectedFiles, setSelectedFiles] = useImmer<File[]>([]);
     const [attachmentsVisible, setAttachmentsVisible] = useState(false);
     const [errorOpen, setErrorOpen] = useState(false);
 
@@ -44,8 +45,7 @@ export function ChatInputWrapper(
         if (onProvideFileAdder) {
             const addFiles = (files: File[]) => {
                 if (!files || files.length === 0) return;
-                setSelectedFiles(prev => [...prev, ...files]);
-                setAttachmentsVisible(true);
+                setSelectedFiles(draft => { draft.push(...files) });
             };
             onProvideFileAdder(addFiles);
         }
@@ -53,18 +53,12 @@ export function ChatInputWrapper(
 
     // When entering edit mode, preload the message content
     useEffect(() => {
-        if (editingMessage) {
-            setMessage(editingMessage.content || "");
-        } else {
-            setMessage("");
-        }
+        setMessage(editingMessage ? editingMessage.content || "" : "");
     }, [editingMessage]);
 
     useEffect(() => {
-        if (selectedFiles.length > 0) {
-            setAttachmentsVisible(true);
-        }
-    }, [selectedFiles])
+        setAttachmentsVisible(selectedFiles.length > 0);
+    }, [selectedFiles]);
 
     const handleSubmit = async (e: React.FormEvent | Event) => {
         e.preventDefault();
@@ -94,10 +88,9 @@ export function ChatInputWrapper(
         const input = document.createElement("input");
         input.type = "file";
         input.multiple = true;
-        input.onchange = () => {
-            const files = Array.from(input.files || []);
-            setSelectedFiles(files);
-        };
+        input.addEventListener("change", () => {
+            setSelectedFiles(draft => { draft.push(...Array.from(input.files || [])) });
+        });
         input.click();
     }
 
@@ -133,16 +126,22 @@ export function ChatInputWrapper(
                         <div className="attachments-preview contextual-preview">
                             <mdui-icon name="attach_file" />
                             <div className="attachments-chips">
-                                {selectedFiles.map((f, i) => (
+                                {selectedFiles.map((file, i) => (
                                     <mdui-chip
                                         key={i}
                                         variant="input"
                                         end-icon="close"
-                                        title={`${f.name} (${Math.round(f.size/1024/1024)} MB)`}
-                                        onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))}
+                                        title={`${file.name} (${Math.round(file.size/1024/1024)} MB)`}
+                                        onClick={() => {
+                                            if (selectedFiles.length == 1) {
+                                                setAttachmentsVisible(false);
+                                            } else {
+                                                setSelectedFiles(draft => { draft.splice(i) })
+                                            }
+                                        }}
                                     >
                                         <mdui-icon slot="icon" name="attach_file"></mdui-icon>
-                                        <span className="name">{f.name}</span>
+                                        <span className="name">{file.name}</span>
                                     </mdui-chip>
                                 ))}
                             </div>

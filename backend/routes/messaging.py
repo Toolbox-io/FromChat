@@ -43,6 +43,7 @@ def convert_message(msg: Message) -> dict:
             {
                 "path": f"/api/uploads/files/normal/{Path(f.path).name}",
                 "id": f.id,
+                "name": f.name,
                 "message_id": f.message_id
             }
             for f in (msg.files or [])
@@ -64,7 +65,7 @@ async def send_message(
         # Expect JSON: {"type":"text","data":{"content": str}, "reply_to_id": number|null}
         try:
             obj = json.loads(payload)
-            content = obj.get("data", {}).get("content", "")
+            content = obj.get("content", "")
             reply_to_id = obj.get("reply_to_id", None)
             request = SendMessageRequest(content=content, reply_to_id=reply_to_id)
         except Exception:
@@ -147,6 +148,7 @@ async def send_message(
 
             mf = MessageFile(
                 message_id=new_message.id,
+                name=original_name,
                 path=str(out_path)
             )
             db.add(mf)

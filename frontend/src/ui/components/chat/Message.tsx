@@ -142,16 +142,16 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                 {message.files && message.files.length > 0 && (
                     <mdui-list className="message-attachments">
                         {message.files.map((file, idx) => {
-                            const isImage = !file.encrypted && (file.content_type?.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(file.filename || ""));
+                            const isImage = !file.encrypted && /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
                             const downloadUrl = decryptedFiles.get(file.path) || file.path;
                             return (
                                 <div className="attachment" key={idx}>
                                     {isImage ? (
-                                        <img src={file.path} alt={file.filename || "image"} style={{ maxWidth: "200px", borderRadius: "8px" }} />
+                                        <img src={file.path} alt={file.name || "image"} style={{ maxWidth: "200px", borderRadius: "8px" }} />
                                     ) : (
                                         <a 
                                             href={downloadUrl} 
-                                            download={file.filename || "file"} 
+                                            download={file.name || "file"} 
                                             target="_blank" 
                                             rel="noreferrer"
                                             onClick={async (e) => {
@@ -161,13 +161,15 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                                                     if (decryptedUrl) {
                                                         const link = document.createElement('a');
                                                         link.href = decryptedUrl;
-                                                        link.download = file.filename || "file";
+                                                        link.download = file.name || "file";
                                                         link.click();
                                                     }
                                                 }
                                             }}
                                         >
-                                            <mdui-list-item icon="download--filled">{(file.filename || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}</mdui-list-item>
+                                            <mdui-list-item icon="download--filled">
+                                                {(file.name || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}
+                                            </mdui-list-item>
                                         </a>
                                     )}
                                 </div>
