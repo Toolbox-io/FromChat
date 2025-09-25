@@ -1,10 +1,10 @@
 import { formatTime } from "../../../utils/utils";
-import type { Message as MessageType } from "../../../core/types";
+import type { Attachment, Message as MessageType } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import Quote from "../core/Quote";
 import { parse } from "marked";
 import DOMPurify from "dompurify";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getCurrentKeys } from "../../../auth/crypto";
 import { ecdhSharedSecret, deriveWrappingKey } from "../../../utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "../../../utils/crypto/symmetric";
@@ -20,17 +20,29 @@ interface MessageProps {
     isLoadingProfile?: boolean;
     isDm?: boolean;
     dmRecipientPublicKey?: string;
-    dmEnvelope?: {
-        salt: string;
-        iv2: string;
-        wrappedMk: string;
-    };
 }
 
-export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false, dmRecipientPublicKey, dmEnvelope }: MessageProps) {
+interface Rect {
+    left: number; 
+    top: number; 
+    width: number; 
+    height: number
+}
+
+export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false, dmRecipientPublicKey }: MessageProps) {
     const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
     const [decryptedFiles, setDecryptedFiles] = useState<Map<string, string>>(new Map());
+    const [fullscreenImage, setFullscreenImage] = useState<{
+        src: string;
+        name: string;
+        element: HTMLImageElement;
+        startRect: Rect;
+        endRect: Rect;
+    } | null>(null);
+    const [isAnimatingOpen, setIsAnimatingOpen] = useState(false);
     const { user } = useAppState();
+    const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
+    const dmEnvelope = message.runtimeData?.dmEnvelope;
 
     useEffect(() => {
         (async () => {
@@ -42,8 +54,30 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         })();
     }, [message]);
 
-    const decryptFile = async (file: any): Promise<string | null> => {
-        if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) return null;
+    // Auto-decrypt images in DMs
+    useEffect(() => {
+        if (isDm && message.files) {
+            message.files.forEach(async (file) => {
+                console.log(file);
+                const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
+                if (isImage && file.encrypted && !decryptedFiles.has(file.path)) {
+                    console.log("Decrypting...");
+                    const decryptedUrl = await decryptFile(file);
+                    console.log(decryptedUrl);
+                    if (decryptedUrl) {
+                        setDecryptedFiles(prev => new Map(prev).set(file.path, decryptedUrl));
+                    }
+                }
+            });
+        }
+    }, [message.files, isDm, decryptedFiles]);
+
+    const decryptFile = async (file: Attachment): Promise<string | null> => {
+        if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) {
+            debugger;
+            console.warn("Conditions not met")
+            return null;
+        }
         
         // Check if already decrypted
         if (decryptedFiles.has(file.path)) {
@@ -90,6 +124,129 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         }
     };
 
+    const handleImageClick = async (file: Attachment, imageElement: HTMLImageElement) => {
+        // Use decrypted URL if available, otherwise decrypt first
+        const decryptedUrl = decryptedFiles.get(file.path);
+        if (decryptedUrl) {
+            openFullscreenFromThumb(imageElement, decryptedUrl, file.name || "image");
+        } else if (file.encrypted && isDm) {
+            const newDecryptedUrl = await decryptFile(file);
+            if (newDecryptedUrl) {
+                openFullscreenFromThumb(imageElement, newDecryptedUrl, file.name || "image");
+            }
+        } else {
+            openFullscreenFromThumb(imageElement, file.path, file.name || "image");
+        }
+    };
+
+    const computeEndRect = (naturalWidth: number, naturalHeight: number): Rect => {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const maxWidth = Math.floor(viewportWidth * 0.9);
+        const maxHeight = Math.floor(viewportHeight * 0.9);
+        const widthRatio = maxWidth / naturalWidth;
+        const heightRatio = maxHeight / naturalHeight;
+        const scale = Math.min(widthRatio, heightRatio, 1);
+        const width = Math.round(naturalWidth * scale);
+        const height = Math.round(naturalHeight * scale);
+        const left = Math.round((viewportWidth - width) / 2);
+        const top = Math.round((viewportHeight - height) / 2);
+        return { left, top, width, height };
+    };
+
+    const openFullscreenFromThumb = (imgEl: HTMLImageElement, src: string, name: string) => {
+        const rect = imgEl.getBoundingClientRect();
+        const startRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+        const tempImg = new Image();
+        tempImg.src = src;
+        // Hide original while animating
+        imgEl.style.visibility = "hidden";
+        tempImg.onload = () => {
+            const endRect = computeEndRect(tempImg.naturalWidth, tempImg.naturalHeight);
+            setFullscreenImage({
+                src,
+                name,
+                element: imgEl,
+                startRect,
+                endRect
+            });
+            // Start animation on next frame to ensure DOM has overlay mounted
+            requestAnimationFrame(() => setIsAnimatingOpen(true));
+        };
+    };
+
+    const closeFullscreen = () => {
+        // Reverse animation
+        setIsAnimatingOpen(false);
+        // Wait for transition to finish
+        setTimeout(() => {
+            if (fullscreenImage?.element) {
+                fullscreenImage.element.style.visibility = "visible";
+            }
+            setFullscreenImage(null);
+        }, 300);
+    };
+
+    const downloadImage = async () => {
+        if (!fullscreenImage) return;
+        const { src, name } = fullscreenImage;
+        try {
+            if (src.startsWith("blob:")) {
+                const link = document.createElement("a");
+                link.href = src;
+                link.download = name;
+                link.click();
+                return;
+            }
+
+            // Fetch with credentials/headers when not a blob URL
+            const response = await fetch(src, {
+                headers: user.authToken ? getAuthHeaders(user.authToken) : undefined,
+                credentials: "include"
+            });
+            if (!response.ok) throw new Error("Failed to download image");
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = name;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const downloadFile = async (file: Attachment) => {
+        try {
+            // Prefer decrypted URL if present (DM encrypted case)
+            const decrypted = decryptedFiles.get(file.path);
+            if (decrypted) {
+                const link = document.createElement("a");
+                link.href = decrypted;
+                link.download = file.name || "file";
+                link.click();
+                return;
+            }
+
+            // If not decrypted or public file, fetch with credentials/headers
+            const response = await fetch(file.path, {
+                headers: user.authToken ? getAuthHeaders(user.authToken) : undefined,
+                credentials: "include"
+            });
+            if (!response.ok) throw new Error("Failed to download file");
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = file.name || "file";
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     function handleContextMenu(e: React.MouseEvent) {
         e.preventDefault();
         e.stopPropagation();
@@ -97,96 +254,128 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
     }
 
     return (
-        <div 
-            className={`message ${isAuthor ? "sent" : "received"}`}
-            data-id={message.id}
-            onContextMenu={handleContextMenu}
-        >
-            <div className="message-inner">
-                {/* Add profile picture for received messages */}
-                {!isAuthor && !isDm && (
-                    <div className="message-profile-pic">
-                        <img
-                            src={message.profile_picture || defaultAvatar}
-                            alt={message.username}
-                            onClick={() => !isLoadingProfile && onProfileClick(message.username)}
-                            style={{ cursor: isLoadingProfile ? "default" : "pointer" }}
-                            className={isLoadingProfile ? "loading" : ""}
-                            onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = defaultAvatar;
-                            }}
-                        />
-                    </div>
-                )}
-
-                {!isAuthor && !isDm && (
-                    <div 
-                        className={`message-username ${isLoadingProfile ? "loading" : ""}`}
-                        onClick={() => !isLoadingProfile && onProfileClick(message.username)} 
-                        style={{ cursor: isLoadingProfile ? "default" : "pointer" }}>
-                        {message.username}
-                    </div>
-                )}
-
-                {/* Add reply preview if this is a reply */}
-                {message.reply_to && (
-                    <Quote className="reply-preview contextual-content" background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
-                        <span className="reply-username">{message.reply_to.username}</span>
-                        <span className="reply-text">{message.reply_to.content}</span>
-                    </Quote>
-                )}
-
-                <div className="message-content" dangerouslySetInnerHTML={formattedMessage} />
-
-                {message.files && message.files.length > 0 && (
-                    <mdui-list className="message-attachments">
-                        {message.files.map((file, idx) => {
-                            const isImage = !file.encrypted && /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
-                            const downloadUrl = decryptedFiles.get(file.path) || file.path;
-                            return (
-                                <div className="attachment" key={idx}>
-                                    {isImage ? (
-                                        <img src={file.path} alt={file.name || "image"} style={{ maxWidth: "200px", borderRadius: "8px" }} />
-                                    ) : (
-                                        <a 
-                                            href={downloadUrl} 
-                                            download={file.name || "file"} 
-                                            target="_blank" 
-                                            rel="noreferrer"
-                                            onClick={async (e) => {
-                                                if (file.encrypted && !decryptedFiles.has(file.path)) {
-                                                    e.preventDefault();
-                                                    const decryptedUrl = await decryptFile(file);
-                                                    if (decryptedUrl) {
-                                                        const link = document.createElement('a');
-                                                        link.href = decryptedUrl;
-                                                        link.download = file.name || "file";
-                                                        link.click();
-                                                    }
-                                                }
-                                            }}
-                                        >
-                                            <mdui-list-item icon="download--filled">
-                                                {(file.name || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}
-                                            </mdui-list-item>
-                                        </a>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </mdui-list>
-                )}
-
-                <div className="message-time">
-                    {formatTime(message.timestamp)}
-                    {message.is_edited ? " (edited)" : undefined}
-                    
-                    {isAuthor && message.is_read && (
-                        <span className="material-symbols outlined"></span>
+        <>
+            <div 
+                className={`message ${isAuthor ? "sent" : "received"}`}
+                data-id={message.id}
+                onContextMenu={handleContextMenu}
+            >
+                <div className="message-inner">
+                    {/* Add profile picture for received messages */}
+                    {!isAuthor && !isDm && (
+                        <div className="message-profile-pic">
+                            <img
+                                src={message.profile_picture || defaultAvatar}
+                                alt={message.username}
+                                onClick={() => !isLoadingProfile && onProfileClick(message.username)}
+                                style={{ cursor: isLoadingProfile ? "default" : "pointer" }}
+                                className={isLoadingProfile ? "loading" : ""}
+                                onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = defaultAvatar;
+                                }}
+                            />
+                        </div>
                     )}
+
+                    {!isAuthor && !isDm && (
+                        <div 
+                            className={`message-username ${isLoadingProfile ? "loading" : ""}`}
+                            onClick={() => !isLoadingProfile && onProfileClick(message.username)} 
+                            style={{ cursor: isLoadingProfile ? "default" : "pointer" }}>
+                            {message.username}
+                        </div>
+                    )}
+
+                    {/* Add reply preview if this is a reply */}
+                    {message.reply_to && (
+                        <Quote className="reply-preview contextual-content" background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
+                            <span className="reply-username">{message.reply_to.username}</span>
+                            <span className="reply-text">{message.reply_to.content}</span>
+                        </Quote>
+                    )}
+
+                    <div className="message-content" dangerouslySetInnerHTML={formattedMessage} />
+
+                    {message.files && message.files.length > 0 && (
+                        <mdui-list className="message-attachments">
+                            {message.files.map((file, idx) => {
+                                const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
+                                const isEncryptedDm = Boolean(isDm && file.encrypted);
+                                const decryptedUrl = decryptedFiles.get(file.path);
+                                const imageSrc = isImage ? (isEncryptedDm ? decryptedUrl : file.path) : undefined;
+
+                                return (
+                                    <div className="attachment" key={idx}>
+                                        {isImage ? (
+                                            imageSrc ? (
+                                                <img 
+                                                    ref={(el) => {
+                                                        if (el) imageRefs.current.set(file.path, el);
+                                                    }}
+                                                    src={imageSrc} 
+                                                    alt={file.name || "image"} 
+                                                    style={{ maxWidth: "200px", borderRadius: "8px", cursor: "pointer" }} 
+                                                    onClick={(e) => handleImageClick(file, e.currentTarget)}
+                                                />
+                                            ) : (
+                                                <mdui-list-item>
+                                                    Decrypting image...
+                                                </mdui-list-item>
+                                            )
+                                        ) : (
+                                            <a 
+                                                href="#" 
+                                                onClick={async (e) => {
+                                                    e.preventDefault();
+                                                    await downloadFile(file);
+                                                }}
+                                            >
+                                                <mdui-list-item icon="download--filled">
+                                                    {(file.name || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}
+                                                </mdui-list-item>
+                                            </a>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </mdui-list>
+                    )}
+
+                    <div className="message-time">
+                        {formatTime(message.timestamp)}
+                        {message.is_edited ? " (edited)" : undefined}
+                        
+                        {isAuthor && message.is_read && (
+                            <span className="material-symbols outlined"></span>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {/* Fullscreen Image Viewer with shared-element like transition */}
+            {fullscreenImage && (
+                <div 
+                    className={`fullscreen-image-overlay ${isAnimatingOpen ? "open" : "closing"}`}
+                    onClick={closeFullscreen}>
+                    <img
+                        src={fullscreenImage.src}
+                        alt={fullscreenImage.name}
+                        className={`fullscreen-animated-image ${isAnimatingOpen ? "to-end" : "to-start"}`}
+                        style={{
+                            left: `${isAnimatingOpen ? fullscreenImage.endRect.left : fullscreenImage.startRect.left}px`,
+                            top: `${isAnimatingOpen ? fullscreenImage.endRect.top : fullscreenImage.startRect.top}px`,
+                            width: `${isAnimatingOpen ? fullscreenImage.endRect.width : fullscreenImage.startRect.width}px`,
+                            height: `${isAnimatingOpen ? fullscreenImage.endRect.height : fullscreenImage.startRect.height}px`
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    />
+                    <div className="fullscreen-controls top-right" onClick={e => e.stopPropagation()}>
+                        <mdui-button-icon icon="close" onClick={closeFullscreen} />
+                        <mdui-button-icon icon="download" onClick={downloadImage} />
+                    </div>
+                </div>
+            )}
+        </>
     );
 }

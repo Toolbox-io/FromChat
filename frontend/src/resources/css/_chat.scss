@@ -507,3 +507,39 @@
         }
     }
 }
+
+// Fullscreen Image Viewer
+.fullscreen-image-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(20px);
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+
+    &.closing {
+        opacity: 0;
+    }
+
+    .fullscreen-animated-image {
+        position: absolute;
+        object-fit: contain;
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease;
+    }
+
+    .fullscreen-controls {
+        position: absolute;
+        display: flex;
+        gap: 8px;
+
+        &.top-right {
+            top: 12px;
+            right: 12px;
+        }
+    }
+}

@@ -129,8 +129,7 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
                         onContextMenu={handleContextMenu}
                         isLoadingProfile={isLoadingProfile}
                         isDm={isDm}
-                        dmRecipientPublicKey={dmRecipientPublicKey}
-                        dmEnvelope={(message as any).dmEnvelope} />
+                        dmRecipientPublicKey={dmRecipientPublicKey} />
                 ))}
                 {children}
             </div>

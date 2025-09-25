@@ -19,7 +19,7 @@ export interface DMPanelData {
 }
 
 export class DMPanel extends MessagePanel {
-    private dmData: DMPanelData | null = null;
+    public dmData: DMPanelData | null = null;
     private messagesLoaded: boolean = false;
 
     constructor(
@@ -65,7 +65,11 @@ export class DMPanel extends MessagePanel {
             timestamp: env.timestamp,
             is_read: false,
             is_edited: false,
-            files: env.files?.map(file => { return {"name": file.name, "encrypted": true, "path": file.path} }) || []
+            files: env.files?.map(file => { return {"name": file.name, "encrypted": true, "path": file.path} }) || [],
+
+            runtimeData: {
+                dmEnvelope: env
+            }
         };
 
         if (reply_to_id) {

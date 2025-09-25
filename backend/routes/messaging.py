@@ -256,7 +256,7 @@ async def dm_send(
                 provided = None
             original_name = provided or Path(file.filename or "file").name
             # Save using provided/original name to allow client to reference path directly
-            safe_name = original_name
+            safe_name = uid = uuid.uuid4().hex
             out_name = f"{current_user.id}_{env.recipient_id}_{env.id}_{safe_name}"
             out_path = FILES_ENCRYPTED_DIR / out_name
 
@@ -270,7 +270,7 @@ async def dm_send(
                 sender_id=current_user.id,
                 recipient_id=env.recipient_id,
                 path=f"/api/uploads/files/encrypted/{out_name}",
-                name=safe_name
+                name=original_name
             )
             db.add(df)
         db.commit()

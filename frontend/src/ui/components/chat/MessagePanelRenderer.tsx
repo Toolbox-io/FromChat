@@ -6,6 +6,7 @@ import { setGlobalMessageHandler } from "../../../core/websocket";
 import type { Message } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import AnimatedOpacity from "../core/animations/AnimatedOpacity";
+import type { DMPanel } from "../../panels/DMPanel";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
@@ -202,7 +203,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                     <ChatMessages 
                         messages={panelState.messages} 
                         isDm={panel.isDm()} 
-                        dmRecipientPublicKey={(panel as any).dmData?.publicKey}
+                        dmRecipientPublicKey={(panel as DMPanel).dmData?.publicKey}
                         onReplySelect={(message) => {
                             if (editMessage || editVisible) {
                                 setPendingAction({ type: "reply", message: message });

@@ -61,6 +61,10 @@ export interface Message {
     profile_picture?: string;
     reply_to?: Message;
     files?: Attachment[];
+
+    runtimeData?: {
+        dmEnvelope?: DmEnvelope;
+    }
 }
 
 /**
