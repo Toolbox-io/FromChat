@@ -16,6 +16,7 @@ interface ChatInputWrapperProps {
     editVisible?: boolean;
     onClearEdit?: () => void;
     onCloseEdit?: () => void;
+    onProvideFileAdder?: (adder: (files: File[]) => void) => void;
 }
 
 export function ChatInputWrapper(
@@ -29,13 +30,26 @@ export function ChatInputWrapper(
         editingMessage, 
         editVisible = false, 
         onClearEdit, 
-        onCloseEdit 
+        onCloseEdit,
+        onProvideFileAdder
     }: ChatInputWrapperProps
 ) {
     const [message, setMessage] = useState("");
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [attachmentsVisible, setAttachmentsVisible] = useState(false);
     const [errorOpen, setErrorOpen] = useState(false);
+
+    // Expose a way for parent to programmatically add files
+    useEffect(() => {
+        if (onProvideFileAdder) {
+            const addFiles = (files: File[]) => {
+                if (!files || files.length === 0) return;
+                setSelectedFiles(prev => [...prev, ...files]);
+                setAttachmentsVisible(true);
+            };
+            onProvideFileAdder(addFiles);
+        }
+    }, [onProvideFileAdder]);
 
     // When entering edit mode, preload the message content
     useEffect(() => {

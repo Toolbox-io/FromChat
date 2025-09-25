@@ -5,6 +5,7 @@ import { ChatInputWrapper } from "./ChatInputWrapper";
 import { setGlobalMessageHandler } from "../../../core/websocket";
 import type { Message } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
+import AnimatedOpacity from "../core/animations/AnimatedOpacity";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
@@ -21,6 +22,20 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     const [editMessage, setEditMessage] = useState<Message | null>(null);
     const [editVisible, setEditVisible] = useState(Boolean(editMessage));
     const [pendingAction, setPendingAction] = useState<null | { type: "reply" | "edit"; message: Message }>(null);
+
+    // Drag & drop
+    const [isDragging, setIsDragging] = useState(false);
+    const dragCounterRef = useRef(0);
+    const addFilesRef = useRef<null | ((files: File[]) => void)>(null);
+
+    useEffect(() => {
+        if (!panel || !panelState) return;
+
+        return () => {
+            dragCounterRef.current = 0;
+            setIsDragging(false);
+        };
+    }, [panel, panelState]);
 
     useEffect(() => {
         if (replyTo) {
@@ -116,7 +131,41 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
 
     return (
         <div className={`chat-container ${switchIn ? "chat-switch-in" : ""} ${switchOut ? "chat-switch-out" : ""}`}>
-            <div className="chat-main" id="chat-inner">
+            <div 
+                className="chat-main" 
+                id="chat-inner"
+                onDragEnter={(e) => {
+                    if (!e.dataTransfer) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dragCounterRef.current += 1;
+                    // Only show overlay when actual files are dragged
+                    const hasFiles = Array.from(e.dataTransfer.types || []).includes("Files");
+                    if (hasFiles) setIsDragging(true);
+                }}
+                onDragOver={(e) => {
+                    if (!e.dataTransfer) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = "copy";
+                }}
+                onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+                    if (dragCounterRef.current === 0) setIsDragging(false);
+                }}
+                onDrop={(e) => {
+                    if (!e.dataTransfer) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const files = Array.from(e.dataTransfer.files || []);
+                    if (files.length > 0 && addFilesRef.current) {
+                        addFilesRef.current(files);
+                    }
+                    setIsDragging(false);
+                    dragCounterRef.current = 0;
+                }}>
                 <div className="chat-header">
                     <img 
                         src={panelState.profilePicture || defaultAvatar} 
@@ -175,6 +224,19 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         <div ref={messagesEndRef} />
                     </ChatMessages>
                 )}
+
+                <AnimatedOpacity 
+                    visible={isDragging} 
+                    className="file-overlay" 
+                    onDragOver={(e) => e.preventDefault()} 
+                    onDrop={(e) => e.preventDefault()}>
+                    <div className="file-overlay-wrapper">
+                        <div className="file-overlay-inner">
+                            <mdui-icon name="upload_file" />
+                            <span>Отпустите файл(ы) для добавления</span>
+                        </div>
+                    </div>
+                </AnimatedOpacity>
                 
                 <ChatInputWrapper 
                     onSendMessage={(text, files) => {
@@ -213,6 +275,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                             setPendingAction(null);
                         }
                     }}
+                    onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
                 />
             </div>
         </div>

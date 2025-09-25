@@ -41,11 +41,9 @@ def convert_message(msg: Message) -> dict:
         "reply_to": convert_message(msg.reply_to) if msg.reply_to else None,
         "files": [
             {
-                "path": f"/api/files/{'encrypted' if f.encrypted else 'normal'}/{Path(f.path).name}",
-                "encrypted": f.encrypted,
-                "filename": f.filename,
-                "content_type": f.content_type,
-                "size": f.size,
+                "path": f"/api/uploads/files/normal/{Path(f.path).name}",
+                "id": f.id,
+                "message_id": f.message_id
             }
             for f in (msg.files or [])
         ]
