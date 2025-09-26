@@ -277,37 +277,7 @@ export const useAppState = create<AppState>((set, get) => ({
         // Create or get public chat panel
         let publicChatPanel = chat.publicChatPanel;
         if (!publicChatPanel) {
-            const callbacks = {
-                onSendMessage: (_content: string) => {},
-                onEditMessage: async (messageId: number, content: string) => {
-                    if (!user.authToken) return;
-                    try {
-                        await request({
-                            type: "editMessage",
-                            data: {
-                                message_id: messageId,
-                                content: content
-                            },
-                            credentials: {
-                                scheme: "Bearer",
-                                credentials: user.authToken
-                            }
-                        });
-                    } catch (error) {
-                        console.error("Failed to edit message:", error);
-                    }
-                },
-                onDeleteMessage: (_messageId: number) => {},
-                onReplyToMessage: (_messageId: number, _content: string) => {},
-                onProfileClick: () => {}
-            };
-            
-            publicChatPanel = new PublicChatPanel(
-                chatName,
-                user,
-                callbacks,
-                () => {} // State change handled by MessagePanelRenderer
-            );
+            publicChatPanel = new PublicChatPanel(chatName, user);
         } else {
             publicChatPanel.setChatName(chatName);
             publicChatPanel.setAuthToken(user.authToken);
@@ -346,19 +316,7 @@ export const useAppState = create<AppState>((set, get) => ({
         // Create or get DM panel
         let dmPanel = chat.dmPanel;
         if (!dmPanel) {
-            const callbacks = {
-                onSendMessage: (_content: string) => {},
-                onEditMessage: (_messageId: number, _content: string) => {},
-                onDeleteMessage: (_messageId: number) => {},
-                onReplyToMessage: (_messageId: number, _content: string) => {},
-                onProfileClick: () => {}
-            };
-            
-            dmPanel = new DMPanel(
-                user,
-                callbacks,
-                () => {} // State change handled by MessagePanelRenderer
-            );
+            dmPanel = new DMPanel(user);
         } else {
             dmPanel.setAuthToken(user.authToken);
         }

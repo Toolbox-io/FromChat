@@ -38,10 +38,7 @@ export function DMUsersList() {
         if (!user.publicKey) {
             // Get public key if not already loaded
             const authToken = useAppState.getState().user.authToken;
-            if (!authToken) {
-                console.error("No auth token available");
-                return;
-            }
+            if (!authToken) return;
             
             const publicKey = await fetchUserPublicKey(user.id, authToken);
             if (publicKey) {

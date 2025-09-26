@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, inspect, text
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, inspect, null, text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from db import engine
@@ -36,6 +36,18 @@ class Message(Base):
 
     author = relationship("User", back_populates="messages")
     reply_to = relationship("Message", remote_side=[id])
+    files = relationship("MessageFile", back_populates="message", cascade="all, delete-orphan", lazy="select")
+
+
+class MessageFile(Base):
+    __tablename__ = "message_file"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("message.id"), nullable=False, index=True)
+    path = Column(Text, nullable=False)
+    name = Column(Text, nullable=False)
+
+    message = relationship("Message", back_populates="files")
 
 
 class CryptoPublicKey(Base):
@@ -65,7 +77,22 @@ class DMEnvelope(Base):
     salt_b64 = Column(Text, nullable=False)
     iv2_b64 = Column(Text, nullable=False)
     wrapped_mk_b64 = Column(Text, nullable=False)
+    reply_to_id = Column(Integer, nullable=True)
     timestamp = Column(DateTime, default=datetime.now)
+    files = relationship("DMFile", back_populates="message", cascade="all, delete-orphan", lazy="select")
+
+
+class DMFile(Base):
+    __tablename__ = "dm_file"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("dm_envelope.id"), nullable=False, index=True)
+    sender_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    recipient_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    name = Column(Text, nullable=False)
+    path = Column(Text, nullable=False)
+
+    message = relationship("DMEnvelope", back_populates="files")
 
 
 class PushSubscription(Base):

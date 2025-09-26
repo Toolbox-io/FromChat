@@ -7,7 +7,7 @@ import {
     decryptDm, 
     sendDMViaWebSocket 
 } from "../../api/dmApi";
-import type { User, Message } from "../../core/types";
+import type { User, Message, DmEncryptedJSON } from "../../core/types";
 import { websocket } from "../../core/websocket";
 
 interface DMUser extends User {
@@ -41,7 +41,8 @@ export function useDM() {
             let lastPlaintext: string | null = null;
             
             try {
-                lastPlaintext = await decryptDm(lastMessage, publicKey);
+                lastPlaintext = (JSON.parse(await decryptDm(lastMessage, publicKey)) as DmEncryptedJSON).data.content;
+                console.log(lastPlaintext);
             } catch (error) {
                 console.error("Failed to decrypt last message:", error);
             }
@@ -93,50 +94,7 @@ export function useDM() {
             // Load last messages and unread counts for visible users
             // Call loadUserLastMessage directly without dependency
             for (const dmUser of dmUsersWithState) {
-                if (!user.authToken) continue;
-                
-                try {
-                    // Get public key
-                    const publicKey = await fetchUserPublicKey(dmUser.id, user.authToken);
-                    if (!publicKey) continue;
-
-                    // Get message history
-                    const messages = await fetchDMHistory(dmUser.id, user.authToken, 50);
-                    if (messages.length === 0) continue;
-
-                    // Find last message
-                    const lastMessage = messages[messages.length - 1];
-                    let lastPlaintext: string | null = null;
-                    
-                    try {
-                        lastPlaintext = await decryptDm(lastMessage, publicKey);
-                    } catch (error) {
-                        console.error("Failed to decrypt last message:", error);
-                    }
-
-                    // Calculate unread count
-                    const lastReadId = getLastReadId(dmUser.id);
-                    let unreadCount = 0;
-                    for (const msg of messages) {
-                        if (msg.senderId === dmUser.id && msg.id > lastReadId) {
-                            unreadCount++;
-                        }
-                    }
-
-                    // Update user state
-                    setDmUsersState(prev => prev.map(u => 
-                        u.id === dmUser.id 
-                            ? { 
-                                ...u, 
-                                lastMessage: lastPlaintext ? lastPlaintext.split(/\r?\n/).slice(0, 2).join("\n") : undefined,
-                                unreadCount,
-                                publicKey
-                            }
-                            : u
-                    ));
-                } catch (error) {
-                    console.error("Failed to load last message for user:", dmUser.id, error);
-                }
+                await loadUserLastMessage(dmUser);
             }
         } catch (error) {
             console.error("Failed to load DM users:", error);

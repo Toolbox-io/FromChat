@@ -1,13 +1,15 @@
 export type Platform = "win32" | "darwin" | "linux"
 
+export interface NotificationShowOptions {
+    title: string;
+    body: string;
+    icon?: string;
+    tag?: string;
+}
+
 export interface ElectronNotifications {
     requestPermission: () => Promise<NotificationPermission>;
-    show: (options: {
-        title: string;
-        body: string;
-        icon?: string;
-        tag?: string;
-    }) => Promise<boolean>;
+    show: (options: NotificationShowOptions) => Promise<boolean>;
 }
 
 export interface ElectronInterface {

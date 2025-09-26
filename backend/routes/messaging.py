@@ -1,15 +1,33 @@
 from datetime import datetime
 import logging
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from pathlib import Path
+import os
+import re
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
 from constants import OWNER_USERNAME
-from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope
+from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile
 from push_service import push_service
+from PIL import Image
+import io
+import json
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
+
+MAX_TOTAL_SIZE = 4 * 1024 * 1024 * 1024  # 4 GB
+
+FILES_BASE_DIR = Path("data/uploads/files")
+FILES_NORMAL_DIR = FILES_BASE_DIR / "normal"
+FILES_ENCRYPTED_DIR = FILES_BASE_DIR / "encrypted"
+
+os.makedirs(FILES_NORMAL_DIR, exist_ok=True)
+os.makedirs(FILES_ENCRYPTED_DIR, exist_ok=True)
+
 
 def convert_message(msg: Message) -> dict:
     return {
@@ -20,16 +38,39 @@ def convert_message(msg: Message) -> dict:
         "is_edited": msg.is_edited,
         "username": msg.author.username,
         "profile_picture": msg.author.profile_picture,
-        "reply_to": convert_message(msg.reply_to) if msg.reply_to else None
+        "reply_to": convert_message(msg.reply_to) if msg.reply_to else None,
+        "files": [
+            {
+                "path": f"/api/uploads/files/normal/{Path(f.path).name}",
+                "id": f.id,
+                "name": f.name,
+                "message_id": f.message_id
+            }
+            for f in (msg.files or [])
+        ]
     }
 
 
 @router.post("/send_message")
 async def send_message(
-    request: SendMessageRequest,
+    request: SendMessageRequest | None = None,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    # Optional multipart form support
+    payload: str | None = Form(default=None),
+    files: list[UploadFile] = File(default=[]),
 ):
+    # If payload is provided, prefer it for multipart requests
+    if payload and request is None:
+        # Expect JSON: {"type":"text","data":{"content": str}, "reply_to_id": number|null}
+        try:
+            obj = json.loads(payload)
+            content = obj.get("content", "")
+            reply_to_id = obj.get("reply_to_id", None)
+            request = SendMessageRequest(content=content, reply_to_id=reply_to_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid payload JSON")
+
     if request.reply_to_id:
         # Check if the message being replied to exists
         original_message = db.query(Message).filter(Message.id == request.reply_to_id).first()
@@ -59,11 +100,76 @@ async def send_message(
     db.commit()
     db.refresh(new_message)
 
+    # Handle files if provided (normal, not encrypted)
+    if files:
+        total_size = 0
+        for up in files:
+            # Accumulate size if available
+            if hasattr(up, "size") and up.size is not None:
+                total_size += int(up.size)
+            else:
+                # If size unknown, read into memory to determine
+                data = await up.read()
+                up.file.seek(0)
+                total_size += len(data)
+            if total_size > MAX_TOTAL_SIZE:
+                raise HTTPException(status_code=400, detail="Total attachments size exceeds 4GB")
+
+        for up in files:
+            # Sanitize filename
+            original_name = Path(up.filename or "file").name
+            ext = Path(original_name).suffix.lower()
+            uid = uuid.uuid4().hex
+            safe_name = f"{new_message.id}_{uid}{ext or ''}"
+            out_path = FILES_NORMAL_DIR / safe_name
+
+            content = await up.read()
+            up.file.seek(0)
+
+            # If image, try lossless optimization
+            try:
+                if up.content_type and up.content_type.startswith("image/"):
+                    image = Image.open(io.BytesIO(content))
+                    img_format = image.format or ("PNG" if ext == ".png" else "JPEG")
+                    buf = io.BytesIO()
+                    save_kwargs = {"optimize": True}
+                    if img_format.upper() == "JPEG":
+                        # Use quality=95 with optimize to keep high quality (not truly lossless but near)
+                        save_kwargs["quality"] = 95
+                    image.save(buf, format=img_format, **save_kwargs)
+                    buf.seek(0)
+                    content = buf.read()
+            except Exception:
+                # Fallback to original content
+                pass
+
+            with open(out_path, "wb") as f:
+                f.write(content)
+
+            mf = MessageFile(
+                message_id=new_message.id,
+                name=original_name,
+                path=str(out_path)
+            )
+            db.add(mf)
+        db.commit()
+        db.refresh(new_message)
+
     # Send push notifications for public messages
     try:
         await push_service.send_public_message_notification(db, new_message, exclude_user_id=current_user.id)
     except Exception as e:
         logger.error(f"Failed to send push notification for message {new_message.id}: {e}")
+
+    # Realtime broadcast for HTTP uploads as well
+    try:
+        from .messaging import messagingManager  # self import safe here
+        await messagingManager.broadcast({
+            "type": "newMessage",
+            "data": convert_message(new_message)
+        })
+    except Exception:
+        pass
 
     return {"status": "success", "message": convert_message(new_message)}
 
@@ -83,11 +189,29 @@ async def get_messages(db: Session = Depends(get_db)):
 
 
 @router.post("/dm/send")
-async def dm_send(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def dm_send(
+    payload: dict | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    # Multipart support
+    dm_payload: str | None = Form(default=None),
+    files: list[UploadFile] = File(default=[]),
+    fileNames: str | None = Form(default=None),  # JSON array of filenames corresponding to files
+):
+    if dm_payload and payload is None:
+        try:
+            payload = json.loads(dm_payload)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid dm_payload JSON")
+
+    if payload is None:
+        raise HTTPException(status_code=400, detail="Missing payload")
+
     required = ["recipientId", "iv", "ciphertext", "salt", "iv2", "wrappedMk"]
     for key in required:
         if key not in payload:
             raise HTTPException(status_code=400, detail=f"Missing {key}")
+
     env = DMEnvelope(
         sender_id=current_user.id,
         recipient_id=int(payload["recipientId"]),
@@ -96,26 +220,92 @@ async def dm_send(payload: dict, current_user: User = Depends(get_current_user),
         salt_b64=payload["salt"],
         iv2_b64=payload["iv2"],
         wrapped_mk_b64=payload["wrappedMk"],
+        reply_to_id=payload.get("replyToId") if isinstance(payload.get("replyToId"), int) else None,
     )
     db.add(env)
     db.commit()
     db.refresh(env)
-    
+
+    # Save encrypted files if any (no processing)
+    if files:
+        # Validate total size
+        total_size = 0
+        for file in files:
+            if hasattr(file, "size") and file.size is not None:
+                total_size += int(file.size)
+            else:
+                data = await file.read()
+                file.file.seek(0)
+                total_size += len(data)
+            if total_size > MAX_TOTAL_SIZE:
+                raise HTTPException(status_code=400, detail="Total attachments size exceeds 4GB")
+
+        names: list[str] = []
+        if fileNames:
+            try:
+                decoded = json.loads(fileNames)
+                if isinstance(decoded, list):
+                    names = [str(x) for x in decoded]
+            except Exception:
+                names = []
+
+        for i, file in enumerate(files):
+            provided = names[i] if i < len(names) else None
+            # Sanitize provided name to avoid path traversal
+            if provided and not re.match(r"^[A-Za-z0-9._-]{1,200}$", provided):
+                provided = None
+            original_name = provided or Path(file.filename or "file").name
+            # Save using provided/original name to allow client to reference path directly
+            safe_name = uid = uuid.uuid4().hex
+            out_name = f"{current_user.id}_{env.recipient_id}_{env.id}_{safe_name}"
+            out_path = FILES_ENCRYPTED_DIR / out_name
+
+            content = await file.read()
+            with open(out_path, "wb") as f:
+                f.write(content)
+
+            # Save DM file record
+            df = DMFile(
+                message_id=env.id,
+                sender_id=current_user.id,
+                recipient_id=env.recipient_id,
+                path=f"/api/uploads/files/encrypted/{out_name}",
+                name=original_name
+            )
+            db.add(df)
+        db.commit()
+
     # Send push notification for DM
     try:
         await push_service.send_dm_notification(db, env, current_user)
     except Exception as e:
         logger.error(f"Failed to send push notification for DM {env.id}: {e}")
-    
+
+    # Realtime notify both users for HTTP requests
+    try:
+        payload_ws = {
+            "type": "dmNew",
+            "data": {
+                "id": env.id,
+                "senderId": env.sender_id,
+                "recipientId": env.recipient_id,
+                "iv": env.iv_b64,
+                "ciphertext": env.ciphertext_b64,
+                "salt": env.salt_b64,
+                "iv2": env.iv2_b64,
+                "wrappedMk": env.wrapped_mk_b64,
+                "timestamp": env.timestamp.isoformat(),
+                "replyToId": env.reply_to_id,
+            }
+        }
+        await messagingManager.send_to_user(env.recipient_id, payload_ws)
+        await messagingManager.send_to_user(env.sender_id, payload_ws)
+    except Exception:
+        pass
+
     return {"status": "ok", "id": env.id}
 
-
-@router.get("/dm/fetch")
-async def dm_fetch(since: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    q = db.query(DMEnvelope).filter(DMEnvelope.recipient_id == current_user.id)
-    if since:
-        q = q.filter(DMEnvelope.id > since)
-    envs = q.order_by(DMEnvelope.id.asc()).all()
+def convert_envelopes(envs: list[DMEnvelope]):
     return {
         "status": "ok",
         "messages": [
@@ -129,15 +319,23 @@ async def dm_fetch(since: int | None = None, current_user: User = Depends(get_cu
                 "iv2": e.iv2_b64,
                 "wrappedMk": e.wrapped_mk_b64,
                 "timestamp": e.timestamp.isoformat(),
+                "files": [{"name": file.name, "path": file.path, "id": file.id} for file in e.files]
             }
             for e in envs
         ]
     }
 
+@router.get("/dm/fetch")
+async def dm_fetch(since: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    q = db.query(DMEnvelope).filter(DMEnvelope.recipient_id == current_user.id)
+    if since:
+        q = q.filter(DMEnvelope.id > since)
+    return convert_envelopes(q.order_by(DMEnvelope.id.asc()).all())
+
 
 @router.get("/dm/history/{other_user_id}")
 async def dm_history(other_user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    envs = (
+    return convert_envelopes(
         db.query(DMEnvelope)
         .filter(
             ((DMEnvelope.sender_id == current_user.id) & (DMEnvelope.recipient_id == other_user_id))
@@ -146,23 +344,6 @@ async def dm_history(other_user_id: int, current_user: User = Depends(get_curren
         .order_by(DMEnvelope.id.asc())
         .all()
     )
-    return {
-        "status": "ok",
-        "messages": [
-            {
-                "id": e.id,
-                "senderId": e.sender_id,
-                "recipientId": e.recipient_id,
-                "iv": e.iv_b64,
-                "ciphertext": e.ciphertext_b64,
-                "salt": e.salt_b64,
-                "iv2": e.iv2_b64,
-                "wrappedMk": e.wrapped_mk_b64,
-                "timestamp": e.timestamp.isoformat(),
-            }
-            for e in envs
-        ]
-    }
 
 
 @router.put("/edit_message/{message_id}")
@@ -284,7 +465,7 @@ class MessaggingSocketManager:
                     
                     request: SendMessageRequest = SendMessageRequest.model_validate(data["data"])
 
-                    response = await send_message(request, current_user, db)
+                    response = await send_message(request, current_user, db, None, [])
                     await self.broadcast({
                         "type": "newMessage",
                         "data": response["message"]
@@ -312,6 +493,7 @@ class MessaggingSocketManager:
                         salt_b64=payload["salt"],
                         iv2_b64=payload["iv2"],
                         wrapped_mk_b64=payload["wrappedMk"],
+                        reply_to_id=payload.get("replyToId") if isinstance(payload.get("replyToId"), int) else None,
                     )
                     db.add(env)
                     db.commit()
@@ -329,6 +511,7 @@ class MessaggingSocketManager:
                             "iv2": env.iv2_b64,
                             "wrappedMk": env.wrapped_mk_b64,
                             "timestamp": env.timestamp.isoformat(),
+                            "replyToId": env.reply_to_id,
                         }
                     }
 
@@ -359,6 +542,76 @@ class MessaggingSocketManager:
                     })
 
                     await websocket.send_json({"type": type, "data": response})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "dmEdit":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+
+                    payload = data["data"]
+                    env_id = int(payload["id"])
+                    env: DMEnvelope | None = db.query(DMEnvelope).filter(DMEnvelope.id == env_id).first()
+                    if not env:
+                        raise HTTPException(status_code=404, detail="DM not found")
+                    if env.sender_id != current_user.id:
+                        raise HTTPException(status_code=403, detail="You can only edit your own messages")
+
+                    # Replace ciphertext and iv
+                    env.iv_b64 = payload["iv"]
+                    env.ciphertext_b64 = payload["ciphertext"]
+                    env.iv2_b64 = payload["iv2"]
+                    env.wrapped_mk_b64 = payload["wrappedMk"]
+                    env.salt_b64 = payload["salt"]
+                    db.commit()
+                    db.refresh(env)
+
+                    payload_ws = {
+                        "type": "dmEdited",
+                        "data": {
+                            "id": env.id,
+                            "iv": env.iv_b64,
+                            "ciphertext": env.ciphertext_b64,
+                            "iv2": env.iv2_b64,
+                            "wrappedMk": env.wrapped_mk_b64,
+                            "salt": env.salt_b64,
+                            "timestamp": env.timestamp.isoformat(),
+                        }
+                    }
+                    await self.send_to_user(env.recipient_id, payload_ws)
+                    await self.send_to_user(env.sender_id, payload_ws)
+                    await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "dmDelete":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+
+                    payload = data["data"]
+                    env_id = int(payload["id"])
+                    env: DMEnvelope | None = db.query(DMEnvelope).filter(DMEnvelope.id == env_id).first()
+                    if not env:
+                        raise HTTPException(status_code=404, detail="DM not found")
+                    if env.sender_id != current_user.id:
+                        raise HTTPException(status_code=403, detail="You can only delete your own messages")
+
+                    db.delete(env)
+                    db.commit()
+
+                    payload_ws = {
+                        "type": "dmDeleted",
+                        "data": {
+                            "id": env_id,
+                            "senderId": current_user.id,
+                            "recipientId": payload.get("recipientId")
+                        }
+                    }
+                    await self.send_to_user(env.recipient_id, payload_ws)
+                    await websocket.send_json({"type": type, "data": {"status": "ok", "id": env_id}})
+                    await self.send_to_user(env.sender_id, payload_ws)
                 except HTTPException as e:
                     await self.send_error(websocket, type, e)
             elif type == "deleteMessage":
@@ -415,3 +668,35 @@ async def chat_websocket(
     db: Session = Depends(get_db)
 ):
     await messagingManager.connect(websocket, db)
+
+
+# File serving endpoints
+@router.get("/uploads/files/normal/{filename}")
+async def get_file_normal(filename: str):
+    if not re.match(r"^[A-Za-z0-9._-]+$", filename):
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    path = FILES_NORMAL_DIR / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(str(path))
+
+
+@router.get("/uploads/files/encrypted/{filename}")
+async def get_file_encrypted(filename: str, current_user: User = Depends(get_current_user)):
+    if not re.match(r"^[A-Za-z0-9._-]+$", filename):
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    path = FILES_ENCRYPTED_DIR / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    match = re.match(r"^(\d+)_(\d+)_(\d+)_.*$", path.resolve().name)
+    if match:
+        sender_id = int(match.group(1))
+        recipient_id = int(match.group(2))
+
+        if not current_user.id in [sender_id, recipient_id]:
+            raise HTTPException(403)
+    else:
+        raise HTTPException(500)
+
+    return FileResponse(str(path))

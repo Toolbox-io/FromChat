@@ -12,7 +12,7 @@ export interface MessagePanelState {
 }
 
 export interface MessagePanelCallbacks {
-    onSendMessage: (content: string) => void;
+    onSendMessage: (content: string, files: File[]) => void;
     onEditMessage: (messageId: number, content: string) => void;
     onDeleteMessage: (messageId: number) => void;
     onReplyToMessage: (messageId: number, content: string) => void;
@@ -21,15 +21,12 @@ export interface MessagePanelCallbacks {
 
 export abstract class MessagePanel {
     protected state: MessagePanelState;
-    protected callbacks: MessagePanelCallbacks;
-    public onStateChange: ((state: MessagePanelState) => void) | null;
-    protected currentUser: UserState;
+    public onStateChange: ((state: MessagePanelState) => void) | null = () => {};
+    protected readonly currentUser: UserState;
 
     constructor(
         id: string,
         currentUser: UserState,
-        callbacks: MessagePanelCallbacks,
-        onStateChange: (state: MessagePanelState) => void
     ) {
         this.state = {
             id,
@@ -40,15 +37,13 @@ export abstract class MessagePanel {
             isTyping: false
         };
         this.currentUser = currentUser;
-        this.callbacks = callbacks;
-        this.onStateChange = onStateChange;
     }
 
     // Abstract methods that must be implemented by subclasses
     abstract activate(): Promise<void>;
     abstract deactivate(): void;
     abstract loadMessages(): Promise<void>;
-    abstract sendMessage(content: string, replyToId?: number): Promise<void>;
+    abstract sendMessage(content: string, replyToId?: number, files?: File[]): Promise<void>;
     abstract isDm(): boolean;
     
     // Optional WebSocket message handler (can be overridden by subclasses)
@@ -115,23 +110,10 @@ export abstract class MessagePanel {
     }
 
     // Event handlers
-    handleSendMessage = (content: string, replyToId?: number): void => {
-        this.sendMessage(content, replyToId);
+    handleSendMessage(content: string, replyToId?: number, files: File[] = []): void {
+        this.sendMessage(content, replyToId, files);
     };
-
-    handleEditMessage = (messageId: number, content: string): void => {
-        this.callbacks.onEditMessage(messageId, content);
-    };
-
-    handleDeleteMessage = (messageId: number): void => {
-        this.callbacks.onDeleteMessage(messageId);
-    };
-
-    handleReplyToMessage = (messageId: number, content: string): void => {
-        this.callbacks.onReplyToMessage(messageId, content);
-    };
-
-    handleProfileClick = (): void => {
-        this.callbacks.onProfileClick();
-    };
+    abstract handleEditMessage(messageId: number, content: string): Promise<void>;
+    abstract handleDeleteMessage(messageId: number): Promise<void>;
+    abstract handleProfileClick(): void;
 }

@@ -11,7 +11,7 @@
         "backend:run": "cd backend && dotenv -e ../deployment/.env -- ../.venv/bin/fastapi dev --port 8300 main.py",
         "backend:dependencies": "python3 -m venv .venv && ./.venv/bin/pip3 install -r backend/requirements.txt",
         "backend:reinstall": "rm -rf .venv && npm run backend:dependencies",
-        "backend:clean": "rm -rf backend/data",
+        "backend:clean": "rm -rf backend/data && rm -rf backend/migrations",
         "frontend:dev": "vite frontend",
         "frontend:typecheck": "tsc --project frontend",
         "frontend:build": "npm run frontend:typecheck && vite build frontend",

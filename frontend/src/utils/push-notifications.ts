@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "../core/config";
 import { isElectron } from "../electron/electron";
 import { websocket } from "../core/websocket";
-import type { WebSocketMessage } from "../core/types";
+import type { NewMessageWebSocketMessage, WebSocketMessage } from "../core/types";
 
 export interface PushSubscriptionData {
     endpoint: string;
@@ -124,10 +124,11 @@ async function showMessageNotification(message: any): Promise<void> {
     }
 }
 
-async function handleWebSocketMessage(response: WebSocketMessage): Promise<void> {
+async function handleWebSocketMessage(response: WebSocketMessage<any>): Promise<void> {
     // Handle notifications for new messages
     if (response.type === "newMessage" && response.data) {
-        await showMessageNotification(response.data);
+        const newResponse = response as NewMessageWebSocketMessage;
+        await showMessageNotification(newResponse.data);
     }
 }
 
@@ -242,7 +243,7 @@ export async function startElectronReceiver(): Promise<void> {
     // Add our own message listener to the existing WebSocket
     messageListener = (event: MessageEvent) => {
         try {
-            const response: WebSocketMessage = JSON.parse(event.data);
+            const response: WebSocketMessage<any> = JSON.parse(event.data);
             handleWebSocketMessage(response);
         } catch (error) {
             console.error('Failed to parse WebSocket message:', error);

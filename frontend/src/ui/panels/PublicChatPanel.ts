@@ -1,8 +1,8 @@
-import { MessagePanel, type MessagePanelCallbacks, type MessagePanelState } from "./MessagePanel";
+import { MessagePanel } from "./MessagePanel";
 import { API_BASE_URL } from "../../core/config";
 import { getAuthHeaders } from "../../auth/api";
 import { request } from "../../core/websocket";
-import type { Message, WebSocketMessage } from "../../core/types";
+import type { ChatWebSocketMessage, Message, SendMessageRequest } from "../../core/types";
 import type { UserState } from "../state";
 
 export class PublicChatPanel extends MessagePanel {
@@ -10,11 +10,9 @@ export class PublicChatPanel extends MessagePanel {
 
     constructor(
         chatName: string,
-        currentUser: UserState,
-        callbacks: MessagePanelCallbacks,
-        onStateChange: (state: MessagePanelState) => void
+        currentUser: UserState
     ) {
-        super(`public-${chatName}`, currentUser, callbacks, onStateChange);
+        super(`public-${chatName}`, currentUser);
         this.updateState({
             title: chatName,
             online: true // Public chats are always "online"
@@ -61,24 +59,40 @@ export class PublicChatPanel extends MessagePanel {
         }
     }
 
-    async sendMessage(content: string, replyToId?: number): Promise<void> {
+    async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !content.trim()) return;
 
         try {
-            const response = await request({
-                data: { 
-                    content: content.trim(), 
-                    reply_to_id: replyToId ?? null
-                },
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: this.currentUser.authToken
-                },
-                type: "sendMessage"
-            });
-
-            if (response.error) {
-                console.error("Error sending message:", response.error);
+            if (files.length === 0) {
+                const response = await request({
+                    data: {
+                        content: content.trim(), 
+                        reply_to_id: replyToId ?? null
+                    },
+                    credentials: {
+                        scheme: "Bearer",
+                        credentials: this.currentUser.authToken
+                    },
+                    type: "sendMessage"
+                } satisfies SendMessageRequest);
+                if (response.error) {
+                    console.error("Error sending message:", response.error);
+                }
+            } else {
+                const form = new FormData();
+                form.append("payload", JSON.stringify({
+                    content: content.trim(),
+                    reply_to_id: replyToId ?? null 
+                } satisfies SendMessageRequest["data"]));
+                for (const f of files) form.append("files", f, f.name);
+                const res = await fetch(`${API_BASE_URL}/send_message`, {
+                    method: "POST",
+                    headers: getAuthHeaders(this.currentUser.authToken, false),
+                    body: form
+                });
+                if (!res.ok) {
+                    console.error("Error sending message with files", await res.text());
+                }
             }
         } catch (error) {
             console.error("Error sending message:", error);
@@ -86,7 +100,7 @@ export class PublicChatPanel extends MessagePanel {
     }
 
     // Handle incoming WebSocket messages
-    handleWebSocketMessage = (response: WebSocketMessage): void => {
+    handleWebSocketMessage = (response: ChatWebSocketMessage): void => {
         switch (response.type) {
             case 'messageEdited':
                 if (response.data) {
@@ -124,4 +138,36 @@ export class PublicChatPanel extends MessagePanel {
     setAuthToken(authToken: string): void {
         this.currentUser.authToken = authToken;
     }
+
+    async handleEditMessage(messageId: number, content: string): Promise<void> {
+        if (!this.currentUser.authToken) return;
+        try {
+            await request({
+                type: "editMessage",
+                data: {
+                    message_id: messageId,
+                    content: content
+                },
+                credentials: {
+                    scheme: "Bearer",
+                    credentials: this.currentUser.authToken
+                }
+            });
+        } catch (error) {
+            console.error("Failed to edit message:", error);
+        }
+    }
+
+    async handleDeleteMessage(id: number): Promise<void> {
+        await request({
+            type: "deleteMessage",
+            data: { message_id: id },
+            credentials: { 
+                scheme: "Bearer", 
+                credentials: this.currentUser.authToken! 
+            }
+        });
+    }
+    
+    handleProfileClick(): void {}
 }

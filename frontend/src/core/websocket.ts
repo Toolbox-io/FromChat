@@ -33,17 +33,17 @@ export let websocket: WebSocket = create();
  * Global WebSocket message handler reference
  * This will be set by the active panel to handle incoming messages
  */
-let globalMessageHandler: ((response: WebSocketMessage) => void) | null = null;
+let globalMessageHandler: ((response: WebSocketMessage<any>) => void) | null = null;
 
 /**
  * Set the global WebSocket message handler
  * @param handler - Function to handle WebSocket messages
  */
-export function setGlobalMessageHandler(handler: ((response: WebSocketMessage) => void) | null): void {
+export function setGlobalMessageHandler(handler: ((response: WebSocketMessage<any>) => void) | null): void {
     globalMessageHandler = handler;
 }
 
-export function request(payload: WebSocketMessage): Promise<WebSocketMessage> {
+export function request<Request, Response = any>(payload: WebSocketMessage<Request>): Promise<WebSocketMessage<Response>> {
     console.log("WebSocket request:", payload);
     return new Promise((resolve, reject) => {
         function requestInner() {
@@ -95,7 +95,7 @@ async function onError() {
 
 websocket.addEventListener("message", (e) => {
     try {
-        const response: WebSocketMessage = JSON.parse(e.data);
+        const response: WebSocketMessage<any> = JSON.parse(e.data);
         
         // Route message to global handler if set
         if (globalMessageHandler) {

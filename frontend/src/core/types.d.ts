@@ -60,6 +60,11 @@ export interface Message {
     timestamp: string;
     profile_picture?: string;
     reply_to?: Message;
+    files?: Attachment[];
+
+    runtimeData?: {
+        dmEnvelope?: DmEnvelope;
+    }
 }
 
 /**
@@ -154,6 +159,7 @@ export interface SendDMRequest {
     salt: string;
     iv2: string;
     wrappedMk: string;
+    replyToId?: number;
 }
 
 // Responses
@@ -173,20 +179,52 @@ export interface BackupBlob {
     blob: string;
 }
 
-export interface DmEnvelope {
-    id: number;
-    senderId: number;
-    recipientId: number;
+export interface BaseDmEnvelope {
     iv: string;
     ciphertext: string;
     salt: string;
     iv2: string;
     wrappedMk: string;
+    recipientId: number;
+}
+
+export interface DmEnvelope extends BaseDmEnvelope {
+    id: number;
+    senderId: number;
+    files?: DmFile[];
     timestamp: string;
+}
+
+export interface DmFile {
+    name: string;
+    id: number;
+    path: string;
+}
+
+export interface DmEditedPayload { 
+    id: number; 
+    iv: string; 
+    ciphertext: string; 
+    timestamp: string 
+}
+
+export interface DmDeletedPayload { 
+    id: number; 
+    senderId: number; 
+    recipientId: number 
 }
 
 export interface FetchDMResponse {
     messages: DmEnvelope[]
+}
+
+export interface DmEncryptedJSON {
+    type: "text",
+    data: {
+        content: string;
+        reply_to_id?: number;
+        files?: Attachment[];
+    }
 }
 
 // ---------------
@@ -201,10 +239,10 @@ export interface FetchDMResponse {
  * @property {any} [data] - Message payload data
  * @property {WebSocketError} [error] - Error information if applicable
  */
-export interface WebSocketMessage {
+export interface WebSocketMessage<T> {
     type: string;
     credentials?: WebSocketCredentials;
-    data?: any;
+    data?: T;
     error?: WebSocketError;
 }
 
@@ -228,6 +266,98 @@ export interface WebSocketError {
 export interface WebSocketCredentials {
     scheme: string;
     credentials: string;
+}
+
+export interface Attachment {
+    path: string;
+    encrypted: boolean;
+    name: string;
+}
+
+// -----------------------
+// WebSocket message types
+// -----------------------
+
+// Utils
+export interface DMEditPayload {
+    id: number;
+    iv: string;
+    ciphertext: string;
+    iv2: string;
+    wrappedMk: string;
+    salt: string;
+}
+
+// Requests
+export interface DMEditRequest extends WebSocketMessage {
+    type: "dmEdit",
+    credentials: WebSocketCredentials;
+    data: DMEditPayload
+}
+
+export interface SendMessageRequest extends WebSocketMessage {
+    type: "sendMessage",
+    credentials: WebSocketCredentials;
+    data: {
+        content: string;
+        reply_to_id: number | null;
+    }
+}
+
+// Messages
+export interface DMNewWebSocketMessage extends WebSocketMessage {
+    type: "dmNew",
+    data: DmEnvelope
+}
+
+export interface DMEditedWebSocketMessage extends WebSocketMessage {
+    type: "dmEdited",
+    data: DMEditPayload
+}
+
+export interface DMDeletedWebSocketMessage extends WebSocketMessage {
+    type: "dmDeleted",
+    data: {
+        id: number;
+    }
+}
+
+export interface MessageEditedWebSocketMessage extends WebSocketMessage {
+    type: "messageEdited",
+    data: Partial<Message> & { id: number }
+}
+
+export interface MessageDeletedWebSocketMessage extends WebSocketMessage {
+    type: "messageDeleted",
+    data: {
+        message_id: number;
+    }
+}
+
+export interface NewMessageWebSocketMessage extends WebSocketMessage {
+    type: "newMessage",
+    data: Message
+}
+
+// Shared types
+export type DMWebSocketMessage = DMNewWebSocketMessage | DMEditedWebSocketMessage | DMDeletedWebSocketMessage
+export type ChatWebSocketMessage = MessageEditedWebSocketMessage | MessageDeletedWebSocketMessage | NewMessageWebSocketMessage
+
+// -----------
+// Encrypted message JSON (plaintext structure before encryption)
+// -----------
+
+export type ChatMessageKind = "text"; // Extendable for future kinds
+
+export interface EncryptedTextMessageData {
+    content: string;
+    files?: Attachment[];
+    reply_to_id?: number | null;
+}
+
+export interface EncryptedMessageJson {
+    type: ChatMessageKind;
+    data: EncryptedTextMessageData;
 }
 
 // -----------
