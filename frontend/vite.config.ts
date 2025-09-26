@@ -107,6 +107,7 @@ export default defineConfig({
         cssMinify: true,
         assetsInlineLimit: 0,
         outDir: process.env.VITE_ELECTRON ? "build/electron/dist" : "build/normal/dist",
+        chunkSizeWarningLimit: 1024,
         rollupOptions: {
             input: {
                 main: resolve(__dirname, "index.html"),

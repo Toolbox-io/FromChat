@@ -13,7 +13,7 @@ export async function decryptDm(envelope: DmEnvelope, senderPublicKeyB64: string
     if (!keys) throw new Error("Keys not initialized");
 
     // Obtain the key
-    const shared = await ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
+    const shared = ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
     const wkRaw = await deriveWrappingKey(shared, ub64(envelope.salt), new Uint8Array([1]));
     const wk = await importAesGcmKey(wkRaw);
     const mk = await aesGcmDecrypt(wk, ub64(envelope.iv2), ub64(envelope.wrappedMk));
@@ -53,7 +53,7 @@ export async function sendDMViaWebSocket(recipientId: number, recipientPublicKey
     // Encryption key
     const mk = randomBytes(32);
     const wkSalt = randomBytes(16);
-    const shared = await ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
+    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
     const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
     const wk = await importAesGcmKey(wkRaw);
 

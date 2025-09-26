@@ -3,6 +3,7 @@ import type { Message as MessageType } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import Quote from "../core/Quote";
 import { parse } from "marked";
+import DOMPurify from "dompurify";
 import { useEffect, useState } from "react";
 
 interface MessageProps {
@@ -15,15 +16,13 @@ interface MessageProps {
 }
 
 export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false }: MessageProps) {
-    const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
+    const [formattedMessage, setFormattedMessage] = useState({ __html: DOMPurify.sanitize(message.content).trim() });
 
     useEffect(() => {
         (async () => {
-            const DOMPurify = await import("dompurify");
-
             setFormattedMessage({
-                __html: DOMPurify.default.sanitize(
-                    await parse(message.content.trim())
+                __html: DOMPurify.sanitize(
+                    await parse(message.content)
                 ).trim()
             });
         })();
