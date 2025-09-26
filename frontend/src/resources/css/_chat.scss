@@ -238,6 +238,7 @@
 
                         .message-attachments {
                             padding: 5px 0 0 0;
+                            overflow: hidden;
 
                             .attachment {
                                 a {
@@ -255,6 +256,45 @@
                                     &:last-child {
                                         margin-bottom: 0;
                                     }
+                                    &.loading {
+                                        filter: blur(10px);
+                                        transition: filter 200ms ease;
+                                    }
+                                }
+
+                                .attachement-image.placeholder {
+                                    background: $color-dark-surface-container-highest;
+                                    pointer-events: none;
+                                }
+
+                                .image-wrapper {
+                                    position: relative;
+                                    display: inline-block;
+                                }
+
+                                .loading-overlay {
+                                    position: absolute;
+                                    inset: 0;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    background: rgba(0, 0, 0, 0.08);
+                                    backdrop-filter: blur(6px);
+                                    border-radius: 8px;
+                                }
+
+                                .preload-image {
+                                    position: absolute;
+                                    width: 0;
+                                    height: 0;
+                                    opacity: 0;
+                                    pointer-events: none;
+                                }
+
+                                .with-icon-gap {
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 8px;
                                 }
                             }
                         }
@@ -555,5 +595,13 @@
             top: 12px;
             right: 12px;
         }
+    }
+
+    .progress-wrapper {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 }

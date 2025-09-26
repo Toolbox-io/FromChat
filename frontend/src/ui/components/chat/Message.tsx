@@ -11,6 +11,7 @@ import { importAesGcmKey, aesGcmDecrypt } from "../../../utils/crypto/symmetric"
 import { getAuthHeaders } from "../../../auth/api";
 import { useAppState } from "../../state";
 import { ub64 } from "../../../utils/utils";
+import { useImmer } from "use-immer";
 
 interface MessageProps {
     message: MessageType;
@@ -31,7 +32,10 @@ interface Rect {
 
 export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false, dmRecipientPublicKey }: MessageProps) {
     const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
-    const [decryptedFiles, setDecryptedFiles] = useState<Map<string, string>>(new Map());
+    const [decryptedFiles, updateDecryptedFiles] = useImmer<Map<string, string>>(new Map());
+    const [loadedImages, updateLoadedImages] = useImmer<Set<string>>(new Set());
+    const [downloadingPaths, updateDownloadingPaths] = useImmer<Set<string>>(new Set());
+    const [isDownloadingFullscreen, setIsDownloadingFullscreen] = useState(false);
     const [fullscreenImage, setFullscreenImage] = useState<{
         src: string;
         name: string;
@@ -65,7 +69,9 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                     const decryptedUrl = await decryptFile(file);
                     console.log(decryptedUrl);
                     if (decryptedUrl) {
-                        setDecryptedFiles(prev => new Map(prev).set(file.path, decryptedUrl));
+                        updateDecryptedFiles(draft => {
+                            draft.set(file.path, decryptedUrl);
+                        });
                     }
                 }
             });
@@ -85,6 +91,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         }
         
         try {
+            // no-op decrypt indicator removed from UI
             // Fetch encrypted file
             const response = await fetch(file.path, {
                 headers: getAuthHeaders(user.authToken!)
@@ -116,11 +123,15 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
             const blob = new Blob([decrypted.buffer as ArrayBuffer]);
             const url = URL.createObjectURL(blob);
             
-            setDecryptedFiles(prev => new Map(prev).set(file.path, url));
+            updateDecryptedFiles(draft => {
+                draft.set(file.path, url);
+            });
             return url;
         } catch (error) {
             console.error("Failed to decrypt file:", error);
             return null;
+        } finally {
+            // no-op decrypt indicator removed from UI
         }
     };
 
@@ -191,11 +202,13 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         if (!fullscreenImage) return;
         const { src, name } = fullscreenImage;
         try {
+            setIsDownloadingFullscreen(true);
             if (src.startsWith("blob:")) {
                 const link = document.createElement("a");
                 link.href = src;
                 link.download = name;
                 link.click();
+                setIsDownloadingFullscreen(false);
                 return;
             }
 
@@ -214,11 +227,16 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
             URL.revokeObjectURL(url);
         } catch (e) {
             console.error(e);
+        } finally {
+            setIsDownloadingFullscreen(false);
         }
     };
 
     const downloadFile = async (file: Attachment) => {
         try {
+            updateDownloadingPaths(draft => {
+                draft.add(file.path);
+            });
             // Prefer decrypted URL if present (DM encrypted case)
             const decrypted = decryptedFiles.get(file.path);
             if (decrypted) {
@@ -226,6 +244,9 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                 link.href = decrypted;
                 link.download = file.name || "file";
                 link.click();
+                updateDownloadingPaths(draft => {
+                    draft.delete(file.path);
+                });
                 return;
             }
 
@@ -244,6 +265,10 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
             URL.revokeObjectURL(url);
         } catch (e) {
             console.error(e);
+        } finally {
+            updateDownloadingPaths(draft => {
+                draft.delete(file.path);
+            });
         }
     };
 
@@ -304,11 +329,12 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                                 const isEncryptedDm = Boolean(isDm && file.encrypted);
                                 const decryptedUrl = decryptedFiles.get(file.path);
                                 const imageSrc = isImage ? (isEncryptedDm ? decryptedUrl : file.path) : undefined;
+                                const isDownloading = downloadingPaths.has(file.path);
 
                                 return (
                                     <div className="attachment" key={idx}>
                                         {isImage ? (
-                                            imageSrc ? (
+                                            <div className="image-wrapper">
                                                 <img 
                                                     ref={(el) => {
                                                         if (el) imageRefs.current.set(file.path, el);
@@ -316,13 +342,15 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                                                     src={imageSrc} 
                                                     alt={file.name || "image"}
                                                     onClick={(e) => handleImageClick(file, e.currentTarget)}
-                                                    className="attachement-image"
+                                                    onLoad={() => updateLoadedImages(draft => { draft.add(file.path); })}
+                                                    className={`attachement-image ${loadedImages.has(file.path) ? "" : "loading"}`}
                                                 />
-                                            ) : (
-                                                <mdui-list-item>
-                                                    Decrypting image...
-                                                </mdui-list-item>
-                                            )
+                                                {!loadedImages.has(file.path) && (
+                                                    <div className="loading-overlay">
+                                                        <mdui-circular-progress />
+                                                    </div>
+                                                )}
+                                            </div>
                                         ) : (
                                             <a 
                                                 href="#" 
@@ -331,8 +359,11 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                                                     await downloadFile(file);
                                                 }}
                                             >
-                                                <mdui-list-item icon="download--filled">
-                                                    {(file.name || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}
+                                                <mdui-list-item>
+                                                    <span className="with-icon-gap">
+                                                        {isDownloading ? <mdui-circular-progress /> : null}
+                                                        {(file.name || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}
+                                                    </span>
                                                 </mdui-list-item>
                                             </a>
                                         )}
@@ -372,7 +403,13 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                     />
                     <div className="fullscreen-controls top-right" onClick={e => e.stopPropagation()}>
                         <mdui-button-icon icon="close" onClick={closeFullscreen} />
-                        <mdui-button-icon icon="download" onClick={downloadImage} />
+                        {isDownloadingFullscreen ? (
+                            <div className="progress-wrapper">
+                                <mdui-circular-progress />
+                            </div>
+                        ) : (
+                            <mdui-button-icon icon="download" onClick={downloadImage} />
+                        )}
                     </div>
                 </div>
             )}

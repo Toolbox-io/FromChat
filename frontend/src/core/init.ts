@@ -6,5 +6,7 @@
  */
 
 import { PRODUCT_NAME } from "./config";
+import { enableMapSet } from "immer";
 
 document.title = PRODUCT_NAME;
+enableMapSet();
