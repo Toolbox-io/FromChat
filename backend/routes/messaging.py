@@ -15,6 +15,7 @@ from push_service import push_service
 from PIL import Image
 import io
 import json
+from better_profanity import profanity as _bp
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -50,6 +51,45 @@ def convert_message(msg: Message) -> dict:
         ]
     }
 
+# для тех кто читает этот код я эти маты не писал
+# мат писал ии а я сам не матерюсь))
+# - denis0001-dev
+_RU_EXTRA = [
+    "бляд", "блять", "бля", "сука", "суки", "сучка", "мразь", "ебан",
+    "ебать", "ебёт", "ебет", "уёбок", "уебок", "уебище", "пизда",
+    "пиздец", "пизд", "хуй", "хуя", "хуе", "хуё", "хер", "гондон",
+    "долбоёб", "долбоеб", "дебил"
+]
+
+_bp.load_censor_words()
+_bp.add_censor_words(_RU_EXTRA)
+
+# Additional phrase-level filters (case-insensitive)
+_PHRASE_PATTERNS: list[re.Pattern] = [
+    re.compile(r"\bmax\s+is\s+better\b", re.IGNORECASE | re.UNICODE),
+    re.compile(r"\bмакс\s+лучше\b", re.IGNORECASE | re.UNICODE),
+    re.compile(r"\bfromchat\s+г[ао]вно\b", re.IGNORECASE | re.UNICODE),
+    re.compile(r"\bфромчат\s+г[ао]вно\b", re.IGNORECASE | re.UNICODE),
+]
+
+def _mask_span(text: str, start: int, end: int) -> str:
+    return text[:start] + ("\\*" * (end - start)) + text[end:]
+
+def _apply_phrase_filters(text: str) -> str:
+    result = text
+    for pattern in _PHRASE_PATTERNS:
+        # Replace all occurrences; iterate until no more matches to avoid overlapping issues
+        while True:
+            m = pattern.search(result)
+            if not m:
+                break
+            result = _mask_span(result, m.start(), m.end())
+    return result
+
+def filter_profanity(text: str) -> str:
+    preprocessed = _apply_phrase_filters(text)
+    return _bp.censor(preprocessed, censor_char="\\*")
+
 
 @router.post("/send_message")
 async def send_message(
@@ -83,14 +123,17 @@ async def send_message(
             detail="No content provided"
         )
 
-    if len(request.content.strip()) > 4096:
+    # Apply profanity filter before storing
+    filtered_content = filter_profanity(request.content.strip())
+
+    if len(filtered_content) > 4096:
         raise HTTPException(
             status_code=400,
             detail="Message too long"
         )
 
     new_message = Message(
-        content=request.content.strip(),
+        content=filtered_content,
         user_id=current_user.id,
         reply_to_id=request.reply_to_id,
         timestamp=datetime.now()
