@@ -314,9 +314,9 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                                                         if (el) imageRefs.current.set(file.path, el);
                                                     }}
                                                     src={imageSrc} 
-                                                    alt={file.name || "image"} 
-                                                    style={{ maxWidth: "200px", borderRadius: "8px", cursor: "pointer" }} 
+                                                    alt={file.name || "image"}
                                                     onClick={(e) => handleImageClick(file, e.currentTarget)}
+                                                    className="attachement-image"
                                                 />
                                             ) : (
                                                 <mdui-list-item>

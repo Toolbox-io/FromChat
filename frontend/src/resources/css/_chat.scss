@@ -243,8 +243,22 @@
                                 a {
                                     text-decoration: none;
                                 }
+                                
+                                .attachement-image {
+                                    max-width: 200px;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    margin-left: 3px;
+                                    margin-right: 3px;
+                                    margin-bottom: 3px;
+
+                                    &:last-child {
+                                        margin-bottom: 0;
+                                    }
+                                }
                             }
                         }
+
                         .message-time {
                             font-size: 0.7rem;
                             color: $color-dark-on-surface-variant;

@@ -3,9 +3,10 @@ import type { AnimatedPropertyProps } from "./types";
 
 export default function AnimatedHeight({ visible, duration = 0.25, onFinish, children, ...props }: AnimatedPropertyProps) {
     const [height, setHeight] = useState("0px");
-    const [shouldRender, setShouldRender] = useState(visible);
+    const [shouldRender, setShouldRender] = useState(!!visible);
     const [isAnimating, setIsAnimating] = useState(false);
     const measureRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (visible) {
@@ -19,6 +20,7 @@ export default function AnimatedHeight({ visible, duration = 0.25, onFinish, chi
                 }
                 // Animation complete
                 setTimeout(() => {
+                    setHeight("auto");
                     setIsAnimating(false);
                 }, duration * 1000);
             }, 0);
@@ -29,7 +31,14 @@ export default function AnimatedHeight({ visible, duration = 0.25, onFinish, chi
                 setHeight(`${contentHeight}px`);
                 // Force a reflow before animating to 0
                 requestAnimationFrame(() => {
-                    setHeight("0px");
+                    // Read layout to ensure the previous height assignment is flushed
+                    if (containerRef.current) {
+                        containerRef.current.offsetHeight;
+                    }
+                    // Use a second frame to ensure the measured pixel height is applied before collapsing
+                    requestAnimationFrame(() => {
+                        setHeight("0px");
+                    });
                 });
             }
             // Hide content after animation completes
@@ -43,14 +52,10 @@ export default function AnimatedHeight({ visible, duration = 0.25, onFinish, chi
         }
     }, [visible, shouldRender]);
 
-    // Don't render if not visible and not animating
-    if (!visible && !shouldRender && !isAnimating) {
-        return null;
-    }
-
-    return (
-        <div 
+    return (visible || shouldRender || isAnimating) && (
+        <div
             {...props}
+            ref={containerRef}
             style={{
                 height,
                 transition: `height ${duration}s ease`,
