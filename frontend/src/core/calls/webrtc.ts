@@ -14,6 +14,7 @@ export interface WebRTCCall {
     isInitiator: boolean;
     remoteUserId: number;
     remoteUsername: string;
+    isEnding?: boolean;
 }
 
 export class WebRTCService {
@@ -104,7 +105,7 @@ export class WebRTCService {
         };
 
         peerConnection.oniceconnectionstatechange = () => {
-            console.log("[ICE] connection state", userId, peerConnection.iceConnectionState);
+            // ICE connection state changed
         };
 
         peerConnection.onsignalingstatechange = () => {
@@ -135,7 +136,12 @@ export class WebRTCService {
                 if (peerConnection.connectionState === "failed" || 
                     peerConnection.connectionState === "closed" ||
                     peerConnection.connectionState === "disconnected") {
-                    this.endCall(userId);
+                    // Only send end call message if we're not already cleaning up
+                    const call = this.calls.get(userId);
+                    if (call && !call.isEnding) {
+                        call.isEnding = true;
+                        this.endCall(userId);
+                    }
                 }
             }
         };
@@ -232,7 +238,9 @@ export class WebRTCService {
 
     async endCall(userId: number): Promise<void> {
         const call = this.calls.get(userId);
-        if (call) {
+        if (call && !call.isEnding) {
+            call.isEnding = true;
+            
             // Send call end message
             await this.sendSignalingMessage({
                 type: "call_end",
@@ -340,7 +348,7 @@ export class WebRTCService {
         return this.calls.get(userId);
     }
 
-    private cleanupCall(userId: number): void {
+    cleanupCall(userId: number): void {
         const call = this.calls.get(userId);
         if (call) {
             // Close peer connection
