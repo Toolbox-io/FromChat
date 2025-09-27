@@ -1,23 +1,19 @@
 import { useAppState } from "../state";
-import { WebRTCService } from "../../utils/webrtc";
+import * as WebRTC from "../../utils/webrtc";
 import { CallSignalingHandler } from "../../utils/callSignaling";
 import { setCallSignalingHandler } from "../../core/websocket";
-import { createRef, useEffect, useRef } from "react";
+import { createRef, useEffect } from "react";
 
 // Global audio ref shared across all instances
 let globalRemoteAudioRef = createRef<HTMLAudioElement>();
 
 export function useAudioCall() {
     const { chat, startCall, endCall, setCallStatus, toggleMute, user } = useAppState();
-    const webrtcService = useRef<WebRTCService | null>(null);
     const remoteAudioRef = globalRemoteAudioRef;
 
     useEffect(() => {
-        // Initialize WebRTC service
-        webrtcService.current = WebRTCService.getInstance();
-        
         if (user.authToken) {
-            webrtcService.current.setAuthToken(user.authToken);
+            WebRTC.setAuthToken(user.authToken);
         }
 
         // Initialize call signaling handler
@@ -32,7 +28,7 @@ export function useAudioCall() {
         setCallSignalingHandler(signalingHandler);
 
         // Set up call state change handler
-        webrtcService.current.setCallStateChangeHandler((userId: number, state: string) => {
+        WebRTC.setCallStateChangeHandler((userId: number, state: string) => {
             const call = chat.call;
             if (call.remoteUserId === userId) {
                 switch (state) {
@@ -52,7 +48,7 @@ export function useAudioCall() {
         });
 
         // Set up remote stream handler
-        webrtcService.current.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
+        WebRTC.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
             if (!remoteAudioRef.current) {
                 return;
             }
@@ -84,7 +80,7 @@ export function useAudioCall() {
         });
 
         return () => {
-            webrtcService.current?.cleanup();
+            WebRTC.cleanup();
             setCallSignalingHandler(null);
         };
     }, [user.authToken, chat.call.remoteUserId, setCallStatus, endCall, startCall]);
@@ -113,17 +109,13 @@ export function useAudioCall() {
             return;
         }
 
-        if (!webrtcService.current) {
-            console.error("WebRTC service not initialized");
-            return;
-        }
 
         // Start the call in state
         startCall(userId, username);
         setCallStatus("calling");
 
         // Initiate WebRTC call
-        const success = await webrtcService.current.initiateCall(userId, username);
+        const success = await WebRTC.initiateCall(userId, username);
         
         if (!success) {
             endCall();
@@ -131,12 +123,12 @@ export function useAudioCall() {
     };
 
     async function acceptCall() {
-        if (!webrtcService.current || !chat.call.remoteUserId) {
+        if (!chat.call.remoteUserId) {
             return;
         }
 
         setCallStatus("connecting");
-        const success = await webrtcService.current.acceptCall(chat.call.remoteUserId);
+        const success = await WebRTC.acceptCall(chat.call.remoteUserId);
         
         if (!success) {
             endCall();
@@ -144,24 +136,24 @@ export function useAudioCall() {
     };
 
     async function rejectCall() {
-        if (!webrtcService.current || !chat.call.remoteUserId) {
+        if (!chat.call.remoteUserId) {
             return;
         }
 
-        await webrtcService.current.rejectCall(chat.call.remoteUserId);
+        await WebRTC.rejectCall(chat.call.remoteUserId);
         endCall();
     };
 
     async function handleEndCall() {
-        if (webrtcService.current && chat.call.remoteUserId) {
-            await webrtcService.current.endCall(chat.call.remoteUserId);
+        if (chat.call.remoteUserId) {
+            await WebRTC.endCall(chat.call.remoteUserId);
         }
         endCall();
     };
 
     function handleToggleMute() {
-        if (webrtcService.current && chat.call.remoteUserId) {
-            const isMuted = webrtcService.current.toggleMute(chat.call.remoteUserId);
+        if (chat.call.remoteUserId) {
+            const isMuted = WebRTC.toggleMute(chat.call.remoteUserId);
             // Update mute state in store
             if (isMuted !== chat.call.isMuted) {
                 toggleMute();
@@ -170,35 +162,19 @@ export function useAudioCall() {
     };
 
     async function handleIncomingCall(userId: number, username: string) {
-        if (!webrtcService.current) {
-            return;
-        }
-
-        await webrtcService.current.handleIncomingCall(userId, username);
+        await WebRTC.handleIncomingCall(userId, username);
     };
 
     async function handleCallOffer(userId: number, offer: RTCSessionDescriptionInit) {
-        if (!webrtcService.current) {
-            return;
-        }
-
-        await webrtcService.current.handleCallOffer(userId, offer);
+        await WebRTC.handleCallOffer(userId, offer);
     };
 
     async function handleCallAnswer(userId: number, answer: RTCSessionDescriptionInit) {
-        if (!webrtcService.current) {
-            return;
-        }
-
-        await webrtcService.current.handleCallAnswer(userId, answer);
+        await WebRTC.handleCallAnswer(userId, answer);
     };
 
     async function handleIceCandidate(userId: number, candidate: RTCIceCandidateInit) {
-        if (!webrtcService.current) {
-            return;
-        }
-
-        await webrtcService.current.handleIceCandidate(userId, candidate);
+        await WebRTC.handleIceCandidate(userId, candidate);
     };
 
     return {

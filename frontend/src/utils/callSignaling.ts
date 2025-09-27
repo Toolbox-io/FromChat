@@ -1,12 +1,10 @@
 import type { WebSocketMessage, CallSignalingData } from "../core/types";
-import { WebRTCService } from "./webrtc";
+import * as WebRTC from "./webrtc";
 
 export class CallSignalingHandler {
-    private webrtcService: WebRTCService;
     private getState: () => any;
 
     constructor(getState: () => any) {
-        this.webrtcService = WebRTCService.getInstance();
         this.getState = getState;
     }
 
@@ -16,7 +14,12 @@ export class CallSignalingHandler {
         }
 
         const { data } = message;
-        if (!data) return;
+        if (!data) {
+            console.warn("Received call_signaling message with no data:", message);
+            return;
+        }
+
+        console.log("Received signaling message:", data.type, "from user", data.fromUserId, "full data:", data);
 
         switch (data.type) {
             case "call_invite":
@@ -51,14 +54,14 @@ export class CallSignalingHandler {
         state.receiveCall(fromUserId, fromUsername);
         
         // Handle incoming call in WebRTC service
-        await this.webrtcService.handleIncomingCall(fromUserId, fromUsername);
+        await WebRTC.handleIncomingCall(fromUserId, fromUsername);
     }
 
     private async handleCallAccept(data: any) {
         const { fromUserId } = data;
         // Initiator should create and send offer now
         try {
-            await this.webrtcService.onRemoteAccepted(fromUserId);
+            await WebRTC.onRemoteAccepted(fromUserId);
         } catch (error) {
             console.error("Failed to proceed after accept:", error);
         }
@@ -70,7 +73,7 @@ export class CallSignalingHandler {
         
         // Clean up WebRTC connection first
         if (fromUserId) {
-            this.webrtcService.cleanupCall(fromUserId);
+            WebRTC.cleanupCall(fromUserId);
         }
         
         // End the call
@@ -79,17 +82,17 @@ export class CallSignalingHandler {
 
     private async handleCallOffer(data: any) {
         const { fromUserId, data: offer } = data;
-        await this.webrtcService.handleCallOffer(fromUserId, offer);
+        await WebRTC.handleCallOffer(fromUserId, offer);
     }
 
     private async handleCallAnswer(data: any) {
         const { fromUserId, data: answer } = data;
-        await this.webrtcService.handleCallAnswer(fromUserId, answer);
+        await WebRTC.handleCallAnswer(fromUserId, answer);
     }
 
     private async handleIceCandidate(data: any) {
         const { fromUserId, data: candidate } = data;
-        await this.webrtcService.handleIceCandidate(fromUserId, candidate);
+        await WebRTC.handleIceCandidate(fromUserId, candidate);
     }
 
     private handleCallEnd(data: any) {
@@ -98,7 +101,7 @@ export class CallSignalingHandler {
         
         // Clean up WebRTC connection first
         if (fromUserId) {
-            this.webrtcService.cleanupCall(fromUserId);
+            WebRTC.cleanupCall(fromUserId);
         }
         
         // End the call

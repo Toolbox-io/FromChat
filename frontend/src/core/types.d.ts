@@ -236,6 +236,10 @@ export interface DmEncryptedJSON {
     }
 }
 
+export interface IceServersResponse {
+    iceServers: RTCIceServer[];
+}
+
 // ---------------
 // WebSocket types
 // ---------------
