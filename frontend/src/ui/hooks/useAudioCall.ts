@@ -2,10 +2,10 @@ import { useAppState } from "../state";
 import { WebRTCService } from "../../utils/webrtc";
 import { CallSignalingHandler } from "../../utils/callSignaling";
 import { setCallSignalingHandler } from "../../core/websocket";
-import { useEffect, useRef } from "react";
+import { createRef, useEffect, useRef } from "react";
 
 // Global audio ref shared across all instances
-const globalRemoteAudioRef = { current: null as HTMLAudioElement | null };
+let globalRemoteAudioRef = createRef<HTMLAudioElement>();
 
 export function useAudioCall() {
     const { chat, startCall, endCall, setCallStatus, toggleMute, user } = useAppState();
@@ -35,7 +35,6 @@ export function useAudioCall() {
         webrtcService.current.setCallStateChangeHandler((userId: number, state: string) => {
             const call = chat.call;
             if (call.remoteUserId === userId) {
-                console.log("[CALL] state", userId, state);
                 switch (state) {
                     case "connecting":
                         setCallStatus("connecting");
@@ -54,68 +53,43 @@ export function useAudioCall() {
 
         // Set up remote stream handler
         webrtcService.current.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
-            console.log("[AUDIO] Remote stream handler called", {
-                userId: _userId,
-                streamId: stream.id,
-                hasAudioTracks: stream.getAudioTracks().length > 0,
-                hasAudioElement: !!remoteAudioRef.current
-            });
             if (!remoteAudioRef.current) {
-                console.warn("[AUDIO] No audio element available, stream will be lost");
                 return;
             }
             const el = remoteAudioRef.current;
             try {
-                const track = stream.getAudioTracks()[0];
-                console.log("[AUDIO] attach remote stream", {
-                    streamId: stream.id,
-                    trackId: track?.id,
-                    trackEnabled: track?.enabled,
-                    trackReadyState: track?.readyState
-                });
-
                 el.srcObject = stream;
                 el.muted = false;
                 el.volume = 1.0;
                 el.autoplay = true;
-                // Helpful event logs
-                const onPlaying = () => console.log("[AUDIO] element playing");
-                const onPause = () => console.log("[AUDIO] element paused");
-                const onError = () => console.warn("[AUDIO] element error", (el.error && el.error.message) || el.error);
-                el.addEventListener("playing", onPlaying, { once: true });
-                el.addEventListener("pause", onPause, { once: true });
-                el.addEventListener("error", onError, { once: true });
 
-                const p = el.play();
-                if (p && typeof p.then === "function") {
-                    p.then(() => console.log("[AUDIO] Remote audio playing successfully"))
-                     .catch((e: any) => {
-                        console.warn("[AUDIO] play() blocked:", e?.message || e);
-                        // Try to play after user interaction
-                        const playAfterInteraction = () => {
-                            el.play().then(() => console.log("[AUDIO] Played after interaction"))
-                                .catch(() => console.warn("[AUDIO] Still blocked after interaction"));
-                            document.removeEventListener('click', playAfterInteraction);
-                            document.removeEventListener('touchstart', playAfterInteraction);
-                        };
-                        document.addEventListener('click', playAfterInteraction);
-                        document.addEventListener('touchstart', playAfterInteraction);
-                    });
-                }
-            } catch (e: any) {
-                console.warn("failed to attach remote stream:", e?.message || e);
+                // Handle audio events
+                el.addEventListener("error", () => {
+                    console.warn("[AUDIO] element error", (el.error?.message) || el.error);
+                });
+
+                el.play().catch(() => {
+                    // Try to play after user interaction if autoplay is blocked
+                    const playAfterInteraction = () => {
+                        el.play().catch(() => {});
+                        document.removeEventListener('click', playAfterInteraction);
+                        document.removeEventListener('touchstart', playAfterInteraction);
+                    };
+                    document.addEventListener('click', playAfterInteraction);
+                    document.addEventListener('touchstart', playAfterInteraction);
+                });
+            } catch (e) {
+                console.warn("failed to attach remote stream:", e);
             }
         });
 
         return () => {
-            if (webrtcService.current) {
-                webrtcService.current.cleanup();
-            }
+            webrtcService.current?.cleanup();
             setCallSignalingHandler(null);
         };
     }, [user.authToken, chat.call.remoteUserId, setCallStatus, endCall, startCall]);
 
-    const requestAudioPermissions = async (): Promise<boolean> => {
+    async function requestAudioPermissions(): Promise<boolean> {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: true,
@@ -131,7 +105,7 @@ export function useAudioCall() {
         }
     };
 
-    const initiateCall = async (userId: number, username: string) => {
+    async function initiateCall(userId: number, username: string) {
         const hasPermission = await requestAudioPermissions();
         
         if (!hasPermission) {
@@ -156,7 +130,7 @@ export function useAudioCall() {
         }
     };
 
-    const acceptCall = async () => {
+    async function acceptCall() {
         if (!webrtcService.current || !chat.call.remoteUserId) {
             return;
         }
@@ -169,7 +143,7 @@ export function useAudioCall() {
         }
     };
 
-    const rejectCall = async () => {
+    async function rejectCall() {
         if (!webrtcService.current || !chat.call.remoteUserId) {
             return;
         }
@@ -178,14 +152,14 @@ export function useAudioCall() {
         endCall();
     };
 
-    const handleEndCall = async () => {
+    async function handleEndCall() {
         if (webrtcService.current && chat.call.remoteUserId) {
             await webrtcService.current.endCall(chat.call.remoteUserId);
         }
         endCall();
     };
 
-    const handleToggleMute = () => {
+    function handleToggleMute() {
         if (webrtcService.current && chat.call.remoteUserId) {
             const isMuted = webrtcService.current.toggleMute(chat.call.remoteUserId);
             // Update mute state in store
@@ -195,7 +169,7 @@ export function useAudioCall() {
         }
     };
 
-    const handleIncomingCall = async (userId: number, username: string) => {
+    async function handleIncomingCall(userId: number, username: string) {
         if (!webrtcService.current) {
             return;
         }
@@ -203,7 +177,7 @@ export function useAudioCall() {
         await webrtcService.current.handleIncomingCall(userId, username);
     };
 
-    const handleCallOffer = async (userId: number, offer: RTCSessionDescriptionInit) => {
+    async function handleCallOffer(userId: number, offer: RTCSessionDescriptionInit) {
         if (!webrtcService.current) {
             return;
         }
@@ -211,7 +185,7 @@ export function useAudioCall() {
         await webrtcService.current.handleCallOffer(userId, offer);
     };
 
-    const handleCallAnswer = async (userId: number, answer: RTCSessionDescriptionInit) => {
+    async function handleCallAnswer(userId: number, answer: RTCSessionDescriptionInit) {
         if (!webrtcService.current) {
             return;
         }
@@ -219,7 +193,7 @@ export function useAudioCall() {
         await webrtcService.current.handleCallAnswer(userId, answer);
     };
 
-    const handleIceCandidate = async (userId: number, candidate: RTCIceCandidateInit) => {
+    async function handleIceCandidate(userId: number, candidate: RTCIceCandidateInit) {
         if (!webrtcService.current) {
             return;
         }

@@ -6,3 +6,7 @@ When you work with UI:
 1. Use MDUI components as HTML elements with the name "mdui-***". In JSX/TSX use the same elements and props as in HTML.
 3. The supporting text slot for MDUI lists is "description".
 4. When working with lists/sets in states, use the "useImmer" hook.
+5. Do NOT use inline styles in React components if they are static, instead write them in CSS. 
+   The CSS is placed in `frontend/src/resources/css/`. Find the appropriate file to put the styles in.
+6. In SCSS, for Material Design colors use `$color-dark-<color-name>` variables. For all colors, refer 
+   to `frontend/src/resources/css/common/_colors.scss`.

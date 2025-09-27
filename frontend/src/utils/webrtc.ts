@@ -50,10 +50,6 @@ export class WebRTCService {
         }
 
         try {
-            console.log("[SIGNALING->SEND]", message.type, {
-                toUserId: message.toUserId,
-                hasData: Boolean(message.data)
-            });
             await request({
                 type: "call_signaling",
                 credentials: {
@@ -94,12 +90,6 @@ export class WebRTCService {
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log("[ICE] local candidate", {
-                    type: event.candidate.type,
-                    protocol: (event.candidate as any).protocol,
-                    address: event.candidate.address,
-                    port: event.candidate.port
-                });
                 this.sendSignalingMessage({
                     type: "call_ice_candidate",
                     fromUserId: 0, // Will be set by server
@@ -110,7 +100,7 @@ export class WebRTCService {
         };
 
         peerConnection.onicegatheringstatechange = () => {
-            console.log("[ICE] gathering state", userId, peerConnection.iceGatheringState);
+            // ICE gathering state changed
         };
 
         peerConnection.oniceconnectionstatechange = () => {
@@ -118,7 +108,7 @@ export class WebRTCService {
         };
 
         peerConnection.onsignalingstatechange = () => {
-            console.log("[SDP] signaling state", userId, peerConnection.signalingState);
+            // Signaling state changed
         };
 
         // Handle remote stream
@@ -126,22 +116,9 @@ export class WebRTCService {
             const [remoteStream] = event.streams;
             const call = this.calls.get(userId);
             if (call) {
-                console.log("[TRACK] remote track added", {
-                    userId,
-                    kind: event.track.kind,
-                    id: event.track.id,
-                    streamId: remoteStream?.id
-                });
                 call.remoteStream = remoteStream;
-                console.log("[TRACK] calling onRemoteStream handler", {
-                    userId,
-                    hasHandler: !!this.onRemoteStream,
-                    streamId: remoteStream?.id
-                });
                 if (this.onRemoteStream) {
                     this.onRemoteStream(userId, remoteStream);
-                } else {
-                    console.warn("[TRACK] No onRemoteStream handler set!");
                 }
             }
         };
@@ -150,8 +127,6 @@ export class WebRTCService {
         peerConnection.onconnectionstatechange = () => {
             const call = this.calls.get(userId);
             if (call) {
-                console.log(`Connection state for user ${userId}:`, peerConnection.connectionState);
-                
                 if (this.onCallStateChange) {
                     this.onCallStateChange(userId, peerConnection.connectionState);
                 }
@@ -165,56 +140,7 @@ export class WebRTCService {
             }
         };
 
-        // Optional: log negotiation events
-        peerConnection.onnegotiationneeded = async () => {
-            console.log("[SDP] negotiationneeded", userId);
-        };
-
-        // Periodic stats logging (lightweight)
-        const logStats = async () => {
-            try {
-                const stats = await peerConnection.getStats();
-                let audioRecv: any;
-                let audioSend: any;
-                let selectedPair: any;
-                stats.forEach((r) => {
-                    if (r.type === "inbound-rtp" && (r as any).kind === "audio") audioRecv = r;
-                    if (r.type === "outbound-rtp" && (r as any).kind === "audio") audioSend = r;
-                    if (r.type === "transport" && (r as any).selectedCandidatePairId) {
-                        selectedPair = stats.get((r as any).selectedCandidatePairId);
-                    }
-                });
-                console.log("[STATS]", userId, {
-                    recvBytes: audioRecv?.bytesReceived,
-                    sendBytes: audioSend?.bytesSent,
-                    recvPackets: audioRecv?.packetsReceived,
-                    sendPackets: audioSend?.packetsSent,
-                    candidatePair: selectedPair ? {
-                        local: {
-                            address: (selectedPair as any).localCandidateId && stats.get((selectedPair as any).localCandidateId)?.address,
-                            type: (selectedPair as any).localCandidateId && stats.get((selectedPair as any).localCandidateId)?.candidateType,
-                        },
-                        remote: {
-                            address: (selectedPair as any).remoteCandidateId && stats.get((selectedPair as any).remoteCandidateId)?.address,
-                            type: (selectedPair as any).remoteCandidateId && stats.get((selectedPair as any).remoteCandidateId)?.candidateType,
-                        },
-                        state: (selectedPair as any).state,
-                        nominated: (selectedPair as any).nominated
-                    } : undefined
-                });
-            } catch {}
-        };
-        // Log stats a few times after creation to aid debugging
-        let statCount = 0;
-        const statTimer = setInterval(() => {
-            if (peerConnection.connectionState === "failed" || peerConnection.connectionState === "closed") {
-                clearInterval(statTimer);
-                return;
-            }
-            logStats();
-            statCount += 1;
-            if (statCount > 20) clearInterval(statTimer);
-        }, 1500);
+        // Connection is ready
 
         return peerConnection;
     }
