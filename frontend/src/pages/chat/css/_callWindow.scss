@@ -1,0 +1,69 @@
+@use "../../../css/material" as *;
+
+.call-window {
+    position: fixed;
+    z-index: 1000;
+    width: 300px;
+    background-color: $color-dark-surface;
+    border: 1px solid $color-dark-outline;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    cursor: grab;
+
+    &.dragging {
+        cursor: grabbing;
+    }
+}
+
+.call-header {
+    padding: 16px;
+    border-bottom: 1px solid $color-dark-outline-variant;
+    cursor: grab;
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-details {
+            flex: 1;
+
+            .username {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 500;
+                color: $color-dark-on-surface;
+            }
+
+            .status {
+                margin: 4px 0 0 0;
+                font-size: 14px;
+                color: $color-dark-on-surface-variant;
+            }
+        }
+    }
+}
+
+.call-controls {
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.remote-audio {
+    position: fixed;
+    bottom: 0px;
+    right: 0px;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    visibility: hidden;
+}
