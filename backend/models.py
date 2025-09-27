@@ -167,5 +167,5 @@ class MessageResponse(BaseModel):
         from_attributes = True
 
 
-# Создание таблиц
-Base.metadata.create_all(bind=engine)
+# Tables are now created through Alembic migrations
+# Base.metadata.create_all(bind=engine)

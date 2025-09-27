@@ -381,6 +381,6 @@ data
 *.db
 package-lock.json
 dist-electron
-backend/migrations/**
-!backend/migrations/env.py
-!backend/migrations/script.py.mako
+backend/alembic/**
+!backend/alembic/env.py
+!backend/alembic/script.py.mako
