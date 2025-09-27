@@ -35,7 +35,6 @@ export function useAudioCall() {
         webrtcService.current.setCallStateChangeHandler((userId: number, state: string) => {
             const call = chat.call;
             if (call.remoteUserId === userId) {
-                console.log("[CALL] state", userId, state);
                 switch (state) {
                     case "connecting":
                         setCallStatus("connecting");
@@ -54,47 +53,25 @@ export function useAudioCall() {
 
         // Set up remote stream handler
         webrtcService.current.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
-            console.log("[AUDIO] Remote stream handler called", {
-                userId: _userId,
-                streamId: stream.id,
-                hasAudioTracks: stream.getAudioTracks().length > 0,
-                hasAudioElement: !!remoteAudioRef.current
-            });
             if (!remoteAudioRef.current) {
-                console.warn("[AUDIO] No audio element available, stream will be lost");
                 return;
             }
             const el = remoteAudioRef.current;
             try {
-                const track = stream.getAudioTracks()[0];
-                console.log("[AUDIO] attach remote stream", {
-                    streamId: stream.id,
-                    trackId: track?.id,
-                    trackEnabled: track?.enabled,
-                    trackReadyState: track?.readyState
-                });
-
                 el.srcObject = stream;
                 el.muted = false;
                 el.volume = 1.0;
                 el.autoplay = true;
-                // Helpful event logs
-                const onPlaying = () => console.log("[AUDIO] element playing");
-                const onPause = () => console.log("[AUDIO] element paused");
+                // Handle audio events
                 const onError = () => console.warn("[AUDIO] element error", (el.error && el.error.message) || el.error);
-                el.addEventListener("playing", onPlaying, { once: true });
-                el.addEventListener("pause", onPause, { once: true });
                 el.addEventListener("error", onError, { once: true });
 
                 const p = el.play();
                 if (p && typeof p.then === "function") {
-                    p.then(() => console.log("[AUDIO] Remote audio playing successfully"))
-                     .catch((e: any) => {
-                        console.warn("[AUDIO] play() blocked:", e?.message || e);
-                        // Try to play after user interaction
+                    p.catch(() => {
+                        // Try to play after user interaction if autoplay is blocked
                         const playAfterInteraction = () => {
-                            el.play().then(() => console.log("[AUDIO] Played after interaction"))
-                                .catch(() => console.warn("[AUDIO] Still blocked after interaction"));
+                            el.play().catch(() => {});
                             document.removeEventListener('click', playAfterInteraction);
                             document.removeEventListener('touchstart', playAfterInteraction);
                         };
