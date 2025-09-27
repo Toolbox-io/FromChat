@@ -1,4 +1,6 @@
-import { request } from "../websocket";
+import { getAuthHeaders } from "@/core/api/authApi";
+import type { IceServersResponse } from "@/core/types";
+import { request } from "@/core/websocket";
 
 export interface CallSignalingMessage {
     type: "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject";
@@ -17,359 +19,392 @@ export interface WebRTCCall {
     isEnding?: boolean;
 }
 
-export class WebRTCService {
-    private static instance: WebRTCService;
-    private calls: Map<number, WebRTCCall> = new Map();
-    private authToken: string | null = null;
-    private onCallStateChange: ((userId: number, state: string) => void) | null = null;
-    private onRemoteStream: ((userId: number, stream: MediaStream) => void) | null = null;
+// Global state
+export let authToken: string | null = null;
+export let onCallStateChange: ((userId: number, state: string) => void) | null = null;
+export let onRemoteStream: ((userId: number, stream: MediaStream) => void) | null = null;
+const calls: Map<number, WebRTCCall> = new Map();
 
-    private constructor() {}
+export function setAuthToken(token: string) {
+    authToken = token;
+}
 
-    static getInstance(): WebRTCService {
-        if (!WebRTCService.instance) {
-            WebRTCService.instance = new WebRTCService();
-        }
-        return WebRTCService.instance;
+export function setCallStateChangeHandler(handler: (userId: number, state: string) => void) {
+    onCallStateChange = handler;
+}
+
+export function setRemoteStreamHandler(handler: (userId: number, stream: MediaStream) => void) {
+    onRemoteStream = handler;
+}
+
+async function sendSignalingMessage(message: CallSignalingMessage) {
+    if (!authToken) {
+        throw new Error("No auth token available");
     }
 
-    setAuthToken(token: string) {
-        this.authToken = token;
+    console.log("Sending signaling message:", message.type, "to user", message.toUserId);
+    
+    await request({
+        type: "call_signaling",
+        credentials: {
+            scheme: "Bearer",
+            credentials: authToken
+        },
+        data: message
+    });
+}
+
+async function getIceServers(): Promise<RTCIceServer[]> {
+    const defaultIceServers = [{ urls: "stun:fromchat.ru:3478" }];
+    
+    if (!authToken) {
+        console.warn("No auth token available for ICE servers");
+        return defaultIceServers;
     }
 
-    setCallStateChangeHandler(handler: (userId: number, state: string) => void) {
-        this.onCallStateChange = handler;
-    }
-
-    setRemoteStreamHandler(handler: (userId: number, stream: MediaStream) => void) {
-        this.onRemoteStream = handler;
-    }
-
-    private async sendSignalingMessage(message: CallSignalingMessage) {
-        if (!this.authToken) {
-            throw new Error("No auth token available");
-        }
-
-        try {
-            await request({
-                type: "call_signaling",
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: this.authToken
-                },
-                data: message
-            });
-        } catch (error) {
-            console.error("Failed to send signaling message:", error);
-            throw error;
-        }
-    }
-
-    private async fetchIceServers(): Promise<RTCConfiguration> {
-        try {
-            const res = await fetch(`/api/webrtc/ice`);
-            if (res.ok) {
-                const data = await res.json();
-                return { iceServers: data.iceServers || [] };
-            }
-        } catch {}
-        // Fallback: rely on your backend coturn only (no Google STUN)
-        return { iceServers: [] };
-    }
-
-    private createPeerConnection(userId: number): RTCPeerConnection {
-        // Start with default; will be replaced if fetch succeeds later (not strictly necessary but keeps sync constructor)
-        const configuration: RTCConfiguration = { iceServers: [] };
-
-        const peerConnection = new RTCPeerConnection(configuration);
-
-        // Attempt to update ICE servers dynamically
-        this.fetchIceServers().then(cfg => {
-            try { peerConnection.setConfiguration(cfg); } catch {}
+    try {
+        const response = await fetch("/api/webrtc/ice", {
+            headers: getAuthHeaders(authToken)
         });
+        
+        if (response.ok) {
+            const data = await response.json() as IceServersResponse;
+            console.log("Received ICE servers:", data.iceServers);
+            return data.iceServers || [];
+        } else {
+            console.warn("Failed to fetch ICE servers:", response.status, response.statusText);
+        }
+    } catch (error) {
+        console.warn("Failed to fetch ICE servers:", error);
+    }
+    
+    // Fallback to STUN only if backend fails
+    return defaultIceServers;
+}
 
-        // Handle ICE candidates
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                this.sendSignalingMessage({
+async function createPeerConnection(userId: number): Promise<RTCPeerConnection> {
+    const iceServers = await getIceServers();
+    
+    const peerConnection = new RTCPeerConnection({
+        iceServers
+    });
+
+    const call: WebRTCCall = {
+        peerConnection,
+        localStream: null,
+        remoteStream: null,
+        isInitiator: false,
+        remoteUserId: userId,
+        remoteUsername: ""
+    };
+
+    calls.set(userId, call);
+
+    peerConnection.addEventListener("icegatheringstatechange", () => {
+        console.log("ICE gathering state changed:", peerConnection.iceGatheringState);
+    });
+
+    // Add ICE candidate event listener for debugging and sending
+    peerConnection.addEventListener("icecandidate", async (event) => {
+        if (event.candidate) {
+            console.log("Local ICE candidate:", event.candidate.candidate);
+            
+            // Send ICE candidate to remote peer
+            try {
+                await sendSignalingMessage({
                     type: "call_ice_candidate",
                     fromUserId: 0, // Will be set by server
                     toUserId: userId,
-                    data: event.candidate
-                });
-            }
-        };
-
-        peerConnection.onicegatheringstatechange = () => {
-            // ICE gathering state changed
-        };
-
-        peerConnection.oniceconnectionstatechange = () => {
-            // ICE connection state changed
-        };
-
-        peerConnection.onsignalingstatechange = () => {
-            // Signaling state changed
-        };
-
-        // Handle remote stream
-        peerConnection.ontrack = (event) => {
-            const [remoteStream] = event.streams;
-            const call = this.calls.get(userId);
-            if (call) {
-                call.remoteStream = remoteStream;
-                if (this.onRemoteStream) {
-                    this.onRemoteStream(userId, remoteStream);
-                }
-            }
-        };
-
-        // Handle connection state changes
-        peerConnection.onconnectionstatechange = () => {
-            const call = this.calls.get(userId);
-            if (call) {
-                if (this.onCallStateChange) {
-                    this.onCallStateChange(userId, peerConnection.connectionState);
-                }
-
-                // Clean up if connection failed or closed
-                if (peerConnection.connectionState === "failed" || 
-                    peerConnection.connectionState === "closed" ||
-                    peerConnection.connectionState === "disconnected") {
-                    // Only send end call message if we're not already cleaning up
-                    const call = this.calls.get(userId);
-                    if (call && !call.isEnding) {
-                        call.isEnding = true;
-                        this.endCall(userId);
+                    data: {
+                        candidate: event.candidate.candidate,
+                        sdpMLineIndex: event.candidate.sdpMLineIndex,
+                        sdpMid: event.candidate.sdpMid
                     }
+                });
+            } catch (error) {
+                console.error("Failed to send ICE candidate:", error);
+            }
+        } else {
+            console.log("ICE gathering complete");
+        }
+    });
+
+    peerConnection.addEventListener("iceconnectionstatechange", () => {
+        console.log("ICE connection state changed:", peerConnection.iceConnectionState);
+    });
+
+    peerConnection.addEventListener("signalingstatechange", () => {
+        // Signaling state changed
+    });
+
+    // Handle remote stream
+    peerConnection.addEventListener("track", (event) => {
+        const [remoteStream] = event.streams;
+        const call = calls.get(userId);
+        if (call) {
+            call.remoteStream = remoteStream;
+            if (onRemoteStream) {
+                onRemoteStream(userId, remoteStream);
+            }
+        }
+    });
+
+    // Handle connection state changes
+    peerConnection.addEventListener("connectionstatechange", () => {
+        console.log("WebRTC connection state changed:", peerConnection.connectionState);
+        const call = calls.get(userId);
+        if (call) {
+            if (onCallStateChange) {
+                onCallStateChange(userId, peerConnection.connectionState);
+            }
+
+            // Clean up if connection failed or closed
+            if (peerConnection.connectionState === "failed" || 
+                peerConnection.connectionState === "closed" ||
+                peerConnection.connectionState === "disconnected") {
+                // Only send end call message if we're not already cleaning up
+                const call = calls.get(userId);
+                if (call && !call.isEnding) {
+                    call.isEnding = true;
+                    endCall(userId);
                 }
             }
-        };
-
-        // Connection is ready
-
-        return peerConnection;
-    }
-
-    async initiateCall(userId: number, username: string): Promise<boolean> {
-        try {
-            // Get user media
-            const localStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-                video: false
-            });
-
-            // Create peer connection
-            const peerConnection = this.createPeerConnection(userId);
-
-            // Add local stream to peer connection (ensure audio track enabled)
-            localStream.getAudioTracks().forEach(t => (t.enabled = true));
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            // Store call info
-            const call: WebRTCCall = {
-                peerConnection,
-                localStream,
-                remoteStream: null,
-                isInitiator: true,
-                remoteUserId: userId,
-                remoteUsername: username
-            };
-
-            this.calls.set(userId, call);
-
-            // Send call invitation
-            await this.sendSignalingMessage({
-                type: "call_invite",
-                fromUserId: 0, // Will be set by server
-                toUserId: userId,
-                data: { username }
-            });
-
-            return true;
-        } catch (error) {
-            console.error("Failed to initiate call:", error);
-            this.cleanupCall(userId);
-            return false;
         }
+    });
+
+    return peerConnection;
+}
+
+export async function initiateCall(userId: number, username: string): Promise<boolean> {
+    try {
+        // Get user media
+        const localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false
+        });
+
+        // Create peer connection
+        await createPeerConnection(userId);
+        const call = calls.get(userId);
+        if (!call) return false;
+
+        call.localStream = localStream;
+        call.remoteUsername = username;
+        call.isInitiator = true;
+
+        // Add tracks to peer connection
+        localStream.getTracks().forEach(track => call.peerConnection.addTrack(track, localStream));
+
+        // Send call invite
+        await sendSignalingMessage({
+            type: "call_invite",
+            fromUserId: 0, // Will be set by server
+            toUserId: userId,
+            data: { fromUsername: username }
+        });
+
+        return true;
+    } catch (error) {
+        console.error("Failed to initiate call:", error);
+        cleanupCall(userId);
+        return false;
     }
+}
 
-    async acceptCall(userId: number): Promise<boolean> {
-        try {
-            let call = this.calls.get(userId);
-            if (!call) {
-                // In case signaling invite UI was shown but call not created yet
-                await this.handleIncomingCall(userId, "");
-                call = this.calls.get(userId);
-                if (!call) throw new Error("No call found to accept");
-            }
-
-            // Get user media and attach
-            const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            call.localStream = localStream;
-            localStream.getTracks().forEach(track => call!.peerConnection.addTrack(track, localStream));
-
-            // Notify initiator that callee accepted; initiator will generate offer
-            await this.sendSignalingMessage({
-                type: "call_accept",
-                fromUserId: 0, // Will be set by server
-                toUserId: userId,
-                data: {}
-            });
-
-            return true;
-        } catch (error) {
-            console.error("Failed to accept call:", error);
-            this.cleanupCall(userId);
-            return false;
+export async function acceptCall(userId: number): Promise<boolean> {
+    try {
+        let call = calls.get(userId);
+        if (!call) {
+            // Create call object if it doesn't exist (for race conditions)
+            await createPeerConnection(userId);
+            call = calls.get(userId);
+            if (!call) return false;
         }
-    }
 
-    async rejectCall(userId: number): Promise<void> {
-        await this.sendSignalingMessage({
-            type: "call_reject",
+        // Get user media and attach
+        const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        call.localStream = localStream;
+        localStream.getTracks().forEach(track => call!.peerConnection.addTrack(track, localStream));
+
+        // Notify initiator that callee accepted; initiator will generate offer
+        await sendSignalingMessage({
+            type: "call_accept",
             fromUserId: 0, // Will be set by server
             toUserId: userId,
             data: {}
         });
 
-        this.cleanupCall(userId);
+        return true;
+    } catch (error) {
+        console.error("Failed to accept call:", error);
+        cleanupCall(userId);
+        return false;
+    }
+}
+
+export async function rejectCall(userId: number): Promise<void> {
+    await sendSignalingMessage({
+        type: "call_reject",
+        fromUserId: 0, // Will be set by server
+        toUserId: userId,
+        data: {}
+    });
+
+    cleanupCall(userId);
+}
+
+export async function endCall(userId: number): Promise<void> {
+    const call = calls.get(userId);
+    if (call && !call.isEnding) {
+        call.isEnding = true;
+        
+        // Send call end message
+        await sendSignalingMessage({
+            type: "call_end",
+            fromUserId: 0, // Will be set by server
+            toUserId: userId,
+            data: {}
+        });
+
+        cleanupCall(userId);
+    }
+}
+
+export async function handleIncomingCall(userId: number, username: string): Promise<void> {
+    try {
+        // Create peer connection for incoming call
+        await createPeerConnection(userId);
+        const call = calls.get(userId);
+        if (!call) return;
+
+        call.remoteUsername = username;
+        call.isInitiator = false;
+    } catch (error) {
+        console.error("Failed to handle incoming call:", error);
+        cleanupCall(userId);
+    }
+}
+
+export async function onRemoteAccepted(userId: number): Promise<void> {
+    const call = calls.get(userId);
+    if (!call) {
+        throw new Error("No call found to accept");
     }
 
-    async endCall(userId: number): Promise<void> {
-        const call = this.calls.get(userId);
-        if (call && !call.isEnding) {
-            call.isEnding = true;
-            
-            // Send call end message
-            await this.sendSignalingMessage({
-                type: "call_end",
-                fromUserId: 0, // Will be set by server
-                toUserId: userId,
-                data: {}
-            });
-
-            this.cleanupCall(userId);
-        }
-    }
-
-    async handleIncomingCall(userId: number, username: string): Promise<void> {
-        try {
-            // Create peer connection for incoming call
-            const peerConnection = this.createPeerConnection(userId);
-
-            const call: WebRTCCall = {
-                peerConnection,
-                localStream: null,
-                remoteStream: null,
-                isInitiator: false,
-                remoteUserId: userId,
-                remoteUsername: username
-            };
-
-            this.calls.set(userId, call);
-        } catch (error) {
-            console.error("Failed to handle incoming call:", error);
-        }
-    }
-
-    async handleCallOffer(userId: number, offer: RTCSessionDescriptionInit): Promise<void> {
-        const call = this.calls.get(userId);
-        if (!call) {
-            throw new Error("No call found for offer");
-        }
-
-        await call.peerConnection.setRemoteDescription(offer);
-
-        // If we are the callee (not initiator), generate and send answer now
-        if (!call.isInitiator) {
-            const answer = await call.peerConnection.createAnswer();
-            await call.peerConnection.setLocalDescription(answer);
-            await this.sendSignalingMessage({
-                type: "call_answer",
-                fromUserId: 0,
-                toUserId: userId,
-                data: answer
-            });
-        }
-    }
-
-    async handleCallAnswer(userId: number, answer: RTCSessionDescriptionInit): Promise<void> {
-        const call = this.calls.get(userId);
-        if (!call) {
-            throw new Error("No call found for answer");
-        }
-
-        await call.peerConnection.setRemoteDescription(answer);
-    }
-
-    // Invoked on initiator when remote accepted; create and send offer
-    async onRemoteAccepted(userId: number): Promise<void> {
-        const call = this.calls.get(userId);
-        if (!call) {
-            throw new Error("No call found to create offer");
-        }
-
+    try {
+        // Create offer
         const offer = await call.peerConnection.createOffer();
         await call.peerConnection.setLocalDescription(offer);
-        await this.sendSignalingMessage({
+
+        // Send offer to remote peer
+        await sendSignalingMessage({
             type: "call_offer",
-            fromUserId: 0,
+            fromUserId: 0, // Will be set by server
             toUserId: userId,
             data: offer
         });
+    } catch (error) {
+        console.error("Failed to create offer:", error);
+        throw error;
+    }
+}
+
+export async function handleCallOffer(userId: number, offer: RTCSessionDescriptionInit): Promise<void> {
+    const call = calls.get(userId);
+    if (!call) {
+        throw new Error("No call found for offer");
     }
 
-    async handleIceCandidate(userId: number, candidate: RTCIceCandidateInit): Promise<void> {
-        const call = this.calls.get(userId);
-        if (!call) {
-            throw new Error("No call found for ICE candidate");
-        }
+    try {
+        // Set remote description
+        await call.peerConnection.setRemoteDescription(offer);
 
+        // Create answer
+        const answer = await call.peerConnection.createAnswer();
+        await call.peerConnection.setLocalDescription(answer);
+
+        // Send answer to remote peer
+        await sendSignalingMessage({
+            type: "call_answer",
+            fromUserId: 0, // Will be set by server
+            toUserId: userId,
+            data: answer
+        });
+    } catch (error) {
+        console.error("Failed to handle offer:", error);
+        throw error;
+    }
+}
+
+export async function handleCallAnswer(userId: number, answer: RTCSessionDescriptionInit): Promise<void> {
+    const call = calls.get(userId);
+    if (!call) {
+        throw new Error("No call found for answer");
+    }
+
+    try {
+        await call.peerConnection.setRemoteDescription(answer);
+    } catch (error) {
+        console.error("Failed to handle answer:", error);
+        throw error;
+    }
+}
+
+export async function handleIceCandidate(userId: number, candidate: RTCIceCandidateInit): Promise<void> {
+    const call = calls.get(userId);
+    if (!call) {
+        console.warn("No call found for ICE candidate from user", userId);
+        return;
+    }
+
+    try {
+        console.log("Adding ICE candidate from user", userId, ":", candidate);
         await call.peerConnection.addIceCandidate(candidate);
+    } catch (error) {
+        console.error("Failed to add ICE candidate:", error);
     }
+}
 
-    toggleMute(userId: number): boolean {
-        const call = this.calls.get(userId);
-        if (!call || !call.localStream) {
-            return false;
-        }
-
-        const audioTrack = call.localStream.getAudioTracks()[0];
-        if (audioTrack) {
-            audioTrack.enabled = !audioTrack.enabled;
-            return !audioTrack.enabled; // Return true if muted
-        }
-
+export function toggleMute(userId: number): boolean {
+    const call = calls.get(userId);
+    if (!call || !call.localStream) {
         return false;
     }
 
-    getCall(userId: number): WebRTCCall | undefined {
-        return this.calls.get(userId);
+    const audioTrack = call.localStream.getAudioTracks()[0];
+    if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        return !audioTrack.enabled; // Return true if muted
     }
 
-    cleanupCall(userId: number): void {
-        const call = this.calls.get(userId);
-        if (call) {
-            // Close peer connection
-            if (call.peerConnection) {
-                call.peerConnection.close();
-            }
+    return false;
+}
 
-            // Stop local stream
-            if (call.localStream) {
-                call.localStream.getTracks().forEach(track => track.stop());
-            }
+export function getCall(userId: number): WebRTCCall | undefined {
+    return calls.get(userId);
+}
 
-            this.calls.delete(userId);
+export function cleanupCall(userId: number): void {
+    const call = calls.get(userId);
+    if (call) {
+        // Close peer connection
+        if (call.peerConnection) {
+            call.peerConnection.close();
         }
-    }
 
-    cleanup(): void {
-        // Clean up all calls
-        for (const userId of this.calls.keys()) {
-            this.cleanupCall(userId);
+        // Stop local stream
+        if (call.localStream) {
+            call.localStream.getTracks().forEach(track => track.stop());
         }
-        this.calls.clear();
+
+        calls.delete(userId);
     }
+}
+
+export function cleanup(): void {
+    // Clean up all calls
+    for (const userId of calls.keys()) {
+        cleanupCall(userId);
+    }
+    calls.clear();
 }
