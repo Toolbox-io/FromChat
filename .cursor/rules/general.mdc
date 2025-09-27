@@ -18,3 +18,4 @@ When working with this project, follow these rules:
 - When you need a delay, use `await delay(millis);` in an async function. If the current function is not async,
   make it async. The import is `<project>/frontend/src/utils/utils`.
 - When you complete your task, remove unused imports if there are any.
+- `function <name>()` is preferred over `const <name> = () => {}`.

@@ -8,3 +8,7 @@ When you work with UI:
 2. Do NOT dynamically create HTML if it's going to be loaded when the page loads, instead put it statically in the HTML.
 3. The supporting text slot for MDUI lists is "description".
 4. When working with lists/sets in states, use the "useImmer" hook.
+5. Do NOT use inline styles in React components if they are static, instead write them in CSS. 
+   The CSS is placed in `frontend/src/resources/css/`. Find the appropriate file to put the styles in.
+6. In SCSS, for Material Design colors use `$color-dark-<color-name>` variables. For all colors, refer 
+   to `frontend/src/resources/css/common/_colors.scss`.
