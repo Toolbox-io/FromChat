@@ -1,4 +1,4 @@
-import type { WebSocketMessage } from "../core/types";
+import type { WebSocketMessage, CallSignalingData } from "../core/types";
 import { WebRTCService } from "./webrtc";
 
 export class CallSignalingHandler {
@@ -10,7 +10,7 @@ export class CallSignalingHandler {
         this.getState = getState;
     }
 
-    handleWebSocketMessage(message: WebSocketMessage) {
+    handleWebSocketMessage(message: WebSocketMessage<CallSignalingData>) {
         if (message.type !== "call_signaling") {
             return;
         }

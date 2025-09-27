@@ -133,8 +133,15 @@ export class WebRTCService {
                     streamId: remoteStream?.id
                 });
                 call.remoteStream = remoteStream;
+                console.log("[TRACK] calling onRemoteStream handler", {
+                    userId,
+                    hasHandler: !!this.onRemoteStream,
+                    streamId: remoteStream?.id
+                });
                 if (this.onRemoteStream) {
                     this.onRemoteStream(userId, remoteStream);
+                } else {
+                    console.warn("[TRACK] No onRemoteStream handler set!");
                 }
             }
         };

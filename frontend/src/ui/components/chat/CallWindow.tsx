@@ -94,171 +94,182 @@ export function CallWindow() {
         rejectCall();
     };
 
-    if (!call.isActive) return null;
-
     return (
-        <div
-            ref={windowRef}
-            className="call-window"
-            style={{
-                position: "fixed",
-                left: position.x,
-                top: position.y,
-                zIndex: 1000,
-                width: "300px",
-                backgroundColor: "var(--mdui-color-surface)",
-                border: "1px solid var(--mdui-color-outline)",
-                borderRadius: "12px",
-                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-                cursor: isDragging ? "grabbing" : "grab"
-            }}
-            onMouseDown={handleMouseDown}
-        >
-            <div className="call-header" style={{
-                padding: "16px",
-                borderBottom: "1px solid var(--mdui-color-outline-variant)",
-                cursor: "grab"
-            }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <img
-                        src={defaultAvatar}
-                        alt="Avatar"
-                        style={{
-                            width: "48px",
-                            height: "48px",
-                            borderRadius: "50%",
-                            objectFit: "cover"
-                        }}
-                    />
-                    <div style={{ flex: 1 }}>
-                        <h3 style={{
-                            margin: 0,
-                            fontSize: "16px",
-                            fontWeight: "500",
-                            color: "var(--mdui-color-on-surface)"
-                        }}>
-                            {call.remoteUsername}
-                        </h3>
-                        <p style={{
-                            margin: "4px 0 0 0",
-                            fontSize: "14px",
-                            color: "var(--mdui-color-on-surface-variant)"
-                        }}>
-                            {getStatusText()}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div style={{
-                padding: "16px",
-                display: "flex",
-                justifyContent: "center",
-                gap: "12px"
-            }}>
-                {call.status === "calling" && !call.isInitiator ? (
-                    // Incoming call - show accept/reject buttons
-                    <>
-                        <button
-                            onClick={handleAcceptCall}
-                            style={{
-                                width: "48px",
-                                height: "48px",
-                                borderRadius: "50%",
-                                border: "none",
-                                backgroundColor: "var(--mdui-color-primary)",
-                                color: "var(--mdui-color-on-primary)",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "20px"
-                            }}
-                            title="Accept Call"
-                        >
-                            <span className="material-symbols">call</span>
-                        </button>
-
-                        <button
-                            onClick={handleRejectCall}
-                            style={{
-                                width: "48px",
-                                height: "48px",
-                                borderRadius: "50%",
-                                border: "none",
-                                backgroundColor: "var(--mdui-color-error)",
-                                color: "var(--mdui-color-on-error)",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "20px"
-                            }}
-                            title="Reject Call"
-                        >
-                            <span className="material-symbols">call_end</span>
-                        </button>
-                    </>
-                ) : (
-                    // Active call - show mute and end call buttons
-                    <>
-                        <button
-                            onClick={toggleMute}
-                            style={{
-                                width: "48px",
-                                height: "48px",
-                                borderRadius: "50%",
-                                border: "none",
-                                backgroundColor: call.isMuted 
-                                    ? "var(--mdui-color-error)" 
-                                    : "var(--mdui-color-surface-variant)",
-                                color: call.isMuted 
-                                    ? "var(--mdui-color-on-error)" 
-                                    : "var(--mdui-color-on-surface-variant)",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "20px"
-                            }}
-                            title={call.isMuted ? "Unmute" : "Mute"}
-                        >
-                            <span className="material-symbols">
-                                {call.isMuted ? "mic_off" : "mic"}
-                            </span>
-                        </button>
-
-                        <button
-                            onClick={endCall}
-                            style={{
-                                width: "48px",
-                                height: "48px",
-                                borderRadius: "50%",
-                                border: "none",
-                                backgroundColor: "var(--mdui-color-error)",
-                                color: "var(--mdui-color-on-error)",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "20px"
-                            }}
-                            title="End Call"
-                        >
-                            <span className="material-symbols">call_end</span>
-                        </button>
-                    </>
-                )}
-            </div>
-
-            {/* Hidden audio element for remote stream (kept visible controls for mobile debugging) */}
+        <>
+            {/* Always render audio element so remoteAudioRef is available */}
             <audio
                 ref={remoteAudioRef}
                 autoPlay
                 playsInline
                 controls
-                style={{ position: "fixed", bottom: 8, right: 8, width: 0, height: 0, opacity: 0 }}
+                style={{ 
+                    position: "fixed", 
+                    bottom: 8, 
+                    right: 8, 
+                    width: "200px", 
+                    height: "40px", 
+                    opacity: 0.8,
+                    zIndex: 1001
+                }}
             />
-        </div>
+            
+            {/* Only show call window when call is active */}
+            {call.isActive && (
+                <div
+                    ref={windowRef}
+                    className="call-window"
+                    style={{
+                        position: "fixed",
+                        left: position.x,
+                        top: position.y,
+                        zIndex: 1000,
+                        width: "300px",
+                        backgroundColor: "var(--mdui-color-surface)",
+                        border: "1px solid var(--mdui-color-outline)",
+                        borderRadius: "12px",
+                        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+                        cursor: isDragging ? "grabbing" : "grab"
+                    }}
+                    onMouseDown={handleMouseDown}
+                >
+                    <div className="call-header" style={{
+                        padding: "16px",
+                        borderBottom: "1px solid var(--mdui-color-outline-variant)",
+                        cursor: "grab"
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <img
+                                src={defaultAvatar}
+                                alt="Avatar"
+                                style={{
+                                    width: "48px",
+                                    height: "48px",
+                                    borderRadius: "50%",
+                                    objectFit: "cover"
+                                }}
+                            />
+                            <div style={{ flex: 1 }}>
+                                <h3 style={{
+                                    margin: 0,
+                                    fontSize: "16px",
+                                    fontWeight: "500",
+                                    color: "var(--mdui-color-on-surface)"
+                                }}>
+                                    {call.remoteUsername}
+                                </h3>
+                                <p style={{
+                                    margin: "4px 0 0 0",
+                                    fontSize: "14px",
+                                    color: "var(--mdui-color-on-surface-variant)"
+                                }}>
+                                    {getStatusText()}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{
+                        padding: "16px",
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: "12px"
+                    }}>
+                        {call.status === "calling" && !call.isInitiator ? (
+                            // Incoming call - show accept/reject buttons
+                            <>
+                                <button
+                                    onClick={handleAcceptCall}
+                                    style={{
+                                        width: "48px",
+                                        height: "48px",
+                                        borderRadius: "50%",
+                                        border: "none",
+                                        backgroundColor: "var(--mdui-color-primary)",
+                                        color: "var(--mdui-color-on-primary)",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "20px"
+                                    }}
+                                    title="Accept Call"
+                                >
+                                    <span className="material-symbols">call</span>
+                                </button>
+
+                                <button
+                                    onClick={handleRejectCall}
+                                    style={{
+                                        width: "48px",
+                                        height: "48px",
+                                        borderRadius: "50%",
+                                        border: "none",
+                                        backgroundColor: "var(--mdui-color-error)",
+                                        color: "var(--mdui-color-on-error)",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "20px"
+                                    }}
+                                    title="Reject Call"
+                                >
+                                    <span className="material-symbols">call_end</span>
+                                </button>
+                            </>
+                        ) : (
+                            // Active call - show mute and end call buttons
+                            <>
+                                <button
+                                    onClick={toggleMute}
+                                    style={{
+                                        width: "48px",
+                                        height: "48px",
+                                        borderRadius: "50%",
+                                        border: "none",
+                                        backgroundColor: call.isMuted 
+                                            ? "var(--mdui-color-error)" 
+                                            : "var(--mdui-color-surface-variant)",
+                                        color: call.isMuted 
+                                            ? "var(--mdui-color-on-error)" 
+                                            : "var(--mdui-color-on-surface-variant)",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "20px"
+                                    }}
+                                    title={call.isMuted ? "Unmute" : "Mute"}
+                                >
+                                    <span className="material-symbols">
+                                        {call.isMuted ? "mic_off" : "mic"}
+                                    </span>
+                                </button>
+
+                                <button
+                                    onClick={endCall}
+                                    style={{
+                                        width: "48px",
+                                        height: "48px",
+                                        borderRadius: "50%",
+                                        border: "none",
+                                        backgroundColor: "var(--mdui-color-error)",
+                                        color: "var(--mdui-color-on-error)",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "20px"
+                                    }}
+                                    title="End Call"
+                                >
+                                    <span className="material-symbols">call_end</span>
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+        </>
     );
 }

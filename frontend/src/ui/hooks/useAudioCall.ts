@@ -4,10 +4,13 @@ import { CallSignalingHandler } from "../../utils/callSignaling";
 import { setCallSignalingHandler } from "../../core/websocket";
 import { useEffect, useRef } from "react";
 
+// Global audio ref shared across all instances
+const globalRemoteAudioRef = { current: null as HTMLAudioElement | null };
+
 export function useAudioCall() {
     const { chat, startCall, endCall, setCallStatus, toggleMute, user } = useAppState();
     const webrtcService = useRef<WebRTCService | null>(null);
-    const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+    const remoteAudioRef = globalRemoteAudioRef;
 
     useEffect(() => {
         // Initialize WebRTC service
@@ -51,7 +54,16 @@ export function useAudioCall() {
 
         // Set up remote stream handler
         webrtcService.current.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
-            if (!remoteAudioRef.current) return;
+            console.log("[AUDIO] Remote stream handler called", {
+                userId: _userId,
+                streamId: stream.id,
+                hasAudioTracks: stream.getAudioTracks().length > 0,
+                hasAudioElement: !!remoteAudioRef.current
+            });
+            if (!remoteAudioRef.current) {
+                console.warn("[AUDIO] No audio element available, stream will be lost");
+                return;
+            }
             const el = remoteAudioRef.current;
             try {
                 const track = stream.getAudioTracks()[0];
@@ -76,7 +88,19 @@ export function useAudioCall() {
 
                 const p = el.play();
                 if (p && typeof p.then === "function") {
-                    p.catch((e: any) => console.warn("[AUDIO] play() blocked:", e?.message || e));
+                    p.then(() => console.log("[AUDIO] Remote audio playing successfully"))
+                     .catch((e: any) => {
+                        console.warn("[AUDIO] play() blocked:", e?.message || e);
+                        // Try to play after user interaction
+                        const playAfterInteraction = () => {
+                            el.play().then(() => console.log("[AUDIO] Played after interaction"))
+                                .catch(() => console.warn("[AUDIO] Still blocked after interaction"));
+                            document.removeEventListener('click', playAfterInteraction);
+                            document.removeEventListener('touchstart', playAfterInteraction);
+                        };
+                        document.addEventListener('click', playAfterInteraction);
+                        document.addEventListener('touchstart', playAfterInteraction);
+                    });
                 }
             } catch (e: any) {
                 console.warn("failed to attach remote stream:", e?.message || e);
