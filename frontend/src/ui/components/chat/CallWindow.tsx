@@ -4,9 +4,9 @@ import { useAudioCall } from "../../hooks/useAudioCall";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 export function CallWindow() {
-    const { chat, endCall, toggleMute } = useAppState();
+    const { chat, toggleMute } = useAppState();
     const { call } = chat;
-    const { acceptCall, rejectCall, remoteAudioRef } = useAudioCall();
+    const { acceptCall, rejectCall, remoteAudioRef, endCall } = useAudioCall();
     const [position, setPosition] = useState({ x: 100, y: 100 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
