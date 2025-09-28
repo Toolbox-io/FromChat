@@ -137,6 +137,8 @@ export abstract class MessagePanel {
         const retryMessage: Message = {
             ...message,
             id: -1, // Temporary ID
+            // Preserve existing files (which may have blob URLs for display)
+            files: message.files,
             runtimeData: {
                 ...message.runtimeData,
                 sendingState: {
@@ -209,6 +211,8 @@ export abstract class MessagePanel {
                     if (msg.runtimeData?.sendingState?.tempId === tempId) {
                         return {
                             ...confirmedMessage,
+                            // Preserve files from the temporary message (which have blob URLs for immediate display)
+                            files: msg.files,
                             runtimeData: {
                                 ...confirmedMessage.runtimeData,
                                 sendingState: {
