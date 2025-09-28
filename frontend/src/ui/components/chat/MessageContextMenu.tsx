@@ -108,27 +108,8 @@ export function MessageContextMenu({
             window.removeEventListener('blur', handleWindowBlur);
         };
     }, [isOpen, isClosing]);
-    
-    const handleAction = (action: string) => {
-        switch (action) {
-            case "reply":
-                onReply(message);
-                handleClose();
-                break;
-            case "edit":
-                if (isAuthor) onEdit(message);
-                break;
-            case "delete":
-                if (isAuthor) {
-                    onDelete(message);
-                    handleClose();
-                }
-                break;
-        }
-        onOpenChange(false);
-    };
 
-    const handleClose = () => {
+    function handleClose() {
         setIsClosing(true);
         // Set appropriate closing animation based on opening animation
         const closingAnimation = animationClass.replace('entering', 'closing');
@@ -140,7 +121,44 @@ export function MessageContextMenu({
             setIsClosing(false);
             setAnimationClass('entering'); // Reset for next opening
         }, 200); // Match the animation duration from _animations.scss
-    };
+    }
+
+    interface Action {
+        label: string;
+        icon: string;
+        onClick: () => void;
+        show: boolean;
+    }
+
+    const actions: Action[] = [
+        {
+            label: "Reply",
+            icon: "reply",
+            onClick: () => {
+                onReply(message);
+                handleClose();
+            },
+            show: true
+        },
+        {
+            label: "Edit",
+            icon: "edit",
+            onClick: () => {
+                onEdit(message);
+                handleClose();
+            },
+            show: isAuthor
+        },
+        {
+            label: "Delete",
+            icon: "delete",
+            onClick: () => {
+                onDelete(message);
+                handleClose();
+            },
+            show: isAuthor
+        },
+    ];
 
     return isOpen && (
         <div 
@@ -153,22 +171,18 @@ export function MessageContextMenu({
                 zIndex: 1000
             }}
             onClick={(e) => e.stopPropagation()}>
-            <div className="context-menu-item" onClick={() => handleAction("reply")}>
-                <span className="material-symbols">reply</span>
-                Ответить
-            </div>
-            {isAuthor && (
-                <>
-                    <div className="context-menu-item" onClick={() => handleAction("edit")}>
-                        <span className="material-symbols">edit</span>
-                        Редактировать
+            {actions.map((action, i) => (
+                action.show && (
+                    <div 
+                        className="context-menu-item"
+                        onClick={action.onClick}
+                        key={i}
+                    >
+                        <span className="material-symbols">{action.icon}</span>
+                        {action.label}
                     </div>
-                    <div className="context-menu-item" onClick={() => handleAction("delete")}>
-                        <span className="material-symbols">delete</span>
-                        Удалить
-                    </div>
-                </>
-            )}
+                )
+            ))}
         </div>
     )
 }
