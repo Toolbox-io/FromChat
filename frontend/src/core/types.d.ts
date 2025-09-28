@@ -64,6 +64,15 @@ export interface Message {
 
     runtimeData?: {
         dmEnvelope?: DmEnvelope;
+        sendingState?: {
+            status: 'sending' | 'sent' | 'failed';
+            tempId?: string; // Temporary ID for tracking until server confirms
+            retryData?: {
+                content: string;
+                replyToId?: number;
+                files?: File[];
+            };
+        };
     }
 }
 

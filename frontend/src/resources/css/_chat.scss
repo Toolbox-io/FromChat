@@ -256,6 +256,7 @@
                                     &:last-child {
                                         margin-bottom: 0;
                                     }
+
                                     &.loading {
                                         filter: blur(10px);
                                         transition: filter 200ms ease;
@@ -306,6 +307,32 @@
                             text-align: right;
                             user-select: none;
                             margin: 4px 8px 8px 8px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: flex-end;
+                            gap: 4px;
+
+                            .message-status-indicator {
+                                display: flex;
+                                align-items: center;
+                                width: 16px;
+                                height: 16px;
+
+                                .error-icon {
+                                    color: #f44336;
+                                    font-size: 16px;
+                                }
+
+                                .success-icon {
+                                    color: #4caf50;
+                                    font-size: 16px;
+                                }
+
+                                mdui-circular-progress {
+                                    width: 16px;
+                                    height: 16px;
+                                }
+                            }
                         }
                     }
 

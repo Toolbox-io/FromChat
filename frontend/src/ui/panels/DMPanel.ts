@@ -117,7 +117,7 @@ export class DMPanel extends MessagePanel {
         }
     }
 
-    async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
+    protected async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData || !content.trim()) return;
 
         try {
@@ -172,6 +172,20 @@ export class DMPanel extends MessagePanel {
             if (envelope.senderId === this.dmData.userId || envelope.recipientId === this.dmData.userId) {
                 try {
                     const dmMsg = await this.parseTextPayload(envelope, this.getMessages());
+                    
+                    // Check if this is a confirmation of a message we sent
+                    const isOurMessage = envelope.senderId !== this.dmData.userId;
+                    if (isOurMessage) {
+                        // This is our message being confirmed, find the temp message and replace it
+                        const tempMessages = this.getMessages().filter(m => m.id === -1 && m.runtimeData?.sendingState?.tempId);
+                        for (const tempMsg of tempMessages) {
+                            if (tempMsg.runtimeData?.sendingState?.retryData?.content === dmMsg.content) {
+                                this.handleMessageConfirmed(tempMsg.runtimeData.sendingState.tempId!, dmMsg);
+                                return;
+                            }
+                        }
+                    }
+                    
                     this.addMessage(dmMsg);
 
                     // Update last read if it's from the other user
@@ -258,7 +272,11 @@ export class DMPanel extends MessagePanel {
 
     async handleDeleteMessage(messageId: number): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData) return;
-        // Fire and forget; UI will update via dmDeleted
+        
+        // Remove message immediately from UI
+        this.deleteMessageImmediately(messageId);
+        
+        // Fire and forget server deletion; UI already updated
         await deleteDmEnvelope(messageId, this.dmData.userId, this.currentUser.authToken);
     }
 

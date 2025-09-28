@@ -78,7 +78,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         }
     }, [message.files, isDm, decryptedFiles]);
 
-    const decryptFile = async (file: Attachment): Promise<string | null> => {
+    async function decryptFile(file: Attachment): Promise<string | null> {
         if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) {
             debugger;
             console.warn("Conditions not met")
@@ -135,7 +135,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         }
     };
 
-    const handleImageClick = async (file: Attachment, imageElement: HTMLImageElement) => {
+    async function handleImageClick(file: Attachment, imageElement: HTMLImageElement) {
         // Use decrypted URL if available, otherwise decrypt first
         const decryptedUrl = decryptedFiles.get(file.path);
         if (decryptedUrl) {
@@ -150,7 +150,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         }
     };
 
-    const computeEndRect = (naturalWidth: number, naturalHeight: number): Rect => {
+    function computeEndRect(naturalWidth: number, naturalHeight: number): Rect {
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const maxWidth = Math.floor(viewportWidth * 0.9);
@@ -165,7 +165,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         return { left, top, width, height };
     };
 
-    const openFullscreenFromThumb = (imgEl: HTMLImageElement, src: string, name: string) => {
+    function openFullscreenFromThumb(imgEl: HTMLImageElement, src: string, name: string) {
         const rect = imgEl.getBoundingClientRect();
         const startRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
         const tempImg = new Image();
@@ -186,7 +186,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         };
     };
 
-    const closeFullscreen = () => {
+    function closeFullscreen() {
         // Reverse animation
         setIsAnimatingOpen(false);
         // Wait for transition to finish
@@ -198,7 +198,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         }, 300);
     };
 
-    const downloadImage = async () => {
+    async function downloadImage() {
         if (!fullscreenImage) return;
         const { src, name } = fullscreenImage;
         try {
@@ -232,7 +232,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
         }
     };
 
-    const downloadFile = async (file: Attachment) => {
+    async function downloadFile(file: Attachment) {
         try {
             updateDownloadingPaths(draft => {
                 draft.add(file.path);
@@ -286,7 +286,6 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                 onContextMenu={handleContextMenu}
             >
                 <div className="message-inner">
-                    {/* Add profile picture for received messages */}
                     {!isAuthor && !isDm && (
                         <div className="message-profile-pic">
                             <img
@@ -312,7 +311,6 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                         </div>
                     )}
 
-                    {/* Add reply preview if this is a reply */}
                     {message.reply_to && (
                         <Quote className="reply-preview contextual-content" background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
                             <span className="reply-username">{message.reply_to.username}</span>
@@ -330,6 +328,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                                 const decryptedUrl = decryptedFiles.get(file.path);
                                 const imageSrc = isImage ? (isEncryptedDm ? decryptedUrl : file.path) : undefined;
                                 const isDownloading = downloadingPaths.has(file.path);
+                                const isSending = message.runtimeData?.sendingState?.status === 'sending';
 
                                 return (
                                     <div className="attachment" key={idx}>
@@ -345,7 +344,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                                                     onLoad={() => updateLoadedImages(draft => { draft.add(file.path); })}
                                                     className={`attachement-image ${loadedImages.has(file.path) ? "" : "loading"}`}
                                                 />
-                                                {!loadedImages.has(file.path) && (
+                                                {(!loadedImages.has(file.path) || isSending) && (
                                                     <div className="loading-overlay">
                                                         <mdui-circular-progress />
                                                     </div>
@@ -379,6 +378,20 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                         
                         {isAuthor && message.is_read && (
                             <span className="material-symbols outlined"></span>
+                        )}
+                        
+                        {isAuthor && message.runtimeData?.sendingState && (
+                            <span className="message-status-indicator">
+                                {message.runtimeData.sendingState.status === 'sending' && (
+                                    <mdui-circular-progress style={{ width: '16px', height: '16px' }} />
+                                )}
+                                {message.runtimeData.sendingState.status === 'failed' && (
+                                    <span className="material-symbols error-icon">error</span>
+                                )}
+                                {message.runtimeData.sendingState.status === 'sent' && (
+                                    <span className="material-symbols success-icon">check</span>
+                                )}
+                            </span>
                         )}
                     </div>
                 </div>

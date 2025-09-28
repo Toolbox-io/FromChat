@@ -23,6 +23,7 @@ export abstract class MessagePanel {
     protected state: MessagePanelState;
     public onStateChange: ((state: MessagePanelState) => void) | null = () => {};
     protected readonly currentUser: UserState;
+    private pendingMessages: Map<string, { timeoutId: NodeJS.Timeout; message: Message }> = new Map();
 
     constructor(
         id: string,
@@ -43,7 +44,7 @@ export abstract class MessagePanel {
     abstract activate(): Promise<void>;
     abstract deactivate(): void;
     abstract loadMessages(): Promise<void>;
-    abstract sendMessage(content: string, replyToId?: number, files?: File[]): Promise<void>;
+    protected abstract sendMessage(content: string, replyToId?: number, files?: File[]): Promise<void>;
     abstract isDm(): boolean;
     
     // Optional WebSocket message handler (can be overridden by subclasses)
@@ -68,9 +69,16 @@ export abstract class MessagePanel {
 
     protected updateMessage(messageId: number, updates: Partial<Message>): void {
         this.updateState({
-            messages: this.state.messages.map(msg => 
-                msg.id === messageId ? { ...msg, ...updates } : msg
-            )
+            messages: this.state.messages.map(msg => {
+                // Handle temporary messages (negative IDs) by matching temp ID
+                if (messageId === -1 && msg.runtimeData?.sendingState?.tempId) {
+                    const pending = this.pendingMessages.get(msg.runtimeData.sendingState.tempId);
+                    if (pending) {
+                        return { ...pending.message, ...updates };
+                    }
+                }
+                return msg.id === messageId ? { ...msg, ...updates } : msg;
+            })
         });
     }
 
@@ -109,10 +117,230 @@ export abstract class MessagePanel {
         return [...this.state.messages];
     }
 
+    // ========== PUBLIC API ==========
+    
     // Event handlers
     handleSendMessage(content: string, replyToId?: number, files: File[] = []): void {
-        this.sendMessage(content, replyToId, files);
-    };
+        this.sendMessageWithImmediateDisplay(content, replyToId, files);
+    }
+
+    async retryMessage(messageId: number): Promise<void> {
+        const message = this.getMessages().find(m => m.id === messageId);
+        if (!message?.runtimeData?.sendingState?.retryData) return;
+
+        const { content, replyToId, files } = message.runtimeData.sendingState.retryData;
+        
+        // Create new temp ID for retry
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        
+        // Update status back to sending and create new temp message
+        const retryMessage: Message = {
+            ...message,
+            id: -1, // Temporary ID
+            // Preserve existing files (which may have blob URLs for display)
+            files: message.files,
+            runtimeData: {
+                ...message.runtimeData,
+                sendingState: {
+                    status: 'sending',
+                    tempId,
+                    retryData: {
+                        content,
+                        replyToId,
+                        files: files || []
+                    }
+                }
+            }
+        };
+
+        // Update the existing message to sending state
+        this.updateState({
+            messages: this.state.messages.map(msg => {
+                if (msg.id === messageId) {
+                    return retryMessage;
+                }
+                return msg;
+            })
+        });
+
+        const timeoutId = setTimeout(() => {
+            this.handleMessageTimeout(tempId);
+        }, 10000);
+
+        this.pendingMessages.set(tempId, { timeoutId, message: retryMessage });
+
+        try {
+            await this.sendMessage(content, replyToId, files || []);
+            // Note: Success will be handled by WebSocket confirmation
+        } catch (error) {
+            console.error("Failed to retry message:", error);
+            // Clear the timeout since we're handling the failure immediately
+            clearTimeout(timeoutId);
+            this.pendingMessages.delete(tempId);
+            
+            // Update message to failed state directly
+            this.updateState({
+                messages: this.state.messages.map(msg => {
+                    if (msg.runtimeData?.sendingState?.tempId === tempId) {
+                        return {
+                            ...msg,
+                            runtimeData: {
+                                ...msg.runtimeData,
+                                sendingState: {
+                                    ...msg.runtimeData.sendingState,
+                                    status: 'failed'
+                                }
+                            }
+                        };
+                    }
+                    return msg;
+                })
+            });
+        }
+    }
+
+    handleMessageConfirmed(tempId: string, confirmedMessage: Message): void {
+        const pending = this.pendingMessages.get(tempId);
+        if (pending) {
+            clearTimeout(pending.timeoutId);
+            this.pendingMessages.delete(tempId);
+            
+            // Replace temporary message with confirmed one
+            this.updateState({
+                messages: this.state.messages.map(msg => {
+                    if (msg.runtimeData?.sendingState?.tempId === tempId) {
+                        return {
+                            ...confirmedMessage,
+                            // Preserve files from the temporary message (which have blob URLs for immediate display)
+                            files: msg.files,
+                            runtimeData: {
+                                ...confirmedMessage.runtimeData,
+                                sendingState: {
+                                    status: 'sent'
+                                }
+                            }
+                        };
+                    }
+                    return msg;
+                })
+            });
+        }
+    }
+
+    protected deleteMessageImmediately(messageId: number): void {
+        this.updateState({
+            messages: this.state.messages.filter(msg => msg.id !== messageId)
+        });
+    }
+
+    destroy(): void {
+        // Clear all pending timeouts
+        this.pendingMessages.forEach(({ timeoutId }) => {
+            clearTimeout(timeoutId);
+        });
+        this.pendingMessages.clear();
+    }
+
+    // ========== PRIVATE METHODS ==========
+    
+    // Create and display message immediately with sending state
+    private async sendMessageWithImmediateDisplay(content: string, replyToId?: number, files: File[] = []): Promise<void> {
+        if (!content.trim() && files.length === 0) return;
+
+        // Create temporary message for immediate display
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const tempMessage: Message = {
+            id: -1, // Temporary negative ID
+            username: this.currentUser.currentUser?.username ?? "You",
+            content: content.trim(),
+            is_read: false,
+            is_edited: false,
+            timestamp: new Date().toISOString(),
+            files: files.map(file => ({
+                name: file.name,
+                path: URL.createObjectURL(file),
+                encrypted: false
+            })),
+            runtimeData: {
+                sendingState: {
+                    status: 'sending',
+                    tempId,
+                    retryData: {
+                        content: content.trim(),
+                        replyToId,
+                        files: [...files]
+                    }
+                }
+            }
+        };
+
+        // Add reply reference if present
+        if (replyToId) {
+            const referencedMessage = this.getMessages().find(m => m.id === replyToId);
+            if (referencedMessage) {
+                tempMessage.reply_to = referencedMessage;
+            }
+        }
+
+        // Add message immediately
+        this.addMessage(tempMessage);
+
+        // Set up timeout for failure
+        const timeoutId = setTimeout(() => {
+            this.handleMessageTimeout(tempId);
+        }, 10000); // 10 seconds timeout
+
+        // Store pending message
+        this.pendingMessages.set(tempId, { timeoutId, message: tempMessage });
+
+        // Actually send the message
+        try {
+            await this.sendMessage(content, replyToId, files);
+            // Message sent successfully - will be updated when WebSocket confirms
+        } catch (error) {
+            console.error("Failed to send message:", error);
+            this.handleMessageFailed(tempId);
+        }
+    }
+
+    // Handle message timeout (10 seconds)
+    private handleMessageTimeout(tempId: string): void {
+        this.updateMessageToFailed(tempId);
+    }
+
+    // Handle message send failure
+    private handleMessageFailed(tempId: string): void {
+        this.updateMessageToFailed(tempId);
+    }
+
+    // Helper method to update message to failed state
+    private updateMessageToFailed(tempId: string): void {
+        const pending = this.pendingMessages.get(tempId);
+        if (pending) {
+            clearTimeout(pending.timeoutId);
+            this.pendingMessages.delete(tempId);
+            
+            // Update message to failed state
+            this.updateState({
+                messages: this.state.messages.map(msg => {
+                    if (msg.runtimeData?.sendingState?.tempId === tempId) {
+                        return {
+                            ...msg,
+                            runtimeData: {
+                                ...msg.runtimeData,
+                                sendingState: {
+                                    ...msg.runtimeData.sendingState,
+                                    status: 'failed'
+                                }
+                            }
+                        };
+                    }
+                    return msg;
+                })
+            });
+        }
+    }
+
     abstract handleEditMessage(messageId: number, content: string): Promise<void>;
     abstract handleDeleteMessage(messageId: number): Promise<void>;
     abstract handleProfileClick(): void;
