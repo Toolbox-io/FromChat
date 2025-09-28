@@ -75,8 +75,14 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
         
         // Cleanup function
         return () => {
-            if (panel && panel.onStateChange) {
-                panel.onStateChange = null;
+            if (panel) {
+                if (panel.onStateChange) {
+                    panel.onStateChange = null;
+                }
+                // Call destroy to clean up pending timeouts
+                if (typeof panel.destroy === 'function') {
+                    panel.destroy();
+                }
             }
         };
     }, [panel]);
@@ -221,6 +227,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                             }
                         }}
                         onDelete={(id) => panel.handleDeleteMessage(id)}
+                        onRetryMessage={(id) => panel.retryMessage(id)}
                     >
                         <div ref={messagesEndRef} />
                     </ChatMessages>

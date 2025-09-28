@@ -7,6 +7,7 @@ interface MessageContextMenuProps {
     onEdit: (message: Message) => void;
     onReply: (message: Message) => void;
     onDelete: (message: Message) => void;
+    onRetry?: (message: Message) => void;
     position: Size2D;
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
@@ -24,6 +25,7 @@ export function MessageContextMenu({
     onEdit, 
     onReply, 
     onDelete, 
+    onRetry,
     position,
     isOpen,
     onOpenChange
@@ -130,6 +132,11 @@ export function MessageContextMenu({
         show: boolean;
     }
 
+    // Check if message is sending or failed
+    const isSending = message.runtimeData?.sendingState?.status === 'sending';
+    const isFailed = message.runtimeData?.sendingState?.status === 'failed';
+    const isSendingOrFailed = isSending || isFailed;
+
     const actions: Action[] = [
         {
             label: "Reply",
@@ -138,7 +145,7 @@ export function MessageContextMenu({
                 onReply(message);
                 handleClose();
             },
-            show: true
+            show: !isSendingOrFailed
         },
         {
             label: "Edit",
@@ -147,7 +154,18 @@ export function MessageContextMenu({
                 onEdit(message);
                 handleClose();
             },
-            show: isAuthor
+            show: isAuthor && !isSendingOrFailed
+        },
+        {
+            label: "Retry",
+            icon: "refresh",
+            onClick: () => {
+                if (onRetry) {
+                    onRetry(message);
+                }
+                handleClose();
+            },
+            show: isAuthor && isFailed && !!onRetry
         },
         {
             label: "Delete",

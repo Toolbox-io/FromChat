@@ -17,10 +17,11 @@ interface ChatMessagesProps {
     onReplySelect?: (message: MessageType) => void;
     onEditSelect?: (message: MessageType) => void;
     onDelete?: (id: number) => void;
+    onRetryMessage?: (messageId: number) => void;
     dmRecipientPublicKey?: string;
 }
 
-export function ChatMessages({ messages: propMessages, children, isDm = false, onReplySelect, onEditSelect, onDelete, dmRecipientPublicKey }: ChatMessagesProps) {
+export function ChatMessages({ messages: propMessages, children, isDm = false, onReplySelect, onEditSelect, onDelete, onRetryMessage, dmRecipientPublicKey }: ChatMessagesProps) {
     const { messages: hookMessages } = useChat();
     const { user } = useAppState();
     
@@ -117,6 +118,12 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
         setDeleteDialogOpen(true);
     }
 
+    function handleRetry(message: MessageType) {
+        if (onRetryMessage) {
+            onRetryMessage(message.id);
+        }
+    }
+
     return (
         <>
             <div className="chat-messages" id="chat-messages">
@@ -162,6 +169,7 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
                     onEdit={handleEdit}
                     onReply={handleReply}
                     onDelete={handleDelete}
+                    onRetry={handleRetry}
                     position={contextMenu.position}
                     isOpen={contextMenu.isOpen}
                     onOpenChange={handleContextMenuOpenChange}

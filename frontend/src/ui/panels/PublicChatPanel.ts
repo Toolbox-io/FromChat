@@ -59,7 +59,7 @@ export class PublicChatPanel extends MessagePanel {
         }
     }
 
-    async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
+    protected async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !content.trim()) return;
 
         try {
@@ -114,7 +114,22 @@ export class PublicChatPanel extends MessagePanel {
                 break;
             case 'newMessage':
                 if (response.data) {
-                    this.addMessage(response.data);
+                    const newMsg = response.data;
+                    
+                    // Check if this is a confirmation of a message we sent
+                    const isOurMessage = newMsg.username === this.currentUser.currentUser?.username;
+                    if (isOurMessage) {
+                        // This is our message being confirmed, find the temp message and replace it
+                        const tempMessages = this.getMessages().filter(m => m.id === -1 && m.runtimeData?.sendingState?.tempId);
+                        for (const tempMsg of tempMessages) {
+                            if (tempMsg.runtimeData?.sendingState?.retryData?.content === newMsg.content) {
+                                this.handleMessageConfirmed(tempMsg.runtimeData.sendingState.tempId!, newMsg);
+                                return;
+                            }
+                        }
+                    }
+                    
+                    this.addMessage(newMsg);
                 }
                 break;
         }
@@ -159,6 +174,10 @@ export class PublicChatPanel extends MessagePanel {
     }
 
     async handleDeleteMessage(id: number): Promise<void> {
+        // Remove message immediately from UI
+        this.deleteMessageImmediately(id);
+        
+        // Fire and forget server deletion; UI already updated
         await request({
             type: "deleteMessage",
             data: { message_id: id },
