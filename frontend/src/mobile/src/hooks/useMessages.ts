@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL } from '../config';
-import { getAuthHeaders } from '../../../common/auth/api';
-import type { Message } from '../../../common/core/types';
+import { getAuthHeaders } from '@common/auth/api';
+import type { Message } from '@common/core/types';
 
 export function useMessages(authToken: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);

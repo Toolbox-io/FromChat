@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useMessages } from '../hooks/useMessages';
 import { useWebSocket } from '../hooks/useWebSocket';
-import type { Message } from '../../../common/core/types';
+import type { Message } from '@common/core/types';
 
 type ChatTab = 'chats' | 'channels' | 'contacts' | 'dms';
 

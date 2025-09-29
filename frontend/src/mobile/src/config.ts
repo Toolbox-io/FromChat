@@ -1,6 +1,6 @@
 /**
- * @fileoverview Application configuration constants
- * @description Contains all configuration values used throughout the application
+ * @fileoverview Application configuration constants for mobile
+ * @description Contains all configuration values used throughout the mobile application
  * @author Cursor
  * @version 1.0.0
  */

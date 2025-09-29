@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { API_WS_BASE_URL } from '../config';
-import type { WebSocketMessage } from '../../../common/core/types';
+import type { WebSocketMessage } from '@common/core/types';
 
 export function useWebSocket(authToken: string | null) {
   const [isConnected, setIsConnected] = useState(false);
