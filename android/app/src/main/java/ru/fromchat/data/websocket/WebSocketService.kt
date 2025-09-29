@@ -54,7 +54,7 @@ class WebSocketService {
                 install(WebSockets)
             }
             
-            client?.webSocket(
+            client!!.webSocket(
                 method = HttpMethod.Get,
                 host = "fromchat.ru",
                 port = 443,
