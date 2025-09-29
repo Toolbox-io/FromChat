@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Notification, ipcMain } from 'electron';
 import path from "node:path";
-import { NotificationShowOptions } from '../electron';
+import type { NotificationShowOptions } from '../../electron';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -36,7 +36,7 @@ app.whenReady().then(() => {
     });
 
     // Handle showing notifications
-    ipcMain.handle('show-notification', async (event, options: NotificationShowOptions) => {
+    ipcMain.handle('show-notification', async (_, options: NotificationShowOptions) => {
         if (Notification.isSupported()) {
             try {
                 const notification = new Notification({

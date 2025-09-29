@@ -5,7 +5,7 @@ import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
 
-const serviceWorkerPath = resolve(__dirname, "src/service-worker/service-worker.ts");
+const serviceWorkerPath = resolve(__dirname, "src/web/service-worker/service-worker.ts");
 
 const plugins: PluginOption[] = [
     react(),
@@ -51,7 +51,7 @@ if (process.env.VITE_ELECTRON) {
     plugins.push(
         electron({
             main: {
-                entry: "electron/main.ts",
+                entry: "src/electron/main.ts",
                 vite: {
                     build: {
                         outDir: "build/electron/core"
@@ -59,7 +59,7 @@ if (process.env.VITE_ELECTRON) {
                 }
             },
             preload: {
-                input: "frontend/electron/preload.ts",
+                input: "frontend/src/electron/preload.ts",
                 vite: {
                     build: {
                         outDir: "build/electron/core"
@@ -115,11 +115,9 @@ export default defineConfig({
             },
             output: {
                 entryFileNames: (chunkInfo) => {
-                    // Проверяем имя чанка
                     if (chunkInfo.name === 'serviceWorker') {
-                        return 'assets/serviceWorker.js'; // Указываем фиксированное имя для этого скрипта
+                        return 'assets/serviceWorker.js';
                     }
-                    // Для остальных файлов используем стандартное именование с хэшем
                     return 'assets/[name]-[hash].js';
                 }
             }

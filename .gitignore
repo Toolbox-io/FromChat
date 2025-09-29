@@ -9,7 +9,8 @@
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -565,10 +566,11 @@ buck-out/
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 
-backend/data
+/backend/data
 .vite
 *.db
 package-lock.json
 backend/alembic/**
-!backend/alembic/env.py
-!backend/alembic/script.py.mako
+!/backend/alembic/env.py
+!/backend/alembic/script.py.mako
+!frontend/src/**/resources/css/lib/

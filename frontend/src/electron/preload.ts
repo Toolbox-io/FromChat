@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ElectronInterface, Platform } from "../electron";
+import type { ElectronInterface, Platform } from "../../electron";
 
 contextBridge.exposeInMainWorld("electronInterface", {
     desktop: true,
