@@ -55,6 +55,24 @@
             },
             "isBackground": true
         },
+        {
+            "label": "Frontend (React Native)",
+            "type": "npm",
+            "script": "start",
+            "options": {
+                "cwd": "${workspaceFolder}/frontend/src/mobile"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "group": {
+                "kind": "build"
+            },
+            "isBackground": true
+        },
 
         {
             "label": "Web",
@@ -74,6 +92,20 @@
         {
             "label": "Electron",
             "dependsOn": ["Backend", "Frontend (Electron)"],
+            "dependsOrder": "parallel",
+            "group": {
+                "kind": "build"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "React Native",
+            "dependsOn": ["Backend", "Frontend (React Native)"],
             "dependsOrder": "parallel",
             "group": {
                 "kind": "build"

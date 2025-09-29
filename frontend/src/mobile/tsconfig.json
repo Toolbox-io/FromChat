@@ -1,10 +1,11 @@
 {
-  "extends": "expo/tsconfig.base",
-  "compilerOptions": {
-    "strict": true,
-    "baseUrl": ".",
-    "paths": {
-      "@common/*": ["../common/*"]
+    "extends": "expo/tsconfig.base",
+    "compilerOptions": {
+        "strict": true,
+        "baseUrl": ".",
+        "paths": {
+            "@common/*": ["../common/*"],
+            "virtual:dev-server-config": ["env.d.ts"]
+        }
     }
-  }
 }
