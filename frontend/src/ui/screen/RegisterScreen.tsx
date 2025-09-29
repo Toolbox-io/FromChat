@@ -4,15 +4,16 @@ import { AuthContainer, AuthHeader } from "../components/Auth";
 import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
 import { useRef } from "react";
 import { TextField } from "mdui/components/text-field";
-import type { ErrorResponse, RegisterRequest } from "../../core/types";
+import type { ErrorResponse, RegisterRequest, LoginResponse } from "../../core/types";
 import { API_BASE_URL } from "../../core/config";
-import { delay } from "../../utils/utils";
 import { useAppState } from "../state";
 import { MaterialTextField } from "../components/core/TextField";
+import { ensureKeysOnLogin } from "../../auth/crypto";
 
 export default function RegisterScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
     const setCurrentPage = useAppState(state => state.setCurrentPage);
+    const setUser = useAppState(state => state.setUser);
 
     function showAlert(type: AlertType, message: string) {
         updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
@@ -71,10 +72,18 @@ export default function RegisterScreen() {
                         });
                         
                         if (response.ok) {
-                            // Registration successful
-                            showAlert("success", "Регистрация прошла успешно! Теперь вы можете войти.");
-                            await delay(2000);
-                            setCurrentPage("login");
+                            const data: LoginResponse = await response.json();
+                            // Store the JWT token first
+                            setUser(data.token, data.user);
+                            
+                            // Setup keys with the token we just received
+                            try {
+                                await ensureKeysOnLogin(password, data.token);
+                            } catch (e) {
+                                console.error("Key setup failed:", e);
+                            }
+
+                            setCurrentPage("chat");
                         } else {
                             const data: ErrorResponse = await response.json();
                             showAlert("danger", data.message || "Ошибка при регистрации");

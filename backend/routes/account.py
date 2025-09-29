@@ -116,9 +116,13 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
+    token = create_token(new_user.id, new_user.username)
+
     return {
         "status": "success",
-        "message": "Регистрация прошла успешно Теперь вы можете войти."
+        "message": "Регистрация прошла успешно",
+        "token": token,
+        "user": convert_user(new_user)
     }
 
 @router.get("/crypto/public-key")
