@@ -9,7 +9,13 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import ru.fromchat.data.state.AppState
+import ru.fromchat.data.state.Page
+import ru.fromchat.ui.screens.ChatScreen
+import ru.fromchat.ui.screens.LoginScreen
+import ru.fromchat.ui.screens.RegisterScreen
 
 val LocalNavController = compositionLocalOf<NavController> { error("") }
 
@@ -24,7 +30,11 @@ fun App() {
         ) {
             NavHost(
                 navController = navController,
-                startDestination = "login",
+                startDestination = when (AppState.currentPage) {
+                    Page.LOGIN -> "login"
+                    Page.REGISTER -> "register"
+                    Page.CHAT -> "chat"
+                },
                 enterTransition = {
                     slideIntoContainer(
                         Start,
@@ -50,7 +60,15 @@ fun App() {
                     )
                 }
             ) {
-
+                composable("login") {
+                    LoginScreen()
+                }
+                composable("register") {
+                    RegisterScreen()
+                }
+                composable("chat") {
+                    ChatScreen()
+                }
             }
         }
     }
