@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../../../common/core/config';
+import { API_BASE_URL } from '../config';
 import { getAuthHeaders } from '../../../common/auth/api';
 import type { User, LoginRequest, RegisterRequest } from '../../../common/core/types';
 
