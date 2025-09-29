@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '../core';
-import { getAuthHeaders } from '../api';
+import { API_BASE_URL } from '../../../common/core/config';
+import { getAuthHeaders } from '../../../common/auth/api';
 import type { Message } from '../../../common/core/types';
 
 export function useMessages(authToken: string | null) {
