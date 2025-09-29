@@ -1,9 +1,9 @@
 import { useImmer } from "use-immer";
 import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
 import { AuthContainer, AuthHeader } from "../components/Auth";
-import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
-import { ensureKeysOnLogin } from "../../auth/crypto";
-import { API_BASE_URL } from "../../core/config";
+import type { ErrorResponse, LoginRequest, LoginResponse } from "../../../common/core/types";
+import { ensureKeysOnLogin } from "../../../common/auth/crypto";
+import { API_BASE_URL } from "../../../common/core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../state";

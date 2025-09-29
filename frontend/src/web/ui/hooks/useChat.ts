@@ -1,10 +1,10 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useAppState } from "../state";
-import { request } from "../../core/websocket";
-import { API_BASE_URL } from "../../core/config";
-import type { Message } from "../../core/types";
-import { getAuthHeaders } from "../../auth/api";
-import { delay } from "../../utils/utils";
+import { request } from "../../../common/core/websocket";
+import { API_BASE_URL } from "../../../common/core/config";
+import type { Message } from "../../../common/core/types";
+import { getAuthHeaders } from "../../../common/auth/api";
+import { delay } from "../../../common/utils/utils";
 
 export function useChat() {
     const { 

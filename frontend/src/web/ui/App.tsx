@@ -1,4 +1,4 @@
-import { MINIMUM_WIDTH } from "../core/config";
+import { MINIMUM_WIDTH } from "../../common/core/config";
 import { isElectron } from "../electron/electron";
 import { ElectronTitleBar } from "./components/Electron";
 import useWindowSize from "./hooks/useWindowSize";

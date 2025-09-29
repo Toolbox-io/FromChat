@@ -1,7 +1,7 @@
-import { API_BASE_URL } from "../core/config";
+import { API_BASE_URL } from "../../common/core/config";
 import { isElectron } from "../electron/electron";
-import { websocket } from "../core/websocket";
-import type { NewMessageWebSocketMessage, WebSocketMessage } from "../core/types";
+import { websocket } from "../../common/core/websocket";
+import type { NewMessageWebSocketMessage, WebSocketMessage } from "../../common/core/types";
 
 export interface PushSubscriptionData {
     endpoint: string;

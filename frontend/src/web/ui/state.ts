@@ -1,12 +1,12 @@
 import { create } from "zustand";
-import type { Message, User } from "../core/types";
-import { request } from "../core/websocket";
+import type { Message, User } from "../../common/core/types";
+import { request } from "../../common/core/websocket";
 import { MessagePanel } from "./panels/MessagePanel";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./panels/DMPanel";
-import { getAuthHeaders } from "../auth/api";
-import { restoreKeys } from "../auth/crypto";
-import { API_BASE_URL } from "../core/config";
+import { getAuthHeaders } from "../../common/auth/api";
+import { restoreKeys } from "../../common/auth/crypto";
+import { API_BASE_URL } from "../../common/core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "../utils/push-notifications";
 import { isElectron } from "../electron/electron";
 

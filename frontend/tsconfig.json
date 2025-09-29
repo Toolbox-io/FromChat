@@ -26,5 +26,5 @@
         "jsxImportSource": "react"
     },
     "include": ["src", "electron.d.ts"],
-    "exclude": ["**/__*/**", "__*"]
+    "exclude": ["**/__*/**", "__*", "src/mobile"]
 }

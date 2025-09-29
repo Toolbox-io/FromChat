@@ -1,16 +1,16 @@
-import { formatTime } from "../../../utils/utils";
-import type { Attachment, Message as MessageType } from "../../../core/types";
+import { formatTime } from "../../../../common/utils/utils";
+import type { Attachment, Message as MessageType } from "../../../../common/core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import Quote from "../core/Quote";
 import { parse } from "marked";
 import DOMPurify from "dompurify";
 import { useEffect, useState, useRef } from "react";
-import { getCurrentKeys } from "../../../auth/crypto";
-import { ecdhSharedSecret, deriveWrappingKey } from "../../../utils/crypto/asymmetric";
-import { importAesGcmKey, aesGcmDecrypt } from "../../../utils/crypto/symmetric";
-import { getAuthHeaders } from "../../../auth/api";
+import { getCurrentKeys } from "../../../../common/auth/crypto";
+import { ecdhSharedSecret, deriveWrappingKey } from "../../../../common/utils/crypto/asymmetric";
+import { importAesGcmKey, aesGcmDecrypt } from "../../../../common/utils/crypto/symmetric";
+import { getAuthHeaders } from "../../../../common/auth/api";
 import { useAppState } from "../../state";
-import { ub64 } from "../../../utils/utils";
+import { ub64 } from "../../../../common/utils/utils";
 import { useImmer } from "use-immer";
 
 interface MessageProps {

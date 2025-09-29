@@ -4,11 +4,11 @@ import { AuthContainer, AuthHeader } from "../components/Auth";
 import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
 import { useRef } from "react";
 import { TextField } from "mdui/components/text-field";
-import type { ErrorResponse, RegisterRequest, LoginResponse } from "../../core/types";
-import { API_BASE_URL } from "../../core/config";
+import type { ErrorResponse, RegisterRequest, LoginResponse } from "../../../common/core/types";
+import { API_BASE_URL } from "../../../common/core/config";
 import { useAppState } from "../state";
 import { MaterialTextField } from "../components/core/TextField";
-import { ensureKeysOnLogin } from "../../auth/crypto";
+import { ensureKeysOnLogin } from "../../../common/auth/crypto";
 
 export default function RegisterScreen() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);

@@ -1,13 +1,13 @@
 import { useChat } from "../../hooks/useChat";
 import { Message } from "./Message";
 import { useAppState } from "../../state";
-import type { Message as MessageType } from "../../../core/types";
-import type { UserProfile } from "../../../core/types";
+import type { Message as MessageType } from "../../../../common/core/types";
+import type { UserProfile } from "../../../../common/core/types";
 import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
 import { fetchUserProfile } from "../../../api/profileApi";
 import { useEffect, useState, type ReactNode } from "react";
-import { delay } from "../../../utils/utils";
+import { delay } from "../../../../common/utils/utils";
 import { MaterialDialog } from "../core/Dialog";
 
 interface ChatMessagesProps {

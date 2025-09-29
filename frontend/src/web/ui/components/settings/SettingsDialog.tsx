@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { PRODUCT_NAME, API_BASE_URL } from "../../../core/config";
-import type { DialogProps } from "../../../core/types";
+import { PRODUCT_NAME, API_BASE_URL } from "../../../../common/core/config";
+import type { DialogProps } from "../../../../common/core/types";
 import { MaterialDialog } from "../core/Dialog";
 import { initialize, isSupported, startElectronReceiver, stopElectronReceiver, subscribe, unsubscribe } from "../../../utils/push-notifications";
 import { isElectron } from "../../../electron/electron";
 import { useAppState } from "../../state";
 import type { Switch } from "mdui/components/switch";
-import { getAuthHeaders } from "../../../auth/api";
+import { getAuthHeaders } from "../../../../common/auth/api";
 
 export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     const [activePanel, setActivePanel] = useState("notifications-settings");

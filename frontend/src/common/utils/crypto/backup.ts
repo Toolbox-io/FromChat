@@ -64,5 +64,3 @@ export function decodeBlob(json: string): EncryptedBackupBlob {
 	const obj = JSON.parse(json);
 	return { salt: ub64(obj.salt), iv: ub64(obj.iv), ciphertext: ub64(obj.ciphertext) };
 }
-
-

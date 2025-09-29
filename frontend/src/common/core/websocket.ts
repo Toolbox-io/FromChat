@@ -16,7 +16,7 @@ import { delay } from "../utils/utils";
  */
 function create(): WebSocket {
     let prefix = "ws://";
-    if (location.protocol.includes("https")) {
+    if (typeof location !== 'undefined' && location.protocol.includes("https")) {
         prefix = "wss://";
     }
 

@@ -1,4 +1,4 @@
-import { PRODUCT_NAME } from "../../core/config";
+import { PRODUCT_NAME } from "../../../common/core/config";
 import { isElectron } from "../../electron/electron";
 
 export function ElectronTitleBar() {

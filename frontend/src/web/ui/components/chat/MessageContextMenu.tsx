@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Message, Size2D } from "../../../core/types";
+import type { Message, Size2D } from "../../../../common/core/types";
 
 interface MessageContextMenuProps {
     message: Message;

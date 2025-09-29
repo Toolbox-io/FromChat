@@ -7,8 +7,8 @@ import {
     decryptDm, 
     sendDMViaWebSocket 
 } from "../../api/dmApi";
-import type { User, Message, DmEncryptedJSON } from "../../core/types";
-import { websocket } from "../../core/websocket";
+import type { User, Message, DmEncryptedJSON } from "../../../common/core/types";
+import { websocket } from "../../../common/core/websocket";
 
 interface DMUser extends User {
     lastMessage?: string;

@@ -1,12 +1,12 @@
-import { API_BASE_URL } from "../../common/core/config";
-import { getAuthHeaders } from "../../common/auth/api";
-import { ecdhSharedSecret, deriveWrappingKey } from "../../common/utils/crypto/asymmetric";
-import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../../common/utils/crypto/symmetric";
-import { randomBytes } from "../../common/utils/crypto/kdf";
-import { getCurrentKeys } from "../../common/auth/crypto";
-import { request } from "../../common/core/websocket";
-import type { SendDMRequest, DmEnvelope, User, DMEditRequest, DmEncryptedJSON, BaseDmEnvelope } from "../../common/core/types";
-import { b64, ub64 } from "../../common/utils/utils";
+import { API_BASE_URL } from "../core/config";
+import { getAuthHeaders } from "../auth/api";
+import { ecdhSharedSecret, deriveWrappingKey } from "../utils/crypto/asymmetric";
+import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../utils/crypto/symmetric";
+import { randomBytes } from "../utils/crypto/kdf";
+import { getCurrentKeys } from "../auth/crypto";
+import { request } from "../core/websocket";
+import type { SendDMRequest, DmEnvelope, User, DMEditRequest, DmEncryptedJSON, BaseDmEnvelope } from "../core/types";
+import { b64, ub64 } from "../utils/utils";
 
 export async function decryptDm(envelope: DmEnvelope, senderPublicKeyB64: string): Promise<string> {
     const keys = getCurrentKeys();

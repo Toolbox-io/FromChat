@@ -1,7 +1,7 @@
-import type { DialogProps } from "../../../core/types";
-import type { UserProfile } from "../../../core/types";
+import type { DialogProps } from "../../../../common/core/types";
+import type { UserProfile } from "../../../../common/core/types";
 import { MaterialDialog } from "../core/Dialog";
-import { formatTime } from "../../../utils/utils";
+import { formatTime } from "../../../../common/utils/utils";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 
 interface UserProfileDialogProps extends DialogProps {
