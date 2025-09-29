@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">FromChat</string>
+    <string name="register">Регистрация</string>
+    <string name="register_d">Создайте новый аккаунт</string>
+    <string name="register_button">Зарегистрироваться</string>
+    <string name="username">Имя пользователя</string>
+    <string name="password">Пароль</string>
+    <string name="confirm_password">Подтвердите пароль</string>
+    <string name="login">Войти</string>
+    <string name="login_d">Войдите в аккаунт</string>
+    <string name="welcome">Добро пожаловать!</string>
+    <string name="fill_all_fields">Пожалуйста, заполните все поля</string>
+    <string name="username_length_error">Имя пользователя должно быть от 3 до 20 символов</string>
+    <string name="password_length_error">Пароль должен быть от 5 до 50 символов</string>
+    <string name="passwords_dont_match">Пароли не совпадают</string>
+    <string name="chats">Чаты</string>
+    <string name="contacts">Контакты</string>
+    <string name="dms">ЛС</string>
+    <string name="coming_soon">Скоро будет...</string>
+    <string name="public_chat">Общий чат</string>
+    <string name="chat_last_mesaage">Вы: Последние сообщение</string>
+    <string name="message_placeholder">Введите сообщение</string>
+</resources>
