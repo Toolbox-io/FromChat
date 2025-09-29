@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { PRODUCT_NAME } from "../../common/core/config";
+import { PRODUCT_NAME } from "./config";
 import { enableMapSet } from "immer";
 
 document.title = PRODUCT_NAME;

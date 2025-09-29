@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useAppState } from "../state";
 import { request } from "../../../common/core/websocket";
-import { API_BASE_URL } from "../../../common/core/config";
+import { API_BASE_URL } from "../../core/config";
 import type { Message } from "../../../common/core/types";
 import { getAuthHeaders } from "../../../common/auth/api";
 import { delay } from "../../../common/utils/utils";

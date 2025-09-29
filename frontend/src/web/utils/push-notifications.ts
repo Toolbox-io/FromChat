@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../../common/core/config";
+import { API_BASE_URL } from "../core/config";
 import { isElectron } from "../electron/electron";
 import { websocket } from "../../common/core/websocket";
 import type { NewMessageWebSocketMessage, WebSocketMessage } from "../../common/core/types";

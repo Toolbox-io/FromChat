@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { API_WS_BASE_URL } from "./config";
+import { API_WS_BASE_URL } from "../../web/core/config";
 import type { WebSocketMessage } from "./types";
 import { delay } from "../utils/utils";
 

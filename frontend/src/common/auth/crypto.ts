@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../core/config";
+import { API_BASE_URL } from "../../web/core/config";
 import { getAuthHeaders } from "./api";
 import { generateX25519KeyPair } from "../utils/crypto/asymmetric";
 import { encryptBackupWithPassword, decryptBackupWithPassword, encodeBlob, decodeBlob } from "../utils/crypto/backup";

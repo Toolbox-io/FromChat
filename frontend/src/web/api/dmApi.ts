@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../../common/core/config";
+import { API_BASE_URL } from "../core/config";
 import { getAuthHeaders } from "../../common/auth/api";
 import { ecdhSharedSecret, deriveWrappingKey } from "../../common/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "../../common/utils/crypto/symmetric";

@@ -6,7 +6,7 @@ import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./panels/DMPanel";
 import { getAuthHeaders } from "../../common/auth/api";
 import { restoreKeys } from "../../common/auth/crypto";
-import { API_BASE_URL } from "../../common/core/config";
+import { API_BASE_URL } from "../core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "../utils/push-notifications";
 import { isElectron } from "../electron/electron";
 

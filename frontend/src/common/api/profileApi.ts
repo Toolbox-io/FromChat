@@ -1,5 +1,5 @@
 import { getAuthHeaders } from "../auth/api";
-import { API_BASE_URL } from "../core/config";
+import { API_BASE_URL } from "../../web/core/config";
 import type { UserProfile } from "../core/types";
 
 export interface ProfileData {

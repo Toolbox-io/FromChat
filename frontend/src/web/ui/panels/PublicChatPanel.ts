@@ -1,5 +1,5 @@
 import { MessagePanel } from "./MessagePanel";
-import { API_BASE_URL } from "../../../common/core/config";
+import { API_BASE_URL } from "../../core/config";
 import { getAuthHeaders } from "../../../common/auth/api";
 import { request } from "../../../common/core/websocket";
 import type { ChatWebSocketMessage, Message, SendMessageRequest } from "../../../common/core/types";
