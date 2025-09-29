@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+import logging
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool

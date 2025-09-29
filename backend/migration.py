@@ -3,13 +3,14 @@ Database migration utility using Alembic.
 This module handles running database migrations on startup.
 """
 import os
-import sys
+import logging
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine
 from constants import DATABASE_URL
 
+logger = logging.getLogger("uvicorn.error")
 
 def run_migrations():
     """
@@ -36,7 +37,7 @@ def run_migrations():
         migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
         
         if not migration_files:
-            print("No migration files found. Creating initial migration...")
+            logger.info("No migration files found. Creating initial migration...")
             # Check if database exists and has tables
             engine = create_engine(DATABASE_URL)
             with engine.connect() as connection:
@@ -45,7 +46,7 @@ def run_migrations():
                 existing_tables = result.fetchall()
                 
                 if existing_tables:
-                    print("Found existing database with tables. Creating migration to match current schema...")
+                    logger.info("Found existing database with tables. Creating migration to match current schema...")
                     # Create migration with autogenerate to detect differences
                     command.revision(alembic_cfg, autogenerate=True, message="Initial migration from existing database")
                     
@@ -60,26 +61,26 @@ def run_migrations():
                         with open(migration_path, 'r') as f:
                             content = f.read()
                             if 'pass' in content and 'op.create_table' not in content and 'op.add_column' not in content:
-                                print("Generated migration is empty. Creating complete schema migration...")
+                                logger.info("Generated migration is empty. Creating complete schema migration...")
                                 # Remove the empty migration
                                 os.remove(migration_path)
                                 # Create a complete migration
                                 _create_complete_migration(alembic_cfg)
                 else:
-                    print("No existing tables found. Creating fresh migration...")
+                    logger.info("No existing tables found. Creating fresh migration...")
                     # Create fresh migration
                     command.revision(alembic_cfg, autogenerate=True, message="Initial migration")
-            print("Initial migration created successfully.")
+            logger.info("Initial migration created successfully.")
         
         # Run the upgrade command
-        print("Running database migrations...")
+        logger.info("Running database migrations...")
         command.upgrade(alembic_cfg, "head")
-        print("Database migrations completed successfully.")
+        logger.info("Database migrations completed successfully.")
         
     except Exception as e:
-        print(f"Error running database migrations: {e}")
+        logger.error(f"Error running database migrations: {e}")
         # Fully automated recovery - handle ALL error scenarios
-        print("Attempting automated recovery...")
+        logger.info("Attempting automated recovery...")
         try:
             # Clear the alembic_version table to reset state
             engine = create_engine(DATABASE_URL)
@@ -95,19 +96,19 @@ def run_migrations():
                     os.remove(os.path.join(versions_dir, file))
             
             # Create a completely fresh migration with full schema
-            print("Creating fresh migration with complete schema...")
+            logger.info("Creating fresh migration with complete schema...")
             _create_complete_migration(alembic_cfg)
             
             # Run the migration
             command.upgrade(alembic_cfg, "head")
-            print("Automated recovery completed successfully.")
+            logger.info("Automated recovery completed successfully.")
             
         except Exception as recovery_error:
-            print(f"Automated recovery failed: {recovery_error}")
+            logger.error(f"Automated recovery failed: {recovery_error}")
             # Last resort: create database using SQLAlchemy directly
-            print("Using fallback: creating database directly...")
+            logger.info("Using fallback: creating database directly...")
             _create_database_directly()
-            print("Database created successfully using fallback method.")
+            logger.info("Database created successfully using fallback method.")
 
 
 def _create_complete_migration(alembic_cfg):
@@ -346,14 +347,14 @@ def _create_database_directly():
                                 alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {column.name} {sql_type} {nullable}"
                                 try:
                                     connection.execute(text(alter_sql))
-                                    print(f"Added column {column.name} to {table_name}")
+                                    logger.info(f"Added column {column.name} to {table_name}")
                                     
                                     # Update existing rows with current timestamp
                                     update_sql = f"UPDATE {table_name} SET {column.name} = CURRENT_TIMESTAMP WHERE {column.name} IS NULL"
                                     connection.execute(text(update_sql))
-                                    print(f"Updated {column.name} with current timestamp")
+                                    logger.info(f"Updated {column.name} with current timestamp")
                                 except Exception as e:
-                                    print(f"Could not add column {column.name}: {e}")
+                                    logger.error(f"Could not add column {column.name}: {e}")
                             else:
                                 # Handle other column types with defaults
                                 default_clause = ""
@@ -367,12 +368,12 @@ def _create_database_directly():
                                 alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {column.name} {sql_type} {nullable}{default_clause}"
                                 try:
                                     connection.execute(text(alter_sql))
-                                    print(f"Added column {column.name} to {table_name}")
+                                    logger.info(f"Added column {column.name} to {table_name}")
                                 except Exception as e:
-                                    print(f"Could not add column {column.name}: {e}")
+                                    logger.error(f"Could not add column {column.name}: {e}")
                 else:
                     # Table doesn't exist, create it
-                    print(f"Creating table {table_name}")
+                    logger.info(f"Creating table {table_name}")
         
         # Create alembic_version table manually
         connection.execute(text("""
@@ -437,7 +438,7 @@ def check_migration_status():
             return current_rev != head_rev
             
     except Exception as e:
-        print(f"Error checking migration status: {e}")
+        logger.error(f"Error checking migration status: {e}")
         return True  # Assume migrations are needed if we can't check
 
 
