@@ -2,7 +2,7 @@ import { LeftPanel } from "./left/LeftPanel";
 import { RightPanel } from "./right/RightPanel";
 import "@/pages/chat/css/chat.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
-import { CallWindow } from "./right/CallWindow";
+import { CallWindow } from "./right/calls/CallWindow";
 
 export default function ChatPage() {
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();

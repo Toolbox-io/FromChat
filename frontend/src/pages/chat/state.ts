@@ -28,6 +28,7 @@ interface CallState {
     remoteUserId: number | null;
     remoteUsername: string | null;
     isInitiator: boolean;
+    isMinimized: boolean;
 }
 
 interface ChatState {
@@ -72,6 +73,7 @@ interface AppState {
     endCall: () => void;
     setCallStatus: (status: CallStatus) => void;
     toggleMute: () => void;
+    toggleCallMinimize: () => void;
     receiveCall: (userId: number, username: string) => void;
     
     // User state
@@ -107,7 +109,8 @@ export const useAppState = create<AppState>((set, get) => ({
             isMuted: false,
             remoteUserId: null,
             remoteUsername: null,
-            isInitiator: false
+            isInitiator: false,
+            isMinimized: false
         }
     },
     addMessage: (message: Message) => set((state) => {
@@ -400,7 +403,8 @@ export const useAppState = create<AppState>((set, get) => ({
                 isMuted: false,
                 remoteUserId: userId,
                 remoteUsername: username,
-                isInitiator: true
+                isInitiator: true,
+                isMinimized: false
             }
         }
     })),
@@ -415,7 +419,8 @@ export const useAppState = create<AppState>((set, get) => ({
                 isMuted: false,
                 remoteUserId: null,
                 remoteUsername: null,
-                isInitiator: false
+                isInitiator: false,
+                isMinimized: false
             }
         }
     })),
@@ -440,6 +445,16 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
+    
+    toggleCallMinimize: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isMinimized: !state.chat.call.isMinimized
+            }
+        }
+    })),
 
     receiveCall: (userId: number, username: string) => set((state) => ({
         chat: {
@@ -451,7 +466,8 @@ export const useAppState = create<AppState>((set, get) => ({
                 isMuted: false,
                 remoteUserId: userId,
                 remoteUsername: username,
-                isInitiator: false
+                isInitiator: false,
+                isMinimized: false
             }
         }
     }))
