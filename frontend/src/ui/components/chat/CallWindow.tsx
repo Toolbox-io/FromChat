@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAppState } from "../../state";
+import { useAppState, type CallStatus } from "../../state";
 import { useAudioCall } from "../../hooks/useAudioCall";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 
@@ -15,7 +15,7 @@ export function CallWindow() {
     const [shouldRender, setShouldRender] = useState(false);
     const [callData, setCallData] = useState<{
         remoteUsername: string | null;
-        status: "calling" | "connecting" | "active" | "ended";
+        status: CallStatus;
         isInitiator: boolean;
         isMuted: boolean;
     } | null>(null);
