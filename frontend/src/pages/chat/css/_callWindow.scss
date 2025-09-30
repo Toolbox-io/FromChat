@@ -1,44 +1,158 @@
 @use "../../../css/material" as *;
 
 .call-window {
+    $transition: cubic-bezier(0.4, 0, 0.2, 1);
+
     position: fixed;
     z-index: 1000;
     width: 300px;
-    background-color: $color-dark-surface;
-    border: 1px solid $color-dark-outline;
+    background-color: rgba($color-dark-surface, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba($color-dark-outline, 0.3);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     cursor: grab;
+    transition: opacity 0.3s $transition, transform 0.3s $transition;
+    transform-origin: center;
+    user-select: none;
+
+    &.visible {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    &.hidden {
+        opacity: 0;
+        transform: scale(0.8) translateY(-20px);
+        pointer-events: none;
+    }
 
     &.dragging {
         cursor: grabbing;
+    }
+
+    // Dynamic gradients based on call state
+    &.gradient-calling {
+        border-color: rgba(255, 193, 7, 0.4);
+        
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(255, 193, 7, 0.15) 0%, 
+                rgba(255, 152, 0, 0.15) 50%, 
+                rgba(255, 193, 7, 0.15) 100%);
+            border-radius: 12px;
+            animation: pulse-gradient 2s ease-in-out infinite;
+        }
+    }
+
+    &.gradient-connecting {
+        border-color: rgba(33, 150, 243, 0.4);
+        
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(33, 150, 243, 0.15) 0%, 
+                rgba(63, 81, 181, 0.15) 50%, 
+                rgba(33, 150, 243, 0.15) 100%);
+            border-radius: 12px;
+            animation: connecting-gradient 1.5s ease-in-out infinite;
+        }
+    }
+
+    &.gradient-active {
+        border-color: rgba(76, 175, 80, 0.4);
+        
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(76, 175, 80, 0.15) 0%, 
+                rgba(56, 142, 60, 0.15) 50%, 
+                rgba(76, 175, 80, 0.15) 100%);
+            border-radius: 12px;
+            animation: active-gradient 3s ease-in-out infinite;
+        }
+    }
+
+    &.gradient-default {
+        border-color: rgba(158, 158, 158, 0.3);
     }
 }
 
 .call-header {
     padding: 16px;
     border-bottom: 1px solid $color-dark-outline-variant;
-    cursor: grab;
+    position: relative;
+    z-index: 1;
 
-    .user-info {
+    .window-controls {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 2;
+
+        .minimize-btn {
+            color: $color-dark-on-surface-variant;
+            transition: color 0.2s ease;
+
+            &:hover {
+                color: $color-dark-on-surface;
+            }
+        }
+    }
+
+    .user-info-centered {
         display: flex;
+        flex-direction: column;
         align-items: center;
         gap: 12px;
+        text-align: center;
 
         .avatar {
-            width: 48px;
-            height: 48px;
+            width: 64px;
+            height: 64px;
             border-radius: 50%;
             object-fit: cover;
+            box-shadow: 0 0 20px rgba(33, 150, 243, 0.3);
+            transition: box-shadow 0.3s ease;
+            position: relative;
+            z-index: 1;
+
+            // Colored shadow based on call state
+            .gradient-calling & {
+                box-shadow: 0 0 20px rgba(255, 193, 7, 0.4);
+            }
+
+            .gradient-connecting & {
+                box-shadow: 0 0 20px rgba(33, 150, 243, 0.4);
+            }
+
+            .gradient-active & {
+                box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+            }
         }
 
         .user-details {
-            flex: 1;
-
             .username {
                 margin: 0;
-                font-size: 16px;
-                font-weight: 500;
+                font-size: 18px;
+                font-weight: 600;
                 color: $color-dark-on-surface;
             }
 
@@ -46,6 +160,7 @@
                 margin: 4px 0 0 0;
                 font-size: 14px;
                 color: $color-dark-on-surface-variant;
+                font-weight: 500;
             }
         }
     }
@@ -58,6 +173,132 @@
     gap: 12px;
 }
 
+// Minimized call bar
+.minimized-call-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: rgba($color-dark-surface, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba($color-dark-outline, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 999;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(255, 255, 255, 0.1) 50%, 
+            transparent 100%);
+        animation: shimmer 2s ease-in-out infinite;
+    }
+
+    .call-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+
+            .username {
+                font-size: 14px;
+                font-weight: 600;
+                color: $color-dark-on-surface;
+            }
+
+            .status {
+                font-size: 12px;
+                color: $color-dark-on-surface-variant;
+            }
+        }
+    }
+
+    .call-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    // Dynamic gradients for minimized bar
+    &.gradient-calling {
+        border-color: rgba(255, 193, 7, 0.4);
+        
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 193, 7, 0.1) 50%, 
+                transparent 100%);
+            animation: shimmer-calling 2s ease-in-out infinite;
+        }
+    }
+
+    &.gradient-connecting {
+        border-color: rgba(33, 150, 243, 0.4);
+        
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(33, 150, 243, 0.1) 50%, 
+                transparent 100%);
+            animation: shimmer-connecting 1.5s ease-in-out infinite;
+        }
+    }
+
+    &.gradient-active {
+        border-color: rgba(76, 175, 80, 0.4);
+        
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(76, 175, 80, 0.1) 50%, 
+                transparent 100%);
+            animation: shimmer-active 3s ease-in-out infinite;
+        }
+    }
+}
+
 .remote-audio {
     position: fixed;
     bottom: 0px;
@@ -66,4 +307,72 @@
     height: 0;
     opacity: 0;
     visibility: hidden;
+}
+
+// Animations
+@keyframes pulse-gradient {
+    0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.02);
+    }
+}
+
+@keyframes connecting-gradient {
+    0%, 100% {
+        opacity: 0.2;
+        transform: translateX(0);
+    }
+    50% {
+        opacity: 0.4;
+        transform: translateX(10px);
+    }
+}
+
+@keyframes active-gradient {
+    0%, 100% {
+        opacity: 0.15;
+    }
+    50% {
+        opacity: 0.25;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+@keyframes shimmer-calling {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+@keyframes shimmer-connecting {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+@keyframes shimmer-active {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
 }

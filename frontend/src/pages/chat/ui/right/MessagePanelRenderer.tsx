@@ -8,7 +8,7 @@ import type { Message, WebSocketMessage } from "@/core/types";
 import defaultAvatar from "@/images/default-avatar.png";
 import AnimatedOpacity from "@/core/components/animations/AnimatedOpacity";
 import type { DMPanel } from "./panels/DMPanel";
-import { CallWindow } from "./CallWindow";
+import { CallWindow } from "./calls/CallWindow";
 import useAudioCall from "@/pages/chat/hooks/useAudioCall";
 
 interface MessagePanelRendererProps {

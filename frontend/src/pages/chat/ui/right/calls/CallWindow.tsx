@@ -4,13 +4,26 @@ import useAudioCall from "@/pages/chat/hooks/useAudioCall";
 import defaultAvatar from "@/images/default-avatar.png";
 
 export function CallWindow() {
-    const { chat, toggleMute } = useAppState();
+    const { chat, toggleMute, toggleCallMinimize } = useAppState();
     const { call } = chat;
     const { acceptCall, rejectCall, remoteAudioRef, endCall } = useAudioCall();
     const [position, setPosition] = useState({ x: 100, y: 100 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [callDuration, setCallDuration] = useState(0);
+    const [isVisible, setIsVisible] = useState(false);
+    const [shouldRender, setShouldRender] = useState(false);
+    const [callData, setCallData] = useState<{
+        remoteUsername: string | null;
+        status: "calling" | "connecting" | "active" | "ended";
+        isInitiator: boolean;
+        isMuted: boolean;
+    } | null>(null);
+
+    const status = callData?.status || call.status;
+    const remoteUsername = callData?.remoteUsername || call.remoteUsername;
+    const isInitiator = callData?.isInitiator || call.isInitiator;
+    const isMuted = callData?.isMuted || call.isMuted;
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -28,6 +41,62 @@ export function CallWindow() {
         };
     }, [call.status, call.startTime]);
 
+    // Preserve call data during exit animation
+    useEffect(() => {
+        if (call.isActive) {
+            setCallData({
+                remoteUsername: call.remoteUsername,
+                status: call.status,
+                isInitiator: call.isInitiator,
+                isMuted: call.isMuted
+            });
+        }
+    }, [call.isActive, call.remoteUsername, call.status, call.isInitiator, call.isMuted]);
+
+    // Handle visibility animation with entrance and exit delays
+    useEffect(() => {
+        if (call.isActive) {
+            setShouldRender(true);
+            if (!call.isMinimized) {
+                // Call is active and not minimized - show window with entrance animation
+                if (!isVisible) {
+                    // Only animate in if not already visible (prevents animation on rapid calls)
+                    requestAnimationFrame(() => {
+                        setIsVisible(true);
+                    });
+                }
+            } else {
+                // Call is active but minimized - hide window but keep rendered
+                setIsVisible(false);
+            }
+        } else {
+            if (shouldRender) {
+                // Call ended - start exit animation
+                setIsVisible(false);
+                // After animation completes, stop rendering
+                const timer = setTimeout(() => {
+                    setShouldRender(false);
+                    setCallData(null);
+                }, 300); // Match the CSS transition duration
+                return () => clearTimeout(timer);
+            } else {
+                // Call not active and not rendered - ensure clean state
+                setShouldRender(false);
+                setIsVisible(false);
+                setCallData(null);
+            }
+        }
+    }, [call.isActive, call.isMinimized, shouldRender, isVisible]);
+
+    // Cleanup effect to reset state when component unmounts
+    useEffect(() => {
+        return () => {
+            setIsVisible(false);
+            setShouldRender(false);
+            setCallData(null);
+        };
+    }, []);
+
     function formatDuration(seconds: number) {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -35,7 +104,7 @@ export function CallWindow() {
     }
 
     function getStatusText() {
-        switch (call.status) {
+        switch (status) {
             case "calling":
                 return "Calling...";
             case "connecting":
@@ -44,6 +113,19 @@ export function CallWindow() {
                 return formatDuration(callDuration);
             default:
                 return "";
+        }
+    }
+
+    function getGradientClass() {
+        switch (status) {
+            case "calling":
+                return "gradient-calling";
+            case "connecting":
+                return "gradient-connecting";
+            case "active":
+                return "gradient-active";
+            default:
+                return "gradient-default";
         }
     }
 
@@ -57,9 +139,9 @@ export function CallWindow() {
                 playsInline
                 controls />
             
-            {call.isActive && (
+            {shouldRender && (
                 <div
-                    className={`call-window ${isDragging ? 'dragging' : ''}`}
+                    className={`call-window ${isDragging ? 'dragging' : ''} ${getGradientClass()} ${isVisible ? 'visible' : 'hidden'}`}
                     style={{
                         left: position.x,
                         top: position.y
@@ -83,7 +165,15 @@ export function CallWindow() {
                     onMouseLeave={() => setIsDragging(false)}
                 >
                     <div className="call-header">
-                        <div className="user-info">
+                        <div className="window-controls">
+                            <mdui-button-icon 
+                                onClick={toggleCallMinimize} 
+                                icon="minimize" 
+                                className="minimize-btn" 
+                            />
+                        </div>
+                        
+                        <div className="user-info-centered">
                             <img
                                 src={defaultAvatar}
                                 alt="Avatar"
@@ -91,7 +181,7 @@ export function CallWindow() {
                             
                             <div className="user-details">
                                 <h3 className="username">
-                                    {call.remoteUsername}
+                                    {remoteUsername}
                                 </h3>
                                 <p className="status">
                                     {getStatusText()}
@@ -101,14 +191,14 @@ export function CallWindow() {
                     </div>
 
                     <div className="call-controls">
-                        {call.status === "calling" && !call.isInitiator ? (
+                        {status === "calling" && !isInitiator ? (
                             <>
                                 <mdui-button-icon onClick={acceptCall} icon="call" />
                                 <mdui-button-icon onClick={rejectCall} icon="call_end" />
                             </>
                         ) : (
                             <>
-                                <mdui-button-icon onClick={toggleMute} icon={call.isMuted ? "mic_off" : "mic"} />
+                                <mdui-button-icon onClick={toggleMute} icon={isMuted ? "mic_off" : "mic"} />
                                 <mdui-button-icon onClick={endCall} icon="call_end" />
                             </>
                         )}
