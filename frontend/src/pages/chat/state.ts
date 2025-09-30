@@ -10,7 +10,9 @@ import { API_BASE_URL } from "@/core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 
-export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
+export type ChatTabs = "chats" | "channels" | "contacts" | "dms";
+
+export type CallStatus = "calling" | "connecting" | "active" | "ended";
 
 interface ActiveDM {
     userId: number; 
@@ -20,7 +22,7 @@ interface ActiveDM {
 
 interface CallState {
     isActive: boolean;
-    status: "calling" | "connecting" | "active" | "ended";
+    status: CallStatus;
     startTime: number | null;
     isMuted: boolean;
     remoteUserId: number | null;
@@ -69,7 +71,7 @@ interface AppState {
     // Call state
     startCall: (userId: number, username: string) => void;
     endCall: () => void;
-    setCallStatus: (status: CallState["status"]) => void;
+    setCallStatus: (status: CallStatus) => void;
     toggleMute: () => void;
     toggleCallMinimize: () => void;
     receiveCall: (userId: number, username: string) => void;
@@ -423,7 +425,7 @@ export const useAppState = create<AppState>((set, get) => ({
         }
     })),
     
-    setCallStatus: (status: CallState["status"]) => set((state) => ({
+    setCallStatus: (status: CallStatus) => set((state) => ({
         chat: {
             ...state.chat,
             call: {
