@@ -1,13 +1,11 @@
 import { getAuthHeaders } from "@/core/api/authApi";
-import type { IceServersResponse } from "@/core/types";
+import type { CallSignalingMessage, IceServersResponse } from "@/core/types";
 import { request } from "@/core/websocket";
-
-export interface CallSignalingMessage {
-    type: "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject";
-    fromUserId: number;
-    toUserId: number;
-    data?: any;
-}
+import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender } from "./encryption";
+import { fetchUserPublicKey } from "@/core/api/dmApi";
+import { importAesGcmKey } from "@/utils/crypto/symmetric";
+import E2EEWorker from "./e2eeWorker?worker";
+import { rotateCallSessionKey, createSharedSecretAndDeriveSessionKey } from "./encryption";
 
 export interface WebRTCCall {
     peerConnection: RTCPeerConnection;
@@ -18,6 +16,12 @@ export interface WebRTCCall {
     remoteUsername: string;
     isEnding?: boolean;
     isMuted?: boolean;
+    // Insertable Streams E2EE
+    sessionKey?: Uint8Array | null;
+    sessionCryptoKey?: CryptoKey | null;
+    sessionId: string;
+    keyRotationTimer?: NodeJS.Timeout;
+    lastKeyRotation?: number;
 }
 
 // Global state
@@ -83,6 +87,7 @@ async function getIceServers(): Promise<RTCIceServer[]> {
     return defaultIceServers;
 }
 
+
 async function createPeerConnection(userId: number): Promise<RTCPeerConnection> {
     const iceServers = await getIceServers();
     
@@ -97,7 +102,10 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
         isInitiator: false,
         remoteUserId: userId,
         remoteUsername: "",
-        isMuted: false
+        isMuted: false,
+        sessionKey: null,
+        sessionCryptoKey: null,
+        sessionId: crypto.randomUUID()
     };
 
     calls.set(userId, call);
@@ -197,6 +205,17 @@ export async function initiateCall(userId: number, username: string): Promise<bo
         // Add tracks to peer connection
         localStream.getTracks().forEach(track => call.peerConnection.addTrack(track, localStream));
 
+        // Enable insertable streams encryption on sender side if supported
+        try {
+            if (call.peerConnection.getSenders && call.peerConnection.getSenders().length > 0 && window.RTCRtpScriptTransform) {
+                const senders = call.peerConnection.getSenders();
+                for (const sender of senders) {
+                    if (!sender.track || sender.track.kind !== "audio") continue;
+                    // just mark; actual key set after wrap/send
+                }
+            }
+        } catch {}
+
         // Send call invite
         await sendSignalingMessage({
             type: "call_invite",
@@ -210,6 +229,133 @@ export async function initiateCall(userId: number, username: string): Promise<bo
         console.error("Failed to initiate call:", error);
         cleanupCall(userId);
         return false;
+    }
+}
+
+export async function sendCallSessionKey(userId: number, sessionKeyHash: string): Promise<void> {
+    try {
+        await sendSignalingMessage({
+            type: "call_session_key",
+            fromUserId: 0, // Will be set by server
+            toUserId: userId,
+            sessionKeyHash,
+            data: {}
+        });
+    } catch (error) {
+        console.error("Failed to send call session key:", error);
+    }
+}
+
+export async function sendWrappedCallSessionKey(userId: number, sessionKey: Uint8Array, sessionKeyHash: string): Promise<void> {
+    if (!authToken) throw new Error("No auth token available");
+    try {
+        const recipientPublicKey = await fetchUserPublicKey(userId, authToken);
+        if (!recipientPublicKey) {
+            console.warn("No recipient public key for", userId);
+            return;
+        }
+        const wrapped = await wrapCallSessionKeyForRecipient(recipientPublicKey, sessionKey);
+        await sendSignalingMessage({
+            type: "call_session_key",
+            fromUserId: 0,
+            toUserId: userId,
+            sessionKeyHash,
+            data: { wrappedSessionKey: wrapped }
+        });
+    } catch (e) {
+        console.error("Failed to send wrapped session key:", e);
+    }
+}
+
+async function applyE2EETransforms(call: WebRTCCall): Promise<void> {
+    try {
+        // @ts-ignore
+        if (!call.sessionKey || !window.RTCRtpScriptTransform) return;
+        const key = await importAesGcmKey(call.sessionKey);
+        call.sessionCryptoKey = key;
+        const receiver = call.peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
+        if (receiver) {
+            // @ts-ignore
+            receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt' });
+        }
+        const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+        if (sender) {
+            // @ts-ignore
+            sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt' });
+        }
+    } catch {}
+}
+
+export async function setSessionKey(userId: number, keyBytes: Uint8Array): Promise<void> {
+    const call = calls.get(userId);
+    if (!call) return;
+    call.sessionKey = keyBytes;
+    call.lastKeyRotation = Date.now();
+    await applyE2EETransforms(call);
+    
+    // Start key rotation timer (rotate every 10 minutes for long calls)
+    if (call.keyRotationTimer) {
+        clearInterval(call.keyRotationTimer);
+    }
+    
+    call.keyRotationTimer = setInterval(async () => {
+        await rotateSessionKey(userId);
+    }, 10 * 60 * 1000); // 10 minutes
+}
+
+/**
+ * Rotate the session key for a call to provide forward secrecy
+ */
+async function rotateSessionKey(userId: number): Promise<void> {
+    const call = calls.get(userId);
+    if (!call || !call.sessionKey) return;
+    
+    try {
+        console.log("Rotating session key for call", userId);
+        
+        // Generate new session key
+        const currentSessionKey = {
+            key: call.sessionKey,
+            hash: "" // We'll generate a new hash
+        };
+        
+        const newSessionKey = await rotateCallSessionKey(currentSessionKey);
+        
+        // Update the call with new session key
+        call.sessionKey = newSessionKey.key;
+        call.lastKeyRotation = Date.now();
+        
+        // Reapply E2EE transforms with new key
+        await applyE2EETransforms(call);
+        
+        console.log("Session key rotated successfully for call", userId);
+    } catch (error) {
+        console.error("Failed to rotate session key:", error);
+    }
+}
+
+export async function receiveWrappedSessionKey(fromUserId: number, wrappedPayload: any, sessionKeyHash?: string): Promise<void> {
+    if (!authToken) return;
+    try {
+        const senderPublicKey = await fetchUserPublicKey(fromUserId, authToken);
+        if (!senderPublicKey) return;
+        if (!wrappedPayload || !sessionKeyHash) return;
+        
+        // First unwrap the session key from the encrypted payload (for validation)
+        await unwrapCallSessionKeyFromSender(senderPublicKey, {
+            salt: wrappedPayload.salt,
+            iv2: wrappedPayload.iv2,
+            wrapped: wrappedPayload.wrapped
+        });
+        
+        // Then derive the actual session key from the shared secret
+        const call = calls.get(fromUserId);
+        const isInitiator = call?.isInitiator ?? false;
+        const derivedSessionKey = await createSharedSecretAndDeriveSessionKey(senderPublicKey, sessionKeyHash, isInitiator);
+        
+        await setSessionKey(fromUserId, derivedSessionKey.key);
+    } catch (e) {
+        console.error("Failed to unwrap session key:", e);
     }
 }
 
@@ -311,6 +457,25 @@ export async function onRemoteAccepted(userId: number): Promise<void> {
     }
 }
 
+async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKey']>, peerConnection: RTCPeerConnection, sessionId?: string): Promise<void> {
+    try {
+        if (sessionKey && window.RTCRtpScriptTransform) {
+            const key = await importAesGcmKey(sessionKey);
+            const receiver = peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
+            if (receiver) {
+                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
+            }
+            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+            if (sender) {
+                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
+            }
+        }
+    } catch (error) {
+        console.error("Failed to create E2EE transform:", error);
+        throw error;
+    }
+}
+
 export async function handleCallOffer(userId: number, offer: RTCSessionDescriptionInit): Promise<void> {
     const call = calls.get(userId);
     if (!call) {
@@ -324,6 +489,9 @@ export async function handleCallOffer(userId: number, offer: RTCSessionDescripti
         // Create answer
         const answer = await call.peerConnection.createAnswer();
         await call.peerConnection.setLocalDescription(answer);
+
+        // Attach transforms on callee side if session key set and insertable streams supported
+        await createE2EETransform(call.sessionKey!, call.peerConnection, call.sessionId);
 
         // Send answer to remote peer
         await sendSignalingMessage({
@@ -346,6 +514,8 @@ export async function handleCallAnswer(userId: number, answer: RTCSessionDescrip
 
     try {
         await call.peerConnection.setRemoteDescription(answer);
+        // After signaling completes, attach transforms on initiator side if supported
+        await createE2EETransform(call.sessionKey!, call.peerConnection, call.sessionId);
     } catch (error) {
         console.error("Failed to handle answer:", error);
         throw error;
@@ -449,6 +619,11 @@ export function getCall(userId: number): WebRTCCall | undefined {
 export function cleanupCall(userId: number): void {
     const call = calls.get(userId);
     if (call) {
+        // Clear key rotation timer
+        if (call.keyRotationTimer) {
+            clearInterval(call.keyRotationTimer);
+        }
+        
         // Close peer connection
         if (call.peerConnection) {
             call.peerConnection.close();

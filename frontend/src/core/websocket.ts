@@ -6,7 +6,7 @@
  */
 
 import { API_WS_BASE_URL } from "./config";
-import type { WebSocketMessage } from "./types";
+import type { CallSignalingMessage, WebSocketMessage } from "./types";
 import { delay } from "@/utils/utils";
 import { CallSignalingHandler } from "@/core/calls/signaling";
 
@@ -109,7 +109,7 @@ async function onError() {
 
 websocket.addEventListener("message", (e) => {
     try {
-        const response: WebSocketMessage<any> = JSON.parse(e.data);
+        const response: CallSignalingMessage = JSON.parse(e.data);
         
         // Handle call signaling messages
         if (callSignalingHandler && response.type === "call_signaling") {

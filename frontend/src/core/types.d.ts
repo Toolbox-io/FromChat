@@ -442,9 +442,12 @@ export interface CallInvite extends CallSignalingData {
     timestamp: string;
 }
 
-export interface CallSignalingData {
-    type: "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject";
+export type CallSignalingDataType = "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject" | "call_session_key" | "call_signaling";
+
+export interface CallSignalingMessage extends WebSocketMessage {
+    type: CallSignalingDataType;
     fromUserId: number;
     toUserId: number;
-    data?: any;
+    sessionKeyHash?: string;
+    data: any;
 }
