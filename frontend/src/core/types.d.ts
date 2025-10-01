@@ -435,7 +435,8 @@ export interface DialogProps {
 }
 
 // Call types
-export interface CallInvite {
+export interface CallInvite extends CallSignalingData {
+    type: "call_invite";
     fromUserId: number;
     fromUsername: string;
     timestamp: string;

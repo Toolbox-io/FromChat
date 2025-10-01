@@ -8,7 +8,6 @@ import type { Message, WebSocketMessage } from "@/core/types";
 import defaultAvatar from "@/images/default-avatar.png";
 import AnimatedOpacity from "@/core/components/animations/AnimatedOpacity";
 import type { DMPanel } from "./panels/DMPanel";
-import { CallWindow } from "./calls/CallWindow";
 import useAudioCall from "@/pages/chat/hooks/useAudioCall";
 
 interface MessagePanelRendererProps {
@@ -160,9 +159,8 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     }, [panelState?.messages, panelState?.isLoading, chat.isSwitching, switchOut, switchIn]);
 
     function handleCallClick() {
-        if (panel && panel.isDm() && panelState) {
-            // For DM panels, we need to get the user ID from the panel
-            const dmPanel = panel as DMPanel; // Type assertion for DM panel
+        if (panel && panelState && panel.isDm()) {
+            const dmPanel = panel as DMPanel;
             const userId = dmPanel.getDMUserId();
             const username = dmPanel.getDMUsername();
             
@@ -170,7 +168,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                 initiateCall(userId, username);
             }
         }
-    }
+    };
 
     return (
         <div className={`chat-container ${switchIn ? "chat-switch-in" : ""} ${switchOut ? "chat-switch-out" : ""}`}>
@@ -346,7 +344,6 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     </>
                 )}
             </div>
-            <CallWindow />
         </div>
     );
 }
