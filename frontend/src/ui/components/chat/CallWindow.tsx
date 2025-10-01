@@ -182,14 +182,23 @@ export function CallWindow() {
                                     alt="Avatar"
                                     className="avatar" />
                                 
-                                <div className="user-details">
-                                    <h3 className="username">
-                                        {remoteUsername}
-                                    </h3>
-                                    <p className="status">
-                                        {getStatusText()}
-                                    </p>
-                                </div>
+                            <div className="user-details">
+                                <h3 className="username">
+                                    {remoteUsername}
+                                </h3>
+                                <p className="status">
+                                    {getStatusText()}
+                                </p>
+                                {call.encryptionEmojis.length > 0 && (
+                                    <div className="encryption-emojis">
+                                        {call.encryptionEmojis.map((emoji, index) => (
+                                            <span key={index} className="encryption-emoji">
+                                                {emoji}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             </div>
                         </div>
 

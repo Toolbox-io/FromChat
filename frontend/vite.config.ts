@@ -20,31 +20,7 @@ const plugins: PluginOption[] = [
             minifyCSS: true,
             minifyJS: true
         }
-    }),
-    {
-        name: 'service-worker-redirect',
-        configureServer(server) {
-            server.middlewares.use(async (req, res, next) => {
-                if (req.url === '/assets/serviceWorker.js') {
-                    try {
-                        const traspiled = await server.transformRequest(serviceWorkerPath);
-
-                        res.writeHead(200, {
-                            'Content-Type': "application/javascript"
-                        });
-                        res.end(traspiled!.code);
-                    } catch (e) {
-                        try {
-                            res.writeHead(500);
-                            res.end();
-                        } catch (e) {}
-                    }
-                } else {
-                    next();
-                }
-            });
-        }
-      }
+    })
 ]
 
 if (process.env.VITE_ELECTRON) {
@@ -107,21 +83,6 @@ export default defineConfig({
         cssMinify: true,
         assetsInlineLimit: 0,
         outDir: process.env.VITE_ELECTRON ? "build/electron/dist" : "build/normal/dist",
-        chunkSizeWarningLimit: 1024,
-        rollupOptions: {
-            input: {
-                main: resolve(__dirname, "index.html"),
-                serviceWorker: serviceWorkerPath
-            },
-            output: {
-                entryFileNames: (chunkInfo) => {
-                    if (chunkInfo.name === 'serviceWorker') {
-                        return 'assets/serviceWorker.js';
-                    }
-                    
-                    return 'assets/[name]-[hash].js';
-                }
-            }
-        }
+        chunkSizeWarningLimit: 1024
     }
 });

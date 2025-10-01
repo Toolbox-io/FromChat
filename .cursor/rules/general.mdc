@@ -22,3 +22,4 @@ When working with this project, follow these rules:
 - Do NOT use old, outdated or deprecated APIs and functions.
 - `function <name>()` is preferred over `const <name> = () => {}`.
 - Do NOT make any assumptions of things you don't know, instead ask me.
+- NEVER use the "any" type unless you know what you're doing.
