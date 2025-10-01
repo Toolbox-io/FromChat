@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { MessagePanel, type MessagePanelState } from "../../panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
-import { CallWindow } from "./CallWindow";
 import { useAudioCall } from "../../hooks/useAudioCall";
 import { setGlobalMessageHandler } from "../../../core/websocket";
 import type { Message } from "../../../core/types";
@@ -107,10 +106,9 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [panelState?.messages]);
 
-    const handleCallClick = () => {
-        if (panel && panel.isDm() && panelState) {
-            // For DM panels, we need to get the user ID from the panel
-            const dmPanel = panel as DMPanel; // Type assertion for DM panel
+    function handleCallClick() {
+        if (panel && panelState && panel.isDm()) {
+            const dmPanel = panel as DMPanel;
             const userId = dmPanel.getDMUserId();
             const username = dmPanel.getDMUsername();
             
@@ -305,7 +303,6 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                     onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
                 />
             </div>
-            <CallWindow />
         </div>
     );
 }

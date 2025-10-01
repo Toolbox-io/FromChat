@@ -1,10 +1,15 @@
-import type { WebSocketMessage, CallSignalingData } from "../core/types";
+import type { WebSocketMessage, CallSignalingData, CallInvite } from "../core/types";
 import * as WebRTC from "./webrtc";
 
-export class CallSignalingHandler {
-    private getState: () => any;
+export interface CallState {
+    receiveCall: (userId: number, username: string) => void;
+    endCall: () => void;
+}
 
-    constructor(getState: () => any) {
+export class CallSignalingHandler {
+    private getState: () => CallState;
+
+    constructor(getState: () => CallState) {
         this.getState = getState;
     }
 
@@ -23,7 +28,7 @@ export class CallSignalingHandler {
 
         switch (data.type) {
             case "call_invite":
-                this.handleCallInvite(data);
+                this.handleCallInvite(data as CallInvite);
                 break;
             case "call_accept":
                 this.handleCallAccept(data);
@@ -46,7 +51,7 @@ export class CallSignalingHandler {
         }
     }
 
-    private async handleCallInvite(data: any) {
+    private async handleCallInvite(data: CallInvite) {
         const { fromUserId, fromUsername } = data;
         const state = this.getState();
         

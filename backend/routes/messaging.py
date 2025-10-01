@@ -688,6 +688,7 @@ class MessaggingSocketManager:
 
                     # Ensure sender is set by the server
                     payload["fromUserId"] = current_user.id
+                    payload["fromUsername"] = current_user.username
 
                     await self.send_to_user(to_user_id, {
                         "type": "call_signaling",
