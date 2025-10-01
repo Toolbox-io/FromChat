@@ -17,6 +17,7 @@ export interface WebRTCCall {
     remoteUserId: number;
     remoteUsername: string;
     isEnding?: boolean;
+    isMuted?: boolean;
 }
 
 // Global state
@@ -95,7 +96,8 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
         remoteStream: null,
         isInitiator: false,
         remoteUserId: userId,
-        remoteUsername: ""
+        remoteUsername: "",
+        isMuted: false
     };
 
     calls.set(userId, call);
@@ -371,13 +373,73 @@ export function toggleMute(userId: number): boolean {
         return false;
     }
 
-    const audioTrack = call.localStream.getAudioTracks()[0];
-    if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        return !audioTrack.enabled; // Return true if muted
+    if (!call.isMuted) {
+        // Mute: Stop the track completely (no green dot)
+        const audioTrack = call.localStream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.stop();
+            call.localStream.removeTrack(audioTrack);
+        }
+        
+        // Create a silent audio track using Web Audio API
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // Set gain to 0 (silent)
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        
+        // Connect nodes
+        oscillator.connect(gainNode);
+        
+        // Create a MediaStreamDestination to get a MediaStream
+        const destination = audioContext.createMediaStreamDestination();
+        gainNode.connect(destination);
+        
+        // Start the oscillator (but it's silent due to gain = 0)
+        oscillator.start();
+        
+        // Add the silent track to maintain WebRTC connection
+        const silentTrack = destination.stream.getAudioTracks()[0];
+        if (silentTrack) {
+            call.localStream.addTrack(silentTrack);
+        }
+        
+        call.isMuted = true;
+        return true; // Muted
+    } else {
+        // Unmute: Re-enable microphone by getting new audio stream
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+            .then(newStream => {
+                // Remove any existing audio tracks from the stream
+                call.localStream!.getAudioTracks().forEach(track => track.stop());
+                
+                // Get the new active track
+                const newAudioTrack = newStream.getAudioTracks()[0];
+                
+                // Replace the track in the peer connection
+                const sender = call.peerConnection.getSenders().find(s => 
+                    s.track && s.track.kind === 'audio'
+                );
+                
+                if (sender) {
+                    // Replace the track in the existing sender
+                    sender.replaceTrack(newAudioTrack);
+                } else {
+                    // Add the track to the peer connection if no sender exists
+                    call.peerConnection.addTrack(newAudioTrack, call.localStream!);
+                }
+                
+                // Add the track to the local stream
+                call.localStream!.addTrack(newAudioTrack);
+                
+                call.isMuted = false;
+            })
+            .catch(error => {
+                console.error("Failed to re-enable microphone:", error);
+            });
+        return false; // Unmuted
     }
-
-    return false;
 }
 
 export function getCall(userId: number): WebRTCCall | undefined {
