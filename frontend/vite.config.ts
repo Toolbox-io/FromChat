@@ -115,11 +115,10 @@ export default defineConfig({
             },
             output: {
                 entryFileNames: (chunkInfo) => {
-                    // Проверяем имя чанка
                     if (chunkInfo.name === 'serviceWorker') {
-                        return 'assets/serviceWorker.js'; // Указываем фиксированное имя для этого скрипта
+                        return 'assets/serviceWorker.js';
                     }
-                    // Для остальных файлов используем стандартное именование с хэшем
+                    
                     return 'assets/[name]-[hash].js';
                 }
             }
