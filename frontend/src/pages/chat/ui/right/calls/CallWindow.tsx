@@ -189,6 +189,15 @@ export function CallWindow() {
                                     <p className="status">
                                         {getStatusText()}
                                     </p>
+                                    {call.encryptionEmojis.length > 0 && (
+                                        <div className="encryption-emojis">
+                                            {call.encryptionEmojis.map((emoji, index) => (
+                                                <span key={index} className="encryption-emoji">
+                                                    {emoji}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

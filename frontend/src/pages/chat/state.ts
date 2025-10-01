@@ -29,6 +29,8 @@ interface CallState {
     remoteUsername: string | null;
     isInitiator: boolean;
     isMinimized: boolean;
+    sessionKeyHash: string | null;
+    encryptionEmojis: string[];
 }
 
 interface ChatState {
@@ -75,6 +77,8 @@ interface AppState {
     toggleMute: () => void;
     toggleCallMinimize: () => void;
     receiveCall: (userId: number, username: string) => void;
+    setCallEncryption: (sessionKeyHash: string, encryptionEmojis: string[]) => void;
+    setCallSessionKeyHash: (sessionKeyHash: string) => void;
     
     // User state
     user: UserState;
@@ -110,7 +114,9 @@ export const useAppState = create<AppState>((set, get) => ({
             remoteUserId: null,
             remoteUsername: null,
             isInitiator: false,
-            isMinimized: false
+            isMinimized: false,
+            sessionKeyHash: null,
+            encryptionEmojis: []
         }
     },
     addMessage: (message: Message) => set((state) => {
@@ -404,7 +410,9 @@ export const useAppState = create<AppState>((set, get) => ({
                 remoteUserId: userId,
                 remoteUsername: username,
                 isInitiator: true,
-                isMinimized: false
+                isMinimized: false,
+                sessionKeyHash: null,
+                encryptionEmojis: []
             }
         }
     })),
@@ -420,7 +428,9 @@ export const useAppState = create<AppState>((set, get) => ({
                 remoteUserId: null,
                 remoteUsername: null,
                 isInitiator: false,
-                isMinimized: false
+                isMinimized: false,
+                sessionKeyHash: null,
+                encryptionEmojis: []
             }
         }
     })),
@@ -467,7 +477,30 @@ export const useAppState = create<AppState>((set, get) => ({
                 remoteUserId: userId,
                 remoteUsername: username,
                 isInitiator: false,
-                isMinimized: false
+                isMinimized: false,
+                sessionKeyHash: null,
+                encryptionEmojis: []
+            }
+        }
+    })),
+    
+    setCallEncryption: (sessionKeyHash: string, encryptionEmojis: string[]) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                sessionKeyHash,
+                encryptionEmojis
+            }
+        }
+    })),
+    
+    setCallSessionKeyHash: (sessionKeyHash: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                sessionKeyHash
             }
         }
     }))

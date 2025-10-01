@@ -1,9 +1,10 @@
-import type { WebSocketMessage, CallSignalingData, CallInvite } from "@/core/types";
+import type { CallInvite, CallSignalingMessage } from "@/core/types";
 import * as WebRTC from "./webrtc";
 
 export interface CallState {
     receiveCall: (userId: number, username: string) => void;
     endCall: () => void;
+    setCallSessionKeyHash: (sessionKeyHash: string) => void;
 }
 
 export class CallSignalingHandler {
@@ -13,7 +14,7 @@ export class CallSignalingHandler {
         this.getState = getState;
     }
 
-    handleWebSocketMessage(message: WebSocketMessage<CallSignalingData>) {
+    handleWebSocketMessage(message: CallSignalingMessage) {
         if (message.type !== "call_signaling") {
             return;
         }
@@ -47,6 +48,9 @@ export class CallSignalingHandler {
                 break;
             case "call_end":
                 this.handleCallEnd(data);
+                break;
+            case "call_session_key":
+                this.handleCallSessionKey(data);
                 break;
         }
     }
@@ -111,5 +115,15 @@ export class CallSignalingHandler {
         
         // End the call
         state.endCall();
+    }
+
+    private handleCallSessionKey({ sessionKeyHash, data, ...message }: CallSignalingMessage) {
+        const state = this.getState();
+        if (sessionKeyHash) {
+            state.setCallSessionKeyHash(sessionKeyHash);
+        }
+        if (data?.wrappedSessionKey && message.fromUserId) {
+            WebRTC.receiveWrappedSessionKey(message.fromUserId, data.wrappedSessionKey, sessionKeyHash);
+        }
     }
 }

@@ -1,14 +1,15 @@
-import { useAppState } from "../state";
+import { useAppState } from "@/pages/chat/state";
 import * as WebRTC from "@/core/calls/webrtc";
 import { CallSignalingHandler } from "@/core/calls/signaling";
 import { setCallSignalingHandler } from "@/core/websocket";
+import { generateCallSessionKey, generateCallEmojis, createCallSessionKeyFromHash } from "@/core/calls/encryption";
 import { createRef, useEffect } from "react";
 
 // Global audio ref shared across all instances
 let globalRemoteAudioRef = createRef<HTMLAudioElement>();
 
 export default function useAudioCall() {
-    const { chat, startCall, endCall, setCallStatus, toggleMute, user } = useAppState();
+    const { chat, startCall, endCall, setCallStatus, toggleMute, setCallEncryption, setCallSessionKeyHash, user } = useAppState();
     const remoteAudioRef = globalRemoteAudioRef;
 
     useEffect(() => {
@@ -23,7 +24,8 @@ export default function useAudioCall() {
                 const state = useAppState.getState();
                 state.receiveCall(userId, username);
             }, 
-            endCall 
+            endCall,
+            setCallSessionKeyHash
         }));
         setCallSignalingHandler(signalingHandler);
 
@@ -85,6 +87,14 @@ export default function useAudioCall() {
         };
     }, [user.authToken, chat.call.remoteUserId, setCallStatus, endCall, startCall]);
 
+    // Watch for session key hash changes and generate emojis
+    useEffect(() => {
+        if (chat.call.sessionKeyHash && chat.call.encryptionEmojis.length === 0) {
+            const emojis = generateCallEmojis(chat.call.sessionKeyHash);
+            setCallEncryption(chat.call.sessionKeyHash, emojis);
+        }
+    }, [chat.call.sessionKeyHash, chat.call.encryptionEmojis.length, setCallEncryption]);
+
     async function requestAudioPermissions(): Promise<boolean> {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -110,14 +120,31 @@ export default function useAudioCall() {
         }
 
 
-        // Start the call in state
-        startCall(userId, username);
-        setCallStatus("calling");
+        let sessionKey;
+        try {
+            // Generate call session key and emojis
+            sessionKey = await generateCallSessionKey();
+            const emojis = generateCallEmojis(sessionKey.hash);
+            
+            // Start the call in state
+            startCall(userId, username);
+            setCallStatus("calling");
+            setCallEncryption(sessionKey.hash, emojis);
+        } catch (error) {
+            console.error("Failed to generate call encryption:", error);
+            endCall();
+            return;
+        }
 
         // Initiate WebRTC call
         const success = await WebRTC.initiateCall(userId, username);
         
-        if (!success) {
+        if (success && sessionKey) {
+            // Send session key hash to the receiver for visual verification
+            await WebRTC.sendCallSessionKey(userId, sessionKey.hash);
+            // Also wrap and send the actual session key for E2EE media
+            await WebRTC.sendWrappedCallSessionKey(userId, sessionKey.key, sessionKey.hash);
+        } else {
             endCall();
         }
     };
@@ -162,6 +189,7 @@ export default function useAudioCall() {
     };
 
     async function handleIncomingCall(userId: number, username: string) {
+        // Don't generate session key here - wait for it from the caller
         await WebRTC.handleIncomingCall(userId, username);
     };
 
@@ -177,6 +205,17 @@ export default function useAudioCall() {
         await WebRTC.handleIceCandidate(userId, candidate);
     };
 
+    async function handleCallSessionKey(sessionKeyHash: string) {
+        try {
+            // Create session key from the hash provided by the caller
+            const sessionKey = await createCallSessionKeyFromHash(sessionKeyHash);
+            const emojis = generateCallEmojis(sessionKey.hash);
+            setCallEncryption(sessionKey.hash, emojis);
+        } catch (error) {
+            console.error("Failed to create call session key from hash:", error);
+        }
+    };
+
     return {
         call: chat.call,
         initiateCall,
@@ -188,6 +227,7 @@ export default function useAudioCall() {
         handleCallOffer,
         handleCallAnswer,
         handleIceCandidate,
+        handleCallSessionKey,
         remoteAudioRef
     };
 }
