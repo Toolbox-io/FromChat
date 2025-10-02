@@ -14,6 +14,7 @@ interface MessagePanelRendererProps {
 }
 
 export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRendererProps) {
+    const messagePanelRef = useRef<HTMLDivElement>(null);
     const [panelState, setPanelState] = useState<MessagePanelState | null>(null);
     const [switchIn, setSwitchIn] = useState(false);
     const [switchOut, setSwitchOut] = useState(false);
@@ -139,6 +140,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     return (
         <div className={`chat-container ${switchIn ? "chat-switch-in" : ""} ${switchOut ? "chat-switch-out" : ""}`}>
             <div 
+                ref={messagePanelRef}
                 className="chat-main" 
                 id="chat-inner"
                 onDragEnter={(e) => {
@@ -284,6 +286,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                         }
                     }}
                     onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
+                    messagePanelRef={messagePanelRef}
                 />
             </div>
         </div>

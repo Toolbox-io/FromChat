@@ -536,7 +536,19 @@
                         flex: 1;
                         display: flex;
                         flex-direction: row;
+                        align-items: center;
         
+                        .emoji-btn {
+                            margin-left: 10px;
+                            color: $color-dark-on-surface-variant;
+                            transition: color 0.2s ease;
+                            flex-shrink: 0;
+
+                            &:hover {
+                                color: $color-dark-primary;
+                            }
+                        }
+
                         .message-input {
                             flex: 1;
                             padding: 20px 20px;
@@ -761,5 +773,132 @@
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+}
+
+// Emoji Menu Styles
+.emoji-menu {
+    background: $color-dark-surface-container;
+    border: 1px solid rgba($color-dark-outline-variant, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(20px);
+    width: 320px;
+    max-height: 400px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform-origin: bottom left;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.open {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .emoji-menu-header {
+        background: $color-dark-surface-container-high;
+        border-bottom: 1px solid rgba($color-dark-outline-variant, 0.2);
+        padding: 8px;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+
+        .emoji-category-tabs {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            
+            &::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            &::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                background-color: $color-dark-surface-container;
+                border-radius: 2px;
+            }
+
+            .emoji-category-tab {
+                background: transparent;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 1.2rem;
+                min-width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                &:hover {
+                    background: $color-dark-surface-container;
+                }
+
+                &.active {
+                    background: $color-dark-primary-container;
+                    color: $color-dark-on-primary-container;
+                }
+            }
+        }
+    }
+
+    .emoji-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 2px;
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        
+        &::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background-color: $color-dark-surface-container-high;
+            border-radius: 3px;
+        }
+
+        .emoji-item {
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+
+            &:hover {
+                background: $color-dark-surface-container-high;
+                transform: scale(1.1);
+            }
+
+            &:active {
+                transform: scale(0.95);
+            }
+        }
+    }
+
+    .emoji-empty-state {
+        padding: 20px;
+        text-align: center;
+        color: $color-dark-on-surface-variant;
+        font-size: 0.9rem;
     }
 }
