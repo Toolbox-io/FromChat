@@ -21,11 +21,11 @@ COPY deployment/frontend/package.json .
 RUN --mount=type=cache,target=/root/.npm \
     npm install
 
-# 2.2. Build
-RUN npm run build
-
 # 2.2. Copy the code
 COPY deployment/frontend/ .
+
+# 2.3. Build
+RUN npm run build
 
 
 # 3. Put it all together

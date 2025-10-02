@@ -19,7 +19,7 @@ app.use('/api', createProxyMiddleware({
 app.use(express.static(resolve(filePath)));
 
 // SPA routing - catch all handler for client-side routing
-app.get('*', (_req, res) => {
+app.use((_req, res) => {
     res.sendFile(resolve(filePath, 'index.html'));
 });
 
