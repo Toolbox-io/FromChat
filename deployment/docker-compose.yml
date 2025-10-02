@@ -17,8 +17,6 @@ services:
           target: /app
         - action: rebuild
           path: ../backend/requirements.txt
-    networks:
-      - main
 
   frontend:
     build: 
@@ -40,15 +38,7 @@ services:
           target: /server/server.js
         - action: rebuild
           path: package.json
-    networks:
-      - main
-      - default
 
 volumes:
   data:
     name: fromchat-data
-
-networks:
-  main:
-    driver: bridge
-    internal: true # isolate from the outside world
