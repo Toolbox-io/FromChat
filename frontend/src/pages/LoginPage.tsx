@@ -1,20 +1,21 @@
 import { useImmer } from "use-immer";
-import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
-import { AuthContainer, AuthHeader } from "../components/Auth";
-import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
-import { ensureKeysOnLogin } from "../../auth/crypto";
-import { API_BASE_URL } from "../../core/config";
+import { AlertsContainer, type Alert, type AlertType } from "./app/ui/components/Alerts";
+import { AuthContainer, AuthHeader } from "./app/ui/components/Auth";
+import type { ErrorResponse, LoginRequest, LoginResponse } from "./app/core/types";
+import { ensureKeysOnLogin } from "./app/auth/crypto";
+import { API_BASE_URL } from "./app/core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
-import { useAppState } from "../state";
-import { MaterialTextField } from "../components/core/TextField";
-import { initialize, isSupported, startElectronReceiver, subscribe } from "../../utils/push-notifications";
-import { isElectron } from "../../electron/electron";
+import { useAppState } from "./app/ui/state";
+import { MaterialTextField } from "./app/ui/components/core/TextField";
+import { initialize, isSupported, startElectronReceiver, subscribe } from "./app/utils/push-notifications";
+import { isElectron } from "./app/electron/electron";
+import { useNavigate } from "react-router-dom";
 
-export default function LoginScreen() {
+export default function LoginPage() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
-    const setCurrentPage = useAppState(state => state.setCurrentPage);
     const setUser = useAppState(state => state.setUser);
+    const navigate = useNavigate();
 
     function showAlert(type: AlertType, message: string) {
         updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
@@ -67,7 +68,7 @@ export default function LoginScreen() {
                                     console.error("Key setup failed:", e);
                                 }
 
-                                setCurrentPage("chat");
+                                navigate("/chat");
                                 
                                 // Initialize notifications
                                 try {
@@ -130,7 +131,7 @@ export default function LoginScreen() {
                         <a
                             href="#"
                             className="link" 
-                            onClick={() => setCurrentPage("register")}>
+                            onClick={() => navigate("/register")}>
                             Зарегистрируйтесь
                         </a>
                     </p>

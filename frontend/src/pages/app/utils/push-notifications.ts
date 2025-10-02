@@ -2,6 +2,7 @@ import { API_BASE_URL } from "../core/config";
 import { isElectron } from "../electron/electron";
 import { websocket } from "../core/websocket";
 import type { NewMessageWebSocketMessage, WebSocketMessage } from "../core/types";
+import serviceWorker from "../service-worker/service-worker.ts?worker&url";
 
 export interface PushSubscriptionData {
     endpoint: string;
@@ -152,7 +153,7 @@ export async function initialize(): Promise<boolean> {
             }
 
             try {
-                registration = await navigator.serviceWorker.register("/assets/serviceWorker.js");
+                registration = await navigator.serviceWorker.register(serviceWorker, { type: "module" });
                 console.log("Service Worker registered successfully");
                 
                 const permission = await Notification.requestPermission();

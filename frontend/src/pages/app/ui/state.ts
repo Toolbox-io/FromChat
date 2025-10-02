@@ -10,7 +10,6 @@ import { API_BASE_URL } from "../core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "../utils/push-notifications";
 import { isElectron } from "../electron/electron";
 
-type Page = "login" | "register" | "chat"
 export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
 
 interface ActiveDM {
@@ -37,9 +36,6 @@ export interface UserState {
 }
 
 interface AppState {
-    currentPage: Page;
-    setCurrentPage: (page: Page) => void;
-    
     // Chat state
     chat: ChatState;
     addMessage: (message: Message) => void;
@@ -60,13 +56,10 @@ interface AppState {
     user: UserState;
     setUser: (token: string, user: User) => void;
     logout: () => void;
-    restoreUserFromStorage: () => void;
+    restoreUserFromStorage: () => Promise<void>;
 }
 
 export const useAppState = create<AppState>((set, get) => ({
-    currentPage: "login", // default page
-    setCurrentPage: (page: Page) => set({ currentPage: page }),
-    
     // Chat state
     chat: {
         messages: [],
@@ -191,8 +184,7 @@ export const useAppState = create<AppState>((set, get) => ({
             user: {
                 currentUser: null,
                 authToken: null
-            },
-            currentPage: "login"
+            }
         }));
     },
     restoreUserFromStorage: async () => {
@@ -212,8 +204,7 @@ export const useAppState = create<AppState>((set, get) => ({
                         user: {
                             currentUser: user,
                             authToken: token
-                        },
-                        currentPage: "chat"
+                        }
                     }));
 
                     try {

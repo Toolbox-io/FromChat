@@ -5,14 +5,14 @@
  * @version 1.0.0
  */
 
-import './resources/css/style.scss';
+import './pages/app/resources/css/style.scss';
 import "mdui/mdui.css";
 
-import "./utils/material";
-import "./core/init";
-import "./electron/electron";
+import "./pages/app/utils/material";
+import "./pages/app/core/init";
+import "./pages/app/electron/electron";
 import { createRoot } from 'react-dom/client';
-import App from './ui/App';
+import App from './App';
 import { StrictMode } from 'react';
 
 // Initialize React app

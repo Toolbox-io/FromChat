@@ -68,6 +68,7 @@
         "mdui": "^2.1.4",
         "react": "^19.1.1",
         "react-dom": "^19.1.1",
+        "react-router-dom": "^7.9.3",
         "tweetnacl": "^1.0.3",
         "use-immer": "^0.11.0",
         "zustand": "^5.0.8"
