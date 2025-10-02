@@ -1,4 +1,4 @@
-import { formatTime } from "../../../utils/utils";
+import { formatTime, id } from "../../../utils/utils";
 import type { Attachment, Message as MessageType } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import Quote from "../core/Quote";
@@ -12,6 +12,7 @@ import { getAuthHeaders } from "../../../auth/api";
 import { useAppState } from "../../state";
 import { ub64 } from "../../../utils/utils";
 import { useImmer } from "use-immer";
+import { createPortal } from "react-dom";
 
 interface MessageProps {
     message: MessageType;
@@ -398,7 +399,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
             </div>
 
             {/* Fullscreen Image Viewer with shared-element like transition */}
-            {fullscreenImage && (
+            {fullscreenImage && createPortal(
                 <div 
                     className={`fullscreen-image-overlay ${isAnimatingOpen ? "open" : "closing"}`}
                     onClick={closeFullscreen}>
@@ -424,7 +425,8 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                             <mdui-button-icon icon="download" onClick={downloadImage} />
                         )}
                     </div>
-                </div>
+                </div>,
+                id("root")
             )}
         </>
     );
