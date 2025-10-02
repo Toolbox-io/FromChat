@@ -44,7 +44,6 @@ export function ChatInputWrapper(
     const [errorOpen, setErrorOpen] = useState(false);
     const [emojiMenuOpen, setEmojiMenuOpen] = useState(false);
     const [emojiMenuPosition, setEmojiMenuPosition] = useState({ x: 0, y: 0 });
-    const emojiButtonRef = useRef<HTMLButtonElement>(null);
     const chatInputWrapperRef = useRef<HTMLDivElement>(null);
 
     // Expose a way for parent to programmatically add files
@@ -176,12 +175,9 @@ export function ChatInputWrapper(
                     )}
                 </AnimatedHeight>
                 <div className="chat-input">
-                    <mdui-button-icon 
-                        ref={emojiButtonRef}
-                        icon="mood" 
-                        onClick={handleEmojiButtonClick} 
-                        className="emoji-btn"
-                    ></mdui-button-icon>
+                    <div className="left-buttons">
+                        <mdui-button-icon icon="mood" onClick={handleEmojiButtonClick} className="emoji-btn"></mdui-button-icon>
+                    </div>
                     <RichTextArea
                         className="message-input" 
                         id="message-input" 
