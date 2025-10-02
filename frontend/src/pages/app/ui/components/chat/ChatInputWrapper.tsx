@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MaterialDialog } from "../core/Dialog";
 import { RichTextArea } from "../core/RichTextArea";
 import type { Message } from "../../../core/types";
 import Quote from "../core/Quote";
 import AnimatedHeight from "../core/animations/AnimatedHeight";
 import { useImmer } from "use-immer";
+import { EmojiMenu } from "./EmojiMenu";
 
 interface ChatInputWrapperProps {
     onSendMessage: (message: string, files: File[]) => void;
@@ -18,6 +19,7 @@ interface ChatInputWrapperProps {
     onClearEdit?: () => void;
     onCloseEdit?: () => void;
     onProvideFileAdder?: (adder: (files: File[]) => void) => void;
+    messagePanelRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function ChatInputWrapper(
@@ -32,13 +34,18 @@ export function ChatInputWrapper(
         editVisible = false, 
         onClearEdit, 
         onCloseEdit,
-        onProvideFileAdder
+        onProvideFileAdder,
+        messagePanelRef
     }: ChatInputWrapperProps
 ) {
     const [message, setMessage] = useState("");
     const [selectedFiles, setSelectedFiles] = useImmer<File[]>([]);
     const [attachmentsVisible, setAttachmentsVisible] = useState(false);
     const [errorOpen, setErrorOpen] = useState(false);
+    const [emojiMenuOpen, setEmojiMenuOpen] = useState(false);
+    const [emojiMenuPosition, setEmojiMenuPosition] = useState({ x: 0, y: 0 });
+    const emojiButtonRef = useRef<HTMLButtonElement>(null);
+    const chatInputWrapperRef = useRef<HTMLDivElement>(null);
 
     // Expose a way for parent to programmatically add files
     useEffect(() => {
@@ -60,7 +67,26 @@ export function ChatInputWrapper(
         setAttachmentsVisible(selectedFiles.length > 0);
     }, [selectedFiles]);
 
-    const handleSubmit = async (e: React.FormEvent | Event) => {
+    function handleEmojiButtonClick() {
+        if (chatInputWrapperRef.current && messagePanelRef?.current) {
+            const inputRect = chatInputWrapperRef.current.getBoundingClientRect();
+            const panelRect = messagePanelRef.current.getBoundingClientRect();
+            
+            // Position menu 10px from message panel edge and 10px above the chat input
+            // The animation will start 30px below this position
+            setEmojiMenuPosition({
+                x: panelRect.left + 10, // 10px from message panel edge
+                y: window.innerHeight - inputRect.top + 10 // 10px above the top of chat input
+            });
+            setEmojiMenuOpen(true);
+        }
+    };
+
+    function handleEmojiSelect(emoji: string) {
+        setMessage(prev => prev + emoji);
+    };
+
+    async function handleSubmit(e: React.FormEvent | Event) {
         e.preventDefault();
         const hasText = Boolean(message.trim());
         const hasFiles = selectedFiles.length > 0;
@@ -95,7 +121,7 @@ export function ChatInputWrapper(
     }
 
     return (
-        <div className="chat-input-wrapper">
+        <div className="chat-input-wrapper" ref={chatInputWrapperRef}>
             <form className="input-group" id="message-form" onSubmit={handleSubmit}>
                 <AnimatedHeight visible={editVisible} onFinish={onCloseEdit}>
                     {editingMessage && (
@@ -150,6 +176,12 @@ export function ChatInputWrapper(
                     )}
                 </AnimatedHeight>
                 <div className="chat-input">
+                    <mdui-button-icon 
+                        ref={emojiButtonRef}
+                        icon="mood" 
+                        onClick={handleEmojiButtonClick} 
+                        className="emoji-btn"
+                    ></mdui-button-icon>
                     <RichTextArea
                         className="message-input" 
                         id="message-input" 
@@ -172,6 +204,13 @@ export function ChatInputWrapper(
                 <div>Общий размер вложений превышает 4 ГБ.</div>
                 <mdui-button slot="action" onClick={() => setErrorOpen(false)}>Закрыть</mdui-button>
             </MaterialDialog>
+            
+            <EmojiMenu
+                isOpen={emojiMenuOpen}
+                onClose={() => setEmojiMenuOpen(false)}
+                onEmojiSelect={handleEmojiSelect}
+                position={emojiMenuPosition}
+            />
         </div>
     );
 }
