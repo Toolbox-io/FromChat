@@ -16,6 +16,11 @@ export interface WebRTCCall {
     remoteUsername: string;
     isEnding?: boolean;
     isMuted?: boolean;
+    // Video and Screen Share
+    isVideoEnabled?: boolean;
+    isScreenSharing?: boolean;
+    localVideoStream?: MediaStream | null;
+    localScreenStream?: MediaStream | null;
     // Insertable Streams E2EE
     sessionKey?: Uint8Array | null;
     sessionCryptoKey?: CryptoKey | null;
@@ -28,6 +33,7 @@ export interface WebRTCCall {
 export let authToken: string | null = null;
 export let onCallStateChange: ((userId: number, state: string) => void) | null = null;
 export let onRemoteStream: ((userId: number, stream: MediaStream) => void) | null = null;
+export let onRemoteVideoStream: ((userId: number, stream: MediaStream) => void) | null = null;
 const calls: Map<number, WebRTCCall> = new Map();
 
 export function setAuthToken(token: string) {
@@ -41,6 +47,30 @@ export function setCallStateChangeHandler(handler: (userId: number, state: strin
 export function setRemoteStreamHandler(handler: (userId: number, stream: MediaStream) => void) {
     onRemoteStream = handler;
 }
+
+export function setRemoteVideoStreamHandler(handler: (userId: number, stream: MediaStream) => void) {
+    onRemoteVideoStream = handler;
+}
+
+// Video quality constraints for 1k resolution
+const VIDEO_CONSTRAINTS: MediaStreamConstraints = {
+    video: {
+        width: { ideal: 1024 },
+        height: { ideal: 768 },
+        frameRate: { ideal: 15, max: 30 },
+        facingMode: "user"
+    },
+    audio: false
+};
+
+const SCREEN_CONSTRAINTS: MediaStreamConstraints = {
+    video: {
+        width: { ideal: 1024 },
+        height: { ideal: 768 },
+        frameRate: { ideal: 15, max: 30 }
+    },
+    audio: false
+};
 
 async function sendSignalingMessage(message: CallSignalingMessage) {
     if (!authToken) {
@@ -103,6 +133,10 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
         remoteUserId: userId,
         remoteUsername: "",
         isMuted: false,
+        isVideoEnabled: false,
+        isScreenSharing: false,
+        localVideoStream: null,
+        localScreenStream: null,
         sessionKey: null,
         sessionCryptoKey: null,
         sessionId: crypto.randomUUID()
@@ -461,14 +495,30 @@ async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKe
     try {
         if (sessionKey && window.RTCRtpScriptTransform) {
             const key = await importAesGcmKey(sessionKey);
-            const receiver = peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
-            if (receiver) {
+            
+            // Apply transforms to all audio receivers
+            const audioReceivers = peerConnection.getReceivers().filter(r => r.track && r.track.kind === 'audio');
+            audioReceivers.forEach(receiver => {
                 receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
-            }
-            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-            if (sender) {
+            });
+            
+            // Apply transforms to all audio senders
+            const audioSenders = peerConnection.getSenders().filter(s => s.track && s.track.kind === 'audio');
+            audioSenders.forEach(sender => {
                 sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
-            }
+            });
+            
+            // Apply transforms to all video receivers
+            const videoReceivers = peerConnection.getReceivers().filter(r => r.track && r.track.kind === 'video');
+            videoReceivers.forEach(receiver => {
+                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
+            });
+            
+            // Apply transforms to all video senders
+            const videoSenders = peerConnection.getSenders().filter(s => s.track && s.track.kind === 'video');
+            videoSenders.forEach(sender => {
+                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
+            });
         }
     } catch (error) {
         console.error("Failed to create E2EE transform:", error);
@@ -612,6 +662,131 @@ export function toggleMute(userId: number): boolean {
     }
 }
 
+export async function toggleVideo(userId: number): Promise<void> {
+    const call = calls.get(userId);
+    if (!call) return;
+
+    try {
+        if (call.isVideoEnabled) {
+            // Disable video
+            if (call.localVideoStream) {
+                call.localVideoStream.getTracks().forEach(track => track.stop());
+                call.localVideoStream = null;
+            }
+            
+            // Remove video track from peer connection
+            const videoSender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (videoSender) {
+                await videoSender.replaceTrack(null);
+            }
+            
+            call.isVideoEnabled = false;
+            console.log("Video disabled for call", userId);
+        } else {
+            // Enable video
+            const videoStream = await navigator.mediaDevices.getUserMedia(VIDEO_CONSTRAINTS);
+            call.localVideoStream = videoStream;
+            
+            // Add video track to peer connection
+            const videoTrack = videoStream.getVideoTracks()[0];
+            if (videoTrack) {
+                const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                if (sender) {
+                    await sender.replaceTrack(videoTrack);
+                } else {
+                    call.peerConnection.addTrack(videoTrack, call.localStream!);
+                }
+                
+                // Apply E2EE transforms to new video track if available
+                if (call.sessionCryptoKey && window.RTCRtpScriptTransform) {
+                    const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                    if (sender) {
+                        sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { 
+                            key: call.sessionCryptoKey, 
+                            mode: 'encrypt', 
+                            sessionId: call.sessionId 
+                        });
+                    }
+                }
+            }
+            
+            call.isVideoEnabled = true;
+            console.log("Video enabled for call", userId);
+        }
+    } catch (error) {
+        console.error("Failed to toggle video:", error);
+    }
+}
+
+export async function toggleScreenShare(userId: number): Promise<void> {
+    const call = calls.get(userId);
+    if (!call) return;
+
+    try {
+        if (call.isScreenSharing) {
+            // Stop screen sharing
+            if (call.localScreenStream) {
+                call.localScreenStream.getTracks().forEach(track => track.stop());
+                call.localScreenStream = null;
+            }
+            
+            // Remove screen share track from peer connection
+            const screenSender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (screenSender) {
+                // If we had video before screen sharing, restore it
+                if (call.isVideoEnabled && call.localVideoStream) {
+                    const videoTrack = call.localVideoStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        await screenSender.replaceTrack(videoTrack);
+                    }
+                } else {
+                    await screenSender.replaceTrack(null);
+                }
+            }
+            
+            call.isScreenSharing = false;
+            console.log("Screen sharing stopped for call", userId);
+        } else {
+            // Start screen sharing
+            const screenStream = await navigator.mediaDevices.getDisplayMedia(SCREEN_CONSTRAINTS);
+            call.localScreenStream = screenStream;
+            
+            // Replace video track with screen share track
+            const screenTrack = screenStream.getVideoTracks()[0];
+            if (screenTrack) {
+                const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                if (sender) {
+                    await sender.replaceTrack(screenTrack);
+                } else {
+                    call.peerConnection.addTrack(screenTrack, call.localStream!);
+                }
+                
+                // Apply E2EE transforms to screen share track if available
+                if (call.sessionCryptoKey && window.RTCRtpScriptTransform) {
+                    const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                    if (sender) {
+                        sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { 
+                            key: call.sessionCryptoKey, 
+                            mode: 'encrypt', 
+                            sessionId: call.sessionId 
+                        });
+                    }
+                }
+            }
+            
+            call.isScreenSharing = true;
+            console.log("Screen sharing started for call", userId);
+            
+            // Handle screen share end (user clicks "Stop sharing" in browser)
+            screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+                toggleScreenShare(userId);
+            });
+        }
+    } catch (error) {
+        console.error("Failed to toggle screen sharing:", error);
+    }
+}
+
 export function getCall(userId: number): WebRTCCall | undefined {
     return calls.get(userId);
 }
@@ -629,9 +804,15 @@ export function cleanupCall(userId: number): void {
             call.peerConnection.close();
         }
 
-        // Stop local stream
+        // Stop all streams
         if (call.localStream) {
             call.localStream.getTracks().forEach(track => track.stop());
+        }
+        if (call.localVideoStream) {
+            call.localVideoStream.getTracks().forEach(track => track.stop());
+        }
+        if (call.localScreenStream) {
+            call.localScreenStream.getTracks().forEach(track => track.stop());
         }
 
         calls.delete(userId);

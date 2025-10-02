@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppState, type CallStatus } from "../../state";
 import { useAudioCall } from "../../hooks/useAudioCall";
+import * as WebRTC from "../../../utils/webrtc";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import { createPortal } from "react-dom";
 import { id } from "../../../utils/utils";
@@ -8,7 +9,8 @@ import { id } from "../../../utils/utils";
 export function CallWindow() {
     const { chat, toggleCallMinimize } = useAppState();
     const { call } = chat;
-    const { acceptCall, rejectCall, remoteAudioRef, endCall, toggleMute } = useAudioCall();
+    const { acceptCall, rejectCall, remoteAudioRef, endCall, toggleMute, toggleVideo, toggleScreenShare } = useAudioCall();
+    const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const [position, setPosition] = useState({ x: 100, y: 100 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -99,6 +101,29 @@ export function CallWindow() {
         };
     }, []);
 
+    // Handle remote video stream
+    useEffect(() => {
+        if (remoteVideoRef.current && call.isActive) {
+            // Set up video stream handler
+            const handleRemoteVideoStream = (userId: number, stream: MediaStream) => {
+                if (remoteVideoRef.current && userId === call.remoteUserId) {
+                    remoteVideoRef.current.srcObject = stream;
+                    remoteVideoRef.current.play().catch(console.warn);
+                }
+            };
+
+            // Register the handler
+            WebRTC.setRemoteVideoStreamHandler(handleRemoteVideoStream);
+
+            return () => {
+                // Cleanup
+                if (remoteVideoRef.current) {
+                    remoteVideoRef.current.srcObject = null;
+                }
+            };
+        }
+    }, [call.isActive, call.remoteUserId]);
+
     function formatDuration(seconds: number) {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -141,6 +166,13 @@ export function CallWindow() {
                     autoPlay
                     playsInline
                     controls />
+                
+                <video
+                    ref={remoteVideoRef}
+                    className="remote-video"
+                    autoPlay
+                    playsInline
+                    muted={false} />
                 
                 {shouldRender && (
                     <div
@@ -202,6 +234,17 @@ export function CallWindow() {
                             </div>
                         </div>
 
+                        {/* Video display area */}
+                        <div className="video-container">
+                            <video
+                                ref={remoteVideoRef}
+                                className="remote-video-display"
+                                autoPlay
+                                playsInline
+                                muted={false}
+                            />
+                        </div>
+
                         <div className="call-controls">
                             {status === "calling" && !isInitiator ? (
                                 <>
@@ -210,8 +253,26 @@ export function CallWindow() {
                                 </>
                             ) : (
                                 <>
-                                    <mdui-button-icon onClick={toggleMute} icon={isMuted ? "mic_off" : "mic"} />
-                                    <mdui-button-icon onClick={endCall} icon="call_end" />
+                                    <mdui-button-icon 
+                                        onClick={toggleMute} 
+                                        icon={isMuted ? "mic_off" : "mic"} 
+                                        className={isMuted ? "control-btn muted" : "control-btn"}
+                                    />
+                                    <mdui-button-icon 
+                                        onClick={toggleVideo} 
+                                        icon={call.isVideoEnabled ? "videocam" : "videocam_off"}
+                                        className={call.isVideoEnabled ? "control-btn active" : "control-btn"}
+                                    />
+                                    <mdui-button-icon 
+                                        onClick={toggleScreenShare} 
+                                        icon={call.isScreenSharing ? "stop_screen_share" : "screen_share"}
+                                        className={call.isScreenSharing ? "control-btn active" : "control-btn"}
+                                    />
+                                    <mdui-button-icon 
+                                        onClick={endCall} 
+                                        icon="call_end" 
+                                        className="control-btn end-call"
+                                    />
                                 </>
                             )}
                         </div>

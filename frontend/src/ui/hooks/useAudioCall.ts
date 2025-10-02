@@ -81,6 +81,12 @@ export function useAudioCall() {
             }
         });
 
+        // Set up remote video stream handler
+        WebRTC.setRemoteVideoStreamHandler((userId: number, _stream: MediaStream) => {
+            console.log("Remote video stream received for user", userId);
+            // Video stream will be handled by CallWindow component
+        });
+
         return () => {
             WebRTC.cleanup();
             setCallSignalingHandler(null);
@@ -216,6 +222,18 @@ export function useAudioCall() {
         }
     };
 
+    async function handleToggleVideo() {
+        if (chat.call.remoteUserId) {
+            await WebRTC.toggleVideo(chat.call.remoteUserId);
+        }
+    }
+
+    async function handleToggleScreenShare() {
+        if (chat.call.remoteUserId) {
+            await WebRTC.toggleScreenShare(chat.call.remoteUserId);
+        }
+    }
+
     return {
         call: chat.call,
         initiateCall,
@@ -223,6 +241,8 @@ export function useAudioCall() {
         rejectCall,
         endCall: handleEndCall,
         toggleMute: handleToggleMute,
+        toggleVideo: handleToggleVideo,
+        toggleScreenShare: handleToggleScreenShare,
         handleIncomingCall,
         handleCallOffer,
         handleCallAnswer,

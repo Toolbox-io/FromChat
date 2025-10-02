@@ -15,23 +15,25 @@ export type ChatTabs = "chats" | "channels" | "contacts" | "dms";
 
 export type CallStatus = "calling" | "connecting" | "active" | "ended";
 
-interface ActiveDM {
-    userId: number; 
-    username: string;
-    publicKey: string | null
-}
-
-interface CallState {
+export interface CallStateData {
     isActive: boolean;
     status: CallStatus;
     startTime: number | null;
     isMuted: boolean;
+    isVideoEnabled: boolean;
+    isScreenSharing: boolean;
     remoteUserId: number | null;
     remoteUsername: string | null;
     isInitiator: boolean;
     isMinimized: boolean;
     sessionKeyHash: string | null;
     encryptionEmojis: string[];
+}
+
+interface ActiveDM {
+    userId: number; 
+    username: string;
+    publicKey: string | null
 }
 
 interface ChatState {
@@ -44,7 +46,7 @@ interface ChatState {
     activePanel: MessagePanel | null;
     publicChatPanel: PublicChatPanel | null;
     dmPanel: DMPanel | null;
-    call: CallState;
+    call: CallStateData;
 }
 
 export interface UserState {
@@ -109,6 +111,8 @@ export const useAppState = create<AppState>((set, get) => ({
             status: "ended",
             startTime: null,
             isMuted: false,
+            isVideoEnabled: false,
+            isScreenSharing: false,
             remoteUserId: null,
             remoteUsername: null,
             isInitiator: false,
@@ -408,6 +412,8 @@ export const useAppState = create<AppState>((set, get) => ({
                 status: "calling",
                 startTime: null,
                 isMuted: false,
+                isVideoEnabled: false,
+                isScreenSharing: false,
                 remoteUserId: userId,
                 remoteUsername: username,
                 isInitiator: true,
@@ -426,6 +432,8 @@ export const useAppState = create<AppState>((set, get) => ({
                 status: "ended",
                 startTime: null,
                 isMuted: false,
+                isVideoEnabled: false,
+                isScreenSharing: false,
                 remoteUserId: null,
                 remoteUsername: null,
                 isInitiator: false,
@@ -475,6 +483,8 @@ export const useAppState = create<AppState>((set, get) => ({
                 status: "calling",
                 startTime: null,
                 isMuted: false,
+                isVideoEnabled: false,
+                isScreenSharing: false,
                 remoteUserId: userId,
                 remoteUsername: username,
                 isInitiator: false,
