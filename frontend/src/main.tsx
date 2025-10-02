@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import './resources/css/style.scss';
+import './pages/app/resources/css/style.scss';
 import "mdui/mdui.css";
 
 import "./pages/app/utils/material";

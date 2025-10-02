@@ -1,17 +1,16 @@
 import { useImmer } from "use-immer";
-// import { showLogin } from "../../navigation";
-import { AuthContainer, AuthHeader } from "../components/Auth";
-import { AlertsContainer, type Alert, type AlertType } from "../components/Alerts";
+import { AuthContainer, AuthHeader } from "./app/ui/components/Auth";
+import { AlertsContainer, type Alert, type AlertType } from "./app/ui/components/Alerts";
 import { useRef } from "react";
 import { TextField } from "mdui/components/text-field";
-import type { ErrorResponse, RegisterRequest, LoginResponse } from "../../core/types";
-import { API_BASE_URL } from "../../core/config";
-import { useAppState } from "../state";
+import type { ErrorResponse, RegisterRequest, LoginResponse } from "./app/core/types";
+import { API_BASE_URL } from "./app/core/config";
+import { useAppState } from "./app/ui/state";
+import { MaterialTextField } from "./app/ui/components/core/TextField";
+import { ensureKeysOnLogin } from "./app/auth/crypto";
 import { useNavigate } from "react-router-dom";
-import { MaterialTextField } from "../components/core/TextField";
-import { ensureKeysOnLogin } from "../../auth/crypto";
 
-export default function RegisterScreen() {
+export default function RegisterPage() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
     const setUser = useAppState(state => state.setUser);
     const navigate = useNavigate();
