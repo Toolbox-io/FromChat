@@ -2,9 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ElectronTitleBar } from "./pages/app/ui/components/Electron";
 import { useAppState } from "./pages/app/ui/state";
 import { useEffect, useState } from "react";
+import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ChatPage from "./pages/ChatPage";
+import DownloadAppPage from "./pages/DownloadAppPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import { isElectron } from "./pages/app/electron/electron";
@@ -29,9 +31,10 @@ export default function App() {
             <ElectronTitleBar />
             <div id="main-wrapper">
                 <Routes>
-                    <Route path="/" element={<Navigate to="/login" replace />} />
+                    <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/download-app" element={<DownloadAppPage />} />
                     <Route path="/">
                         <Route path="chat" element={
                             <ProtectedRoute>
