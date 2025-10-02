@@ -41,11 +41,29 @@ export async function generateCallSessionKey(): Promise<CallSessionKey> {
 }
 
 /**
- * Create session key from hash (for receiver)
+ * Rotate a session key by generating a completely new key
+ * This provides forward secrecy for long-running calls
+ */
+export async function rotateCallSessionKey(_currentSessionKey: CallSessionKey): Promise<CallSessionKey> {
+    // Generate new session key material (completely independent of current key)
+    const newSessionKeyMaterial = randomBytes(32);
+    
+    // Generate new hash for emoji display
+    const hashBuffer = await crypto.subtle.digest("SHA-256", newSessionKeyMaterial.buffer as ArrayBuffer);
+    const newHash = b64(new Uint8Array(hashBuffer.slice(0, 4)));
+    
+    return {
+        key: newSessionKeyMaterial,
+        hash: newHash
+    };
+}
+
+/**
+ * Create session key from hash (for backward compatibility)
+ * @deprecated Use deriveCallSessionKeyFromSharedSecret instead
  */
 export async function createCallSessionKeyFromHash(hash: string): Promise<CallSessionKey> {
-    // For now, we'll generate a deterministic key from the hash
-    // In a real implementation, this would be the actual shared key
+    // For backward compatibility, generate a deterministic key from the hash
     const hashBytes = ub64(hash);
     const sessionKey = new Uint8Array(32);
     
@@ -57,6 +75,52 @@ export async function createCallSessionKeyFromHash(hash: string): Promise<CallSe
     return {
         key: sessionKey,
         hash
+    };
+}
+
+/**
+ * Derive session key from ECDH shared secret and session key hash
+ * This creates a deterministic but cryptographically secure key
+ */
+export async function deriveCallSessionKeyFromSharedSecret(
+    sharedSecret: Uint8Array, 
+    sessionKeyHash: string,
+    isInitiator: boolean
+): Promise<CallSessionKey> {
+    // Use HKDF to derive the session key from the shared secret
+    // Include the session key hash and role to ensure uniqueness
+    const info = new TextEncoder().encode(`call-session-${sessionKeyHash}-${isInitiator ? 'initiator' : 'receiver'}`);
+    const salt = new Uint8Array(32); // Zero salt for deterministic derivation
+    
+    // Import the shared secret as a raw key for HKDF
+    const sharedKey = await crypto.subtle.importKey(
+        'raw',
+        sharedSecret.buffer as ArrayBuffer,
+        { name: 'HKDF' },
+        false,
+        ['deriveKey']
+    );
+    
+    // Derive the session key using HKDF
+    const sessionKey = await crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: salt,
+            info: info
+        },
+        sharedKey,
+        { name: 'AES-GCM', length: 256 },
+        true, // Make the key extractable so we can export it
+        ['encrypt', 'decrypt']
+    );
+    
+    // Export the raw key material
+    const sessionKeyMaterial = await crypto.subtle.exportKey('raw', sessionKey);
+    
+    return {
+        key: new Uint8Array(sessionKeyMaterial),
+        hash: sessionKeyHash
     };
 }
 
@@ -136,6 +200,24 @@ export async function wrapCallSessionKeyForRecipient(recipientPublicKeyB64: stri
         iv2: b64(wrap.iv),
         wrapped: b64(wrap.ciphertext)
     };
+}
+
+/**
+ * Create a shared secret and derive session key for the receiver
+ */
+export async function createSharedSecretAndDeriveSessionKey(
+    senderPublicKeyB64: string,
+    sessionKeyHash: string,
+    isInitiator: boolean
+): Promise<CallSessionKey> {
+    const keys = getCurrentKeys();
+    if (!keys) throw new Error("Keys not initialized");
+
+    // Create shared secret using ECDH
+    const sharedSecret = ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
+    
+    // Derive the session key from the shared secret
+    return await deriveCallSessionKeyFromSharedSecret(sharedSecret, sessionKeyHash, isInitiator);
 }
 
 /**

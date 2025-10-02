@@ -1,7 +1,7 @@
 import { getAuthHeaders } from "../auth/api";
 import type { CallSignalingMessage, IceServersResponse } from "../core/types";
 import { request } from "../core/websocket";
-import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender } from "./crypto/callEncryption";
+import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender, createSharedSecretAndDeriveSessionKey, rotateCallSessionKey } from "./crypto/callEncryption";
 import { fetchUserPublicKey } from "../api/dmApi";
 import { importAesGcmKey } from "./crypto/symmetric";
 import E2EEWorker from "../modules/e2eeWorker.ts?worker";
@@ -19,6 +19,9 @@ export interface WebRTCCall {
     // Insertable Streams E2EE
     sessionKey?: Uint8Array | null;
     sessionCryptoKey?: CryptoKey | null;
+    sessionId: string;
+    keyRotationTimer?: NodeJS.Timeout;
+    lastKeyRotation?: number;
 }
 
 // Global state
@@ -101,7 +104,8 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
         remoteUsername: "",
         isMuted: false,
         sessionKey: null,
-        sessionCryptoKey: null
+        sessionCryptoKey: null,
+        sessionId: crypto.randomUUID()
     };
 
     calls.set(userId, call);
@@ -286,21 +290,70 @@ export async function setSessionKey(userId: number, keyBytes: Uint8Array): Promi
     const call = calls.get(userId);
     if (!call) return;
     call.sessionKey = keyBytes;
+    call.lastKeyRotation = Date.now();
     await applyE2EETransforms(call);
+    
+    // Start key rotation timer (rotate every 10 minutes for long calls)
+    if (call.keyRotationTimer) {
+        clearInterval(call.keyRotationTimer);
+    }
+    
+    call.keyRotationTimer = setInterval(async () => {
+        await rotateSessionKey(userId);
+    }, 10 * 60 * 1000); // 10 minutes
 }
 
-export async function receiveWrappedSessionKey(fromUserId: number, wrappedPayload: any, _sessionKeyHash?: string): Promise<void> {
+/**
+ * Rotate the session key for a call to provide forward secrecy
+ */
+async function rotateSessionKey(userId: number): Promise<void> {
+    const call = calls.get(userId);
+    if (!call || !call.sessionKey) return;
+    
+    try {
+        console.log("Rotating session key for call", userId);
+        
+        // Generate new session key
+        const currentSessionKey = {
+            key: call.sessionKey,
+            hash: "" // We'll generate a new hash
+        };
+        
+        const newSessionKey = await rotateCallSessionKey(currentSessionKey);
+        
+        // Update the call with new session key
+        call.sessionKey = newSessionKey.key;
+        call.lastKeyRotation = Date.now();
+        
+        // Reapply E2EE transforms with new key
+        await applyE2EETransforms(call);
+        
+        console.log("Session key rotated successfully for call", userId);
+    } catch (error) {
+        console.error("Failed to rotate session key:", error);
+    }
+}
+
+export async function receiveWrappedSessionKey(fromUserId: number, wrappedPayload: any, sessionKeyHash?: string): Promise<void> {
     if (!authToken) return;
     try {
         const senderPublicKey = await fetchUserPublicKey(fromUserId, authToken);
         if (!senderPublicKey) return;
-        if (!wrappedPayload) return;
-        const key = await unwrapCallSessionKeyFromSender(senderPublicKey, {
+        if (!wrappedPayload || !sessionKeyHash) return;
+        
+        // First unwrap the session key from the encrypted payload (for validation)
+        await unwrapCallSessionKeyFromSender(senderPublicKey, {
             salt: wrappedPayload.salt,
             iv2: wrappedPayload.iv2,
             wrapped: wrappedPayload.wrapped
         });
-        await setSessionKey(fromUserId, key);
+        
+        // Then derive the actual session key from the shared secret
+        const call = calls.get(fromUserId);
+        const isInitiator = call?.isInitiator ?? false;
+        const derivedSessionKey = await createSharedSecretAndDeriveSessionKey(senderPublicKey, sessionKeyHash, isInitiator);
+        
+        await setSessionKey(fromUserId, derivedSessionKey.key);
     } catch (e) {
         console.error("Failed to unwrap session key:", e);
     }
@@ -404,17 +457,17 @@ export async function onRemoteAccepted(userId: number): Promise<void> {
     }
 }
 
-async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKey']>, peerConnection: RTCPeerConnection): Promise<void> {
+async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKey']>, peerConnection: RTCPeerConnection, sessionId?: string): Promise<void> {
     try {
         if (sessionKey && window.RTCRtpScriptTransform) {
             const key = await importAesGcmKey(sessionKey);
             const receiver = peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
             if (receiver) {
-                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt' });
+                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
             }
             const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
             if (sender) {
-                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt' });
+                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
             }
         }
     } catch (error) {
@@ -438,7 +491,7 @@ export async function handleCallOffer(userId: number, offer: RTCSessionDescripti
         await call.peerConnection.setLocalDescription(answer);
 
         // Attach transforms on callee side if session key set and insertable streams supported
-        await createE2EETransform(call.sessionKey!, call.peerConnection);
+        await createE2EETransform(call.sessionKey!, call.peerConnection, call.sessionId);
 
         // Send answer to remote peer
         await sendSignalingMessage({
@@ -462,7 +515,7 @@ export async function handleCallAnswer(userId: number, answer: RTCSessionDescrip
     try {
         await call.peerConnection.setRemoteDescription(answer);
         // After signaling completes, attach transforms on initiator side if supported
-        await createE2EETransform(call.sessionKey!, call.peerConnection);
+        await createE2EETransform(call.sessionKey!, call.peerConnection, call.sessionId);
     } catch (error) {
         console.error("Failed to handle answer:", error);
         throw error;
@@ -566,6 +619,11 @@ export function getCall(userId: number): WebRTCCall | undefined {
 export function cleanupCall(userId: number): void {
     const call = calls.get(userId);
     if (call) {
+        // Clear key rotation timer
+        if (call.keyRotationTimer) {
+            clearInterval(call.keyRotationTimer);
+        }
+        
         // Close peer connection
         if (call.peerConnection) {
             call.peerConnection.close();
