@@ -3,7 +3,6 @@ import { createHtmlPlugin } from "vite-plugin-html";
 import autoprefixer from "autoprefixer";
 import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
-import { resolve } from "path";
 
 const plugins: PluginOption[] = [
     react(),
@@ -61,7 +60,7 @@ export default defineConfig({
         },
         allowedHosts: ["beta.fromchat.ru"]
     },
-    appType: "mpa",
+    appType: "spa",
     css: {
         postcss: {
             plugins: [autoprefixer()]

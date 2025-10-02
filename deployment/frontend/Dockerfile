@@ -11,6 +11,7 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY frontend frontend
 RUN npm run frontend:build
 
+
 # 2. Build the static file server
 FROM node:24 AS server
 
@@ -20,8 +21,12 @@ COPY deployment/frontend/package.json .
 RUN --mount=type=cache,target=/root/.npm \
     npm install
 
+# 2.2. Build
+RUN npm run build
+
 # 2.2. Copy the code
 COPY deployment/frontend/ .
+
 
 # 3. Put it all together
 FROM node:24-slim
@@ -44,4 +49,4 @@ COPY --from=server --chown=app /server .
 
 # 4. Final command
 ENV STATIC_FILE_PATH=/app
-ENTRYPOINT ["npm", "run", "start"]
+ENTRYPOINT ["npm", "run", "start:prod"]
