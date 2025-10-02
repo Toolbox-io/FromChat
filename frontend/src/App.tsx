@@ -1,12 +1,12 @@
-import { MINIMUM_WIDTH } from "../core/config";
-import { isElectron } from "../electron/electron";
-import { ElectronTitleBar } from "./components/Electron";
-import useWindowSize from "./hooks/useWindowSize";
-import ChatScreen from "./screen/ChatScreen";
-import DownloadAppScreen from "./screen/DownloadAppScreen";
-import LoginScreen from "./screen/LoginScreen";
-import RegisterScreen from "./screen/RegisterScreen";
-import { useAppState } from "./state";
+import { MINIMUM_WIDTH } from "./pages/app/core/config";
+import { isElectron } from "./pages/app/electron/electron";
+import { ElectronTitleBar } from "./pages/app/ui/components/Electron";
+import useWindowSize from "./pages/app/ui/hooks/useWindowSize";
+import ChatScreen from "./pages/app/ui/screen/ChatScreen";
+import DownloadAppScreen from "./pages/app/ui/screen/DownloadAppScreen";
+import LoginScreen from "./pages/app/ui/screen/LoginScreen";
+import RegisterScreen from "./pages/app/ui/screen/RegisterScreen";
+import { useAppState } from "./pages/app/ui/state";
 import { useEffect } from "react";
 
 export default function App() {

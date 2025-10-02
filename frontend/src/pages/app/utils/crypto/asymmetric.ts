@@ -1,5 +1,5 @@
 import nacl from "tweetnacl";
-import { hkdfExtractAndExpand } from "../crypto/kdf";
+import { hkdfExtractAndExpand } from "./kdf";
 
 export interface X25519KeyPair {
 	publicKey: Uint8Array;
