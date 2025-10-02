@@ -11,6 +11,7 @@ export function CallWindow() {
     const { call } = chat;
     const { acceptCall, rejectCall, remoteAudioRef, endCall, toggleMute, toggleVideo, toggleScreenShare } = useAudioCall();
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
+    const localVideoRef = useRef<HTMLVideoElement>(null);
     const [position, setPosition] = useState({ x: 100, y: 100 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -101,14 +102,59 @@ export function CallWindow() {
         };
     }, []);
 
-    // Handle remote video stream
+    // Handle remote video stream with proper stream management
     useEffect(() => {
-        if (remoteVideoRef.current && call.isActive) {
+        if (call.isActive && call.remoteUserId) {
+            console.log("Setting up video stream handler for user", call.remoteUserId);
+            
             // Set up video stream handler
             const handleRemoteVideoStream = (userId: number, stream: MediaStream) => {
-                if (remoteVideoRef.current && userId === call.remoteUserId) {
-                    remoteVideoRef.current.srcObject = stream;
-                    remoteVideoRef.current.play().catch(console.warn);
+                console.log("🎥 Video stream handler called for user", userId, "stream:", stream);
+                console.log("🎥 Expected user:", call.remoteUserId);
+                console.log("🎥 Video ref available:", !!remoteVideoRef.current);
+                
+                if (userId === call.remoteUserId && remoteVideoRef.current) {
+                    // Get the current call to check what streams are active
+                    const currentCall = WebRTC.getCall(call.remoteUserId);
+                    if (currentCall) {
+                        let streamToDisplay: MediaStream | null = null;
+                        
+                        // Prioritize screen share over video for display
+                        if (call.isScreenSharing && currentCall.remoteScreenStream) {
+                            streamToDisplay = currentCall.remoteScreenStream;
+                            console.log("🖥️ Displaying remote screen share stream");
+                        } else if (call.isVideoEnabled && currentCall.remoteVideoStream) {
+                            streamToDisplay = currentCall.remoteVideoStream;
+                            console.log("🎥 Displaying remote video stream");
+                        } else {
+                            // No active streams - clear the video element
+                            console.log("🎥 No active streams - clearing video element");
+                            if (remoteVideoRef.current) {
+                                remoteVideoRef.current.pause();
+                                remoteVideoRef.current.srcObject = null;
+                                remoteVideoRef.current.load();
+                            }
+                            return; // Exit early, don't try to play
+                        }
+                        
+                        if (streamToDisplay && remoteVideoRef.current) {
+                            console.log("🎥 Attaching video stream to element");
+                            // Prevent multiple simultaneous play requests
+                            remoteVideoRef.current.pause();
+                            remoteVideoRef.current.srcObject = streamToDisplay;
+                            
+                            // Use a small delay to prevent AbortError
+                            setTimeout(() => {
+                                if (remoteVideoRef.current) {
+                                    remoteVideoRef.current.play().then(() => {
+                                        console.log("🎥 Video started playing successfully");
+                                    }).catch((error) => {
+                                        console.warn("🎥 Failed to play video:", error);
+                                    });
+                                }
+                            }, 100);
+                        }
+                    }
                 }
             };
 
@@ -116,13 +162,102 @@ export function CallWindow() {
             WebRTC.setRemoteVideoStreamHandler(handleRemoteVideoStream);
 
             return () => {
+                console.log("🎥 Cleaning up video stream handler");
                 // Cleanup
                 if (remoteVideoRef.current) {
                     remoteVideoRef.current.srcObject = null;
                 }
             };
         }
-    }, [call.isActive, call.remoteUserId]);
+    }, [call.isActive, call.remoteUserId, call.isVideoEnabled, call.isScreenSharing]);
+
+    // Clear remote video when streams are disabled
+    useEffect(() => {
+        if (remoteVideoRef.current) {
+            if (!call.isVideoEnabled && !call.isScreenSharing) {
+                console.log("🎥 Clearing remote video - no video/screen share active");
+                // Pause first to stop any ongoing play requests
+                remoteVideoRef.current.pause();
+                remoteVideoRef.current.srcObject = null;
+                remoteVideoRef.current.load(); // Force reload to clear any frozen frames
+            } else if (!call.isVideoEnabled && call.isScreenSharing) {
+                // Only video is disabled, but screen share is active - clear video stream
+                console.log("🎥 Clearing remote video stream (screen share still active)");
+                const currentCall = WebRTC.getCall(call.remoteUserId || 0);
+                if (currentCall && currentCall.remoteVideoStream) {
+                    // Check if current srcObject is the video stream
+                    if (remoteVideoRef.current.srcObject === currentCall.remoteVideoStream) {
+                        remoteVideoRef.current.pause();
+                        remoteVideoRef.current.srcObject = null;
+                        remoteVideoRef.current.load();
+                    }
+                }
+            } else if (call.isVideoEnabled && !call.isScreenSharing) {
+                // Only screen share is disabled, but video is active - clear screen share stream
+                console.log("🎥 Clearing remote screen share stream (video still active)");
+                const currentCall = WebRTC.getCall(call.remoteUserId || 0);
+                if (currentCall && currentCall.remoteScreenStream) {
+                    // Check if current srcObject is the screen share stream
+                    if (remoteVideoRef.current.srcObject === currentCall.remoteScreenStream) {
+                        remoteVideoRef.current.pause();
+                        remoteVideoRef.current.srcObject = null;
+                        remoteVideoRef.current.load();
+                    }
+                }
+            }
+        }
+    }, [call.isVideoEnabled, call.isScreenSharing, call.remoteUserId]);
+
+    // Clear local video preview when no streams are active
+    useEffect(() => {
+        if (!call.isVideoEnabled && !call.isScreenSharing && localVideoRef.current) {
+            console.log("🎥 Clearing local video preview");
+            // Pause first to stop any ongoing play requests
+            localVideoRef.current.pause();
+            localVideoRef.current.srcObject = null;
+            localVideoRef.current.load(); // Force reload to clear any frozen frames
+        }
+    }, [call.isVideoEnabled, call.isScreenSharing]);
+
+    // Handle local video stream for preview - prioritize screen share over video
+    useEffect(() => {
+        if (localVideoRef.current && (call.isVideoEnabled || call.isScreenSharing)) {
+            console.log("🎥 Setting up local video preview");
+            
+            // Get the current call to access local streams
+            const currentCall = WebRTC.getCall(call.remoteUserId || 0);
+            if (currentCall) {
+                let localStream: MediaStream | null = null;
+                
+                // Prioritize screen share over video for preview
+                if (call.isScreenSharing && currentCall.localScreenStream) {
+                    localStream = currentCall.localScreenStream;
+                    console.log("🖥️ Using local screen stream for preview");
+                } else if (call.isVideoEnabled && currentCall.localVideoStream) {
+                    localStream = currentCall.localVideoStream;
+                    console.log("🎥 Using local video stream for preview");
+                }
+                
+                if (localStream && localVideoRef.current) {
+                    localVideoRef.current.srcObject = localStream;
+                    localVideoRef.current.play().catch((error) => {
+                        console.warn("🎥 Failed to play local video preview:", error);
+                    });
+                }
+            }
+        } else if (localVideoRef.current) {
+            // Clear local preview when no streams are active
+            localVideoRef.current.pause();
+            localVideoRef.current.srcObject = null;
+            localVideoRef.current.load();
+        }
+        
+        return () => {
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = null;
+            }
+        };
+    }, [call.isVideoEnabled, call.isScreenSharing, call.remoteUserId]);
 
     function formatDuration(seconds: number) {
         const mins = Math.floor(seconds / 60);
@@ -242,7 +377,64 @@ export function CallWindow() {
                                 autoPlay
                                 playsInline
                                 muted={false}
+                                style={{
+                                    border: call.isVideoEnabled || call.isScreenSharing ? '2px solid green' : '2px solid red'
+                                }}
                             />
+                            
+                            {/* Local video preview (small, bottom-right corner) */}
+                            {(call.isVideoEnabled || call.isScreenSharing) && (
+                                <video
+                                    ref={localVideoRef}
+                                    className="local-video-preview"
+                                    autoPlay
+                                    playsInline
+                                    muted={true}
+                                    style={{
+                                        position: 'absolute',
+                                        bottom: '8px',
+                                        right: '8px',
+                                        width: '120px',
+                                        height: '90px',
+                                        borderRadius: '8px',
+                                        border: '2px solid rgba(255,255,255,0.3)',
+                                        objectFit: 'cover'
+                                    }}
+                                />
+                            )}
+                            
+                            {/* Status indicators */}
+                            {call.isVideoEnabled && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '8px',
+                                    left: '8px',
+                                    background: 'rgba(76, 175, 80, 0.8)',
+                                    color: 'white',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    📹 VIDEO
+                                </div>
+                            )}
+                            
+                            {call.isScreenSharing && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '8px',
+                                    right: '8px',
+                                    background: 'rgba(33, 150, 243, 0.8)',
+                                    color: 'white',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    🖥️ SCREEN
+                                </div>
+                            )}
                         </div>
 
                         <div className="call-controls">
@@ -262,11 +454,13 @@ export function CallWindow() {
                                         onClick={toggleVideo} 
                                         icon={call.isVideoEnabled ? "videocam" : "videocam_off"}
                                         className={call.isVideoEnabled ? "control-btn active" : "control-btn"}
+                                        title={call.isVideoEnabled ? "Disable video" : "Enable video"}
                                     />
                                     <mdui-button-icon 
                                         onClick={toggleScreenShare} 
                                         icon={call.isScreenSharing ? "stop_screen_share" : "screen_share"}
                                         className={call.isScreenSharing ? "control-btn active" : "control-btn"}
+                                        title={call.isScreenSharing ? "Stop screen sharing" : "Start screen sharing"}
                                     />
                                     <mdui-button-icon 
                                         onClick={endCall} 

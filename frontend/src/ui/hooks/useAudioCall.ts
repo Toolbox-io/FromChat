@@ -9,7 +9,7 @@ import { createRef, useEffect } from "react";
 let globalRemoteAudioRef = createRef<HTMLAudioElement>();
 
 export function useAudioCall() {
-    const { chat, startCall, endCall, setCallStatus, toggleMute, setCallEncryption, setCallSessionKeyHash, user } = useAppState();
+    const { chat, startCall, endCall, setCallStatus, toggleMute, toggleVideo: toggleVideoState, toggleScreenShare: toggleScreenShareState, setCallEncryption, setCallSessionKeyHash, user } = useAppState();
     const remoteAudioRef = globalRemoteAudioRef;
 
     useEffect(() => {
@@ -82,8 +82,9 @@ export function useAudioCall() {
         });
 
         // Set up remote video stream handler
-        WebRTC.setRemoteVideoStreamHandler((userId: number, _stream: MediaStream) => {
-            console.log("Remote video stream received for user", userId);
+        WebRTC.setRemoteVideoStreamHandler((userId: number, stream: MediaStream) => {
+            console.log("🎥 useAudioCall: Remote video stream received for user", userId);
+            console.log("🎥 useAudioCall: Stream tracks:", stream.getTracks().length);
             // Video stream will be handled by CallWindow component
         });
 
@@ -225,12 +226,14 @@ export function useAudioCall() {
     async function handleToggleVideo() {
         if (chat.call.remoteUserId) {
             await WebRTC.toggleVideo(chat.call.remoteUserId);
+            toggleVideoState(); // Update UI state
         }
     }
 
     async function handleToggleScreenShare() {
         if (chat.call.remoteUserId) {
             await WebRTC.toggleScreenShare(chat.call.remoteUserId);
+            toggleScreenShareState(); // Update UI state
         }
     }
 

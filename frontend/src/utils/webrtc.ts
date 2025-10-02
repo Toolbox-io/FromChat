@@ -11,6 +11,8 @@ export interface WebRTCCall {
     peerConnection: RTCPeerConnection;
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
+    remoteVideoStream?: MediaStream | null;
+    remoteScreenStream?: MediaStream | null;
     isInitiator: boolean;
     remoteUserId: number;
     remoteUsername: string;
@@ -52,12 +54,12 @@ export function setRemoteVideoStreamHandler(handler: (userId: number, stream: Me
     onRemoteVideoStream = handler;
 }
 
-// Video quality constraints for 1k resolution
+// Video quality constraints with adaptive resolution capped at 2K (both video and screen share)
 const VIDEO_CONSTRAINTS: MediaStreamConstraints = {
     video: {
-        width: { ideal: 1024 },
-        height: { ideal: 768 },
-        frameRate: { ideal: 15, max: 30 },
+        width: { ideal: 1024, min: 320, max: 2048 },
+        height: { ideal: 768, min: 240, max: 1152 },
+        frameRate: { ideal: 30, max: 60 },
         facingMode: "user"
     },
     audio: false
@@ -65,9 +67,9 @@ const VIDEO_CONSTRAINTS: MediaStreamConstraints = {
 
 const SCREEN_CONSTRAINTS: MediaStreamConstraints = {
     video: {
-        width: { ideal: 1024 },
-        height: { ideal: 768 },
-        frameRate: { ideal: 15, max: 30 }
+        width: { ideal: 1024, min: 320, max: 2048 },
+        height: { ideal: 768, min: 240, max: 1152 },
+        frameRate: { ideal: 30, max: 60 }
     },
     audio: false
 };
@@ -181,15 +183,50 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
         // Signaling state changed
     });
 
-    // Handle remote stream
+    // Handle remote streams (audio and video)
     peerConnection.addEventListener("track", (event) => {
+        console.log("🎵🎥 Remote track received:", event.track.kind, "id:", event.track.id, "label:", event.track.label);
+        console.log("🎵🎥 Streams available:", event.streams.length);
         const [remoteStream] = event.streams;
         const call = calls.get(userId);
         if (call) {
-            call.remoteStream = remoteStream;
-            if (onRemoteStream) {
-                onRemoteStream(userId, remoteStream);
+            if (event.track.kind === 'audio') {
+                console.log("🎵 Audio track processing for user", userId);
+                call.remoteStream = remoteStream;
+                if (onRemoteStream) {
+                    onRemoteStream(userId, remoteStream);
+                }
+            } else if (event.track.kind === 'video') {
+                // Handle video stream (both video and screen share)
+                console.log("🎥 Video track processing for user", userId);
+                console.log("🎥 Video track label:", event.track.label);
+                console.log("🎥 Video stream tracks:", remoteStream.getVideoTracks().length);
+                console.log("🎥 Video stream audio tracks:", remoteStream.getAudioTracks().length);
+                console.log("🎥 onRemoteVideoStream handler available:", !!onRemoteVideoStream);
+                
+                // Store the remote video stream for this specific track type
+                // Screen share tracks typically have different characteristics
+                const isScreenShare = event.track.label.includes('screen') || 
+                                    event.track.label.includes('display') ||
+                                    event.track.label.includes('desktop') ||
+                                    remoteStream.getVideoTracks().length > 1; // Multiple video tracks often indicates screen share
+                
+                if (isScreenShare) {
+                    call.remoteScreenStream = remoteStream;
+                    console.log("🖥️ Remote screen share stream stored, label:", event.track.label);
+                } else {
+                    call.remoteVideoStream = remoteStream;
+                    console.log("🎥 Remote video stream stored, label:", event.track.label);
+                }
+                
+                if (onRemoteVideoStream) {
+                    onRemoteVideoStream(userId, remoteStream);
+                } else {
+                    console.warn("🎥 No video stream handler available!");
+                }
             }
+        } else {
+            console.warn("🎵🎥 No call found for user", userId);
         }
     });
 
@@ -508,16 +545,23 @@ async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKe
                 sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
             });
             
-            // Apply transforms to all video receivers
+            // Apply transforms to all video receivers (both video and screen share)
             const videoReceivers = peerConnection.getReceivers().filter(r => r.track && r.track.kind === 'video');
             videoReceivers.forEach(receiver => {
                 receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
             });
             
-            // Apply transforms to all video senders
+            // Apply transforms to all video senders (both video and screen share)
             const videoSenders = peerConnection.getSenders().filter(s => s.track && s.track.kind === 'video');
             videoSenders.forEach(sender => {
                 sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
+            });
+            
+            console.log("🔒 E2EE transforms applied to:", {
+                audioReceivers: audioReceivers.length,
+                audioSenders: audioSenders.length,
+                videoReceivers: videoReceivers.length,
+                videoSenders: videoSenders.length
             });
         }
     } catch (error) {
@@ -669,49 +713,136 @@ export async function toggleVideo(userId: number): Promise<void> {
     try {
         if (call.isVideoEnabled) {
             // Disable video
+            // Find the video sender before clearing the stream
+            const videoSender = call.localVideoStream ? 
+                call.peerConnection.getSenders().find(s => 
+                    s.track && s.track.kind === 'video' && 
+                    call.localVideoStream!.getVideoTracks().some(track => track.id === s.track!.id)
+                ) : null;
+            
             if (call.localVideoStream) {
                 call.localVideoStream.getTracks().forEach(track => track.stop());
                 call.localVideoStream = null;
             }
-            
-            // Remove video track from peer connection
-            const videoSender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
             if (videoSender) {
+                console.log("🎥 Removing video track from peer connection");
                 await videoSender.replaceTrack(null);
+                
+                // Trigger renegotiation for removed track
+                console.log("🎥 Triggering renegotiation for removed video track");
+                if (call.isInitiator) {
+                    const offer = await call.peerConnection.createOffer();
+                    await call.peerConnection.setLocalDescription(offer);
+                    await sendSignalingMessage({
+                        type: "call_offer",
+                        fromUserId: 0,
+                        toUserId: userId,
+                        data: offer
+                    });
+                } else {
+                    const answer = await call.peerConnection.createAnswer();
+                    await call.peerConnection.setLocalDescription(answer);
+                    await sendSignalingMessage({
+                        type: "call_answer",
+                        fromUserId: 0,
+                        toUserId: userId,
+                        data: answer
+                    });
+                }
             }
             
             call.isVideoEnabled = false;
             console.log("Video disabled for call", userId);
+            
+            // Clear remote video stream reference
+            if (call.remoteVideoStream) {
+                call.remoteVideoStream = null;
+                console.log("🎥 Cleared remote video stream reference");
+            }
+            
+            // Notify state change handler
+            if (onCallStateChange) {
+                onCallStateChange(userId, "video_disabled");
+            }
         } else {
             // Enable video
+            console.log("🎥 Enabling video for call", userId);
             const videoStream = await navigator.mediaDevices.getUserMedia(VIDEO_CONSTRAINTS);
+            console.log("🎥 Video stream obtained:", videoStream);
+            console.log("🎥 Video tracks in stream:", videoStream.getVideoTracks().length);
             call.localVideoStream = videoStream;
             
             // Add video track to peer connection
             const videoTrack = videoStream.getVideoTracks()[0];
+            console.log("🎥 Video track:", videoTrack);
             if (videoTrack) {
-                const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                if (sender) {
-                    await sender.replaceTrack(videoTrack);
+                console.log("🎥 Video track label:", videoTrack.label);
+                console.log("🎥 Video track enabled:", videoTrack.enabled);
+                
+                // Find existing video sender (not screen share)
+                const videoSender = call.peerConnection.getSenders().find(s => 
+                    s.track && s.track.kind === 'video' && !s.track.label.includes('screen')
+                );
+                console.log("🎥 Existing video sender:", !!videoSender);
+                
+                if (videoSender) {
+                    console.log("🎥 Replacing track in existing video sender");
+                    await videoSender.replaceTrack(videoTrack);
                 } else {
-                    call.peerConnection.addTrack(videoTrack, call.localStream!);
+                    console.log("🎥 Adding new video track to peer connection");
+                    // Create a separate stream for video track to avoid mixing
+                    const videoOnlyStream = new MediaStream([videoTrack]);
+                    call.peerConnection.addTrack(videoTrack, videoOnlyStream);
+                    
+                    // Trigger renegotiation for new track
+                    console.log("🎥 Triggering renegotiation for new video track");
+                    if (call.isInitiator) {
+                        const offer = await call.peerConnection.createOffer();
+                        await call.peerConnection.setLocalDescription(offer);
+                        await sendSignalingMessage({
+                            type: "call_offer",
+                            fromUserId: 0,
+                            toUserId: userId,
+                            data: offer
+                        });
+                    } else {
+                        const answer = await call.peerConnection.createAnswer();
+                        await call.peerConnection.setLocalDescription(answer);
+                        await sendSignalingMessage({
+                            type: "call_answer",
+                            fromUserId: 0,
+                            toUserId: userId,
+                            data: answer
+                        });
+                    }
                 }
                 
                 // Apply E2EE transforms to new video track if available
                 if (call.sessionCryptoKey && window.RTCRtpScriptTransform) {
-                    const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) {
-                        sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { 
+                    // Find the video sender by looking for the track we just added
+                    const videoSender = call.peerConnection.getSenders().find(s => 
+                        s.track && s.track.kind === 'video' && s.track.id === videoTrack.id
+                    );
+                    if (videoSender) {
+                        videoSender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { 
                             key: call.sessionCryptoKey, 
                             mode: 'encrypt', 
                             sessionId: call.sessionId 
                         });
+                        console.log("🎥 E2EE transform applied to video track");
                     }
                 }
+            } else {
+                console.warn("🎥 No video track found in stream!");
             }
             
             call.isVideoEnabled = true;
-            console.log("Video enabled for call", userId);
+            console.log("🎥 Video enabled for call", userId);
+            
+            // Notify state change handler
+            if (onCallStateChange) {
+                onCallStateChange(userId, "video_enabled");
+            }
         }
     } catch (error) {
         console.error("Failed to toggle video:", error);
@@ -725,57 +856,123 @@ export async function toggleScreenShare(userId: number): Promise<void> {
     try {
         if (call.isScreenSharing) {
             // Stop screen sharing
+            console.log("🖥️ Stopping screen sharing for call", userId);
+            
+            // Find and remove screen share track by track ID before clearing the stream
+            const screenSenders = call.localScreenStream ? 
+                call.peerConnection.getSenders().filter(s => 
+                    s.track && s.track.kind === 'video' && 
+                    call.localScreenStream!.getVideoTracks().some(track => track.id === s.track!.id)
+                ) : [];
+            
             if (call.localScreenStream) {
                 call.localScreenStream.getTracks().forEach(track => track.stop());
                 call.localScreenStream = null;
             }
             
-            // Remove screen share track from peer connection
-            const screenSender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-            if (screenSender) {
-                // If we had video before screen sharing, restore it
-                if (call.isVideoEnabled && call.localVideoStream) {
-                    const videoTrack = call.localVideoStream.getVideoTracks()[0];
-                    if (videoTrack) {
-                        await screenSender.replaceTrack(videoTrack);
-                    }
+            if (screenSenders.length > 0) {
+                console.log("🖥️ Removing screen share track from peer connection");
+                // Remove screen share track
+                for (const sender of screenSenders) {
+                    await sender.replaceTrack(null);
+                }
+                
+                // Trigger renegotiation for track removal
+                console.log("🖥️ Triggering renegotiation for screen share removal");
+                if (call.isInitiator) {
+                    const offer = await call.peerConnection.createOffer();
+                    await call.peerConnection.setLocalDescription(offer);
+                    await sendSignalingMessage({
+                        type: "call_offer",
+                        fromUserId: 0,
+                        toUserId: userId,
+                        data: offer
+                    });
                 } else {
-                    await screenSender.replaceTrack(null);
+                    const answer = await call.peerConnection.createAnswer();
+                    await call.peerConnection.setLocalDescription(answer);
+                    await sendSignalingMessage({
+                        type: "call_answer",
+                        fromUserId: 0,
+                        toUserId: userId,
+                        data: answer
+                    });
                 }
             }
             
             call.isScreenSharing = false;
-            console.log("Screen sharing stopped for call", userId);
+            console.log("🖥️ Screen sharing stopped for call", userId);
+            
+            // Clear remote screen share stream reference
+            if (call.remoteScreenStream) {
+                call.remoteScreenStream = null;
+                console.log("🖥️ Cleared remote screen share stream reference");
+            }
+            
+            // Notify state change handler
+            if (onCallStateChange) {
+                onCallStateChange(userId, "screen_share_disabled");
+            }
         } else {
             // Start screen sharing
+            console.log("🖥️ Starting screen sharing for call", userId);
             const screenStream = await navigator.mediaDevices.getDisplayMedia(SCREEN_CONSTRAINTS);
             call.localScreenStream = screenStream;
             
-            // Replace video track with screen share track
+            // Add screen share track (don't replace video if it exists)
             const screenTrack = screenStream.getVideoTracks()[0];
             if (screenTrack) {
-                const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                if (sender) {
-                    await sender.replaceTrack(screenTrack);
+                console.log("🖥️ Adding screen share track to peer connection");
+                // Create a separate stream for screen share track to avoid mixing
+                const screenOnlyStream = new MediaStream([screenTrack]);
+                call.peerConnection.addTrack(screenTrack, screenOnlyStream);
+                
+                // Trigger renegotiation for new screen track
+                console.log("🖥️ Triggering renegotiation for new screen track");
+                if (call.isInitiator) {
+                    const offer = await call.peerConnection.createOffer();
+                    await call.peerConnection.setLocalDescription(offer);
+                    await sendSignalingMessage({
+                        type: "call_offer",
+                        fromUserId: 0,
+                        toUserId: userId,
+                        data: offer
+                    });
                 } else {
-                    call.peerConnection.addTrack(screenTrack, call.localStream!);
+                    const answer = await call.peerConnection.createAnswer();
+                    await call.peerConnection.setLocalDescription(answer);
+                    await sendSignalingMessage({
+                        type: "call_answer",
+                        fromUserId: 0,
+                        toUserId: userId,
+                        data: answer
+                    });
                 }
                 
                 // Apply E2EE transforms to screen share track if available
                 if (call.sessionCryptoKey && window.RTCRtpScriptTransform) {
-                    const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                    // Find the screen share sender by looking for the track we just added
+                    const sender = call.peerConnection.getSenders().find(s => 
+                        s.track && s.track.kind === 'video' && s.track.id === screenTrack.id
+                    );
                     if (sender) {
                         sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { 
                             key: call.sessionCryptoKey, 
                             mode: 'encrypt', 
                             sessionId: call.sessionId 
                         });
+                        console.log("🖥️ E2EE transform applied to screen share track");
                     }
                 }
             }
             
             call.isScreenSharing = true;
-            console.log("Screen sharing started for call", userId);
+            console.log("🖥️ Screen sharing started for call", userId);
+            
+            // Notify state change handler
+            if (onCallStateChange) {
+                onCallStateChange(userId, "screen_share_enabled");
+            }
             
             // Handle screen share end (user clicks "Stop sharing" in browser)
             screenStream.getVideoTracks()[0].addEventListener('ended', () => {
@@ -804,7 +1001,7 @@ export function cleanupCall(userId: number): void {
             call.peerConnection.close();
         }
 
-        // Stop all streams
+        // Stop all local streams
         if (call.localStream) {
             call.localStream.getTracks().forEach(track => track.stop());
         }
@@ -813,6 +1010,17 @@ export function cleanupCall(userId: number): void {
         }
         if (call.localScreenStream) {
             call.localScreenStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Clear remote streams (these are references, not tracks we own)
+        if (call.remoteStream) {
+            call.remoteStream = null;
+        }
+        if (call.remoteVideoStream) {
+            call.remoteVideoStream = null;
+        }
+        if (call.remoteScreenStream) {
+            call.remoteScreenStream = null;
         }
 
         calls.delete(userId);

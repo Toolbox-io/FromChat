@@ -79,6 +79,8 @@ interface AppState {
     endCall: () => void;
     setCallStatus: (status: CallStatus) => void;
     toggleMute: () => void;
+    toggleVideo: () => void;
+    toggleScreenShare: () => void;
     toggleCallMinimize: () => void;
     receiveCall: (userId: number, username: string) => void;
     setCallEncryption: (sessionKeyHash: string, encryptionEmojis: string[]) => void;
@@ -461,6 +463,26 @@ export const useAppState = create<AppState>((set, get) => ({
             call: {
                 ...state.chat.call,
                 isMuted: !state.chat.call.isMuted
+            }
+        }
+    })),
+    
+    toggleVideo: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isVideoEnabled: !state.chat.call.isVideoEnabled
+            }
+        }
+    })),
+    
+    toggleScreenShare: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isScreenSharing: !state.chat.call.isScreenSharing
             }
         }
     })),
