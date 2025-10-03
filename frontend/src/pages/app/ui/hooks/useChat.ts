@@ -4,7 +4,6 @@ import { request } from "../../core/websocket";
 import { API_BASE_URL } from "../../core/config";
 import type { Message } from "../../core/types";
 import { getAuthHeaders } from "../../auth/api";
-import { delay } from "../../utils/utils";
 
 export function useChat() {
     const { 
@@ -82,14 +81,12 @@ export function useChat() {
 
     // Reset messages loaded flag and clear messages when chat changes
     useEffect(() => {
-        (async () => {
-            setIsChatSwitching(true);
-            await delay(250);
-            messagesLoadedRef.current = false;
-            clearMessages(); // Clear messages when switching chats
-            loadMessages();
-            setIsChatSwitching(false);
-        })();
+        console.log("🔄 [DEBUG] useChat useEffect triggered for chat change:", chat.currentChat);
+        console.log("📝 [DEBUG] useChat: Resetting messages loaded flag and clearing messages");
+        messagesLoadedRef.current = false;
+        clearMessages(); // Clear messages when switching chats
+        console.log("📥 [DEBUG] useChat: Loading messages for new chat");
+        loadMessages();
     }, [chat.currentChat, clearMessages]);
 
     return {

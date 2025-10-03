@@ -89,12 +89,18 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
 
     // Handle chat switching animation
     useEffect(() => {
+        console.log("🎬 [DEBUG] MessagePanelRenderer: isChatSwitching changed to:", isChatSwitching);
         if (isChatSwitching) {
+            console.log("🎬 [DEBUG] MessagePanelRenderer: Starting switch-out animation");
             setSwitchOut(true);
             setTimeout(() => {
+                console.log("🎬 [DEBUG] MessagePanelRenderer: Starting switch-in animation");
                 setSwitchOut(false);
                 setSwitchIn(true);
-                setTimeout(() => setSwitchIn(false), 200);
+                setTimeout(() => {
+                    console.log("🎬 [DEBUG] MessagePanelRenderer: Ending switch-in animation");
+                    setSwitchIn(false);
+                }, 200);
             }, 250);
         }
     }, [isChatSwitching]);
