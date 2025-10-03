@@ -797,6 +797,7 @@
     opacity: 0;
     transform: translateY(30px);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
 
     &.open {
         opacity: 1;
@@ -910,7 +911,8 @@
             .emoji-category-title {
                 position: sticky;
                 top: 0;
-                padding-top: 10px;
+                padding-top: 5px;
+                padding-bottom: 5px;
                 padding-left: 12px;
                 padding-right: 12px;
                 font-size: 0.85rem;
@@ -918,6 +920,7 @@
                 color: $color-dark-on-surface-variant;
                 z-index: 2;
                 margin: 0;
+                backdrop-filter: blur(10px);
             }
 
             .emoji-category-grid {
