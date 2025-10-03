@@ -6,8 +6,7 @@ export function RightPanel() {
 
     return (
         <MessagePanelRenderer 
-            panel={chat.activePanel} 
-            isChatSwitching={chat.isChatSwitching} 
+            panel={chat.activePanel}
         />
     );
 }

@@ -24,7 +24,6 @@ interface ChatState {
     activeTab: ChatTabs;
     dmUsers: User[];
     activeDm: ActiveDM | null;
-    isChatSwitching: boolean;
     activePanel: MessagePanel | null;
     publicChatPanel: PublicChatPanel | null;
     dmPanel: DMPanel | null;
@@ -46,7 +45,6 @@ interface AppState {
     setDmUsers: (users: User[]) => void;
     setActiveDm: (dm: ChatState["activeDm"]) => void;
     clearMessages: () => void;
-    setIsChatSwitching: (value: boolean) => void;
     setActivePanel: (panel: MessagePanel | null) => void;
     switchToPublicChat: (chatName: string) => Promise<void>;
     switchToDM: (dmData: DMPanelData) => Promise<void>;
@@ -72,12 +70,6 @@ export const useAppState = create<AppState>((set, get) => ({
         publicChatPanel: null,
         dmPanel: null
     },
-    setIsChatSwitching: (value: boolean) => set((state) => ({
-        chat: {
-            ...state.chat,
-            isChatSwitching: value
-        }
-    })),
     addMessage: (message: Message) => set((state) => {
         // Check if message already exists to prevent duplicates
         const messageExists = state.chat.messages.some(msg => msg.id === message.id);
@@ -262,9 +254,6 @@ export const useAppState = create<AppState>((set, get) => ({
         
         if (!user.authToken) return;
         
-        // Start chat switching animation
-        state.setIsChatSwitching(true);
-        
         // Create or get public chat panel
         let publicChatPanel = chat.publicChatPanel;
         if (!publicChatPanel) {
@@ -290,9 +279,6 @@ export const useAppState = create<AppState>((set, get) => ({
                 activeTab: "chats"
             }
         }));
-        
-        // End animation
-        state.setIsChatSwitching(false);
     },
     
     switchToDM: async (dmData: DMPanelData) => {
@@ -300,9 +286,6 @@ export const useAppState = create<AppState>((set, get) => ({
         const { user, chat } = state;
         
         if (!user.authToken) return;
-        
-        // Start chat switching animation
-        state.setIsChatSwitching(true);
         
         // Create or get DM panel
         let dmPanel = chat.dmPanel;
@@ -335,9 +318,6 @@ export const useAppState = create<AppState>((set, get) => ({
                 activeTab: "dms"
             }
         }));
-        
-        // End animation
-        state.setIsChatSwitching(false);
     },
     
     switchToTab: async (tab: ChatTabs) => {

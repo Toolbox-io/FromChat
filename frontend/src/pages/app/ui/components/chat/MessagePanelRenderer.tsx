@@ -10,14 +10,11 @@ import type { DMPanel } from "../../panels/DMPanel";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
-    isChatSwitching: boolean;
 }
 
-export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRendererProps) {
+export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     const messagePanelRef = useRef<HTMLDivElement>(null);
     const [panelState, setPanelState] = useState<MessagePanelState | null>(null);
-    const [switchIn, setSwitchIn] = useState(false);
-    const [switchOut, setSwitchOut] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [replyToVisible, setReplyToVisible] = useState(Boolean(replyTo));
@@ -88,18 +85,6 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
         };
     }, [panel]);
 
-    // Handle chat switching animation
-    useEffect(() => {
-        if (isChatSwitching) {
-            setSwitchOut(true);
-            setTimeout(() => {
-                setSwitchOut(false);
-                setSwitchIn(true);
-                setTimeout(() => setSwitchIn(false), 200);
-            }, 250);
-        }
-    }, [isChatSwitching]);
-
     // Scroll to bottom when messages change
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -138,7 +123,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     }
 
     return (
-        <div className={`chat-container ${switchIn ? "chat-switch-in" : ""} ${switchOut ? "chat-switch-out" : ""}`}>
+        <div className={`chat-container`}>
             <div 
                 ref={messagePanelRef}
                 className="chat-main" 
