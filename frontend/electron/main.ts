@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Notification, ipcMain } from 'electron';
 import path from "node:path";
-import { NotificationShowOptions } from '../electron';
+import type { NotificationShowOptions } from '../electron.d.ts';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -13,7 +13,6 @@ app.whenReady().then(() => {
             preload: path.join(import.meta.dirname, "preload.mjs")
         },
         titleBarStyle: "hidden",
-        ...(process.platform !== 'darwin' ? { titleBarOverlay: true } : {}),
         trafficLightPosition: {
             x: 16 - 4,
             y: 16 - 4
