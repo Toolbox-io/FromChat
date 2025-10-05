@@ -13,12 +13,14 @@ import { useAppState } from "../../state";
 import { ub64 } from "../../../utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
+import { MessageReactions } from "./MessageReactions";
 
 interface MessageProps {
     message: MessageType;
     isAuthor: boolean;
     onProfileClick: (username: string) => void;
     onContextMenu: (e: React.MouseEvent, message: MessageType) => void;
+    onReactionClick?: (messageId: number, emoji: string) => void;
     isLoadingProfile?: boolean;
     isDm?: boolean;
     dmRecipientPublicKey?: string;
@@ -31,7 +33,7 @@ interface Rect {
     height: number
 }
 
-export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLoadingProfile = false, isDm = false, dmRecipientPublicKey }: MessageProps) {
+export function Message({ message, isAuthor, onProfileClick, onContextMenu, onReactionClick, isLoadingProfile = false, isDm = false, dmRecipientPublicKey }: MessageProps) {
     const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
     const [decryptedFiles, updateDecryptedFiles] = useImmer<Map<string, string>>(new Map());
     const [loadedImages, updateLoadedImages] = useImmer<Set<string>>(new Set());
@@ -372,6 +374,12 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, isLo
                             })}
                         </mdui-list>
                     )}
+
+                    <MessageReactions 
+                        reactions={message.reactions}
+                        onReactionClick={(emoji) => onReactionClick?.(message.id, emoji)}
+                        messageId={message.id}
+                    />
 
                     <div className="message-time">
                         {formatTime(message.timestamp)}

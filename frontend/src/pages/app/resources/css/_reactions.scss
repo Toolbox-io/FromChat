@@ -1,0 +1,324 @@
+@use "common/material" as *;
+@use "sass:color";
+
+// Reaction styles
+.message-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.reaction-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 16px;
+    background-color: $color-dark-surface-container;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    font-size: 1px;
+    min-height: 28px;
+    animation: reactionFadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    
+    &.removing {
+        animation: reactionFadeOut 0.2s ease forwards;
+    }
+    
+    &:hover {
+        background-color: $color-dark-surface-container-high;
+        transform: scale(1.05);
+    }
+    
+    &.reacted {
+        background-color: $color-dark-primary-container;
+        border-color: $color-dark-primary;
+        color: $color-dark-on-primary-container;
+        
+        &:hover {
+            background-color: color.adjust($color-dark-primary-container, $lightness: 20%);
+        }
+    }
+}
+
+.reaction-emoji {
+    font-size: 17px;
+    line-height: 1;
+}
+
+.reaction-count {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+// Reaction bar styles (standalone)
+.reaction-bar {
+    background: $color-dark-surface-container;
+    border: 1px solid $color-dark-outline;
+    border-radius: 24px;
+    padding: 8px;
+    opacity: 1;
+    transition: all 0.15s ease;
+    backdrop-filter: blur(8px);
+    transform: translateY(0);
+    
+    &.closing {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+// Context menu wrapper with animations
+.context-menu-wrapper {
+    position: relative;
+    display: block;
+    
+    // Animation states
+    &.entering {
+        opacity: 0;
+        transform: scale(0.8);
+        animation: contextMenuEnter 0.2s ease forwards;
+    }
+    
+    &.entering-left {
+        opacity: 0;
+        transform: translateX(-20px) scale(0.8);
+        animation: contextMenuEnterLeft 0.2s ease forwards;
+    }
+    
+    &.entering-up {
+        opacity: 0;
+        transform: translateY(20px) scale(0.8);
+        animation: contextMenuEnterUp 0.2s ease forwards;
+    }
+    
+    &.entering-up-left {
+        opacity: 0;
+        transform: translateX(-20px) translateY(20px) scale(0.8);
+        animation: contextMenuEnterUpLeft 0.2s ease forwards;
+    }
+    
+    &.closing {
+        opacity: 1;
+        transform: scale(1);
+        animation: contextMenuClose 0.2s ease forwards;
+    }
+    
+    &.closing-left {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        animation: contextMenuCloseLeft 0.2s ease forwards;
+    }
+    
+    &.closing-up {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        animation: contextMenuCloseUp 0.2s ease forwards;
+    }
+    
+    &.closing-up-left {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+        animation: contextMenuCloseUpLeft 0.2s ease forwards;
+    }
+}
+
+// Reaction bar inside context menu wrapper
+.context-menu-reaction-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: $color-dark-surface-container;
+    border: 1px solid $color-dark-outline;
+    border-radius: 16px;
+    position: absolute;
+    bottom: 100%;
+    min-width: 200px;
+    justify-content: center;
+    margin-bottom: 10px;
+    
+    &.left {
+        left: 0;
+        transform: translateX(0);
+    }
+    
+    &.right {
+        right: 0;
+        transform: translateX(0);
+    }
+}
+
+.reaction-bar-content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.reaction-emoji-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 16px;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-size: 18px;
+    
+    &:hover {
+        background: var(--mdui-color-surface-container-high);
+        transform: scale(1.3);
+        box-shadow: var(--mdui-elevation-1);
+    }
+    
+    &:active {
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+    }
+}
+
+.reaction-expand-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--mdui-color-outline);
+    border-radius: 16px;
+    background: var(--mdui-color-surface);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    
+    &:hover {
+        background: var(--mdui-color-surface-container-high);
+        border-color: var(--mdui-color-primary);
+        transform: scale(1.1);
+        box-shadow: var(--mdui-elevation-1);
+    }
+    
+    &:active {
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+    }
+    
+    .material-symbols {
+        font-size: 18px;
+        color: var(--mdui-color-on-surface);
+        transition: transform 0.2s ease;
+    }
+    
+    &:hover .material-symbols {
+        transform: rotate(90deg);
+    }
+}
+
+// Animation for reactions appearing/disappearing
+@keyframes reactionFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes reactionFadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+// Context menu wrapper animations
+@keyframes contextMenuEnter {
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes contextMenuEnterLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes contextMenuEnterUp {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes contextMenuEnterUpLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+    }
+}
+
+@keyframes contextMenuClose {
+    to {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-20px) scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseUp {
+    to {
+        opacity: 0;
+        transform: translateY(20px) scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseUpLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-20px) translateY(20px) scale(0.8);
+    }
+}
+
+// Mobile responsive
+@media (max-width: 768px) {
+    .reaction-bar {
+        padding: 6px;
+    }
+    
+    .reaction-emoji-button,
+    .reaction-expand-button {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .reaction-emoji-button {
+        font-size: 16px;
+    }
+    
+    .reaction-expand-button .material-symbols {
+        font-size: 16px;
+    }
+}

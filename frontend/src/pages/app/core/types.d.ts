@@ -51,6 +51,15 @@ export interface Rect extends Size2D {
  * @property {string} [profile_picture] - URL to sender's profile picture
  * @property {Message} [reply_to] - The message this is replying to
  */
+export interface Reaction {
+    emoji: string;
+    count: number;
+    users: Array<{
+        id: number;
+        username: string;
+    }>;
+}
+
 export interface Message {
     id: number;
     username: string;
@@ -61,6 +70,7 @@ export interface Message {
     profile_picture?: string;
     reply_to?: Message;
     files?: Attachment[];
+    reactions?: Reaction[];
 
     runtimeData?: {
         dmEnvelope?: DmEnvelope;
@@ -313,6 +323,15 @@ export interface SendMessageRequest extends WebSocketMessage {
     }
 }
 
+export interface AddReactionRequest extends WebSocketMessage {
+    type: "addReaction",
+    credentials: WebSocketCredentials;
+    data: {
+        message_id: number;
+        emoji: string;
+    }
+}
+
 // Messages
 export interface DMNewWebSocketMessage extends WebSocketMessage {
     type: "dmNew",
@@ -348,9 +367,21 @@ export interface NewMessageWebSocketMessage extends WebSocketMessage {
     data: Message
 }
 
+export interface ReactionUpdateWebSocketMessage extends WebSocketMessage {
+    type: "reactionUpdate",
+    data: {
+        message_id: number;
+        emoji: string;
+        action: "added" | "removed";
+        user_id: number;
+        username: string;
+        reactions: Reaction[];
+    }
+}
+
 // Shared types
 export type DMWebSocketMessage = DMNewWebSocketMessage | DMEditedWebSocketMessage | DMDeletedWebSocketMessage
-export type ChatWebSocketMessage = MessageEditedWebSocketMessage | MessageDeletedWebSocketMessage | NewMessageWebSocketMessage
+export type ChatWebSocketMessage = MessageEditedWebSocketMessage | MessageDeletedWebSocketMessage | NewMessageWebSocketMessage | ReactionUpdateWebSocketMessage
 
 // -----------
 // Encrypted message JSON (plaintext structure before encryption)
