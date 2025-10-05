@@ -24,10 +24,12 @@ interface ChatState {
     activeTab: ChatTabs;
     dmUsers: User[];
     activeDm: ActiveDM | null;
-    isChatSwitching: boolean;
+    isSwitching: boolean;
+    setIsSwitching: (value: boolean) => void;
     activePanel: MessagePanel | null;
     publicChatPanel: PublicChatPanel | null;
     dmPanel: DMPanel | null;
+    pendingPanel?: MessagePanel | null;
 }
 
 export interface UserState {
@@ -46,11 +48,11 @@ interface AppState {
     setDmUsers: (users: User[]) => void;
     setActiveDm: (dm: ChatState["activeDm"]) => void;
     clearMessages: () => void;
-    setIsChatSwitching: (value: boolean) => void;
     setActivePanel: (panel: MessagePanel | null) => void;
+    setPendingPanel: (panel: MessagePanel | null) => void;
+    applyPendingPanel: () => void;
     switchToPublicChat: (chatName: string) => Promise<void>;
     switchToDM: (dmData: DMPanelData) => Promise<void>;
-    switchToTab: (tab: ChatTabs) => Promise<void>;
     
     // User state
     user: UserState;
@@ -67,19 +69,17 @@ export const useAppState = create<AppState>((set, get) => ({
         activeTab: "chats",
         dmUsers: [],
         activeDm: null,
-        isChatSwitching: false,
-        activePanel: null,
-        publicChatPanel: null,
-        dmPanel: null
-    },
-    setIsChatSwitching: (value: boolean) => {
-        console.log("🎬 [DEBUG] setIsChatSwitching called with:", value);
-        set((state) => ({
+        isSwitching: false,
+        setIsSwitching: (value: boolean) => set((state) => ({
             chat: {
                 ...state.chat,
-                isChatSwitching: value
+                isSwitching: value
             }
-        }));
+        })),
+        activePanel: null,
+        publicChatPanel: null,
+        dmPanel: null,
+        pendingPanel: null
     },
     addMessage: (message: Message) => set((state) => {
         // Check if message already exists to prevent duplicates
@@ -258,104 +258,95 @@ export const useAppState = create<AppState>((set, get) => ({
             activePanel: panel
         }
     })),
+    // Stash a panel to be applied after switch-out animation ends
+    setPendingPanel: (panel: MessagePanel | null) => set((state) => ({
+        chat: {
+            ...state.chat,
+            pendingPanel: panel
+        }
+    })),
+    // Apply pending panel atomically and update related fields
+    applyPendingPanel: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            activePanel: state.chat.pendingPanel || state.chat.activePanel,
+            // when switching to public chat, keep reference if type matches
+            publicChatPanel: (state.chat.pendingPanel instanceof PublicChatPanel)
+                ? (state.chat.pendingPanel as PublicChatPanel)
+                : state.chat.publicChatPanel,
+            dmPanel: (state.chat.pendingPanel instanceof DMPanel)
+                ? (state.chat.pendingPanel as DMPanel)
+                : state.chat.dmPanel,
+            // update currentChat from panel title if available
+            currentChat: state.chat.pendingPanel ? state.chat.pendingPanel.getState().title || state.chat.currentChat : state.chat.currentChat,
+            pendingPanel: null
+        }
+    })),
     
     switchToPublicChat: async (chatName: string) => {
-        console.log("🔄 [DEBUG] switchToPublicChat called with:", chatName);
-        const state = get();
-        const { user, chat } = state;
+        const { user, chat } = get();
         
-        if (!user.authToken) {
-            console.log("❌ [DEBUG] No auth token, returning early");
-            return;
-        }
-        
-        console.log("🎬 [DEBUG] Starting chat switching animation for:", chatName);
-        console.log("🎬 [DEBUG] Current isChatSwitching state:", chat.isChatSwitching);
+        if (!user.authToken) return;
         
         // Start chat switching animation
-        state.setIsChatSwitching(true);
+        chat.setIsSwitching(true);
         
         // Create or get public chat panel
         let publicChatPanel = chat.publicChatPanel;
         if (!publicChatPanel) {
-            console.log("🆕 [DEBUG] Creating new PublicChatPanel for:", chatName);
             publicChatPanel = new PublicChatPanel(chatName, user);
         } else {
-            console.log("♻️ [DEBUG] Reusing existing PublicChatPanel, setting chat name to:", chatName);
             publicChatPanel.setChatName(chatName);
             publicChatPanel.setAuthToken(user.authToken);
+            // Reset messages for the new chat
+            publicChatPanel.clearMessages();
         }
         
-        console.log("⏳ [DEBUG] Waiting 250ms for animation...");
-        // Wait for animation
-        await new Promise(resolve => setTimeout(resolve, 250));
-        
-        console.log("🚀 [DEBUG] Activating panel...");
         // Activate panel
         await publicChatPanel.activate();
         
-        console.log("📝 [DEBUG] Updating state with new panel and chat name");
-        // Update state
+        // Defer panel swap until animation switch-out completes
         set((state) => ({
             chat: {
                 ...state.chat,
-                activePanel: publicChatPanel,
-                publicChatPanel: publicChatPanel,
-                currentChat: chatName,
+                pendingPanel: publicChatPanel,
                 activeTab: "chats"
             }
         }));
         
-        console.log("✅ [DEBUG] Ending chat switching animation");
-        // End animation
-        state.setIsChatSwitching(false);
+        // Let MessagePanelRenderer handle the animation timing completely
+        // It will set isChatSwitching to false when the fadeInDown animation completes
     },
     
     switchToDM: async (dmData: DMPanelData) => {
-        console.log("🔄 [DEBUG] switchToDM called with:", dmData);
-        const state = get();
-        const { user, chat } = state;
+        const { user, chat } = get();
         
-        if (!user.authToken) {
-            console.log("❌ [DEBUG] No auth token, returning early");
-            return;
-        }
-        
-        console.log("🎬 [DEBUG] Starting DM switching animation for user:", dmData.username);
-        console.log("🎬 [DEBUG] Current isChatSwitching state:", chat.isChatSwitching);
+        if (!user.authToken) return;
         
         // Start chat switching animation
-        state.setIsChatSwitching(true);
+        chat.setIsSwitching(true);
         
         // Create or get DM panel
         let dmPanel = chat.dmPanel;
         if (!dmPanel) {
-            console.log("🆕 [DEBUG] Creating new DMPanel for user:", dmData.username);
             dmPanel = new DMPanel(user);
         } else {
-            console.log("♻️ [DEBUG] Reusing existing DMPanel, updating auth token");
             dmPanel.setAuthToken(user.authToken);
+            // Reset messages for the new DM
+            dmPanel.clearMessages();
         }
         
         // Set DM data
-        console.log("📝 [DEBUG] Setting DM data for user:", dmData.username);
         dmPanel.setDMData(dmData);
         
-        console.log("⏳ [DEBUG] Waiting 250ms for animation...");
-        // Wait for animation
-        await new Promise(resolve => setTimeout(resolve, 250));
-        
-        console.log("🚀 [DEBUG] Activating DM panel...");
         // Activate panel
         await dmPanel.activate();
         
-        console.log("📝 [DEBUG] Updating state with new DM panel");
-        // Update state
+        // Defer panel swap until animation switch-out completes
         set((state) => ({
             chat: {
                 ...state.chat,
-                activePanel: dmPanel,
-                dmPanel: dmPanel,
+                pendingPanel: dmPanel,
                 activeDm: {
                     userId: dmData.userId,
                     username: dmData.username,
@@ -365,24 +356,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }));
         
-        console.log("✅ [DEBUG] Ending DM switching animation");
-        // End animation
-        state.setIsChatSwitching(false);
-    },
-    
-    switchToTab: async (tab: ChatTabs) => {
-        console.log("🔄 [DEBUG] switchToTab called with:", tab);
-        const state = get();
-        console.log("📝 [DEBUG] Setting active tab to:", tab);
-        state.setActiveTab(tab);
-        
-        if (tab === "chats") {
-            console.log("💬 [DEBUG] Switching to chats tab, calling switchToPublicChat");
-            await state.switchToPublicChat("Общий чат");
-        } else if (tab === "dms") {
-            console.log("💬 [DEBUG] Switching to DMs tab, clearing active panel");
-            // DM tab - no specific panel until user is selected
-            state.setActivePanel(null);
-        }
+        // Let MessagePanelRenderer handle the animation timing completely
+        // It will set isChatSwitching to false when the fadeInDown animation completes
     }
 }));

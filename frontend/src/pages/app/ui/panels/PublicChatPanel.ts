@@ -24,13 +24,17 @@ export class PublicChatPanel extends MessagePanel {
     }
 
     async activate(): Promise<void> {
-        if (!this.messagesLoaded) {
-            await this.loadMessages();
-        }
+        // Don't load messages immediately during activation to prevent animation freeze
+        // Messages will be loaded after the animation completes
     }
 
     deactivate(): void {
         // Public chat doesn't need special cleanup
+    }
+
+    clearMessages(): void {
+        super.clearMessages();
+        this.messagesLoaded = false;
     }
 
     async loadMessages(): Promise<void> {
@@ -100,7 +104,7 @@ export class PublicChatPanel extends MessagePanel {
     }
 
     // Handle incoming WebSocket messages
-    handleWebSocketMessage = (response: ChatWebSocketMessage): void => {
+    async handleWebSocketMessage(response: ChatWebSocketMessage): Promise<void> {
         switch (response.type) {
             case 'messageEdited':
                 if (response.data) {

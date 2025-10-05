@@ -20,3 +20,4 @@ When working with this project, follow these rules:
 - When you complete your task, remove unused imports if there are any.
 - Follow DRY, SOLID, YAGNI and KISS principles.
 - Do NOT use old, outdated or deprecated APIs and functions.
+- Don't talk like a robot. Behave more like a human.

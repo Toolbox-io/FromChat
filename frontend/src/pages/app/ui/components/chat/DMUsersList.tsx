@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useDM } from "../../hooks/useDM";
+import { useDM, type DMUser } from "../../hooks/useDM";
 import { useAppState } from "../../state";
 import { fetchUserPublicKey } from "../../../api/dmApi";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
@@ -34,7 +34,7 @@ export function DMUsersList() {
         );
     }
 
-    const handleUserClick = async (user: any) => {
+    async function handleUserClick(user: DMUser) {
         if (!user.publicKey) {
             // Get public key if not already loaded
             const authToken = useAppState.getState().user.authToken;
@@ -60,7 +60,7 @@ export function DMUsersList() {
 
     return (
         <mdui-list>
-            {dmUsers.map((user) => (
+            {dmUsers.map((user: DMUser) => (
                 <mdui-list-item
                     key={user.id}
                     headline={user.username}

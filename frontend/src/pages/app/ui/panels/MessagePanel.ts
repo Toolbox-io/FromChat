@@ -1,4 +1,4 @@
-import type { Message } from "../../core/types";
+import type { Message, WebSocketMessage } from "../../core/types";
 import type { UserState } from "../state";
 
 export interface MessagePanelState {
@@ -46,9 +46,7 @@ export abstract class MessagePanel {
     abstract loadMessages(): Promise<void>;
     protected abstract sendMessage(content: string, replyToId?: number, files?: File[]): Promise<void>;
     abstract isDm(): boolean;
-    
-    // Optional WebSocket message handler (can be overridden by subclasses)
-    handleWebSocketMessage?: (response: any) => void;
+    abstract handleWebSocketMessage(response: WebSocketMessage<any>): Promise<void>;
 
     // Common methods
     protected updateState(updates: Partial<MessagePanelState>): void {

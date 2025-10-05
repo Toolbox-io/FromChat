@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useAppState } from "../../state";
 import { MessagePanel, type MessagePanelState } from "../../panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
@@ -10,10 +11,10 @@ import type { DMPanel } from "../../panels/DMPanel";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
-    isChatSwitching: boolean;
 }
 
-export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRendererProps) {
+export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
+    const { applyPendingPanel, chat } = useAppState();
     const messagePanelRef = useRef<HTMLDivElement>(null);
     const [panelState, setPanelState] = useState<MessagePanelState | null>(null);
     const [switchIn, setSwitchIn] = useState(false);
@@ -24,6 +25,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
     const [editMessage, setEditMessage] = useState<Message | null>(null);
     const [editVisible, setEditVisible] = useState(Boolean(editMessage));
     const [pendingAction, setPendingAction] = useState<null | { type: "reply" | "edit"; message: Message }>(null);
+
 
     // Drag & drop
     const [isDragging, setIsDragging] = useState(false);
@@ -56,13 +58,10 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
         if (panel) {
             setPanelState(panel.getState());
             
-            // Set up state change listener
-            const handleStateChange = (newState: MessagePanelState) => {
+            // Store the handler for cleanup
+            panel.onStateChange = (newState: MessagePanelState) => {
                 setPanelState(newState);
             };
-            
-            // Store the handler for cleanup
-            panel.onStateChange = handleStateChange;
             
             // Set up WebSocket message handler for this panel
             if (panel.handleWebSocketMessage) {
@@ -70,17 +69,15 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
             }
         } else {
             setPanelState(null);
-            // Clear global message handler when no panel is active
             setGlobalMessageHandler(null);
         }
         
-        // Cleanup function
         return () => {
             if (panel) {
                 if (panel.onStateChange) {
                     panel.onStateChange = null;
                 }
-                // Call destroy to clean up pending timeouts
+
                 if (typeof panel.destroy === 'function') {
                     panel.destroy();
                 }
@@ -88,60 +85,62 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
         };
     }, [panel]);
 
-    // Handle chat switching animation
+    // Handle chat switching animation with event listeners
     useEffect(() => {
-        console.log("🎬 [DEBUG] MessagePanelRenderer: isChatSwitching changed to:", isChatSwitching);
-        if (isChatSwitching) {
-            console.log("🎬 [DEBUG] MessagePanelRenderer: Starting switch-out animation");
+        if (chat.isSwitching) {
             setSwitchOut(true);
-            setTimeout(() => {
-                console.log("🎬 [DEBUG] MessagePanelRenderer: Starting switch-in animation");
-                setSwitchOut(false);
-                setSwitchIn(true);
-                setTimeout(() => {
-                    console.log("🎬 [DEBUG] MessagePanelRenderer: Ending switch-in animation");
+            
+            // Use animation event listeners instead of hardcoded delays
+            function handleAnimationEnd(event: Event) {
+                const animationEvent = event as AnimationEvent;
+                
+                if (animationEvent.animationName === 'fadeOutUp') {
+                    // Apply pending panel exactly at the boundary between animations
+                    applyPendingPanel();
+                    setSwitchOut(false);
+                    setSwitchIn(true);
+                } else if (animationEvent.animationName === 'fadeInDown') {
                     setSwitchIn(false);
-                }, 200);
-            }, 250);
+                    // End the chat switching state
+                    chat.setIsSwitching(false);
+                }
+            };
+            
+            // Add event listener to document to catch all animation events
+            document.addEventListener('animationend', handleAnimationEnd);
+            
+            // Cleanup function
+            return () => {
+                document.removeEventListener('animationend', handleAnimationEnd);
+            };
         }
-    }, [isChatSwitching]);
+    }, [chat.isSwitching]);
 
-    // Scroll to bottom when messages change
+    // Load messages when panel changes and animation is not running
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [panelState?.messages]);
+        if (!chat.activePanel || chat.isSwitching || switchOut || switchIn) return;
+        
+        const panelState = chat.activePanel.getState();
+        
+        if (panelState.messages.length === 0 && !panelState.isLoading) {
+            chat.activePanel.loadMessages();
+        }
+    }, [chat.activePanel, chat.isSwitching, switchOut, switchIn]);
 
-    if (!panel || !panelState) {
-        return (
-            <div className="chat-container">
-                <div className="chat-main" id="chat-inner">
-                    <div className="chat-header">
-                        <img src={defaultAvatar} alt="Avatar" className="chat-header-avatar" />
-                        <div className="chat-header-info">
-                            <div className="info-chat">
-                                <h4 id="chat-name">Выбор чата</h4>
-                                <p>
-                                    <span className="online-status"></span>
-                                    Выберите чат, чтобы начать переписку
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="chat-messages" id="chat-messages">
-                        <div style={{ 
-                            display: "flex", 
-                            justifyContent: "center", 
-                            alignItems: "center", 
-                            height: "100%",
-                            color: "var(--mdui-color-on-surface-variant)"
-                        }}>
-                            Выберите чат на боковой панели, чтобы начать переписку
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // Scroll to bottom when messages change, but only when no animation is running
+    useEffect(() => {
+        if (!panelState || chat.isSwitching || switchOut || switchIn || panelState.isLoading) return;
+
+        const el = messagesEndRef.current;
+        if (!el) return;
+
+        // Defer to next frame to ensure layout is stable
+        const id = requestAnimationFrame(() => {
+            el.scrollIntoView({ behavior: "smooth", block: "end" });
+        });
+        
+        return () => cancelAnimationFrame(id);
+    }, [panelState?.messages, panelState?.isLoading, chat.isSwitching, switchOut, switchIn]);
 
     return (
         <div className={`chat-container ${switchIn ? "chat-switch-in" : ""} ${switchOut ? "chat-switch-out" : ""}`}>
@@ -149,7 +148,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                 ref={messagePanelRef}
                 className="chat-main" 
                 id="chat-inner"
-                onDragEnter={(e) => {
+                onDragEnter={panel ? (e) => {
                     if (!e.dataTransfer) return;
                     e.preventDefault();
                     e.stopPropagation();
@@ -157,20 +156,20 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                     // Only show overlay when actual files are dragged
                     const hasFiles = Array.from(e.dataTransfer.types || []).includes("Files");
                     if (hasFiles) setIsDragging(true);
-                }}
-                onDragOver={(e) => {
+                } : undefined}
+                onDragOver={panel ? (e) => {
                     if (!e.dataTransfer) return;
                     e.preventDefault();
                     e.stopPropagation();
                     e.dataTransfer.dropEffect = "copy";
-                }}
-                onDragLeave={(e) => {
+                } : undefined}
+                onDragLeave={panel ? (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
                     if (dragCounterRef.current === 0) setIsDragging(false);
-                }}
-                onDrop={(e) => {
+                } : undefined}
+                onDrop={panel ? (e) => {
                     if (!e.dataTransfer) return;
                     e.preventDefault();
                     e.stopPropagation();
@@ -180,28 +179,34 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                     }
                     setIsDragging(false);
                     dragCounterRef.current = 0;
-                }}>
+                } : undefined}>
                 <div className="chat-header">
                     <img 
-                        src={panelState.profilePicture || defaultAvatar} 
+                        src={panelState?.profilePicture || defaultAvatar} 
                         alt="Avatar" 
                         className="chat-header-avatar"
-                        onClick={panel.handleProfileClick}
-                        style={{ cursor: "pointer" }}
+                        onClick={panel?.handleProfileClick}
+                        style={{ cursor: panel ? "pointer" : "default" }}
                     />
                     <div className="chat-header-info">
                         <div className="info-chat">
-                            <h4 id="chat-name">{panelState.title}</h4>
+                            <h4 id="chat-name">{panelState?.title || "Выбор чата"}</h4>
                             <p>
-                                <span className={`online-status ${panelState.online ? "online" : "offline"}`}></span>
-                                {panelState.online ? "Online" : "Offline"}
-                                {panelState.isTyping && " • Typing..."}
+                                <span className={`online-status ${panelState?.online ? "online" : ""}`}></span>
+                                {panelState ? (
+                                    <>
+                                        {panelState.online ? "Online" : "Offline"}
+                                        {panelState.isTyping && " • Typing..."}
+                                    </>
+                                ) : (
+                                    "Выберите чат, чтобы начать переписку"
+                                )}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {panelState.isLoading ? (
+                {panelState?.isLoading ? (
                     <div className="chat-messages" id="chat-messages">
                         <div style={{ 
                             display: "flex", 
@@ -213,7 +218,7 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                             Загрузка сообщений...
                         </div>
                     </div>
-                ): (
+                ) : panelState && panel ? (
                     <ChatMessages 
                         messages={panelState.messages} 
                         isDm={panel.isDm()} 
@@ -239,61 +244,77 @@ export function MessagePanelRenderer({ panel, isChatSwitching }: MessagePanelRen
                     >
                         <div ref={messagesEndRef} />
                     </ChatMessages>
-                )}
-
-                <AnimatedOpacity 
-                    visible={isDragging} 
-                    className="file-overlay" 
-                    onDragOver={(e) => e.preventDefault()} 
-                    onDrop={(e) => e.preventDefault()}>
-                    <div className="file-overlay-wrapper">
-                        <div className="file-overlay-inner">
-                            <mdui-icon name="upload_file" />
-                            <span>Отпустите файл(ы) для добавления</span>
+                ) : (
+                    <div className="chat-messages" id="chat-messages">
+                        <div style={{ 
+                            display: "flex", 
+                            justifyContent: "center", 
+                            alignItems: "center", 
+                            height: "100%",
+                            color: "var(--mdui-color-on-surface-variant)"
+                        }}>
+                            Выберите чат на боковой панели, чтобы начать переписку
                         </div>
                     </div>
-                </AnimatedOpacity>
-                
-                <ChatInputWrapper 
-                    onSendMessage={(text, files) => {
-                        panel.handleSendMessage(text, replyTo?.id, files);
-                        setReplyTo(null);
-                    }} 
-                    onSaveEdit={(content) => {
-                        if (editMessage) {
-                            panel.handleEditMessage(editMessage.id, content);
-                            setEditMessage(null);
-                        }
-                    }}
-                    replyTo={replyTo}
-                    replyToVisible={replyToVisible}
-                    onClearReply={() => {
-                        setPendingAction(null);
-                        setReplyToVisible(false);
-                    }}
-                    onCloseReply={() => {
-                        setReplyTo(null);
-                        if (pendingAction && pendingAction.type === "edit") {
-                            setEditMessage(pendingAction.message);
-                            setPendingAction(null);
-                        }
-                    }}
-                    editingMessage={editMessage}
-                    editVisible={editVisible}
-                    onClearEdit={() => {
-                        setPendingAction(null);
-                        setEditVisible(false);
-                    }}
-                    onCloseEdit={() => {
-                        setEditMessage(null);
-                        if (pendingAction && pendingAction.type === "reply") {
-                            setReplyTo(pendingAction.message);
-                            setPendingAction(null);
-                        }
-                    }}
-                    onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
-                    messagePanelRef={messagePanelRef}
-                />
+                )}
+
+                {panel && (
+                    <>
+                        <AnimatedOpacity 
+                            visible={isDragging} 
+                            className="file-overlay" 
+                            onDragOver={(e) => e.preventDefault()} 
+                            onDrop={(e) => e.preventDefault()}>
+                            <div className="file-overlay-wrapper">
+                                <div className="file-overlay-inner">
+                                    <mdui-icon name="upload_file" />
+                                    <span>Отпустите файл(ы) для добавления</span>
+                                </div>
+                            </div>
+                        </AnimatedOpacity>
+                        
+                        <ChatInputWrapper 
+                            onSendMessage={(text, files) => {
+                                panel.handleSendMessage(text, replyTo?.id, files);
+                                setReplyTo(null);
+                            }} 
+                            onSaveEdit={(content) => {
+                                if (editMessage) {
+                                    panel.handleEditMessage(editMessage.id, content);
+                                    setEditMessage(null);
+                                }
+                            }}
+                            replyTo={replyTo}
+                            replyToVisible={replyToVisible}
+                            onClearReply={() => {
+                                setPendingAction(null);
+                                setReplyToVisible(false);
+                            }}
+                            onCloseReply={() => {
+                                setReplyTo(null);
+                                if (pendingAction && pendingAction.type === "edit") {
+                                    setEditMessage(pendingAction.message);
+                                    setPendingAction(null);
+                                }
+                            }}
+                            editingMessage={editMessage}
+                            editVisible={editVisible}
+                            onClearEdit={() => {
+                                setPendingAction(null);
+                                setEditVisible(false);
+                            }}
+                            onCloseEdit={() => {
+                                setEditMessage(null);
+                                if (pendingAction && pendingAction.type === "reply") {
+                                    setReplyTo(pendingAction.message);
+                                    setPendingAction(null);
+                                }
+                            }}
+                            onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
+                            messagePanelRef={messagePanelRef}
+                        />
+                    </>
+                )}
             </div>
         </div>
     );

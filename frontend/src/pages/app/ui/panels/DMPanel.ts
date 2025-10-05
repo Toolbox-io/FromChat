@@ -33,13 +33,17 @@ export class DMPanel extends MessagePanel {
     }
 
     async activate(): Promise<void> {
-        if (this.dmData && !this.messagesLoaded) {
-            await this.loadMessages();
-        }
+        // Don't load messages immediately during activation to prevent animation freeze
+        // Messages will be loaded after the animation completes
     }
 
     deactivate(): void {
         // DM doesn't need special cleanup
+    }
+
+    clearMessages(): void {
+        super.clearMessages();
+        this.messagesLoaded = false;
     }
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
@@ -164,7 +168,7 @@ export class DMPanel extends MessagePanel {
     }
 
     // Handle incoming WebSocket DM messages
-    handleWebSocketMessage = async (response: DMWebSocketMessage): Promise<void> => {
+    async handleWebSocketMessage(response: DMWebSocketMessage): Promise<void> {
         if (response.type === "dmNew" && this.dmData) {
             const envelope = response.data;
             

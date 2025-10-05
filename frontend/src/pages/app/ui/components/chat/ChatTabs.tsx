@@ -1,15 +1,11 @@
-import { useChat } from "../../hooks/useChat";
+import { useAppState } from "../../state";
 
 export function ChatTabs() {
-    const { activeTab, setActiveTab, setCurrentChat } = useChat();
-
-    const handleChatClick = (chatName: string) => {
-        setCurrentChat(chatName);
-    };
+    const { chat, setActiveTab, switchToPublicChat } = useAppState();
 
     return (
         <div className="chat-tabs">
-            <mdui-tabs value={activeTab} full-width onChange={(e: any) => setActiveTab(e.detail.value)}>
+            <mdui-tabs value={chat.activeTab} full-width onChange={(e: any) => setActiveTab(e.detail.value)}>
                 <mdui-tab value="chats">
                     Чаты
                 </mdui-tab>
@@ -29,7 +25,7 @@ export function ChatTabs() {
                             headline="Общий чат" 
                             description="Вы: Последнее сообщение" 
                             id="chat-list-chat-1"
-                            onClick={() => handleChatClick("Общий чат")}
+                            onClick={async () => await switchToPublicChat("Общий чат")}
                             style={{ cursor: "pointer" }}
                         >
                             <img src="./src/resources/images/default-avatar.png" alt="" slot="icon" />
@@ -38,7 +34,7 @@ export function ChatTabs() {
                             headline="Общий чат 2" 
                             description="Вы: Последнее сообщение" 
                             id="chat-list-chat-2"
-                            onClick={() => handleChatClick("Общий чат 2")}
+                            onClick={async () => await switchToPublicChat("Общий чат 2")}
                             style={{ cursor: "pointer" }}
                         >
                             <img src="./src/resources/images/default-avatar.png" alt="" slot="icon" />

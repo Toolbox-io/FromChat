@@ -3,7 +3,7 @@ import { useAppState } from "../state";
 import { loadProfile, updateProfile, uploadProfilePicture, type ProfileData } from "../../api/profileApi";
 import { showSuccess, showError } from "../../utils/notification";
 
-export function useProfile() {
+export default function useProfile() {
     const { user } = useAppState();
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [isLoading, setIsLoading] = useState(false);

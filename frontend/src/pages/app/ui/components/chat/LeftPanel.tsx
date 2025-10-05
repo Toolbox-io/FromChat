@@ -37,17 +37,16 @@ function BottomAppBar() {
 
 
 function ChatTabs() {
-    const { chat, switchToTab, switchToPublicChat } = useAppState();
+    const { chat, setActiveTab, switchToPublicChat } = useAppState();
     const { activeTab } = chat;
 
-    const handleChatClick = async (chatName: string) => {
+    async function handleChatClick(chatName: string) {
         await switchToPublicChat(chatName);
-    };
+    }
 
-    const handleTabChange = async (e: FormEvent<Tabs>) => {
-        const tab = (e.target as Tabs).value as ChatTabs;
-        await switchToTab(tab);
-    };
+    function handleTabChange(e: FormEvent<Tabs>) {
+        setActiveTab((e.target as Tabs).value as ChatTabs);
+    }
 
     return (
         <div className="chat-tabs">
