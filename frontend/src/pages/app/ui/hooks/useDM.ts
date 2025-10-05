@@ -198,7 +198,7 @@ export function useDM() {
 
     // WebSocket message handler
     useEffect(() => {
-        const handleWebSocketMessage = async (e: MessageEvent) => {
+        async function handleWebSocketMessage(e: MessageEvent) {
             try {
                 const msg = JSON.parse(e.data);
                 if (msg.type === "dmNew") {
@@ -258,9 +258,10 @@ export function useDM() {
             } catch (error) {
                 console.error("Failed to handle WebSocket message:", error);
             }
-        };
+        }
 
         websocket.addEventListener("message", handleWebSocketMessage);
+
         return () => websocket.removeEventListener("message", handleWebSocketMessage);
     }, [chat.activeDm, user.currentUser, addMessage]);
 

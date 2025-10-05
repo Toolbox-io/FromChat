@@ -4,7 +4,7 @@ import { MessagePanel, type MessagePanelState } from "../../panels/MessagePanel"
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
 import { setGlobalMessageHandler } from "../../../core/websocket";
-import type { Message } from "../../../core/types";
+import type { Message, WebSocketMessage } from "../../../core/types";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import AnimatedOpacity from "../core/animations/AnimatedOpacity";
 import type { DMPanel } from "../../panels/DMPanel";
@@ -65,7 +65,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
             
             // Set up WebSocket message handler for this panel
             if (panel.handleWebSocketMessage) {
-                setGlobalMessageHandler(panel.handleWebSocketMessage);
+                setGlobalMessageHandler((message: WebSocketMessage<any>) => panel.handleWebSocketMessage(message));
             }
         } else {
             setPanelState(null);
