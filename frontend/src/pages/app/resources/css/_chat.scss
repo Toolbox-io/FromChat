@@ -783,6 +783,8 @@
 
 // Emoji Menu Styles
 .emoji-menu {
+    $transition: cubic-bezier(0.4, 0, 0.2, 1);
+
     background: $color-dark-surface-container;
     border: 1px solid rgba($color-dark-outline-variant, 0.4);
     border-radius: 16px;
@@ -796,7 +798,7 @@
     transform-origin: bottom left;
     opacity: 0;
     transform: translateY(30px);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.25s $transition, opacity 0.25s $transition;
     user-select: none;
 
     &.open {
