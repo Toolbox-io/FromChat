@@ -9,8 +9,9 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine
 from constants import DATABASE_URL
+import logging
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 def run_migrations():
     """
@@ -24,6 +25,9 @@ def run_migrations():
         
         # Create Alembic configuration
         alembic_cfg = Config(os.path.join(current_dir, "alembic.ini"))
+        
+        # Disable Alembic's logging configuration to avoid interfering with FastAPI
+        alembic_cfg.set_main_option("configure_logging", "false")
         
         # Set the database URL in the config
         alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
@@ -71,6 +75,32 @@ def run_migrations():
                     # Create fresh migration
                     command.revision(alembic_cfg, autogenerate=True, message="Initial migration")
             logger.info("Initial migration created successfully.")
+        else:
+            # Migration files exist, check if we need to create a new migration for schema changes
+            logger.info("Migration files exist. Checking for pending schema changes...")
+            try:
+                # Create a new migration to detect any schema changes
+                command.revision(alembic_cfg, autogenerate=True, message="Auto-generated migration for schema changes")
+                
+                # Check if the new migration is empty (no changes detected)
+                migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
+                if migration_files:
+                    latest_migration = max(migration_files)
+                    migration_path = os.path.join(versions_dir, latest_migration)
+                    
+                    # Check if migration is empty
+                    with open(migration_path, 'r') as f:
+                        content = f.read()
+                        if 'pass' in content and 'op.create_table' not in content and 'op.add_column' not in content and 'op.drop_table' not in content and 'op.drop_column' not in content:
+                            logger.info("No schema changes detected. Removing empty migration...")
+                            # Remove the empty migration
+                            os.remove(migration_path)
+                        else:
+                            logger.info("Schema changes detected. New migration created.")
+                            
+            except Exception as e:
+                logger.info(f"No new migrations needed or error creating migration: {e}")
+                pass
         
         # Run the upgrade command
         logger.info("Running database migrations...")

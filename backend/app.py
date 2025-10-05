@@ -1,25 +1,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import logging
 from contextlib import asynccontextmanager
-from migration import run_migrations
+import subprocess
+import sys
+import os
 
 from routes import account, messaging, profile, push
 
-# Configure logging
-logger = logging.getLogger("uvicorn.error")
-logger.handlers.clear()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handle application lifespan events."""
-    # Startup
+    # Startup - run migration in separate process to avoid logging interference
     try:
-        logger.info("Starting database migration check...")
-        run_migrations()
-        logger.info("Database migrations completed successfully.")
+        print("Starting database migration check...")
+        # Run migration in a separate process
+        subprocess.run(
+            [
+                sys.executable, 
+                "-c", 
+                "import sys; sys.path.append('.'); from migration import run_migrations; run_migrations()"
+            ], 
+            cwd=os.path.dirname(os.path.abspath(__file__))
+            # No capture_output - let it stream to terminal in real-time
+            # No text=True - let it use the terminal's encoding
+        )
     except Exception as e:
-        logger.error(f"Failed to run database migrations: {e}")
+        print(f"Failed to run database migrations: {e}")
         raise
     
     yield

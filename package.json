@@ -8,7 +8,7 @@
     "license": "GPL-3.0",
     "authors": "denis0001-dev",
     "scripts": {
-        "backend:run": "cd backend && dotenv -e ../deployment/.env -- ../.venv/bin/fastapi dev --port 8300 main.py",
+        "backend:run": "cd backend && dotenv -e ../deployment/.env -- ../.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8300 --reload --reload-exclude './alembic' --reload-exclude './alembic/*' --reload-exclude './alembic/versions/*' --access-log",
         "backend:dependencies": "python3 -m venv .venv && ./.venv/bin/pip3 install -r backend/requirements.txt",
         "backend:reinstall": "rm -rf .venv && npm run backend:dependencies",
         "backend:clean": "rm -rf backend/data",
