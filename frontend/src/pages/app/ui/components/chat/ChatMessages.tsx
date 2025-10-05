@@ -1,4 +1,3 @@
-import { useChat } from "../../hooks/useChat";
 import { Message } from "./Message";
 import { useAppState } from "../../state";
 import type { Message as MessageType } from "../../../core/types";
@@ -21,12 +20,10 @@ interface ChatMessagesProps {
     dmRecipientPublicKey?: string;
 }
 
-export function ChatMessages({ messages: propMessages, children, isDm = false, onReplySelect, onEditSelect, onDelete, onRetryMessage, dmRecipientPublicKey }: ChatMessagesProps) {
-    const { messages: hookMessages } = useChat();
+export function ChatMessages({ messages = [], children, isDm = false, onReplySelect, onEditSelect, onDelete, onRetryMessage, dmRecipientPublicKey }: ChatMessagesProps) {
     const { user } = useAppState();
     
-    // Use prop messages if provided, otherwise use hook messages
-    const messages = propMessages || hookMessages;
+    // Use prop messages (panels provide their own messages)
     const [profileDialogOpen, setProfileDialogOpen] = useState(false);
     const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
     const [isLoadingProfile, setIsLoadingProfile] = useState(false);
@@ -127,7 +124,7 @@ export function ChatMessages({ messages: propMessages, children, isDm = false, o
     return (
         <>
             <div className="chat-messages" id="chat-messages">
-                {messages.map((message) => (
+                {messages.map((message: MessageType) => (
                     <Message
                         key={message.id}
                         message={message}

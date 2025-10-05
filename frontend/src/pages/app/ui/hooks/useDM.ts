@@ -10,7 +10,7 @@ import {
 import type { User, Message, DmEncryptedJSON } from "../../core/types";
 import { websocket } from "../../core/websocket";
 
-interface DMUser extends User {
+export interface DMUser extends User {
     lastMessage?: string;
     unreadCount: number;
     publicKey?: string | null;

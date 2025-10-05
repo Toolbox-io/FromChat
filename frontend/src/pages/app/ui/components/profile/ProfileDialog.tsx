@@ -3,7 +3,7 @@ import defaultAvatar from "../../../resources/images/default-avatar.png";
 import type { TextField } from "mdui/components/text-field";
 import type { DialogProps } from "../../../core/types";
 import { MaterialDialog } from "../core/Dialog";
-import { useProfile } from "../../hooks/useProfile";
+import useProfile from "../../hooks/useProfile";
 import { ImageCropper } from "./ImageCropper";
 import { MaterialTextField } from "../core/TextField";
 
