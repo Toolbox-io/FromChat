@@ -131,7 +131,7 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                 const dmEnvelopeId = message?.runtimeData?.dmEnvelope?.id;
                 
                 if (dmEnvelopeId) {
-                    await request<AddDmReactionRequest["data"], any>({
+                    await request<AddDmReactionRequest["data"]>({
                         type: "addDmReaction",
                         credentials: { scheme: "Bearer", credentials: user.authToken },
                         data: {
@@ -142,7 +142,7 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                 }
             } else {
                 // For regular chat messages
-                await request<AddReactionRequest["data"], any>({
+                await request<AddReactionRequest["data"]>({
                     type: "addReaction",
                     credentials: { scheme: "Bearer", credentials: user.authToken },
                     data: {

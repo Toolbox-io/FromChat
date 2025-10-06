@@ -149,7 +149,6 @@ export function MessageContextMenu({
             setIsClosing(false);
             setAnimationClass('entering'); // Reset for next opening
         }, 200); // Match the animation duration from _animations.scss
-        // TODO no hardcoded delays
     }
 
     interface Action {

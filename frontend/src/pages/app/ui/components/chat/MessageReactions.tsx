@@ -88,12 +88,9 @@ export function MessageReactions({ reactions, onReactionClick, messageId }: Mess
                 const hasUserReacted = reaction.users.some(u => u.id === user.currentUser?.id);
                 const isAnimating = animatingReactions.has(reaction.emoji);
                 
-                // Create a unique key that includes messageId, emoji, count, and index to prevent duplicates
-                const uniqueKey = `${messageId || 'unknown'}-${reaction.emoji}-${reaction.count}-${index}`;
-                
                 return (
                     <button
-                        key={uniqueKey}
+                        key={`${messageId || 'unknown'}-${reaction.emoji}-${reaction.count}-${index}`}
                         className={`reaction-button ${hasUserReacted ? "reacted" : ""} ${isAnimating ? "removing" : ""}`}
                         onClick={() => onReactionClick(reaction.emoji)}
                         title={reaction.users.map(u => u.username).join(", ")}
