@@ -70,6 +70,7 @@ export class DMPanel extends MessagePanel {
             is_read: false,
             is_edited: false,
             files: env.files?.map(file => { return {"name": file.name, "encrypted": true, "path": file.path} }) || [],
+            reactions: env.reactions || [],
 
             runtimeData: {
                 dmEnvelope: env
@@ -238,6 +239,10 @@ export class DMPanel extends MessagePanel {
             const { id } = response.data;
             this.removeMessage(id);
         }
+        if (response.type === "dmReactionUpdate" && this.dmData) {
+            const { dm_envelope_id, reactions } = response.data;
+            this.updateMessageReactions(dm_envelope_id, reactions);
+        }
     };
 
     // Reset for DM switching
@@ -302,4 +307,17 @@ export class DMPanel extends MessagePanel {
     }
     
     handleProfileClick(): void {}
+
+    updateMessageReactions(dmEnvelopeId: number, reactions: any[]): void {
+        const messages = this.getMessages();
+        const messageIndex = messages.findIndex(msg => 
+            msg.runtimeData?.dmEnvelope?.id === dmEnvelopeId
+        );
+        
+        if (messageIndex !== -1) {
+            const updatedMessage = { ...messages[messageIndex] };
+            updatedMessage.reactions = reactions;
+            this.updateMessage(updatedMessage.id, { reactions: reactions });
+        }
+    }
 }

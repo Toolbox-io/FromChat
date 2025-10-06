@@ -10,7 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { delay } from "../../../utils/utils";
 import { MaterialDialog } from "../core/Dialog";
 import { request } from "../../../core/websocket";
-import type { AddReactionRequest } from "../../../core/types";
+import type { AddReactionRequest, AddDmReactionRequest } from "../../../core/types";
 
 interface ChatMessagesProps {
     messages?: MessageType[];
@@ -125,14 +125,32 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
         if (!user.authToken) return;
         
         try {
-            await request<AddReactionRequest["data"], any>({
-                type: "addReaction",
-                credentials: { scheme: "Bearer", credentials: user.authToken },
-                data: {
-                    message_id: messageId,
-                    emoji: emoji
+            if (isDm) {
+                // For DM messages, we need to find the dm_envelope_id from the message
+                const message = messages.find(m => m.id === messageId);
+                const dmEnvelopeId = message?.runtimeData?.dmEnvelope?.id;
+                
+                if (dmEnvelopeId) {
+                    await request<AddDmReactionRequest["data"], any>({
+                        type: "addDmReaction",
+                        credentials: { scheme: "Bearer", credentials: user.authToken },
+                        data: {
+                            dm_envelope_id: dmEnvelopeId,
+                            emoji: emoji
+                        }
+                    });
                 }
-            });
+            } else {
+                // For regular chat messages
+                await request<AddReactionRequest["data"], any>({
+                    type: "addReaction",
+                    credentials: { scheme: "Bearer", credentials: user.authToken },
+                    data: {
+                        message_id: messageId,
+                        emoji: emoji
+                    }
+                });
+            }
         } catch (error) {
             console.error("Failed to add reaction:", error);
         }

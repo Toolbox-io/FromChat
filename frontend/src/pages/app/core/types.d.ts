@@ -212,6 +212,7 @@ export interface DmEnvelope extends BaseDmEnvelope {
     senderId: number;
     files?: DmFile[];
     timestamp: string;
+    reactions?: Reaction[];
 }
 
 export interface DmFile {
@@ -332,6 +333,15 @@ export interface AddReactionRequest extends WebSocketMessage {
     }
 }
 
+export interface AddDmReactionRequest extends WebSocketMessage {
+    type: "addDmReaction",
+    credentials: WebSocketCredentials;
+    data: {
+        dm_envelope_id: number;
+        emoji: string;
+    }
+}
+
 // Messages
 export interface DMNewWebSocketMessage extends WebSocketMessage {
     type: "dmNew",
@@ -379,8 +389,20 @@ export interface ReactionUpdateWebSocketMessage extends WebSocketMessage {
     }
 }
 
+export interface DMReactionUpdateWebSocketMessage extends WebSocketMessage {
+    type: "dmReactionUpdate",
+    data: {
+        dm_envelope_id: number;
+        emoji: string;
+        action: "added" | "removed";
+        user_id: number;
+        username: string;
+        reactions: Reaction[];
+    }
+}
+
 // Shared types
-export type DMWebSocketMessage = DMNewWebSocketMessage | DMEditedWebSocketMessage | DMDeletedWebSocketMessage
+export type DMWebSocketMessage = DMNewWebSocketMessage | DMEditedWebSocketMessage | DMDeletedWebSocketMessage | DMReactionUpdateWebSocketMessage
 export type ChatWebSocketMessage = MessageEditedWebSocketMessage | MessageDeletedWebSocketMessage | NewMessageWebSocketMessage | ReactionUpdateWebSocketMessage
 
 // -----------
