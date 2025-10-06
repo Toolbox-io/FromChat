@@ -12,20 +12,31 @@ export function MessageReactions({ reactions, onReactionClick, messageId }: Mess
     const { user } = useAppState();
     const [visibleReactions, setVisibleReactions] = useState<Reaction[]>([]);
     const [animatingReactions, setAnimatingReactions] = useState<Set<string>>(new Set());
+    const [isVisible, setIsVisible] = useState(false);
 
     // Handle reactions with animation
     useEffect(() => {
         if (!reactions || reactions.length === 0) {
-            // Animate out all visible reactions
-            visibleReactions.forEach(reaction => {
-                setAnimatingReactions(prev => new Set(prev).add(reaction.emoji));
+            // If we have visible reactions, animate them out
+            if (visibleReactions.length > 0) {
+                visibleReactions.forEach(reaction => {
+                    setAnimatingReactions(prev => new Set(prev).add(reaction.emoji));
+                });
+                // After animation completes, hide the component
                 setTimeout(() => {
                     setVisibleReactions([]);
                     setAnimatingReactions(new Set());
+                    setIsVisible(false);
                 }, 200);
-            });
+            } else {
+                // No visible reactions, hide immediately
+                setIsVisible(false);
+            }
             return;
         }
+
+        // Show the component when we have reactions
+        setIsVisible(true);
 
         // Deduplicate reactions by emoji (safety measure)
         const uniqueReactions = reactions.reduce((acc, reaction) => {
@@ -78,7 +89,8 @@ export function MessageReactions({ reactions, onReactionClick, messageId }: Mess
         });
     }, [reactions]);
 
-    if (!reactions || reactions.length === 0) {
+    // Don't render if not visible
+    if (!isVisible) {
         return null;
     }
 
