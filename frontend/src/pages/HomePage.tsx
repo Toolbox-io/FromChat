@@ -1,5 +1,6 @@
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAppState } from "./app/ui/state";
+import { isElectron } from "./app/electron/electron";
 
 function GitHubLink({ children }: { children: React.ReactNode }) {
     return (
@@ -23,7 +24,11 @@ export default function HomePage() {
         } else {
             navigate("/login");
         }
-    };
+    }
+
+    if (isElectron) {
+        return <Navigate to="/chat" />;
+    }
 
     return (
         <div className="homepage">
