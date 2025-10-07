@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Message, Size2D } from "../../../core/types";
+import { EmojiMenu } from "./EmojiMenu";
 
 interface MessageContextMenuProps {
     message: Message;
@@ -9,7 +10,6 @@ interface MessageContextMenuProps {
     onDelete: (message: Message) => void;
     onRetry?: (message: Message) => void;
     onReactionClick?: (messageId: number, emoji: string) => Promise<void>;
-    onExpandEmojiMenu?: (message: Message) => void;
     position: Size2D;
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
@@ -29,7 +29,6 @@ export function MessageContextMenu({
     onDelete, 
     onRetry,
     onReactionClick,
-    onExpandEmojiMenu,
     position,
     isOpen,
     onOpenChange
@@ -39,11 +38,16 @@ export function MessageContextMenu({
     const [calculatedPosition, setCalculatedPosition] = useState(position);
     const [animationClass, setAnimationClass] = useState('entering');
     const [reactionBarPosition, setReactionBarPosition] = useState<'left' | 'right'>('left');
+    const [isEmojiMenuExpanded, setIsEmojiMenuExpanded] = useState(false);
+    const [initialDimensions, setInitialDimensions] = useState<{ width: number; height: number } | null>(null);
+    const [expandUpward, setExpandUpward] = useState(false);
+    const [contextMenuHeight, setContextMenuHeight] = useState<number | null>(null);
     
     // Refs for measuring actual dimensions
     const wrapperRef = useRef<HTMLDivElement>(null);
     const reactionBarRef = useRef<HTMLDivElement>(null);
     const contextMenuRef = useRef<HTMLDivElement>(null);
+    const emojiMenuRef = useRef<HTMLDivElement>(null);
 
     // Calculate smart positioning when component opens
     useEffect(() => {
@@ -148,6 +152,11 @@ export function MessageContextMenu({
             onOpenChange(false);
             setIsClosing(false);
             setAnimationClass('entering'); // Reset for next opening
+                   // Reset emoji menu state after context menu animation completes
+                   setIsEmojiMenuExpanded(false);
+                   setInitialDimensions(null);
+                   setExpandUpward(false);
+                   setContextMenuHeight(null);
         }, 200); // Match the animation duration from _animations.scss
     }
 
@@ -215,10 +224,43 @@ export function MessageContextMenu({
     }
 
     function handleExpandClick() {
-        if (onExpandEmojiMenu) {
-            onExpandEmojiMenu(message);
+        if (!reactionBarRef.current || !wrapperRef.current) return;
+
+        // Measure the actual dimensions of the reaction bar content
+        const reactionBarRect = reactionBarRef.current.getBoundingClientRect();
+        const wrapperRect = wrapperRef.current.getBoundingClientRect();
+        
+        setInitialDimensions({ width: reactionBarRect.width, height: reactionBarRect.height });
+        setContextMenuHeight(wrapperRect.height);
+
+        // Check if expanding downward would cause overflow
+        // Calculate space from the reaction bar's bottom edge downward
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - reactionBarRect.bottom;
+        const emojiMenuHeight = 400;
+
+        // Only expand upward if there's not enough space below for the emoji menu
+        const shouldExpandUpward = spaceBelow < emojiMenuHeight;
+        setExpandUpward(shouldExpandUpward);
+
+        // Use requestAnimationFrame to ensure the dimensions are applied before expansion
+        requestAnimationFrame(() => {
+            setIsEmojiMenuExpanded(true);
+        });
+    }
+
+    function handleEmojiMenuClose() {
+        setIsEmojiMenuExpanded(false);
+        setInitialDimensions(null);
+        setExpandUpward(false);
+        setContextMenuHeight(null);
+    }
+
+    function handleEmojiSelect(emoji: string) {
+        if (onReactionClick) {
+            onReactionClick(message.id, emoji);
         }
-        handleClose();
+        handleEmojiMenuClose();
     }
 
     return isOpen && (
@@ -234,32 +276,57 @@ export function MessageContextMenu({
             onClick={(e) => e.stopPropagation()}>
             
             {/* Reaction Bar */}
-            <div 
+            <div
                 ref={reactionBarRef}
-                className={`context-menu-reaction-bar ${reactionBarPosition}`}>
-                {QUICK_REACTIONS.map((emoji, index) => (
-                    <button
-                        key={index}
-                        className="reaction-emoji-button"
-                        onClick={async () => await handleReactionClick(emoji)}
-                        title={emoji}
-                    >
-                        {emoji}
-                    </button>
-                ))}
-                <button
-                    className="reaction-expand-button"
-                    onClick={handleExpandClick}
-                    title="More emojis"
-                >
-                    <span className="material-symbols">add</span>
-                </button>
+                className={`context-menu-reaction-bar ${reactionBarPosition} ${isEmojiMenuExpanded ? "expanded" : ""} ${expandUpward ? "expand-upward" : ""}`}
+                style={isEmojiMenuExpanded && !expandUpward ? {
+                    position: 'fixed',
+                    top: `${(-(contextMenuHeight || 0) + 5)}px`,
+                    width: '320px',
+                    height: '400px',
+                    zIndex: 1001
+                } : initialDimensions && !isEmojiMenuExpanded ? {
+                    width: `${initialDimensions.width}px`,
+                    height: `${initialDimensions.height}px`
+                } : {}}>
+                {!isEmojiMenuExpanded ? (
+                    <div className="reaction-bar-content">
+                        {QUICK_REACTIONS.map((emoji, index) => (
+                            <button
+                                key={index}
+                                className="reaction-emoji-button"
+                                onClick={async () => await handleReactionClick(emoji)}
+                                title={emoji}
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                        <button
+                            className="reaction-expand-button"
+                            onClick={handleExpandClick}
+                            title="More emojis"
+                        >
+                            <span className="material-symbols">add</span>
+                        </button>
+                    </div>
+                       ) : (
+                           <div 
+                               ref={emojiMenuRef} 
+                               className="emoji-menu-wrapper">
+                               <EmojiMenu
+                                   isOpen={true}
+                                   onClose={handleEmojiMenuClose}
+                                   onEmojiSelect={handleEmojiSelect}
+                                   mode="integrated"
+                               />
+                           </div>
+                       )}
             </div>
 
             {/* Context Menu */}
             <div 
                 ref={contextMenuRef}
-                className="context-menu">
+                className={`context-menu ${isEmojiMenuExpanded ? "faded" : ""}`}>
                 {actions.map((action, i) => (
                     action.show && (
                         <div 
@@ -273,6 +340,7 @@ export function MessageContextMenu({
                     )
                 ))}
             </div>
+
         </div>
     )
 }

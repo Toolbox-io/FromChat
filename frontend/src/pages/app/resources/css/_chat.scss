@@ -968,4 +968,17 @@
         color: $color-dark-on-surface-variant;
         font-size: 0.9rem;
     }
+
+    // Integrated mode styles (inside reaction bar)
+    &.integrated {
+        position: relative !important;
+        width: 320px !important;
+        height: 400px !important;
+        transform: none !important;
+        opacity: 1 !important;
+        box-shadow: none;
+        border: none;
+        background: $color-dark-surface-container;
+        overflow: visible;
+    }
 }

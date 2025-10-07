@@ -206,6 +206,7 @@ export function ChatInputWrapper(
                 onClose={() => setEmojiMenuOpen(false)}
                 onEmojiSelect={handleEmojiSelect}
                 position={emojiMenuPosition}
+                mode="standalone"
             />
         </div>
     );

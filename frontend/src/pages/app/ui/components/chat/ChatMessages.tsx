@@ -4,7 +4,6 @@ import type { Message as MessageType } from "../../../core/types";
 import type { UserProfile } from "../../../core/types";
 import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
-import { EmojiMenu } from "./EmojiMenu";
 import { fetchUserProfile } from "../../../api/profileApi";
 import { useEffect, useState, type ReactNode } from "react";
 import { delay } from "../../../utils/utils";
@@ -42,16 +41,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [toBeDeleted, setToBeDeleted] = useState<{ id: number; isDm: boolean } | null>(null);
 
-    // Emoji menu state (for expanded emoji picker)
-    const [emojiMenu, setEmojiMenu] = useState<{
-        isOpen: boolean;
-        message: MessageType | null;
-        position: { x: number; y: number };
-    }>({
-        isOpen: false,
-        message: null,
-        position: { x: 0, y: 0 }
-    });
 
     useEffect(() => {
         if (!deleteDialogOpen) {
@@ -157,27 +146,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
     }
 
 
-    function handleEmojiMenuClose() {
-        setEmojiMenu(prev => ({ ...prev, isOpen: false }));
-    }
-
-    function handleExpandEmojiMenu(message: MessageType) {
-        const messageElement = document.querySelector(`[data-id="${message.id}"]`);
-        if (messageElement) {
-            const rect = messageElement.getBoundingClientRect();
-            setEmojiMenu({
-                isOpen: true,
-                message,
-                position: { x: rect.left + rect.width / 2, y: rect.bottom + 10 }
-            });
-        }
-    }
-
-    function handleEmojiSelect(emoji: string) {
-        if (emojiMenu.message) {
-            handleReactionClick(emojiMenu.message.id, emoji);
-        }
-    }
 
     return (
         <>
@@ -227,7 +195,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                     onDelete={handleDelete}
                     onRetry={handleRetry}
                     onReactionClick={handleReactionClick}
-                    onExpandEmojiMenu={handleExpandEmojiMenu}
                     position={contextMenu.position}
                     isOpen={contextMenu.isOpen}
                     onOpenChange={handleContextMenuOpenChange}
@@ -235,13 +202,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
             )}
 
 
-            {/* Emoji Menu */}
-            <EmojiMenu
-                isOpen={emojiMenu.isOpen}
-                onClose={handleEmojiMenuClose}
-                onEmojiSelect={handleEmojiSelect}
-                position={emojiMenu.position}
-            />
         </>
     );
 }

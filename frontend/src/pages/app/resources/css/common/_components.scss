@@ -82,6 +82,11 @@ button, input {
     &.open {
         animation: context-menu-open 0.25s ease;
     }
+    
+    &.faded {
+        opacity: 0;
+        transition: opacity 0.3s ease-out;
+    }
 
     @keyframes context-menu-open {
         0% {
