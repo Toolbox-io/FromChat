@@ -152,11 +152,11 @@ export function MessageContextMenu({
             onOpenChange(false);
             setIsClosing(false);
             setAnimationClass('entering'); // Reset for next opening
-                   // Reset emoji menu state after context menu animation completes
-                   setIsEmojiMenuExpanded(false);
-                   setInitialDimensions(null);
-                   setExpandUpward(false);
-                   setContextMenuHeight(null);
+            // Reset emoji menu state after context menu animation completes
+            setIsEmojiMenuExpanded(false);
+            setInitialDimensions(null);
+            setExpandUpward(false);
+            setContextMenuHeight(null);
         }, 200); // Match the animation duration from _animations.scss
     }
 
@@ -249,18 +249,11 @@ export function MessageContextMenu({
         });
     }
 
-    function handleEmojiMenuClose() {
-        setIsEmojiMenuExpanded(false);
-        setInitialDimensions(null);
-        setExpandUpward(false);
-        setContextMenuHeight(null);
-    }
-
     function handleEmojiSelect(emoji: string) {
         if (onReactionClick) {
             onReactionClick(message.id, emoji);
         }
-        handleEmojiMenuClose();
+        handleClose();
     }
 
     return isOpen && (
@@ -315,7 +308,7 @@ export function MessageContextMenu({
                                className="emoji-menu-wrapper">
                                <EmojiMenu
                                    isOpen={true}
-                                   onClose={handleEmojiMenuClose}
+                                   onClose={handleClose}
                                    onEmojiSelect={handleEmojiSelect}
                                    mode="integrated"
                                />
