@@ -90,20 +90,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
         if (!toBeDeleted || !user.authToken) return;
         try {
             onDelete?.(toBeDeleted.id);
-            // if (toBeDeleted.isDm) {
-            //     // For DM, send dmDelete
-            //     await request({
-            //         type: "dmDelete",
-            //         data: { id: toBeDeleted.id },
-            //         credentials: { scheme: "Bearer", credentials: user.authToken }
-            //     });
-            // } else {
-            //     await request({
-            //         type: "deleteMessage",
-            //         data: { message_id: toBeDeleted.id },
-            //         credentials: { scheme: "Bearer", credentials: user.authToken }
-            //     });
-            // }
         } catch (error) {
             console.error("Failed to delete message:", error);
         }

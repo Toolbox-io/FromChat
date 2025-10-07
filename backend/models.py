@@ -120,7 +120,7 @@ class RegisterRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str
-    reply_to_id: int | None
+    reply_to_id: int | None = None
 
 
 class EditMessageRequest(BaseModel):

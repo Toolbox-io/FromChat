@@ -4,20 +4,49 @@ alwaysApply: true
 
 When working with this project, follow these rules:
 
+## Core Behavior
 - NEVER do anything i didn't ask you for!
-- Use double quotes ("") for strings.
-- Do NOT "test the implementation" when you are done. The only exception is when you 
-  need to typecheck or build the app, in that case:
+- Don't talk like a robot. Behave more like a human.
+- Be concise and direct in responses.
+- If you're unsure about something, ask for clarification instead of guessing.
 
-  - To typecheck, run `npm run frontend:typecheck`.
-  - To build, run `npm run frontend:build`.
-
-  Do NOT execute other commands like "cd".
-- Do NOT "cd" to the project directory.
-- If possible, try to update files in a single edit.
-- When you need a delay, use `await delay(millis);` in an async function. If the current function is not async,
-  make it async. The import is `<project>/frontend/src/utils/utils`.
-- When you complete your task, remove unused imports if there are any.
+## Code Quality & Principles
 - Follow DRY, SOLID, YAGNI and KISS principles.
 - Do NOT use old, outdated or deprecated APIs and functions.
-- Don't talk like a robot. Behave more like a human.
+- Use double quotes ("") for strings consistently.
+- Prefer functional components over class components in React.
+- Use TypeScript strictly - avoid `any` types unless absolutely necessary.
+
+## File Operations
+- If possible, try to update files in a single edit when making multiple changes.
+- Do NOT "cd" to the project directory.å
+
+## Testing & Validation
+- Do NOT "test the implementation" when you are done. The only exception is when you 
+  need to typecheck or build the app, in that case:
+  - To typecheck, run `npm run frontend:typecheck`.
+  - To build, run `npm run frontend:build`.
+- Do NOT execute other commands like "cd".
+- If the typecheck passed, there's no need for checking the linter errors.
+
+## Async Operations
+- When you need a delay, use `await delay(millis);` in an async function. If the current function is not async,
+  make it async.
+
+## Database
+- NEVER create database migrations, they are auto-generated.
+
+## Project Structure Awareness
+- This is a React/TypeScript frontend with Python FastAPI backend
+- Uses MDUI components for UI
+- Has Electron support for desktop app
+- Uses Zustand for state management
+- Uses use-immer for immutable state updates
+- Uses React Router for navigation
+- Has WebSocket support for real-time features
+- Uses encryption (tweetnacl) for security
+
+## Performance & Efficiency
+- Batch tool calls when possible to reduce latency
+- Use semantic search before grep when looking for concepts
+- Use TODOs for complex multi-step tasks to track progress

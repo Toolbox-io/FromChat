@@ -26,12 +26,12 @@ export function RichTextArea({
     const hiddenTextareaRef = useRef<HTMLTextAreaElement | null>(null);
     const heightRef = useRef<number | null>(null);
 
-    const getStyleValue = (computedStyle: CSSStyleDeclaration, prop: keyof CSSStyleDeclaration): number => {
-        const raw = (computedStyle as any)[prop] as string | number | undefined;
+    function getStyleValue(computedStyle: CSSStyleDeclaration, prop: keyof CSSStyleDeclaration): number {
+        const raw = computedStyle[prop] as string | number | undefined;
         if (raw == null) return 0;
         const str = String(raw);
         return str.endsWith("px") ? parseFloat(str) : parseFloat(str) || 0;
-    };
+    }
 
     const calculateTextareaStyles = useCallback(() => {
         const textarea = textareaRef.current;
@@ -116,9 +116,7 @@ export function RichTextArea({
         textarea.style.overflowY = overflowing ? "hidden" : "";
     }, [calculateTextareaStyles]);
 
-    const useEnhancedEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
-
-    useEnhancedEffect(() => {
+    useLayoutEffect(() => {
         syncHeight();
     }, [syncHeight, text]);
 
@@ -142,13 +140,13 @@ export function RichTextArea({
         };
     }, [syncHeight]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
         // Keep height responsive during rapid uncontrolled input bursts
         syncHeight();
         onTextChange(e.target.value);
-    };
+    }
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
         const isCtrlEnter = e.key === "Enter" && (e.ctrlKey || e.metaKey);
         const isPlainEnter = e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
 
@@ -175,7 +173,7 @@ export function RichTextArea({
                 return;
             }
         }
-    };
+    }
 
     return (
         <>
