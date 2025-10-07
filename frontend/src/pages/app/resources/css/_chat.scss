@@ -213,7 +213,7 @@
                             height: 32px;
                             flex-shrink: 0;
                             margin-bottom: 4px;
-                            margin: 8px;
+                            margin: 10px;
     
                             img {
                                 width: 100%;
@@ -234,7 +234,7 @@
                             margin-bottom: 0.3rem;
                             font-size: 0.9rem;
                             transition: color 0.2s ease;
-                            margin: 8px;
+                            margin: 10px;
         
                             &:hover {
                                 color: $color-dark-primary;
@@ -967,5 +967,18 @@
         text-align: center;
         color: $color-dark-on-surface-variant;
         font-size: 0.9rem;
+    }
+
+    // Integrated mode styles (inside reaction bar)
+    &.integrated {
+        position: relative !important;
+        width: 320px !important;
+        height: 400px !important;
+        transform: none !important;
+        opacity: 1 !important;
+        box-shadow: none;
+        border: none;
+        background: $color-dark-surface-container;
+        overflow: visible;
     }
 }

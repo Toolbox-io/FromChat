@@ -2,14 +2,26 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { EMOJI_CATEGORIES, getRecentEmojis, addRecentEmoji } from "./emojiData";
 import type { Size2D } from "../../../core/types";
 
-interface EmojiMenuProps {
+interface BaseEmojiMenuProps {
     isOpen: boolean;
     onClose: () => void;
     onEmojiSelect: (emoji: string) => void;
-    position: Size2D;
 }
 
-export function EmojiMenu({ isOpen, onClose, onEmojiSelect, position }: EmojiMenuProps) {
+interface StandaloneEmojiMenuProps extends BaseEmojiMenuProps {
+    position: Size2D;
+    mode: "standalone";
+}
+
+interface IntegratedEmojiMenuProps extends BaseEmojiMenuProps {
+    mode: "integrated";
+}
+
+type EmojiMenuProps = StandaloneEmojiMenuProps | IntegratedEmojiMenuProps;
+
+export function EmojiMenu(props: EmojiMenuProps) {
+    const { isOpen, onClose, onEmojiSelect, mode } = props;
+    const position = mode === "standalone" ? props.position : undefined;
     const [activeCategory, setActiveCategory] = useState("recent");
     const [recentEmojis, setRecentEmojis] = useState<string[]>([]);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -106,12 +118,14 @@ export function EmojiMenu({ isOpen, onClose, onEmojiSelect, position }: EmojiMen
     return (
         <div 
             ref={menuRef}
-            className={`emoji-menu ${isOpen ? "open" : ""}`}
-            style={{
+            className={`emoji-menu ${isOpen ? "open" : ""} ${mode}`}
+            style={mode === "standalone" && position ? {
                 position: "fixed",
                 left: position.x,
                 bottom: position.y,
                 zIndex: 1000,
+                pointerEvents: isOpen ? "auto" : "none"
+            } : {
                 pointerEvents: isOpen ? "auto" : "none"
             }}
         >

@@ -10,7 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
 from constants import OWNER_USERNAME
-from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile
+from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile, Reaction, ReactionRequest, ReactionResponse, DMReaction, DMReactionRequest, DMReactionResponse
 from push_service import push_service
 from PIL import Image
 import io
@@ -31,6 +31,23 @@ os.makedirs(FILES_ENCRYPTED_DIR, exist_ok=True)
 
 
 def convert_message(msg: Message) -> dict:
+    # Group reactions by emoji
+    reactions_dict = {}
+    if msg.reactions:
+        for reaction in msg.reactions:
+            emoji = reaction.emoji
+            if emoji not in reactions_dict:
+                reactions_dict[emoji] = {
+                    "emoji": emoji,
+                    "count": 0,
+                    "users": []
+                }
+            reactions_dict[emoji]["count"] += 1
+            reactions_dict[emoji]["users"].append({
+                "id": reaction.user_id,
+                "username": reaction.user.username
+            })
+    
     return {
         "id": msg.id,
         "content": msg.content,
@@ -40,6 +57,7 @@ def convert_message(msg: Message) -> dict:
         "username": msg.author.username,
         "profile_picture": msg.author.profile_picture,
         "reply_to": convert_message(msg.reply_to) if msg.reply_to else None,
+        "reactions": list(reactions_dict.values()),
         "files": [
             {
                 "path": f"/api/uploads/files/normal/{Path(f.path).name}",
@@ -48,6 +66,47 @@ def convert_message(msg: Message) -> dict:
                 "message_id": f.message_id
             }
             for f in (msg.files or [])
+        ]
+    }
+
+
+def convert_dm_envelope(envelope: DMEnvelope) -> dict:
+    # Group reactions by emoji
+    reactions_dict = {}
+    if envelope.reactions:
+        for reaction in envelope.reactions:
+            emoji = reaction.emoji
+            if emoji not in reactions_dict:
+                reactions_dict[emoji] = {
+                    "emoji": emoji,
+                    "count": 0,
+                    "users": []
+                }
+            reactions_dict[emoji]["count"] += 1
+            reactions_dict[emoji]["users"].append({
+                "id": reaction.user_id,
+                "username": reaction.user.username
+            })
+    
+    return {
+        "id": envelope.id,
+        "senderId": envelope.sender_id,
+        "recipientId": envelope.recipient_id,
+        "iv": envelope.iv_b64,
+        "ciphertext": envelope.ciphertext_b64,
+        "salt": envelope.salt_b64,
+        "iv2": envelope.iv2_b64,
+        "wrappedMk": envelope.wrapped_mk_b64,
+        "timestamp": envelope.timestamp.isoformat(),
+        "reactions": list(reactions_dict.values()),
+        "files": [
+            {
+                "path": f"/api/uploads/files/encrypted/{Path(f.path).name}",
+                "id": f.id,
+                "name": f.name,
+                "dm_envelope_id": f.dm_envelope_id
+            }
+            for f in (envelope.files or [])
         ]
     }
 
@@ -436,6 +495,125 @@ async def delete_message(
     
     return {"status": "success", "message_id": message_id}
 
+
+@router.post("/add_reaction")
+async def add_reaction(
+    request: ReactionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Check if message exists
+    message = db.query(Message).filter(Message.id == request.message_id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    # Check if reaction already exists
+    existing_reaction = db.query(Reaction).filter(
+        Reaction.message_id == request.message_id,
+        Reaction.user_id == current_user.id,
+        Reaction.emoji == request.emoji
+    ).first()
+    
+    if existing_reaction:
+        # Remove existing reaction (toggle off)
+        db.delete(existing_reaction)
+        action = "removed"
+    else:
+        # Add new reaction
+        new_reaction = Reaction(
+            message_id=request.message_id,
+            user_id=current_user.id,
+            emoji=request.emoji
+        )
+        db.add(new_reaction)
+        action = "added"
+    
+    db.commit()
+    
+    # Refresh message to get updated reactions
+    db.refresh(message)
+    
+    # Broadcast reaction update
+    try:
+        from .messaging import messagingManager
+        await messagingManager.broadcast({
+            "type": "reactionUpdate",
+            "data": {
+                "message_id": request.message_id,
+                "emoji": request.emoji,
+                "action": action,
+                "user_id": current_user.id,
+                "username": current_user.username,
+                "reactions": convert_message(message)["reactions"]
+            }
+        })
+    except Exception:
+        pass
+    
+    return {"status": "success", "action": action, "reactions": convert_message(message)["reactions"]}
+
+
+@router.post("/dm/add_reaction")
+async def add_dm_reaction(
+    request: DMReactionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Check if DM envelope exists
+    envelope = db.query(DMEnvelope).filter(DMEnvelope.id == request.dm_envelope_id).first()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="DM envelope not found")
+    
+    # Check if user is part of this DM conversation
+    if current_user.id not in [envelope.sender_id, envelope.recipient_id]:
+        raise HTTPException(status_code=403, detail="Not authorized to react to this message")
+    
+    # Check if reaction already exists
+    existing_reaction = db.query(DMReaction).filter(
+        DMReaction.dm_envelope_id == request.dm_envelope_id,
+        DMReaction.user_id == current_user.id,
+        DMReaction.emoji == request.emoji
+    ).first()
+    
+    if existing_reaction:
+        # Remove existing reaction (toggle off)
+        db.delete(existing_reaction)
+        action = "removed"
+    else:
+        # Add new reaction
+        new_reaction = DMReaction(
+            dm_envelope_id=request.dm_envelope_id,
+            user_id=current_user.id,
+            emoji=request.emoji
+        )
+        db.add(new_reaction)
+        action = "added"
+    
+    db.commit()
+    
+    # Refresh envelope to get updated reactions
+    db.refresh(envelope)
+    
+    # Broadcast reaction update to both participants
+    try:
+        from .messaging import messagingManager
+        await messagingManager.broadcast({
+            "type": "dmReactionUpdate",
+            "data": {
+                "dm_envelope_id": request.dm_envelope_id,
+                "emoji": request.emoji,
+                "action": action,
+                "user_id": current_user.id,
+                "username": current_user.username,
+                "reactions": convert_dm_envelope(envelope)["reactions"]
+            }
+        })
+    except Exception:
+        pass
+    
+    return {"status": "success", "action": action, "reactions": convert_dm_envelope(envelope)["reactions"]}
+
+
 class MessaggingSocketManager:
     def __init__(self) -> None:
         self.connections: list[WebSocket] = []
@@ -668,6 +846,66 @@ class MessaggingSocketManager:
                     await self.broadcast({
                         "type": "messageDeleted",
                         "data": {"message_id": message_id}
+                    })
+
+                    await websocket.send_json({"type": type, "data": response})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "addReaction":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+                    
+                    request_data = data["data"]
+                    reaction_request = ReactionRequest(
+                        message_id=request_data["message_id"],
+                        emoji=request_data["emoji"]
+                    )
+                    
+                    response = await add_reaction(reaction_request, current_user, db)
+                    
+                    # Broadcast reaction update
+                    await self.broadcast({
+                        "type": "reactionUpdate",
+                        "data": {
+                            "message_id": request_data["message_id"],
+                            "emoji": request_data["emoji"],
+                            "action": response["action"],
+                            "user_id": current_user.id,
+                            "username": current_user.username,
+                            "reactions": response["reactions"]
+                        }
+                    })
+
+                    await websocket.send_json({"type": type, "data": response})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "addDmReaction":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+                    
+                    request_data = data["data"]
+                    reaction_request = DMReactionRequest(
+                        dm_envelope_id=request_data["dm_envelope_id"],
+                        emoji=request_data["emoji"]
+                    )
+                    
+                    response = await add_dm_reaction(reaction_request, current_user, db)
+                    
+                    # Broadcast reaction update
+                    await self.broadcast({
+                        "type": "dmReactionUpdate",
+                        "data": {
+                            "dm_envelope_id": request_data["dm_envelope_id"],
+                            "emoji": request_data["emoji"],
+                            "action": response["action"],
+                            "user_id": current_user.id,
+                            "username": current_user.username,
+                            "reactions": response["reactions"]
+                        }
                     })
 
                     await websocket.send_json({"type": type, "data": response})

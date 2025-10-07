@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, inspect, null, text
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, inspect, null, text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from pydantic import BaseModel
@@ -36,6 +36,7 @@ class Message(Base):
     author = relationship("User", back_populates="messages")
     reply_to = relationship("Message", remote_side=[id])
     files = relationship("MessageFile", back_populates="message", cascade="all, delete-orphan", lazy="select")
+    reactions = relationship("Reaction", cascade="all, delete-orphan", lazy="select")
 
 
 class MessageFile(Base):
@@ -79,6 +80,7 @@ class DMEnvelope(Base):
     reply_to_id = Column(Integer, nullable=True)
     timestamp = Column(DateTime, default=datetime.now)
     files = relationship("DMFile", back_populates="message", cascade="all, delete-orphan", lazy="select")
+    reactions = relationship("DMReaction", cascade="all, delete-orphan", lazy="select")
 
 
 class DMFile(Base):
@@ -104,6 +106,39 @@ class PushSubscription(Base):
     auth_key = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class Reaction(Base):
+    __tablename__ = "reaction"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("message.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    emoji = Column(String(10), nullable=False)  # Store emoji as string
+    timestamp = Column(DateTime, default=datetime.now)
+    
+    # Relationships
+    user = relationship("User")
+    
+    # Ensure unique combination of message, user, and emoji
+    __table_args__ = (UniqueConstraint('message_id', 'user_id', 'emoji', name='unique_reaction'),)
+
+
+class DMReaction(Base):
+    __tablename__ = "dm_reaction"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dm_envelope_id = Column(Integer, ForeignKey("dm_envelope.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    emoji = Column(String(10), nullable=False)  # Store emoji as string
+    timestamp = Column(DateTime, default=datetime.now)
+    
+    # Relationships
+    user = relationship("User")
+    dm_envelope = relationship("DMEnvelope")
+    
+    # Ensure unique combination of dm_envelope, user, and emoji
+    __table_args__ = (UniqueConstraint('dm_envelope_id', 'user_id', 'emoji', name='unique_dm_reaction'),)
 
 
 # Pydantic модели
@@ -161,6 +196,40 @@ class MessageResponse(BaseModel):
     is_read: bool
     username: str
     profile_picture: str | None
+
+    class Config:
+        from_attributes = True
+
+
+class ReactionRequest(BaseModel):
+    message_id: int
+    emoji: str
+
+
+class ReactionResponse(BaseModel):
+    id: int
+    message_id: int
+    user_id: int
+    emoji: str
+    timestamp: datetime
+    username: str
+
+    class Config:
+        from_attributes = True
+
+
+class DMReactionRequest(BaseModel):
+    dm_envelope_id: int
+    emoji: str
+
+
+class DMReactionResponse(BaseModel):
+    id: int
+    dm_envelope_id: int
+    user_id: int
+    emoji: str
+    timestamp: datetime
+    username: str
 
     class Config:
         from_attributes = True

@@ -19,7 +19,7 @@ When working with this project, follow these rules:
 
 ## File Operations
 - If possible, try to update files in a single edit when making multiple changes.
-- Do NOT "cd" to the project directory.å
+- Do NOT "cd" to the project directory.
 
 ## Testing & Validation
 - Do NOT "test the implementation" when you are done. The only exception is when you 

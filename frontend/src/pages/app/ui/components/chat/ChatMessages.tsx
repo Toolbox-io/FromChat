@@ -8,6 +8,8 @@ import { fetchUserProfile } from "../../../api/profileApi";
 import { useEffect, useState, type ReactNode } from "react";
 import { delay } from "../../../utils/utils";
 import { MaterialDialog } from "../core/Dialog";
+import { request } from "../../../core/websocket";
+import type { AddReactionRequest, AddDmReactionRequest } from "../../../core/types";
 
 interface ChatMessagesProps {
     messages?: MessageType[];
@@ -38,6 +40,7 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
     // Delete dialog
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [toBeDeleted, setToBeDeleted] = useState<{ id: number; isDm: boolean } | null>(null);
+
 
     useEffect(() => {
         if (!deleteDialogOpen) {
@@ -107,6 +110,43 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
         }
     }
 
+    async function handleReactionClick(messageId: number, emoji: string) {
+        if (!user.authToken) return;
+        
+        try {
+            if (isDm) {
+                // For DM messages, we need to find the dm_envelope_id from the message
+                const message = messages.find(m => m.id === messageId);
+                const dmEnvelopeId = message?.runtimeData?.dmEnvelope?.id;
+                
+                if (dmEnvelopeId) {
+                    await request<AddDmReactionRequest["data"]>({
+                        type: "addDmReaction",
+                        credentials: { scheme: "Bearer", credentials: user.authToken },
+                        data: {
+                            dm_envelope_id: dmEnvelopeId,
+                            emoji: emoji
+                        }
+                    });
+                }
+            } else {
+                // For regular chat messages
+                await request<AddReactionRequest["data"]>({
+                    type: "addReaction",
+                    credentials: { scheme: "Bearer", credentials: user.authToken },
+                    data: {
+                        message_id: messageId,
+                        emoji: emoji
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Failed to add reaction:", error);
+        }
+    }
+
+
+
     return (
         <>
             <div className="chat-messages" id="chat-messages">
@@ -117,6 +157,7 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                         isAuthor={message.username === user.currentUser?.username}
                         onProfileClick={handleProfileClick}
                         onContextMenu={handleContextMenu}
+                        onReactionClick={handleReactionClick}
                         isLoadingProfile={isLoadingProfile}
                         isDm={isDm}
                         dmRecipientPublicKey={dmRecipientPublicKey} />
@@ -153,11 +194,14 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                     onReply={handleReply}
                     onDelete={handleDelete}
                     onRetry={handleRetry}
+                    onReactionClick={handleReactionClick}
                     position={contextMenu.position}
                     isOpen={contextMenu.isOpen}
                     onOpenChange={handleContextMenuOpenChange}
                 />
             )}
+
+
         </>
     );
 }

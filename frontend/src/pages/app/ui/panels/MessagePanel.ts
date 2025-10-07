@@ -86,6 +86,14 @@ export abstract class MessagePanel {
         });
     }
 
+    protected updateMessageReactions(messageId: number, reactions: any[]): void {
+        this.updateState({
+            messages: this.state.messages.map(msg => 
+                msg.id === messageId ? { ...msg, reactions } : msg
+            )
+        });
+    }
+
     protected clearMessages(): void {
         this.updateState({ messages: [] });
     }

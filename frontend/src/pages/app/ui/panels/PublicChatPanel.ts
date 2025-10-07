@@ -2,7 +2,7 @@ import { MessagePanel } from "./MessagePanel";
 import { API_BASE_URL } from "../../core/config";
 import { getAuthHeaders } from "../../auth/api";
 import { request } from "../../core/websocket";
-import type { ChatWebSocketMessage, Message, SendMessageRequest } from "../../core/types";
+import type { ChatWebSocketMessage, Message, SendMessageRequest, ReactionUpdateWebSocketMessage } from "../../core/types";
 import type { UserState } from "../state";
 
 export class PublicChatPanel extends MessagePanel {
@@ -104,7 +104,7 @@ export class PublicChatPanel extends MessagePanel {
     }
 
     // Handle incoming WebSocket messages
-    async handleWebSocketMessage(response: ChatWebSocketMessage): Promise<void> {
+    async handleWebSocketMessage(response: ChatWebSocketMessage | ReactionUpdateWebSocketMessage): Promise<void> {
         switch (response.type) {
             case 'messageEdited':
                 if (response.data) {
@@ -134,6 +134,11 @@ export class PublicChatPanel extends MessagePanel {
                     }
                     
                     this.addMessage(newMsg);
+                }
+                break;
+            case 'reactionUpdate':
+                if (response.data) {
+                    this.updateMessageReactions(response.data.message_id, response.data.reactions);
                 }
                 break;
         }

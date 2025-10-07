@@ -20,6 +20,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     const [switchIn, setSwitchIn] = useState(false);
     const [switchOut, setSwitchOut] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const previousMessageCountRef = useRef(0);
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [replyToVisible, setReplyToVisible] = useState(Boolean(replyTo));
     const [editMessage, setEditMessage] = useState<Message | null>(null);
@@ -127,19 +128,32 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
         }
     }, [chat.activePanel, chat.isSwitching, switchOut, switchIn]);
 
-    // Scroll to bottom when messages change, but only when no animation is running
+    // Scroll to bottom only when new messages are added
     useEffect(() => {
-        if (!panelState || chat.isSwitching || switchOut || switchIn || panelState.isLoading) return;
+        if (!panelState || chat.isSwitching || switchOut || switchIn) return;
+
+        const currentMessageCount = panelState.messages.length;
+        const previousMessageCount = previousMessageCountRef.current;
 
         const el = messagesEndRef.current;
         if (!el) return;
 
-        // Defer to next frame to ensure layout is stable
-        const id = requestAnimationFrame(() => {
-            el.scrollIntoView({ behavior: "smooth", block: "end" });
-        });
-        
-        return () => cancelAnimationFrame(id);
+        // Scroll without animation when messages are initially loaded
+        if (previousMessageCount === 0 && currentMessageCount > 0 && !panelState.isLoading) {
+            el.scrollIntoView({ behavior: "instant", block: "end" });
+        }
+        // Scroll with animation when a new message is added
+        else if (currentMessageCount > previousMessageCount && previousMessageCount > 0) {
+            // Defer to next frame to ensure layout is stable
+            const id = requestAnimationFrame(() => {
+                el.scrollIntoView({ behavior: "smooth", block: "end" });
+            });
+            
+            return () => cancelAnimationFrame(id);
+        }
+
+        // Update the previous message count
+        previousMessageCountRef.current = currentMessageCount;
     }, [panelState?.messages, panelState?.isLoading, chat.isSwitching, switchOut, switchIn]);
 
     return (
