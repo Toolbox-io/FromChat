@@ -66,18 +66,24 @@ export function ChatInputWrapper(
         setAttachmentsVisible(selectedFiles.length > 0);
     }, [selectedFiles]);
 
-    function handleEmojiButtonClick() {
-        if (chatInputWrapperRef.current && messagePanelRef?.current) {
-            const inputRect = chatInputWrapperRef.current.getBoundingClientRect();
-            const panelRect = messagePanelRef.current.getBoundingClientRect();
-            
-            // Position menu 10px from message panel edge and 10px above the chat input
-            // The animation will start 30px below this position
-            setEmojiMenuPosition({
-                x: panelRect.left + 10, // 10px from message panel edge
-                y: window.innerHeight - inputRect.top + 10 // 10px above the top of chat input
-            });
-            setEmojiMenuOpen(true);
+    function handleEmojiButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+        e.stopPropagation();
+
+        if (!emojiMenuOpen) {
+            if (chatInputWrapperRef.current && messagePanelRef?.current) {
+                const inputRect = chatInputWrapperRef.current.getBoundingClientRect();
+                const panelRect = messagePanelRef.current.getBoundingClientRect();
+                
+                // Position menu 10px from message panel edge and 10px above the chat input
+                // The animation will start 30px below this position
+                setEmojiMenuPosition({
+                    x: panelRect.left + 10, // 10px from message panel edge
+                    y: window.innerHeight - inputRect.top + 10 // 10px above the top of chat input
+                });
+                setEmojiMenuOpen(true);
+            }
+        } else {
+            setEmojiMenuOpen(false);
         }
     };
 
@@ -176,7 +182,12 @@ export function ChatInputWrapper(
                 </AnimatedHeight>
                 <div className="chat-input">
                     <div className="left-buttons">
-                        <mdui-button-icon icon="mood" onClick={handleEmojiButtonClick} className="emoji-btn"></mdui-button-icon>
+                        <mdui-button-icon
+                            icon="mood"
+                            onClick={handleEmojiButtonClick}
+                            onMouseDown={e => e.stopPropagation()}
+                            onMouseUp={e => e.stopPropagation()}
+                            className="emoji-btn" />
                     </div>
                     <RichTextArea
                         className="message-input" 
