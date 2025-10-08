@@ -135,7 +135,7 @@ class DMReaction(Base):
     
     # Relationships
     user = relationship("User")
-    dm_envelope = relationship("DMEnvelope")
+    dm_envelope = relationship("DMEnvelope", overlaps="reactions")
     
     # Ensure unique combination of dm_envelope, user, and emoji
     __table_args__ = (UniqueConstraint('dm_envelope_id', 'user_id', 'emoji', name='unique_dm_reaction'),)
