@@ -1,17 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ElectronTitleBar } from "./pages/app/ui/components/Electron";
-import { useAppState } from "./pages/app/ui/state";
+import { ElectronTitleBar } from "./pages/chat/ui/components/Electron";
+import { useAppState } from "./pages/chat/ui/state";
 import { useEffect, useState } from "react";
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ChatPage from "./pages/ChatPage";
-import DownloadAppPage from "./pages/DownloadAppPage";
-import NotFoundPage from "./pages/NotFoundPage";
+import HomePage from "./pages/home/HomePage";
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+import ChatPage from "./pages/chat/ChatPage";
+import DownloadAppPage from "./pages/download-app/DownloadAppPage";
+import NotFoundPage from "./pages/not-found/NotFoundPage";
 import ProtectedRoute from "./pages/ProtectedRoute";
-import { isElectron } from "./pages/app/electron/electron";
-import { MINIMUM_WIDTH } from "./pages/app/core/config";
-import useWindowSize from "./pages/app/ui/hooks/useWindowSize";
+import { isElectron } from "./pages/chat/electron/electron";
+import { MINIMUM_WIDTH } from "./pages/chat/core/config";
+import useWindowSize from "./pages/chat/ui/hooks/useWindowSize";
 
 export default function App() {
     const { restoreUserFromStorage } = useAppState();
@@ -31,7 +31,7 @@ export default function App() {
             <ElectronTitleBar />
             <div id="main-wrapper">
                 <Routes>
-                    z<Route path="/" element={<HomePage />} />
+                    <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/download-app" element={<DownloadAppPage />} />

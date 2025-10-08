@@ -5,17 +5,16 @@
  * @version 1.0.0
  */
 
-import './pages/app/resources/css/style.scss';
+import './css/style.scss';
 import "mdui/mdui.css";
 
-import "./pages/app/utils/material";
-import "./pages/app/core/init";
-import "./pages/app/electron/electron";
+import "./pages/chat/utils/material";
+import "./pages/chat/core/init";
+import "./pages/chat/electron/electron";
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { StrictMode } from 'react';
 
-// Initialize React app
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <App />

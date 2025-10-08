@@ -1,0 +1,43 @@
+@use "common/animations";
+@use "common/components";
+@use "common/colors" as *;
+@use "common/material" as *;
+
+@use "lib/fonts/montserrat";
+@use "lib/fonts/material-symbols";
+
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: $color-dark-surface;
+    color: $color-dark-on-surface;
+    line-height: 1.6;
+
+    #main-wrapper {
+        flex: 1;
+        position: relative;
+        min-height: 0;
+    }
+}
+
+body, #root {
+    height: 100vh;
+    position: relative;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+mdui-dialog {
+    > *:first-child {
+        margin-block-start: 0;
+    }
+
+    > *:last-child {
+        margin-block-end: 0;
+    }
+}
