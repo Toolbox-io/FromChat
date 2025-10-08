@@ -274,7 +274,7 @@ export function MessageContextMenu({
                 className={`context-menu-reaction-bar ${reactionBarPosition} ${isEmojiMenuExpanded ? "expanded" : ""} ${expandUpward ? "expand-upward" : ""}`}
                 style={isEmojiMenuExpanded && !expandUpward ? {
                     position: 'fixed',
-                    top: `${(-(contextMenuHeight || 0) + 5)}px`,
+                    top: `${(-(contextMenuHeight || 0) + 95)}px`,
                     width: '320px',
                     height: '400px',
                     zIndex: 1001

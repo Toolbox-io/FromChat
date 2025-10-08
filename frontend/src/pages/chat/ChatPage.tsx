@@ -1,6 +1,6 @@
 import { LeftPanel } from "./ui/components/chat/LeftPanel";
 import { RightPanel } from "./ui/components/chat/RightPanel";
-import "./chat.scss";
+import "./css/chat.scss";
 
 export default function ChatPage() {
     return (
