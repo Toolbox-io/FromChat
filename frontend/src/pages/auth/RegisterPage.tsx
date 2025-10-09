@@ -1,6 +1,6 @@
 import { useImmer } from "use-immer";
-import { AuthContainer, AuthHeader } from "../chat/ui/components/Auth";
-import { AlertsContainer, type Alert, type AlertType } from "../chat/ui/components/Alerts";
+import { AuthContainer, AuthHeader } from "./Auth";
+import { AlertsContainer, type Alert, type AlertType } from "./Auth";
 import { useRef } from "react";
 import { TextField } from "mdui/components/text-field";
 import type { ErrorResponse, RegisterRequest, LoginResponse } from "../../core/types";

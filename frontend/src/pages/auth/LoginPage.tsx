@@ -1,6 +1,6 @@
 import { useImmer } from "use-immer";
-import { AlertsContainer, type Alert, type AlertType } from "../chat/ui/components/Alerts";
-import { AuthContainer, AuthHeader } from "../chat/ui/components/Auth";
+import { AlertsContainer, type Alert, type AlertType } from "./Auth";
+import { AuthContainer, AuthHeader } from "./Auth";
 import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
 import { ensureKeysOnLogin } from "../../core/api/authApi";
 import { API_BASE_URL } from "../../core/config";
