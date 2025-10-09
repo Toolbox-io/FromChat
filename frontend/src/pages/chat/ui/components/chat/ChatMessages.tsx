@@ -6,7 +6,7 @@ import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
 import { fetchUserProfile } from "../../../../../api/profileApi";
 import { useEffect, useState, type ReactNode } from "react";
-import { delay } from "../../../utils/utils";
+import { delay } from "../../../../../utils/utils";
 import { MaterialDialog } from "../core/Dialog";
 import { request } from "../../../core/websocket";
 import type { AddReactionRequest, AddDmReactionRequest } from "../../../core/types";

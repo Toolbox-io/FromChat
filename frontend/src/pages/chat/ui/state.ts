@@ -7,7 +7,7 @@ import { DMPanel, type DMPanelData } from "./panels/DMPanel";
 import { getAuthHeaders } from "../../../api/authApi";
 import { restoreKeys } from "../../../api/authApi";
 import { API_BASE_URL } from "../core/config";
-import { initialize, subscribe, startElectronReceiver, isSupported } from "../utils/push-notifications";
+import { initialize, subscribe, startElectronReceiver, isSupported } from "../push-notifications";
 import { isElectron } from "../electron/electron";
 
 export type ChatTabs = "chats" | "channels" | "contacts" | "dms"

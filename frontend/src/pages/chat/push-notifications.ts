@@ -1,7 +1,7 @@
-import { API_BASE_URL } from "../core/config";
-import { isElectron } from "../electron/electron";
-import { websocket } from "../core/websocket";
-import type { NewMessageWebSocketMessage, WebSocketMessage } from "../core/types";
+import { API_BASE_URL } from "./core/config";
+import { isElectron } from "./electron/electron";
+import { websocket } from "./core/websocket";
+import type { NewMessageWebSocketMessage, WebSocketMessage } from "./core/types";
 import serviceWorker from "../../../service-worker?worker&url";
 
 export interface PushSubscriptionData {

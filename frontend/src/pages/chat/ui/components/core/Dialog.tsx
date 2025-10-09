@@ -1,7 +1,7 @@
 import type { Dialog as MduiDialog } from "mdui/components/dialog";
 import { useEffect, type Ref } from "react"
 import { createPortal } from "react-dom";
-import { id } from "../../../utils/utils";
+import { id } from "../../../../../utils/utils";
 import useCombinedRefs from "../../hooks/useCombinedRefs";
 
 export interface BaseDialogProps {

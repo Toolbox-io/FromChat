@@ -8,7 +8,7 @@
 import './css/style.scss';
 import "mdui/mdui.css";
 
-import "./pages/chat/utils/material";
+import "./utils/material";
 import "./pages/chat/core/init";
 import "./pages/chat/electron/electron";
 import { createRoot } from 'react-dom/client';

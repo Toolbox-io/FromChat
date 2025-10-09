@@ -8,7 +8,7 @@ import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../chat/ui/state";
 import { MaterialTextField } from "../chat/ui/components/core/TextField";
-import { initialize, isSupported, startElectronReceiver, subscribe } from "../chat/utils/push-notifications";
+import { initialize, isSupported, startElectronReceiver, subscribe } from "../chat/push-notifications";
 import { isElectron } from "../chat/electron/electron";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";

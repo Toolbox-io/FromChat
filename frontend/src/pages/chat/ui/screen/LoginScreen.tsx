@@ -9,7 +9,7 @@ import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../state";
 import { useNavigate } from "react-router-dom";
 import { MaterialTextField } from "../components/core/TextField";
-import { initialize, isSupported, startElectronReceiver, subscribe } from "../../utils/push-notifications";
+import { initialize, isSupported, startElectronReceiver, subscribe } from "../../push-notifications";
 import { isElectron } from "../../electron/electron";
 
 export default function LoginScreen() {
