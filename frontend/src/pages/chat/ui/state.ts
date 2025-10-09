@@ -1,14 +1,14 @@
 import { create } from "zustand";
-import type { Message, User } from "../core/types";
-import { request } from "../core/websocket";
+import type { Message, User } from "../../../core/types";
+import { request } from "../../../core/websocket";
 import { MessagePanel } from "./panels/MessagePanel";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./panels/DMPanel";
-import { getAuthHeaders } from "../../../api/authApi";
-import { restoreKeys } from "../../../api/authApi";
-import { API_BASE_URL } from "../core/config";
-import { initialize, subscribe, startElectronReceiver, isSupported } from "../push-notifications";
-import { isElectron } from "../electron/electron";
+import { getAuthHeaders } from "../../../core/api/authApi";
+import { restoreKeys } from "../../../core/api/authApi";
+import { API_BASE_URL } from "../../../core/config";
+import { initialize, subscribe, startElectronReceiver, isSupported } from "../../../core/push-notifications/push-notifications";
+import { isElectron } from "../../../core/electron/electron";
 
 export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
 

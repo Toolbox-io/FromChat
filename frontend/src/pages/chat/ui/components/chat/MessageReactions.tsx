@@ -1,6 +1,6 @@
 import { useAppState } from "../../state";
 import { useState, useEffect } from "react";
-import type { Reaction } from "../../../core/types";
+import type { Reaction } from "../../../../../core/types";
 
 interface MessageReactionsProps {
     reactions?: Reaction[];

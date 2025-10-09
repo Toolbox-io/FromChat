@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Size2D, Rect } from "../../../core/types";
+import type { Size2D, Rect } from "../../../../../core/types";
 
 interface ImageCropperProps {
     onCrop: (croppedImageData: string) => void;

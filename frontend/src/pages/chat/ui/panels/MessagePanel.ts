@@ -1,4 +1,4 @@
-import type { Message, WebSocketMessage } from "../../core/types";
+import type { Message, WebSocketMessage } from "../../../../core/types";
 import type { UserState } from "../state";
 
 export interface MessagePanelState {

@@ -7,7 +7,7 @@
 
 import { API_WS_BASE_URL } from "./config";
 import type { WebSocketMessage } from "./types";
-import { delay } from "../../../utils/utils";
+import { delay } from "../utils/utils";
 
 /**
  * Creates a new WebSocket connection to the chat server

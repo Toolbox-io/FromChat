@@ -6,8 +6,8 @@ import {
     sendDmWithFiles,
     editDmEnvelope,
     deleteDmEnvelope
-} from "../../../../api/dmApi";
-import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "../../core/types";
+} from "../../../../core/api/dmApi";
+import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "../../../../core/types";
 import type { UserState } from "../state";
 
 export interface DMPanelData {

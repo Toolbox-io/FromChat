@@ -1,6 +1,6 @@
 import { getAuthHeaders } from "./authApi";
-import { API_BASE_URL } from "../pages/chat/core/config";
-import type { UserProfile } from "../pages/chat/core/types";
+import { API_BASE_URL } from "../config";
+import type { UserProfile } from "../types";
 
 export interface ProfileData {
     profile_picture?: string;

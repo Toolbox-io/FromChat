@@ -1,8 +1,8 @@
-import type { Headers, UploadPublicKeyRequest, BackupBlob } from "../pages/chat/core/types";
-import { generateX25519KeyPair } from "../utils/crypto/asymmetric";
-import { encodeBlob, encryptBackupWithPassword, decryptBackupWithPassword, decodeBlob } from "../utils/crypto/backup";
-import { b64, ub64 } from "../utils/utils";
-import { API_BASE_URL } from "../pages/chat/core/config";
+import type { Headers, UploadPublicKeyRequest, BackupBlob } from "../types";
+import { generateX25519KeyPair } from "../../utils/crypto/asymmetric";
+import { encodeBlob, encryptBackupWithPassword, decryptBackupWithPassword, decodeBlob } from "../../utils/crypto/backup";
+import { b64, ub64 } from "../../utils/utils";
+import { API_BASE_URL } from "../config";
 
 /**
  * Generates authentication headers for API requests

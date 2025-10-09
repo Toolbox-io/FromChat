@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useDM, type DMUser } from "../../hooks/useDM";
 import { useAppState } from "../../state";
-import { fetchUserPublicKey } from "../../../../../api/dmApi";
+import { fetchUserPublicKey } from "../../../../../core/api/dmApi";
 import defaultAvatar from "../../../../../images/default-avatar.png";
 
 export function DMUsersList() {

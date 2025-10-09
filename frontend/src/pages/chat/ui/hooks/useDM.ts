@@ -6,9 +6,9 @@ import {
     fetchDMHistory, 
     decryptDm, 
     sendDMViaWebSocket 
-} from "../../../../api/dmApi";
-import type { User, Message, DmEncryptedJSON } from "../../core/types";
-import { websocket } from "../../core/websocket";
+} from "../../../../core/api/dmApi";
+import type { User, Message, DmEncryptedJSON } from "../../../../core/types";
+import { websocket } from "../../../../core/websocket";
 
 export interface DMUser extends User {
     lastMessage?: string;

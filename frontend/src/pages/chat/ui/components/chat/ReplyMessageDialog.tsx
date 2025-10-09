@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Message } from "../../../core/types";
+import type { Message } from "../../../../../core/types";
 import { MaterialDialog } from "../core/Dialog";
 import { MaterialTextField } from "../core/TextField";
 

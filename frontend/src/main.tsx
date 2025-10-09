@@ -9,8 +9,8 @@ import './css/style.scss';
 import "mdui/mdui.css";
 
 import "./utils/material";
-import "./pages/chat/core/init";
-import "./pages/chat/electron/electron";
+import "./core/init";
+import "./core/electron/electron";
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { StrictMode } from 'react';

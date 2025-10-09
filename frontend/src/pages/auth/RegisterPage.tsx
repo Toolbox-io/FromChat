@@ -3,11 +3,11 @@ import { AuthContainer, AuthHeader } from "../chat/ui/components/Auth";
 import { AlertsContainer, type Alert, type AlertType } from "../chat/ui/components/Alerts";
 import { useRef } from "react";
 import { TextField } from "mdui/components/text-field";
-import type { ErrorResponse, RegisterRequest, LoginResponse } from "../chat/core/types";
-import { API_BASE_URL } from "../chat/core/config";
+import type { ErrorResponse, RegisterRequest, LoginResponse } from "../../core/types";
+import { API_BASE_URL } from "../../core/config";
 import { useAppState } from "../chat/ui/state";
 import { MaterialTextField } from "../chat/ui/components/core/TextField";
-import { ensureKeysOnLogin } from "../../api/authApi";
+import { ensureKeysOnLogin } from "../../core/api/authApi";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
 

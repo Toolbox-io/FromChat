@@ -1,4 +1,4 @@
-import { PRODUCT_NAME } from "../../../core/config";
+import { PRODUCT_NAME } from "../../../../../core/config";
 import useProfile from "../../hooks/useProfile";
 import defaultAvatar from "../../../resources/images/default-avatar.png";
 import { useState } from "react";

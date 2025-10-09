@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { EMOJI_CATEGORIES, getRecentEmojis, addRecentEmoji } from "./emojiData";
-import type { Size2D } from "../../../core/types";
+import type { Size2D } from "../../../../../core/types";
 
 interface BaseEmojiMenuProps {
     isOpen: boolean;

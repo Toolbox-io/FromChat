@@ -9,8 +9,8 @@ import ChatPage from "./pages/chat/ChatPage";
 import DownloadAppPage from "./pages/download-app/DownloadAppPage";
 import NotFoundPage from "./pages/not-found/NotFoundPage";
 import ProtectedRoute from "./pages/ProtectedRoute";
-import { isElectron } from "./pages/chat/electron/electron";
-import { MINIMUM_WIDTH } from "./pages/chat/core/config";
+import { isElectron } from "./core/electron/electron";
+import { MINIMUM_WIDTH } from "./core/config";
 import useWindowSize from "./pages/chat/ui/hooks/useWindowSize";
 
 export default function App() {

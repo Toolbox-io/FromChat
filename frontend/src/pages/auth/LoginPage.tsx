@@ -1,15 +1,15 @@
 import { useImmer } from "use-immer";
 import { AlertsContainer, type Alert, type AlertType } from "../chat/ui/components/Alerts";
 import { AuthContainer, AuthHeader } from "../chat/ui/components/Auth";
-import type { ErrorResponse, LoginRequest, LoginResponse } from "../chat/core/types";
-import { ensureKeysOnLogin } from "../../api/authApi";
-import { API_BASE_URL } from "../chat/core/config";
+import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
+import { ensureKeysOnLogin } from "../../core/api/authApi";
+import { API_BASE_URL } from "../../core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "../chat/ui/state";
 import { MaterialTextField } from "../chat/ui/components/core/TextField";
-import { initialize, isSupported, startElectronReceiver, subscribe } from "../chat/push-notifications";
-import { isElectron } from "../chat/electron/electron";
+import { initialize, isSupported, startElectronReceiver, subscribe } from "../../core/push-notifications/push-notifications";
+import { isElectron } from "../../core/electron/electron";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
 

@@ -1,4 +1,4 @@
-import { PRODUCT_NAME } from "../../../core/config";
+import { PRODUCT_NAME } from "../../../../../core/config";
 import { useAppState } from "../../state";
 import defaultAvatar from "../../../../../images/default-avatar.png";
 import { useState, type FormEvent } from "react";

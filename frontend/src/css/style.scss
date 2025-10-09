@@ -1,10 +1,10 @@
-@use "common/animations";
-@use "common/components";
-@use "common/colors" as *;
-@use "common/material" as *;
+@use "animations";
+@use "components";
+@use "colors" as *;
+@use "material" as *;
 
-@use "lib/fonts/montserrat";
-@use "lib/fonts/material-symbols";
+@use "fonts/montserrat";
+@use "fonts/material-symbols";
 
 
 * {

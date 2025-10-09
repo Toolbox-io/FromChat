@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { MaterialDialog } from "../core/Dialog";
 import { RichTextArea } from "../core/RichTextArea";
-import type { Message } from "../../../core/types";
+import type { Message } from "../../../../../core/types";
 import Quote from "../core/Quote";
 import AnimatedHeight from "../core/animations/AnimatedHeight";
 import { useImmer } from "use-immer";
