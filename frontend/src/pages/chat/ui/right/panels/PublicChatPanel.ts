@@ -1,9 +1,9 @@
 import { MessagePanel } from "./MessagePanel";
-import { API_BASE_URL } from "../../../../core/config";
-import { getAuthHeaders } from "../../../../core/api/authApi";
-import { request } from "../../../../core/websocket";
-import type { ChatWebSocketMessage, Message, SendMessageRequest, ReactionUpdateWebSocketMessage } from "../../../../core/types";
-import type { UserState } from "../state";
+import { API_BASE_URL } from "../../../../../core/config";
+import { getAuthHeaders } from "../../../../../core/api/authApi";
+import { request } from "../../../../../core/websocket";
+import type { ChatWebSocketMessage, Message, SendMessageRequest, ReactionUpdateWebSocketMessage } from "../../../../../core/types";
+import type { UserState } from "../../../state";
 
 export class PublicChatPanel extends MessagePanel {
     private messagesLoaded: boolean = false;

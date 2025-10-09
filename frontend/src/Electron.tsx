@@ -1,5 +1,5 @@
-import { PRODUCT_NAME } from "../../../../core/config";
-import { isElectron } from "../../../../core/electron/electron";
+import { PRODUCT_NAME } from "./core/config";
+import { isElectron } from "./core/electron/electron";
 
 export function ElectronTitleBar() {
     return isElectron && (

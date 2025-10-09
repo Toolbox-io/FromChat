@@ -1,17 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ElectronTitleBar } from "./pages/chat/ui/components/Electron";
-import { useAppState } from "./pages/chat/ui/state";
+import { ElectronTitleBar } from "./Electron";
+import { useAppState } from "./pages/chat/state";
 import { useEffect, useState } from "react";
 import HomePage from "./pages/home/HomePage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
-import ChatPage from "./pages/chat/ChatPage";
+import ChatPage from "./pages/chat/ui/ChatPage";
 import DownloadAppPage from "./pages/download-app/DownloadAppPage";
 import NotFoundPage from "./pages/not-found/NotFoundPage";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import { isElectron } from "./core/electron/electron";
 import { MINIMUM_WIDTH } from "./core/config";
-import useWindowSize from "./pages/chat/ui/hooks/useWindowSize";
+import useWindowSize from "./core/hooks/useWindowSize";
 
 export default function App() {
     const { restoreUserFromStorage } = useAppState();

@@ -2,10 +2,10 @@ import { useState, useEffect, useRef, type FormEvent } from "react";
 import defaultAvatar from "../../../../../images/default-avatar.png";
 import type { TextField } from "mdui/components/text-field";
 import type { DialogProps } from "../../../../../core/types";
-import { MaterialDialog } from "../core/Dialog";
-import useProfile from "../../hooks/useProfile";
+import { MaterialDialog } from "../../../../../core/components/Dialog";
+import useProfile from "../../../hooks/useProfile";
 import { ImageCropper } from "./ImageCropper";
-import { MaterialTextField } from "../core/TextField";
+import { MaterialTextField } from "../../../../../core/components/TextField";
 
 export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
     const { profileData, isLoading, isUpdating, updateProfileData, uploadProfilePictureData } = useProfile();

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAppState } from "../state";
-import { loadProfile, updateProfile, uploadProfilePicture, type ProfileData } from "../../../../core/api/profileApi";
-import { showSuccess, showError } from "../../../../utils/notification";
+import { loadProfile, updateProfile, uploadProfilePicture, type ProfileData } from "../../../core/api/profileApi";
+import { showSuccess, showError } from "../../../utils/notification";
 
 export default function useProfile() {
     const { user } = useAppState();

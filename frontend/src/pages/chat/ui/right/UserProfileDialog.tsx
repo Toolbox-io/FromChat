@@ -1,8 +1,8 @@
-import type { DialogProps } from "../../../../../core/types";
-import type { UserProfile } from "../../../../../core/types";
-import { MaterialDialog } from "../core/Dialog";
-import { formatTime } from "../../../../../utils/utils";
-import defaultAvatar from "../../../../../images/default-avatar.png";
+import type { DialogProps } from "../../../../core/types";
+import type { UserProfile } from "../../../../core/types";
+import { MaterialDialog } from "../../../../core/components/Dialog";
+import { formatTime } from "../../../../utils/utils";
+import defaultAvatar from "../../../../images/default-avatar.png";
 
 interface UserProfileDialogProps extends DialogProps {
     userProfile: UserProfile | null;

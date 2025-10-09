@@ -1,19 +1,133 @@
-import { formatTime, id } from "../../../../../utils/utils";
-import type { Attachment, Message as MessageType } from "../../../../../core/types";
-import defaultAvatar from "../../../../../images/default-avatar.png";
-import Quote from "../core/Quote";
+import { formatTime, id } from "../../../../utils/utils";
+import type { Attachment, Message as MessageType, Reaction } from "../../../../core/types";
+import defaultAvatar from "../../../../images/default-avatar.png";
+import Quote from "../../../../core/components/Quote";
 import { parse } from "marked";
 import DOMPurify from "dompurify";
 import { useEffect, useState, useRef } from "react";
-import { getCurrentKeys } from "../../../../../core/api/authApi";
-import { ecdhSharedSecret, deriveWrappingKey } from "../../../../../utils/crypto/asymmetric";
-import { importAesGcmKey, aesGcmDecrypt } from "../../../../../utils/crypto/symmetric";
-import { getAuthHeaders } from "../../../../../core/api/authApi";
+import { getCurrentKeys } from "../../../../core/api/authApi";
+import { ecdhSharedSecret, deriveWrappingKey } from "../../../../utils/crypto/asymmetric";
+import { importAesGcmKey, aesGcmDecrypt } from "../../../../utils/crypto/symmetric";
+import { getAuthHeaders } from "../../../../core/api/authApi";
 import { useAppState } from "../../state";
-import { ub64 } from "../../../../../utils/utils";
+import { ub64 } from "../../../../utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
-import { MessageReactions } from "./MessageReactions";
+
+interface MessageReactionsProps {
+    reactions?: Reaction[];
+    onReactionClick: (emoji: string) => void;
+    messageId?: number; // Add messageId to ensure unique keys
+}
+
+function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsProps) {
+    const { user } = useAppState();
+    const [visibleReactions, setVisibleReactions] = useState<Reaction[]>([]);
+    const [animatingReactions, setAnimatingReactions] = useState<Set<string>>(new Set());
+    const [isVisible, setIsVisible] = useState(false);
+
+    // Handle reactions with animation
+    useEffect(() => {
+        if (!reactions || reactions.length === 0) {
+            // If we have visible reactions, animate them out
+            if (visibleReactions.length > 0) {
+                visibleReactions.forEach(reaction => {
+                    setAnimatingReactions(prev => new Set(prev).add(reaction.emoji));
+                });
+                // After animation completes, hide the component
+                setTimeout(() => {
+                    setVisibleReactions([]);
+                    setAnimatingReactions(new Set());
+                    setIsVisible(false);
+                }, 200);
+            } else {
+                // No visible reactions, hide immediately
+                setIsVisible(false);
+            }
+            return;
+        }
+
+        // Show the component when we have reactions
+        setIsVisible(true);
+
+        // Deduplicate reactions by emoji (safety measure)
+        const uniqueReactions = reactions.reduce((acc, reaction) => {
+            const existing = acc.find(r => r.emoji === reaction.emoji);
+            if (existing) {
+                // Keep the one with the higher count
+                if (reaction.count > existing.count) {
+                    acc[acc.indexOf(existing)] = reaction;
+                }
+            } else {
+                acc.push(reaction);
+            }
+            return acc;
+        }, [] as Reaction[]);
+
+
+        // Animate out removed reactions
+        visibleReactions.forEach(reaction => {
+            if (!uniqueReactions.some(r => r.emoji === reaction.emoji)) {
+                setAnimatingReactions(prev => new Set(prev).add(reaction.emoji));
+                setTimeout(() => {
+                    setVisibleReactions(prev => prev.filter(r => r.emoji !== reaction.emoji));
+                    setAnimatingReactions(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(reaction.emoji);
+                        return newSet;
+                    });
+                }, 200);
+            }
+        });
+
+        // Update existing reactions and add new ones
+        setVisibleReactions(prev => {
+            const updated = [...prev];
+            
+            // Update existing reactions
+            uniqueReactions.forEach(reaction => {
+                const existingIndex = updated.findIndex(r => r.emoji === reaction.emoji);
+                if (existingIndex !== -1) {
+                    updated[existingIndex] = reaction;
+                } else {
+                    // Add new reaction only if it doesn't already exist
+                    if (!updated.some(r => r.emoji === reaction.emoji)) {
+                        updated.push(reaction);
+                    }
+                }
+            });
+            
+            return updated;
+        });
+    }, [reactions]);
+
+    // Don't render if not visible
+    if (!isVisible) {
+        return null;
+    }
+
+    return (
+        <div className="message-reactions">
+            {visibleReactions.map((reaction, index) => {
+                const hasUserReacted = reaction.users.some(u => u.id === user.currentUser?.id);
+                const isAnimating = animatingReactions.has(reaction.emoji);
+                
+                return (
+                    <button
+                        key={`${messageId || 'unknown'}-${reaction.emoji}-${reaction.count}-${index}`}
+                        className={`reaction-button ${hasUserReacted ? "reacted" : ""} ${isAnimating ? "removing" : ""}`}
+                        onClick={() => onReactionClick(reaction.emoji)}
+                        title={reaction.users.map(u => u.username).join(", ")}
+                    >
+                        <span className="reaction-emoji">{reaction.emoji}</span>
+                        <span className="reaction-count">{reaction.count}</span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
 
 interface MessageProps {
     message: MessageType;
@@ -375,7 +489,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
                         </mdui-list>
                     )}
 
-                    <MessageReactions 
+                    <Reactions 
                         reactions={message.reactions}
                         onReactionClick={(emoji) => onReactionClick?.(message.id, emoji)}
                         messageId={message.id}

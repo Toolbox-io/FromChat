@@ -1,9 +1,9 @@
-import { PRODUCT_NAME } from "../../../../../core/config";
+import { PRODUCT_NAME } from "../../../../core/config";
 import { useAppState } from "../../state";
-import defaultAvatar from "../../../../../images/default-avatar.png";
+import defaultAvatar from "../../../../images/default-avatar.png";
 import { useState, type FormEvent } from "react";
-import { ProfileDialog } from "../profile/ProfileDialog";
-import { SettingsDialog } from "../settings/SettingsDialog";
+import { ProfileDialog } from "./profile/ProfileDialog";
+import { SettingsDialog } from "./settings/SettingsDialog";
 import { DMUsersList } from "./DMUsersList";
 import type { Tabs } from "mdui";
 import type { ChatTabs } from "../../state";
