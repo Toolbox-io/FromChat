@@ -93,6 +93,8 @@ interface AppState {
     toggleMute: () => void;
     toggleVideo: () => void;
     toggleScreenshare: () => void;
+    setVideoState: (hasVideo: boolean) => void;
+    setScreenshareState: (hasScreenshare: boolean) => void;
     toggleCallMinimize: () => void;
     receiveCall: (userId: number, username: string) => void;
     updateParticipantMedia: (userId: number, mediaState: { hasAudio: boolean; hasVideo: boolean; hasScreenshare: boolean }) => void;
@@ -530,6 +532,35 @@ export const useAppState = create<AppState>((set, get) => ({
                 localMedia: {
                     ...state.chat.call.localMedia,
                     hasScreenshare: !state.chat.call.localMedia.hasScreenshare
+                }
+            }
+        }
+    })),
+    
+    setVideoState: (hasVideo: boolean) => set((state) => {
+        console.log("setVideoState called with:", hasVideo, "current state:", state.chat.call.localMedia.hasVideo);
+        return {
+            chat: {
+                ...state.chat,
+                call: {
+                    ...state.chat.call,
+                    localMedia: {
+                        ...state.chat.call.localMedia,
+                        hasVideo
+                    }
+                }
+            }
+        };
+    }),
+    
+    setScreenshareState: (hasScreenshare: boolean) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                localMedia: {
+                    ...state.chat.call.localMedia,
+                    hasScreenshare
                 }
             }
         }

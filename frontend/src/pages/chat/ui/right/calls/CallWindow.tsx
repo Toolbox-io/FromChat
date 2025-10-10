@@ -5,6 +5,62 @@ import defaultAvatar from "@/images/default-avatar.png";
 import { createPortal } from "react-dom";
 import { id } from "@/utils/utils";
 
+function ParticipantTile({ 
+    participant, 
+    isLocal = false, 
+    localVideoRef, 
+    globalRemoteVideoRefs,
+    localMedia
+}: { 
+    participant: ReturnType<typeof useCall>['call']['participants'][number], 
+    isLocal?: boolean,
+    localVideoRef: React.RefObject<HTMLVideoElement | null>,
+    globalRemoteVideoRefs: Map<number, React.RefObject<HTMLVideoElement | null>>,
+    localMedia?: { isMuted: boolean }
+}) {
+    const videoRef = isLocal ? localVideoRef : globalRemoteVideoRefs.get(participant.userId);
+    
+    console.log("ParticipantTile render:", {
+        isLocal,
+        userId: participant.userId,
+        username: participant.username,
+        hasVideo: participant.hasVideo,
+        videoDisplay: participant.hasVideo ? 'block' : 'none'
+    });
+    
+    return (
+        <div className="participant-tile">
+            <video
+                key={`video-${isLocal ? 'local' : participant.userId}`}
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted={isLocal}
+                className="participant-video"
+                style={{ display: participant.hasVideo ? 'block' : 'none' }}
+            />
+            {!participant.hasVideo && (
+                <div className="participant-placeholder">
+                    <img src={defaultAvatar} alt="Avatar" className="participant-avatar" />
+                    <span className="participant-name">{participant.username}</span>
+                </div>
+            )}
+            
+            {/* Audio indicator */}
+            <div className={`audio-indicator ${participant.hasAudio ? 'speaking' : 'muted'}`}>
+                <mdui-icon name={participant.hasAudio ? "mic" : "mic_off"} />
+            </div>
+            
+            {/* Mute indicator for local participant */}
+            {isLocal && localMedia?.isMuted && (
+                <div className="mute-indicator">
+                    <mdui-icon name="mic_off" />
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function CallWindow() {
     const { chat, toggleCallMinimize } = useAppState();
     const { call } = chat;
@@ -144,41 +200,6 @@ export function CallWindow() {
 
 
     // ParticipantTile component
-    function ParticipantTile({ participant, isLocal = false }: { participant: any, isLocal?: boolean }) {
-        const videoRef = isLocal ? localVideoRef : globalRemoteVideoRefs.get(participant.userId);
-        
-        return (
-            <div className="participant-tile">
-                {participant.hasVideo ? (
-                    <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted={isLocal}
-                        className="participant-video"
-                    />
-                ) : (
-                    <div className="participant-placeholder">
-                        <img src={defaultAvatar} alt="Avatar" className="participant-avatar" />
-                        <span className="participant-name">{participant.username}</span>
-                    </div>
-                )}
-                
-                {/* Audio indicator */}
-                <div className={`audio-indicator ${participant.hasAudio ? 'speaking' : 'muted'}`}>
-                    <mdui-icon name={participant.hasAudio ? "mic" : "mic_off"} />
-                </div>
-                
-                {/* Mute indicator for local participant */}
-                {isLocal && localMedia.isMuted && (
-                    <div className="mute-indicator">
-                        <mdui-icon name="mic_off" />
-                    </div>
-                )}
-            </div>
-        );
-    }
-
     return (
         createPortal(
             <>
@@ -286,6 +307,9 @@ export function CallWindow() {
                                         hasScreenshare: localMedia.hasScreenshare
                                     }}
                                     isLocal={true}
+                                    localVideoRef={localVideoRef}
+                                    globalRemoteVideoRefs={globalRemoteVideoRefs}
+                                    localMedia={localMedia}
                                 />
 
                                 {/* Remote participant tiles */}
@@ -294,6 +318,8 @@ export function CallWindow() {
                                         key={participant.userId}
                                         participant={participant}
                                         isLocal={false}
+                                        localVideoRef={localVideoRef}
+                                        globalRemoteVideoRefs={globalRemoteVideoRefs}
                                     />
                                 ))}
                             </div>

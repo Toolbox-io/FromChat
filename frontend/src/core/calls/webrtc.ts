@@ -77,6 +77,12 @@ export function setParticipantMediaChangeHandler(handler: (userId: number, media
     onParticipantMediaChange = handler;
 }
 
+export let onLocalStream: ((stream: MediaStream, type: 'audio' | 'video' | 'screenshare') => void) | null = null;
+
+export function setLocalStreamHandler(handler: (stream: MediaStream, type: 'audio' | 'video' | 'screenshare') => void) {
+    onLocalStream = handler;
+}
+
 async function sendSignalingMessage(message: CallSignalingMessage) {
     if (!authToken) {
         throw new Error("No auth token available");
@@ -218,14 +224,14 @@ async function createParticipant(userId: number, username: string): Promise<Call
     peerConnection.addEventListener("connectionstatechange", () => {
         console.log("WebRTC connection state changed:", peerConnection.connectionState, "for user", userId);
         
-        if (onCallStateChange) {
-            onCallStateChange(userId, peerConnection.connectionState);
-        }
+            if (onCallStateChange) {
+                onCallStateChange(userId, peerConnection.connectionState);
+            }
 
-        // Clean up if connection failed or closed
-        if (peerConnection.connectionState === "failed" || 
-            peerConnection.connectionState === "closed" ||
-            peerConnection.connectionState === "disconnected") {
+            // Clean up if connection failed or closed
+            if (peerConnection.connectionState === "failed" || 
+                peerConnection.connectionState === "closed" ||
+                peerConnection.connectionState === "disconnected") {
             
             console.log("Connection state requires cleanup for user", userId);
             if (!activeCall) {
@@ -336,35 +342,59 @@ export async function sendWrappedCallSessionKey(userId: number, sessionKey: Uint
 async function applyE2EETransforms(participant: CallParticipant): Promise<void> {
     try {
         // @ts-ignore
-        if (!participant.sessionKey || !window.RTCRtpScriptTransform) return;
+        if (!participant.sessionKey || !window.RTCRtpScriptTransform) {
+            console.log("Skipping E2EE transforms: missing session key or RTCRtpScriptTransform support", {
+                hasSessionKey: !!participant.sessionKey,
+                hasRTCRtpScriptTransform: !!window.RTCRtpScriptTransform,
+                participantUserId: participant.userId
+            });
+            return;
+        }
+        
         const key = await importAesGcmKey(participant.sessionKey);
         participant.sessionCryptoKey = key;
         
-        // Apply to all receivers (audio, video, screenshare)
+        // Apply to all receivers (audio, video, screenshare) that don't already have transforms
         const receivers = participant.peerConnection.getReceivers();
         for (const receiver of receivers) {
-            if (receiver.track) {
-                // @ts-ignore
-                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt' });
+            if (receiver.track && !receiver.transform) {
+                try {
+            // @ts-ignore
+            receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt' });
+                    console.log("Applied E2EE decrypt transform to receiver track:", receiver.track.kind);
+                } catch (e) {
+                    console.warn("Failed to apply E2EE transform to receiver:", e);
+                }
             }
         }
         
-        // Apply to all senders (audio, video, screenshare)
+        // Apply to all senders (audio, video, screenshare) that don't already have transforms
         const senders = participant.peerConnection.getSenders();
         for (const sender of senders) {
-            if (sender.track) {
-                // @ts-ignore
-                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt' });
+            if (sender.track && !sender.transform) {
+                try {
+            // @ts-ignore
+            sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt' });
+                    console.log("Applied E2EE encrypt transform to sender track:", sender.track.kind);
+                } catch (e) {
+                    console.warn("Failed to apply E2EE transform to sender:", e);
+                }
             }
         }
-    } catch {}
+    } catch (error) {
+        console.error("Failed to apply E2EE transforms:", error);
+    }
 }
 
 export async function setSessionKey(userId: number, keyBytes: Uint8Array): Promise<void> {
     const participant = activeCall?.participants.get(userId);
-    if (!participant) return;
+    if (!participant) {
+        console.log("No participant found for setSessionKey, userId:", userId);
+        return;
+    }
     participant.sessionKey = keyBytes;
     participant.lastKeyRotation = Date.now();
+    console.log("Session key stored for participant", userId, "applying E2EE transforms");
     await applyE2EETransforms(participant);
     
     // Start key rotation timer (rotate every 10 minutes for long calls)
@@ -427,6 +457,7 @@ export async function receiveWrappedSessionKey(fromUserId: number, wrappedPayloa
         const derivedSessionKey = await createSharedSecretAndDeriveSessionKey(senderPublicKey, sessionKeyHash, isInitiator);
         
         await setSessionKey(fromUserId, derivedSessionKey.key);
+        console.log("Session key set for user", fromUserId, "key available:", !!derivedSessionKey.key);
     } catch (e) {
         console.error("Failed to unwrap session key:", e);
     }
@@ -494,12 +525,12 @@ export async function endCall(): Promise<void> {
         
         // Send call end message to all participants
         for (const [participantId] of activeCall.participants) {
-            await sendSignalingMessage({
-                type: "call_end",
-                fromUserId: 0, // Will be set by server
+        await sendSignalingMessage({
+            type: "call_end",
+            fromUserId: 0, // Will be set by server
                 toUserId: participantId,
-                data: {}
-            });
+            data: {}
+        });
         }
 
         cleanupCall();
@@ -616,7 +647,7 @@ async function createE2EETransform(sessionKey: NonNullable<CallParticipant['sess
             const receivers = peerConnection.getReceivers();
             for (const receiver of receivers) {
                 if (receiver.track) {
-                    receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
+                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
                 }
             }
             
@@ -624,7 +655,7 @@ async function createE2EETransform(sessionKey: NonNullable<CallParticipant['sess
             const senders = peerConnection.getSenders();
             for (const sender of senders) {
                 if (sender.track) {
-                    sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
+                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
                 }
             }
         }
@@ -703,19 +734,46 @@ export async function toggleVideo(): Promise<boolean> {
             // Enable video - request permission if not already granted
             if (!activeCall.permissionStates.video) {
                 const videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
+                    video: {
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 30, max: 60 }
+                    },
                     audio: false
                 });
+                
+                // Debug the video stream
+                console.log("Video stream created:", {
+                    id: videoStream.id,
+                    active: videoStream.active,
+                    videoTracks: videoStream.getVideoTracks().map(t => ({
+                        id: t.id,
+                        label: t.label,
+                        enabled: t.enabled,
+                        muted: t.muted,
+                        readyState: t.readyState,
+                        settings: t.getSettings()
+                    })),
+                    audioTracks: videoStream.getAudioTracks().length
+                });
+                
                 activeCall.localStreams.video = videoStream;
                 activeCall.permissionStates.video = true;
+                
+                // Notify UI about local video stream
+                if (onLocalStream) {
+                    onLocalStream(videoStream, 'video');
+                }
             }
 
             // Add video track to all peer connections
             const videoTrack = activeCall.localStreams.video!.getVideoTracks()[0];
             for (const [, participant] of activeCall.participants) {
                 participant.peerConnection.addTrack(videoTrack, activeCall.localStreams.video!);
-                // Reapply E2EE transforms to new track
-                applyE2EETransforms(participant);
+                // Small delay to ensure track is fully established before applying E2EE
+                setTimeout(async () => {
+                    await applyE2EETransforms(participant);
+                }, 100);
             }
 
             activeCall.localMediaState.hasVideo = true;
@@ -786,6 +844,11 @@ export async function toggleScreenshare(): Promise<boolean> {
                 });
                 activeCall.localStreams.screenshare = screenshareStream;
                 activeCall.permissionStates.screenshare = true;
+                
+                // Notify UI about local screenshare stream
+                if (onLocalStream) {
+                    onLocalStream(screenshareStream, 'screenshare');
+                }
 
                 // Handle screenshare end event
                 screenshareStream.getVideoTracks()[0].addEventListener('ended', () => {
@@ -797,8 +860,10 @@ export async function toggleScreenshare(): Promise<boolean> {
             const screenshareTrack = activeCall.localStreams.screenshare!.getVideoTracks()[0];
             for (const [, participant] of activeCall.participants) {
                 participant.peerConnection.addTrack(screenshareTrack, activeCall.localStreams.screenshare!);
-                // Reapply E2EE transforms to new track
-                applyE2EETransforms(participant);
+                // Small delay to ensure track is fully established before applying E2EE
+                setTimeout(async () => {
+                    await applyE2EETransforms(participant);
+                }, 100);
             }
 
             activeCall.localMediaState.hasScreenshare = true;
@@ -856,7 +921,7 @@ export async function toggleScreenshare(): Promise<boolean> {
     }
 }
 
-export function toggleMute(): boolean {
+export async function toggleMute(): Promise<boolean> {
     if (!activeCall || !activeCall.localStreams.audio) {
         return false;
     }
@@ -898,7 +963,7 @@ export function toggleMute(): boolean {
     } else {
         // Unmute: Re-enable microphone by getting new audio stream
         navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-            .then(newStream => {
+            .then(async (newStream) => {
                 // Remove any existing audio tracks from the stream
                 activeCall!.localStreams.audio!.getAudioTracks().forEach(track => track.stop());
                 
@@ -908,18 +973,20 @@ export function toggleMute(): boolean {
                 // Replace the track in all peer connections
                 for (const [, participant] of activeCall!.participants) {
                     const sender = participant.peerConnection.getSenders().find(s => 
-                        s.track && s.track.kind === 'audio'
-                    );
-                    
-                    if (sender) {
-                        // Replace the track in the existing sender
-                        sender.replaceTrack(newAudioTrack);
-                    } else {
-                        // Add the track to the peer connection if no sender exists
+                    s.track && s.track.kind === 'audio'
+                );
+                
+                if (sender) {
+                    // Replace the track in the existing sender
+                    sender.replaceTrack(newAudioTrack);
+                } else {
+                    // Add the track to the peer connection if no sender exists
                         participant.peerConnection.addTrack(newAudioTrack, activeCall!.localStreams.audio!);
                     }
-                    // Reapply E2EE transforms to new track
-                    applyE2EETransforms(participant);
+                    // Small delay to ensure track is fully established before applying E2EE
+                    setTimeout(async () => {
+                        await applyE2EETransforms(participant);
+                    }, 100);
                 }
                 
                 // Add the track to the local stream

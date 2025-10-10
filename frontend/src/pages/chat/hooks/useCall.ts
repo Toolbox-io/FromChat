@@ -17,8 +17,8 @@ export default function useCall() {
         endCall, 
         setCallStatus, 
         toggleMute, 
-        toggleVideo, 
-        toggleScreenshare, 
+        setVideoState,
+        setScreenshareState,
         updateParticipantMedia, 
         setPermissionError, 
         setCallEncryption, 
@@ -28,6 +28,54 @@ export default function useCall() {
     const remoteAudioRef = globalRemoteAudioRef;
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const localScreenshareRef = useRef<HTMLVideoElement>(null);
+
+    // Store the current video stream for reassignment
+    const currentVideoStream = useRef<MediaStream | null>(null);
+
+    // Function to assign video stream to element
+    const assignVideoStreamToElement = (stream: MediaStream) => {
+        if (!localVideoRef.current) {
+            console.log("localVideoRef.current is null, retrying in 100ms");
+            setTimeout(() => assignVideoStreamToElement(stream), 100);
+            return;
+        }
+
+        try {
+            // Check if the video element is actually in the DOM
+            if (!localVideoRef.current.isConnected) {
+                console.log("Video element not connected to DOM, retrying in 100ms");
+                setTimeout(() => assignVideoStreamToElement(stream), 100);
+                return;
+            }
+            
+            localVideoRef.current.srcObject = stream;
+            localVideoRef.current.autoplay = true;
+            localVideoRef.current.playsInline = true;
+            localVideoRef.current.muted = true; // Always mute local video
+            
+            console.log("Successfully assigned local video stream to element", {
+                hasStream: !!localVideoRef.current.srcObject,
+                videoWidth: localVideoRef.current.videoWidth,
+                videoHeight: localVideoRef.current.videoHeight,
+                readyState: localVideoRef.current.readyState,
+                isConnected: localVideoRef.current.isConnected
+            });
+
+            // Try to play immediately
+            localVideoRef.current.play().catch(e => console.log("Immediate play failed:", e));
+            
+        } catch (e) {
+            console.warn("failed to attach local video stream:", e);
+        }
+    };
+
+    // Reassign video stream when video state changes (element becomes visible)
+    useEffect(() => {
+        if (chat.call.localMedia.hasVideo && currentVideoStream.current && localVideoRef.current) {
+            console.log("Video state changed to true, reassigning stream");
+            assignVideoStreamToElement(currentVideoStream.current);
+        }
+    }, [chat.call.localMedia.hasVideo]);
 
     useEffect(() => {
         if (user.authToken) {
@@ -70,32 +118,32 @@ export default function useCall() {
         // Set up remote stream handler
         WebRTC.setRemoteStreamHandler((userId: number, stream: MediaStream, type: 'audio' | 'video' | 'screenshare') => {
             if (type === 'audio') {
-                if (!remoteAudioRef.current) {
-                    return;
-                }
-                const el = remoteAudioRef.current;
-                try {
-                    el.srcObject = stream;
-                    el.muted = false;
-                    el.volume = 1.0;
-                    el.autoplay = true;
+            if (!remoteAudioRef.current) {
+                return;
+            }
+            const el = remoteAudioRef.current;
+            try {
+                el.srcObject = stream;
+                el.muted = false;
+                el.volume = 1.0;
+                el.autoplay = true;
 
-                    // Handle audio events
-                    el.addEventListener("error", () => {
-                        console.warn("[AUDIO] element error", (el.error?.message) || el.error);
-                    });
+                // Handle audio events
+                el.addEventListener("error", () => {
+                    console.warn("[AUDIO] element error", (el.error?.message) || el.error);
+                });
 
-                    el.play().catch(() => {
-                        // Try to play after user interaction if autoplay is blocked
-                        const playAfterInteraction = () => {
-                            el.play().catch(() => {});
-                            document.removeEventListener('click', playAfterInteraction);
-                            document.removeEventListener('touchstart', playAfterInteraction);
-                        };
-                        document.addEventListener('click', playAfterInteraction);
-                        document.addEventListener('touchstart', playAfterInteraction);
-                    });
-                } catch (e) {
+                el.play().catch(() => {
+                    // Try to play after user interaction if autoplay is blocked
+                    const playAfterInteraction = () => {
+                        el.play().catch(() => {});
+                        document.removeEventListener('click', playAfterInteraction);
+                        document.removeEventListener('touchstart', playAfterInteraction);
+                    };
+                    document.addEventListener('click', playAfterInteraction);
+                    document.addEventListener('touchstart', playAfterInteraction);
+                });
+            } catch (e) {
                     console.warn("failed to attach remote audio stream:", e);
                 }
             } else if (type === 'video' || type === 'screenshare') {
@@ -106,21 +154,106 @@ export default function useCall() {
                     globalRemoteVideoRefs.set(userId, videoRef);
                 }
 
-                if (videoRef && videoRef.current) {
-                    try {
-                        videoRef.current.srcObject = stream;
-                        videoRef.current.autoplay = true;
-                        videoRef.current.playsInline = true;
-                    } catch (e) {
-                        console.warn("failed to attach remote video stream:", e);
+                const assignRemoteStream = () => {
+                    if (videoRef && videoRef.current) {
+                        try {
+                            videoRef.current.srcObject = stream;
+                            videoRef.current.autoplay = true;
+                            videoRef.current.playsInline = true;
+                            
+                            // Add event listeners to debug video loading
+                            videoRef.current.addEventListener('loadedmetadata', () => {
+                                console.log(`Remote video metadata loaded for user ${userId}:`, {
+                                    videoWidth: videoRef.current?.videoWidth,
+                                    videoHeight: videoRef.current?.videoHeight,
+                                    readyState: videoRef.current?.readyState
+                                });
+                            });
+                            
+                            videoRef.current.addEventListener('canplay', () => {
+                                console.log(`Remote video can play for user ${userId}:`, {
+                                    videoWidth: videoRef.current?.videoWidth,
+                                    videoHeight: videoRef.current?.videoHeight,
+                                    readyState: videoRef.current?.readyState
+                                });
+                            });
+                            
+                            videoRef.current.addEventListener('error', (e) => {
+                                console.error(`Remote video error for user ${userId}:`, e);
+                            });
+                            
+                            console.log(`Successfully assigned remote ${type} stream to element for user ${userId}`, {
+                                hasStream: !!videoRef.current.srcObject,
+                                videoWidth: videoRef.current.videoWidth,
+                                videoHeight: videoRef.current.videoHeight,
+                                readyState: videoRef.current.readyState
+                            });
+                        } catch (e) {
+                            console.warn("failed to attach remote video stream:", e);
+                        }
+                    } else {
+                        console.log(`Remote video ref for user ${userId} is null, retrying in 100ms`);
+                        setTimeout(assignRemoteStream, 100);
                     }
-                }
+                };
+                assignRemoteStream();
             }
         });
 
         // Set up participant media change handler
         WebRTC.setParticipantMediaChangeHandler((userId: number, mediaState) => {
             updateParticipantMedia(userId, mediaState);
+        });
+
+
+
+        // Set up local stream handler
+        WebRTC.setLocalStreamHandler((stream: MediaStream, type: 'audio' | 'video' | 'screenshare') => {
+            console.log("Local stream received:", type, stream, "video ref:", localVideoRef.current);
+            if (type === 'video') {
+                // Store the stream for reassignment
+                currentVideoStream.current = stream;
+                
+                // Debug the stream tracks
+                console.log("Video stream tracks:", {
+                    videoTracks: stream.getVideoTracks().map(t => ({
+                        id: t.id,
+                        label: t.label,
+                        enabled: t.enabled,
+                        muted: t.muted,
+                        readyState: t.readyState
+                    })),
+                    audioTracks: stream.getAudioTracks().map(t => ({
+                        id: t.id,
+                        label: t.label,
+                        enabled: t.enabled,
+                        muted: t.muted,
+                        readyState: t.readyState
+                    })),
+                    active: stream.active
+                });
+                
+                // Assign the stream immediately
+                assignVideoStreamToElement(stream);
+            } else if (type === 'screenshare') {
+                const assignScreenshareStream = () => {
+                    if (localScreenshareRef.current) {
+                        try {
+                            localScreenshareRef.current.srcObject = stream;
+                            localScreenshareRef.current.autoplay = true;
+                            localScreenshareRef.current.playsInline = true;
+                            localScreenshareRef.current.muted = true; // Always mute local screenshare
+                            console.log("Successfully assigned local screenshare stream to element");
+                        } catch (e) {
+                            console.warn("failed to attach local screenshare stream:", e);
+                        }
+                    } else {
+                        console.log("localScreenshareRef.current is null, retrying in 100ms");
+                        setTimeout(assignScreenshareStream, 100);
+                    }
+                };
+                assignScreenshareStream();
+            }
         });
 
         // Set up call state change handler
@@ -133,12 +266,13 @@ export default function useCall() {
             }
         });
 
+
         return () => {
             // Only cleanup when the component is actually unmounting, not when dependencies change
             // This prevents cleanup during active call setup
             if (!chat.call.isActive) {
-                WebRTC.cleanup();
-                setCallSignalingHandler(null);
+            WebRTC.cleanup();
+            setCallSignalingHandler(null);
             }
         };
     }, [user.authToken, setCallStatus, endCall, startCall]);
@@ -233,21 +367,21 @@ export default function useCall() {
         endCall();
     };
 
-    function handleToggleMute() {
-        const isMuted = WebRTC.toggleMute();
-        // Update mute state in store
+    async function handleToggleMute() {
+        const isMuted = await WebRTC.toggleMute();
+            // Update mute state in store
         if (isMuted !== chat.call.localMedia.isMuted) {
-            toggleMute();
-        }
+                toggleMute();
+            }
     };
 
     async function handleToggleVideo() {
         try {
             const hasVideo = await WebRTC.toggleVideo();
-            // Update video state in store
-            if (hasVideo !== chat.call.localMedia.hasVideo) {
-                toggleVideo();
-            }
+            console.log("WebRTC.toggleVideo() returned:", hasVideo, "current state:", chat.call.localMedia.hasVideo);
+            // Update video state in store to match WebRTC state
+            setVideoState(hasVideo);
+            console.log("Video state updated to:", hasVideo);
         } catch (error) {
             console.error("Failed to toggle video:", error);
             setPermissionError('video', true);
@@ -257,10 +391,9 @@ export default function useCall() {
     async function handleToggleScreenshare() {
         try {
             const hasScreenshare = await WebRTC.toggleScreenshare();
-            // Update screenshare state in store
-            if (hasScreenshare !== chat.call.localMedia.hasScreenshare) {
-                toggleScreenshare();
-            }
+            console.log("WebRTC.toggleScreenshare() returned:", hasScreenshare, "current state:", chat.call.localMedia.hasScreenshare);
+            // Update screenshare state in store to match WebRTC state
+            setScreenshareState(hasScreenshare);
         } catch (error) {
             console.error("Failed to toggle screenshare:", error);
             setPermissionError('screenshare', true);

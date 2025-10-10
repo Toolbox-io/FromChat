@@ -8,24 +8,26 @@ import { API_BASE_URL } from "@/core/config";
 import { useAppState } from "@/pages/chat/state";
 import { MaterialTextField } from "@/core/components/TextField";
 import { ensureKeysOnLogin } from "@/core/api/authApi";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import "./auth.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 
 export default function RegisterPage() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
+    const { user } = useAppState();
     const setUser = useAppState(state => state.setUser);
     const navigate = useNavigate();
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();
+    const usernameElement = useRef<TextField>(null);
+    const passwordElement = useRef<TextField>(null);
+    const confirmPasswordElement = useRef<TextField>(null);
+
     if (navigateDownloadApp) return navigateDownloadApp;
+    if (user.authToken) return <Navigate to="/chat" replace />;
 
     function showAlert(type: AlertType, message: string) {
         updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
     }
-
-    const usernameElement = useRef<TextField>(null);
-    const passwordElement = useRef<TextField>(null);
-    const confirmPasswordElement = useRef<TextField>(null);
 
     return (
         <AuthContainer>
