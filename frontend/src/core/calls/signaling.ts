@@ -52,6 +52,9 @@ export class CallSignalingHandler {
             case "call_session_key":
                 this.handleCallSessionKey(data);
                 break;
+            case "call_media_state_change":
+                this.handleCallMediaStateChange(data);
+                break;
         }
     }
 
@@ -121,5 +124,13 @@ export class CallSignalingHandler {
         if (data?.wrappedSessionKey && message.fromUserId) {
             WebRTC.receiveWrappedSessionKey(message.fromUserId, data.wrappedSessionKey, sessionKeyHash);
         }
+    }
+
+    private handleCallMediaStateChange(data: any) {
+        const { fromUserId, data: mediaData } = data;
+        console.log("Received media state change from user", fromUserId, ":", mediaData);
+        
+        // Notify WebRTC about the media state change
+        WebRTC.handleParticipantMediaChange(fromUserId, mediaData);
     }
 }

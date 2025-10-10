@@ -117,6 +117,13 @@ export default function useCall() {
 
         // Set up remote stream handler
         WebRTC.setRemoteStreamHandler((userId: number, stream: MediaStream, type: 'audio' | 'video' | 'screenshare') => {
+            console.log(`Remote stream received: ${type} from user ${userId}`, {
+                streamId: stream.id,
+                active: stream.active,
+                videoTracks: stream.getVideoTracks().length,
+                audioTracks: stream.getAudioTracks().length
+            });
+            
             if (type === 'audio') {
             if (!remoteAudioRef.current) {
                 return;
@@ -156,6 +163,12 @@ export default function useCall() {
 
                 const assignRemoteStream = () => {
                     if (videoRef && videoRef.current) {
+                        console.log(`Assigning remote ${type} stream to element for user ${userId}:`, {
+                            hasElement: !!videoRef.current,
+                            isConnected: videoRef.current.isConnected,
+                            hasSrcObject: !!videoRef.current.srcObject
+                        });
+                        
                         try {
                             videoRef.current.srcObject = stream;
                             videoRef.current.autoplay = true;

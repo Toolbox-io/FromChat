@@ -768,10 +768,26 @@ export async function toggleVideo(): Promise<boolean> {
 
             // Add video track to all peer connections
             const videoTrack = activeCall.localStreams.video!.getVideoTracks()[0];
-            for (const [, participant] of activeCall.participants) {
-                participant.peerConnection.addTrack(videoTrack, activeCall.localStreams.video!);
+            console.log("Adding video track to peer connections:", {
+                trackId: videoTrack.id,
+                trackLabel: videoTrack.label,
+                trackEnabled: videoTrack.enabled,
+                trackReadyState: videoTrack.readyState,
+                participantCount: activeCall.participants.size
+            });
+            
+            for (const [participantId, participant] of activeCall.participants) {
+                console.log(`Adding video track to participant ${participantId}`);
+                const sender = participant.peerConnection.addTrack(videoTrack, activeCall.localStreams.video!);
+                console.log(`Video track sender created for participant ${participantId}:`, {
+                    trackId: sender.track?.id,
+                    trackKind: sender.track?.kind,
+                    trackLabel: sender.track?.label
+                });
+                
                 // Small delay to ensure track is fully established before applying E2EE
                 setTimeout(async () => {
+                    console.log(`Applying E2EE transforms to participant ${participantId}`);
                     await applyE2EETransforms(participant);
                 }, 100);
             }
@@ -1008,6 +1024,29 @@ export function getActiveCall(): ActiveCall | null {
 export function getParticipant(userId: number): CallParticipant | undefined {
     return activeCall?.participants.get(userId);
 }
+
+export const handleParticipantMediaChange = (userId: number, mediaData: { mediaType: string, enabled: boolean }) => {
+    console.log("handleParticipantMediaChange called:", userId, mediaData);
+    
+    if (!activeCall || !activeCall.participants.has(userId)) {
+        console.warn("No active call or participant not found:", userId);
+        return;
+    }
+    
+    const participant = activeCall.participants.get(userId)!;
+    
+    // Update participant's media state
+    if (mediaData.mediaType === 'video') {
+        participant.mediaState.hasVideo = mediaData.enabled;
+    } else if (mediaData.mediaType === 'screenshare') {
+        participant.mediaState.hasScreenshare = mediaData.enabled;
+    }
+    
+    // Notify UI about the media state change
+    if (onParticipantMediaChange) {
+        onParticipantMediaChange(userId, participant.mediaState);
+    }
+};
 
 export function cleanupCall(): void {
     
