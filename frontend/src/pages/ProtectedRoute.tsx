@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAppState } from "./app/ui/state";
+import { useAppState } from "./chat/state";
 import { useNavigate } from "react-router-dom";
 
 interface ProtectedRouteProps {

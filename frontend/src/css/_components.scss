@@ -1,0 +1,84 @@
+@use "material" as *;
+@use "sass:color";
+
+.text-center {
+    text-align: center;
+}
+
+.alert {
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+
+    &.alert-success {
+        background-color: #C6F6D5;
+        color: #22543D;
+    }
+    
+    &.alert-danger {
+        background-color: #FED7D7;
+        color: #742A2A;
+    }
+}
+
+.link {
+    color: $color-dark-primary; 
+    font-weight: 600;
+}
+
+button, input {
+    font: inherit;
+}
+
+// Dialog content styles
+.dialog-content {
+    h3 {
+        margin: 0 0 1rem 0;
+        color: $color-dark-on-surface;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    
+    mdui-text-field {
+        width: 100%;
+    }
+    
+    .dialog-actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+        margin-top: 1rem;
+    }
+}
+
+.rich-text-area {
+    width: 100%;
+    resize: none;
+    transition: height 0.2s ease;
+    overflow-y: hidden;
+    background-color: transparent;
+    display: block;
+}
+
+.quote {
+    background-color: $color-dark-surface-primary-container-lightened;
+    border-radius: 8px;
+    overflow: hidden;
+
+    color: $color-dark-on-surface-variant;
+    font-size: 0.9rem;
+    line-height: 1.4;
+
+    &.bg-surfaceContainer {
+        background-color: $color-dark-secondary-container;
+
+        .quote-inner {
+            border-left: 3px solid $color-dark-secondary;
+        }
+    }
+
+    .quote-inner {
+        border-left: 3px solid $color-dark-primary;
+        padding: 0.5rem;
+    }
+}

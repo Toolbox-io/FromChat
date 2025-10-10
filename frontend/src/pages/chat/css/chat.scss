@@ -1,0 +1,11 @@
+// Import all component-specific styles
+@use "layout";
+@use "left-panel";
+@use "right-panel";
+@use "message";
+@use "chat-input";
+@use "message-reactions";
+@use "context-menu";
+@use "profile-dialog";
+@use "settings-dialog";
+@use "animations";

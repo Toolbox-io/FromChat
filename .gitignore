@@ -573,4 +573,4 @@ package-lock.json
 backend/alembic/**
 !backend/alembic/env.py
 !backend/alembic/script.py.mako
-!frontend/src/pages/app/resources/css/lib
+!frontend/src/css/lib

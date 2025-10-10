@@ -1,17 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ElectronTitleBar } from "./pages/app/ui/components/Electron";
-import { useAppState } from "./pages/app/ui/state";
-import { useEffect, useState } from "react";
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ChatPage from "./pages/ChatPage";
-import DownloadAppPage from "./pages/DownloadAppPage";
-import NotFoundPage from "./pages/NotFoundPage";
+import { ElectronTitleBar } from "./Electron";
+import { useAppState } from "./pages/chat/state";
+import { useEffect, useState, lazy, Suspense } from "react";
+import { isElectron } from "./core/electron/electron";
+import { MINIMUM_WIDTH } from "./core/config";
+import useWindowSize from "./core/hooks/useWindowSize";
 import ProtectedRoute from "./pages/ProtectedRoute";
-import { isElectron } from "./pages/app/electron/electron";
-import { MINIMUM_WIDTH } from "./pages/app/core/config";
-import useWindowSize from "./pages/app/ui/hooks/useWindowSize";
+import NotFoundPage from "./pages/not-found/NotFoundPage";
+import DownloadAppPage from "./pages/download-app/DownloadAppPage";
+
+// Lazy load route components
+const HomePage = lazy(() => import("./pages/home/HomePage"));
+const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
+const ChatPage = lazy(() => import("./pages/chat/ui/ChatPage"));
 
 export default function App() {
     const { restoreUserFromStorage } = useAppState();
@@ -31,10 +33,24 @@ export default function App() {
             <ElectronTitleBar />
             <div id="main-wrapper">
                 <Routes>
-                    z<Route path="/" element={<HomePage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/download-app" element={<DownloadAppPage />} />
+                    <Route path="/" element={
+                        <Suspense>
+                            <HomePage />
+                        </Suspense>
+                    } />
+                    <Route path="/login" element={
+                        <Suspense>
+                            <LoginPage />
+                        </Suspense>
+                    } />
+                    <Route path="/register" element={
+                        <Suspense>
+                            <RegisterPage />
+                        </Suspense>
+                    } />
+                    <Route path="/download-app" element={
+                        <DownloadAppPage />
+                    } />
                     <Route path="/">
                         <Route path="chat" element={
                             <ProtectedRoute>
@@ -42,7 +58,9 @@ export default function App() {
                             </ProtectedRoute>
                         } />
                     </Route>
-                    <Route path="*" element={<NotFoundPage />} />
+                    <Route path="*" element={
+                        <NotFoundPage />
+                    } />
                 </Routes>
             </div>
         </BrowserRouter>
