@@ -3,14 +3,31 @@ import * as WebRTC from "@/core/calls/webrtc";
 import { CallSignalingHandler } from "@/core/calls/signaling";
 import { setCallSignalingHandler } from "@/core/websocket";
 import { generateCallSessionKey, generateCallEmojis, createCallSessionKeyFromHash } from "@/core/calls/encryption";
-import { createRef, useEffect } from "react";
+import { createRef, useEffect, useRef } from "react";
 
-// Global audio ref shared across all instances
+// Global refs shared across all instances
 let globalRemoteAudioRef = createRef<HTMLAudioElement>();
+let globalRemoteVideoRefs = new Map<number, React.RefObject<HTMLVideoElement | null>>();
+let globalRemoteScreenshareRefs = new Map<number, React.RefObject<HTMLVideoElement | null>>();
 
-export default function useAudioCall() {
-    const { chat, startCall, endCall, setCallStatus, toggleMute, setCallEncryption, setCallSessionKeyHash, user } = useAppState();
+export default function useCall() {
+    const { 
+        chat, 
+        startCall, 
+        endCall, 
+        setCallStatus, 
+        toggleMute, 
+        toggleVideo, 
+        toggleScreenshare, 
+        updateParticipantMedia, 
+        setPermissionError, 
+        setCallEncryption, 
+        setCallSessionKeyHash, 
+        user 
+    } = useAppState();
     const remoteAudioRef = globalRemoteAudioRef;
+    const localVideoRef = useRef<HTMLVideoElement>(null);
+    const localScreenshareRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
         if (user.authToken) {
@@ -32,7 +49,8 @@ export default function useAudioCall() {
         // Set up call state change handler
         WebRTC.setCallStateChangeHandler((userId: number, state: string) => {
             const call = chat.call;
-            if (call.remoteUserId === userId) {
+            const participant = call.participants.find(p => p.userId === userId);
+            if (participant) {
                 switch (state) {
                     case "connecting":
                         setCallStatus("connecting");
@@ -50,42 +68,80 @@ export default function useAudioCall() {
         });
 
         // Set up remote stream handler
-        WebRTC.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
-            if (!remoteAudioRef.current) {
-                return;
+        WebRTC.setRemoteStreamHandler((userId: number, stream: MediaStream, type: 'audio' | 'video' | 'screenshare') => {
+            if (type === 'audio') {
+                if (!remoteAudioRef.current) {
+                    return;
+                }
+                const el = remoteAudioRef.current;
+                try {
+                    el.srcObject = stream;
+                    el.muted = false;
+                    el.volume = 1.0;
+                    el.autoplay = true;
+
+                    // Handle audio events
+                    el.addEventListener("error", () => {
+                        console.warn("[AUDIO] element error", (el.error?.message) || el.error);
+                    });
+
+                    el.play().catch(() => {
+                        // Try to play after user interaction if autoplay is blocked
+                        const playAfterInteraction = () => {
+                            el.play().catch(() => {});
+                            document.removeEventListener('click', playAfterInteraction);
+                            document.removeEventListener('touchstart', playAfterInteraction);
+                        };
+                        document.addEventListener('click', playAfterInteraction);
+                        document.addEventListener('touchstart', playAfterInteraction);
+                    });
+                } catch (e) {
+                    console.warn("failed to attach remote audio stream:", e);
+                }
+            } else if (type === 'video' || type === 'screenshare') {
+                // Get or create video ref for this participant
+                let videoRef = globalRemoteVideoRefs.get(userId);
+                if (!videoRef) {
+                    videoRef = createRef<HTMLVideoElement | null>();
+                    globalRemoteVideoRefs.set(userId, videoRef);
+                }
+
+                if (videoRef && videoRef.current) {
+                    try {
+                        videoRef.current.srcObject = stream;
+                        videoRef.current.autoplay = true;
+                        videoRef.current.playsInline = true;
+                    } catch (e) {
+                        console.warn("failed to attach remote video stream:", e);
+                    }
+                }
             }
-            const el = remoteAudioRef.current;
-            try {
-                el.srcObject = stream;
-                el.muted = false;
-                el.volume = 1.0;
-                el.autoplay = true;
+        });
 
-                // Handle audio events
-                el.addEventListener("error", () => {
-                    console.warn("[AUDIO] element error", (el.error?.message) || el.error);
-                });
+        // Set up participant media change handler
+        WebRTC.setParticipantMediaChangeHandler((userId: number, mediaState) => {
+            updateParticipantMedia(userId, mediaState);
+        });
 
-                el.play().catch(() => {
-                    // Try to play after user interaction if autoplay is blocked
-                    const playAfterInteraction = () => {
-                        el.play().catch(() => {});
-                        document.removeEventListener('click', playAfterInteraction);
-                        document.removeEventListener('touchstart', playAfterInteraction);
-                    };
-                    document.addEventListener('click', playAfterInteraction);
-                    document.addEventListener('touchstart', playAfterInteraction);
-                });
-            } catch (e) {
-                console.warn("failed to attach remote stream:", e);
+        // Set up call state change handler
+        WebRTC.setCallStateChangeHandler((userId: number, state: string) => {
+            console.log("Call state changed:", state, "for user", userId);
+            if (state === "connected") {
+                setCallStatus("active");
+            } else if (state === "failed" || state === "disconnected" || state === "closed") {
+                setCallStatus("ended");
             }
         });
 
         return () => {
-            WebRTC.cleanup();
-            setCallSignalingHandler(null);
+            // Only cleanup when the component is actually unmounting, not when dependencies change
+            // This prevents cleanup during active call setup
+            if (!chat.call.isActive) {
+                WebRTC.cleanup();
+                setCallSignalingHandler(null);
+            }
         };
-    }, [user.authToken, chat.call.remoteUserId, setCallStatus, endCall, startCall]);
+    }, [user.authToken, setCallStatus, endCall, startCall]);
 
     // Watch for session key hash changes and generate emojis
     useEffect(() => {
@@ -119,7 +175,6 @@ export default function useAudioCall() {
             return;
         }
 
-
         let sessionKey;
         try {
             // Generate call session key and emojis
@@ -150,12 +205,13 @@ export default function useAudioCall() {
     };
 
     async function acceptCall() {
-        if (!chat.call.remoteUserId) {
+        const participant = chat.call.participants[0];
+        if (!participant) {
             return;
         }
 
         setCallStatus("connecting");
-        const success = await WebRTC.acceptCall(chat.call.remoteUserId);
+        const success = await WebRTC.acceptCall(participant.userId);
         
         if (!success) {
             endCall();
@@ -163,28 +219,51 @@ export default function useAudioCall() {
     };
 
     async function rejectCall() {
-        if (!chat.call.remoteUserId) {
+        const participant = chat.call.participants[0];
+        if (!participant) {
             return;
         }
 
-        await WebRTC.rejectCall(chat.call.remoteUserId);
+        await WebRTC.rejectCall(participant.userId);
         endCall();
     };
 
     async function handleEndCall() {
-        if (chat.call.remoteUserId) {
-            await WebRTC.endCall(chat.call.remoteUserId);
-        }
+        await WebRTC.endCall();
         endCall();
     };
 
     function handleToggleMute() {
-        if (chat.call.remoteUserId) {
-            const isMuted = WebRTC.toggleMute(chat.call.remoteUserId);
-            // Update mute state in store
-            if (isMuted !== chat.call.isMuted) {
-                toggleMute();
+        const isMuted = WebRTC.toggleMute();
+        // Update mute state in store
+        if (isMuted !== chat.call.localMedia.isMuted) {
+            toggleMute();
+        }
+    };
+
+    async function handleToggleVideo() {
+        try {
+            const hasVideo = await WebRTC.toggleVideo();
+            // Update video state in store
+            if (hasVideo !== chat.call.localMedia.hasVideo) {
+                toggleVideo();
             }
+        } catch (error) {
+            console.error("Failed to toggle video:", error);
+            setPermissionError('video', true);
+        }
+    };
+
+    async function handleToggleScreenshare() {
+        try {
+            const hasScreenshare = await WebRTC.toggleScreenshare();
+            // Update screenshare state in store
+            if (hasScreenshare !== chat.call.localMedia.hasScreenshare) {
+                toggleScreenshare();
+            }
+        } catch (error) {
+            console.error("Failed to toggle screenshare:", error);
+            setPermissionError('screenshare', true);
         }
     };
 
@@ -223,11 +302,17 @@ export default function useAudioCall() {
         rejectCall,
         endCall: handleEndCall,
         toggleMute: handleToggleMute,
+        toggleVideo: handleToggleVideo,
+        toggleScreenshare: handleToggleScreenshare,
         handleIncomingCall,
         handleCallOffer,
         handleCallAnswer,
         handleIceCandidate,
         handleCallSessionKey,
-        remoteAudioRef
+        remoteAudioRef,
+        localVideoRef,
+        localScreenshareRef,
+        globalRemoteVideoRefs,
+        globalRemoteScreenshareRefs
     };
 }

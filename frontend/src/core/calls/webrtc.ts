@@ -7,15 +7,21 @@ import { importAesGcmKey } from "@/utils/crypto/symmetric";
 import E2EEWorker from "./e2eeWorker?worker";
 import { rotateCallSessionKey, createSharedSecretAndDeriveSessionKey } from "./encryption";
 
-export interface WebRTCCall {
+export interface CallParticipant {
+    userId: number;
+    username: string;
     peerConnection: RTCPeerConnection;
-    localStream: MediaStream | null;
-    remoteStream: MediaStream | null;
-    isInitiator: boolean;
-    remoteUserId: number;
-    remoteUsername: string;
+    streams: {
+        audio?: MediaStream;
+        video?: MediaStream;
+        screenshare?: MediaStream;
+    };
+    mediaState: {
+        hasAudio: boolean;
+        hasVideo: boolean;
+        hasScreenshare: boolean;
+    };
     isEnding?: boolean;
-    isMuted?: boolean;
     // Insertable Streams E2EE
     sessionKey?: Uint8Array | null;
     sessionCryptoKey?: CryptoKey | null;
@@ -24,11 +30,36 @@ export interface WebRTCCall {
     lastKeyRotation?: number;
 }
 
+export interface ActiveCall {
+    callId: string;
+    participants: Map<number, CallParticipant>;
+    localStreams: {
+        audio?: MediaStream;
+        video?: MediaStream;
+        screenshare?: MediaStream;
+    };
+    localMediaState: {
+        hasAudio: boolean;
+        hasVideo: boolean;
+        hasScreenshare: boolean;
+        isMuted: boolean;
+    };
+    permissionStates: {
+        audio: boolean;
+        video: boolean;
+        screenshare: boolean;
+    };
+    isInitiator: boolean;
+    startTime?: number;
+}
+
 // Global state
 export let authToken: string | null = null;
 export let onCallStateChange: ((userId: number, state: string) => void) | null = null;
-export let onRemoteStream: ((userId: number, stream: MediaStream) => void) | null = null;
-const calls: Map<number, WebRTCCall> = new Map();
+export let onRemoteStream: ((userId: number, stream: MediaStream, type: 'audio' | 'video' | 'screenshare') => void) | null = null;
+export let onParticipantMediaChange: ((userId: number, mediaState: { hasAudio: boolean; hasVideo: boolean; hasScreenshare: boolean }) => void) | null = null;
+let activeCall: ActiveCall | null = null;
+let isCleaningUp = false;
 
 export function setAuthToken(token: string) {
     authToken = token;
@@ -38,8 +69,12 @@ export function setCallStateChangeHandler(handler: (userId: number, state: strin
     onCallStateChange = handler;
 }
 
-export function setRemoteStreamHandler(handler: (userId: number, stream: MediaStream) => void) {
+export function setRemoteStreamHandler(handler: (userId: number, stream: MediaStream, type: 'audio' | 'video' | 'screenshare') => void) {
     onRemoteStream = handler;
+}
+
+export function setParticipantMediaChangeHandler(handler: (userId: number, mediaState: { hasAudio: boolean; hasVideo: boolean; hasScreenshare: boolean }) => void) {
+    onParticipantMediaChange = handler;
 }
 
 async function sendSignalingMessage(message: CallSignalingMessage) {
@@ -88,28 +123,29 @@ async function getIceServers(): Promise<RTCIceServer[]> {
 }
 
 
-async function createPeerConnection(userId: number): Promise<RTCPeerConnection> {
+async function createParticipant(userId: number, username: string): Promise<CallParticipant> {
     const iceServers = await getIceServers();
     
     const peerConnection = new RTCPeerConnection({
         iceServers
     });
 
-    const call: WebRTCCall = {
+    const participant: CallParticipant = {
+        userId,
+        username,
         peerConnection,
-        localStream: null,
-        remoteStream: null,
-        isInitiator: false,
-        remoteUserId: userId,
-        remoteUsername: "",
-        isMuted: false,
+        streams: {},
+        mediaState: {
+            hasAudio: false,
+            hasVideo: false,
+            hasScreenshare: false
+        },
         sessionKey: null,
         sessionCryptoKey: null,
         sessionId: crypto.randomUUID()
     };
 
-    calls.set(userId, call);
-
+    // Set up peer connection event listeners
     peerConnection.addEventListener("icegatheringstatechange", () => {
         console.log("ICE gathering state changed:", peerConnection.iceGatheringState);
     });
@@ -150,71 +186,101 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
     // Handle remote stream
     peerConnection.addEventListener("track", (event) => {
         const [remoteStream] = event.streams;
-        const call = calls.get(userId);
-        if (call) {
-            call.remoteStream = remoteStream;
+        const track = event.track;
+        
+        if (!activeCall) return;
+        
+        const participant = activeCall.participants.get(userId);
+        if (participant) {
+            // Determine stream type based on track kind
+            let streamType: 'audio' | 'video' | 'screenshare' = 'audio';
+            if (track.kind === 'video') {
+                // For now, assume all video is regular video (not screenshare)
+                // In future, we could differentiate based on track.label or other metadata
+                streamType = 'video';
+            }
+            
+            // Store the stream
+            participant.streams[streamType] = remoteStream;
+            participant.mediaState[streamType === 'audio' ? 'hasAudio' : streamType === 'video' ? 'hasVideo' : 'hasScreenshare'] = true;
+            
+            // Notify listeners
             if (onRemoteStream) {
-                onRemoteStream(userId, remoteStream);
+                onRemoteStream(userId, remoteStream, streamType);
+            }
+            if (onParticipantMediaChange) {
+                onParticipantMediaChange(userId, participant.mediaState);
             }
         }
     });
 
     // Handle connection state changes
     peerConnection.addEventListener("connectionstatechange", () => {
-        console.log("WebRTC connection state changed:", peerConnection.connectionState);
-        const call = calls.get(userId);
-        if (call) {
-            if (onCallStateChange) {
-                onCallStateChange(userId, peerConnection.connectionState);
-            }
+        console.log("WebRTC connection state changed:", peerConnection.connectionState, "for user", userId);
+        
+        if (onCallStateChange) {
+            onCallStateChange(userId, peerConnection.connectionState);
+        }
 
-            // Clean up if connection failed or closed
-            if (peerConnection.connectionState === "failed" || 
-                peerConnection.connectionState === "closed" ||
-                peerConnection.connectionState === "disconnected") {
-                // Only send end call message if we're not already cleaning up
-                const call = calls.get(userId);
-                if (call && !call.isEnding) {
-                    call.isEnding = true;
-                    endCall(userId);
-                }
+        // Clean up if connection failed or closed
+        if (peerConnection.connectionState === "failed" || 
+            peerConnection.connectionState === "closed" ||
+            peerConnection.connectionState === "disconnected") {
+            
+            console.log("Connection state requires cleanup for user", userId);
+            if (!activeCall) {
+                console.log("No activeCall, skipping cleanup");
+                return;
+            }
+            const participant = activeCall.participants.get(userId);
+            if (participant && !participant.isEnding) {
+                console.log("Triggering endCall for user", userId);
+                participant.isEnding = true;
+                endCall();
             }
         }
     });
 
-    return peerConnection;
+    return participant;
 }
 
 export async function initiateCall(userId: number, username: string): Promise<boolean> {
     try {
-        // Get user media
-        const localStream = await navigator.mediaDevices.getUserMedia({
+        // Get user audio media
+        const localAudioStream = await navigator.mediaDevices.getUserMedia({
             audio: true,
             video: false
         });
 
-        // Create peer connection
-        await createPeerConnection(userId);
-        const call = calls.get(userId);
-        if (!call) return false;
+        // Create active call
+        const callId = crypto.randomUUID();
+        activeCall = {
+            callId,
+            participants: new Map(),
+            localStreams: {
+                audio: localAudioStream
+            },
+            localMediaState: {
+                hasAudio: true,
+                hasVideo: false,
+                hasScreenshare: false,
+                isMuted: false
+            },
+            permissionStates: {
+                audio: true,
+                video: false,
+                screenshare: false
+            },
+            isInitiator: true,
+            startTime: Date.now()
+        };
 
-        call.localStream = localStream;
-        call.remoteUsername = username;
-        call.isInitiator = true;
+        // Create participant
+        const participant = await createParticipant(userId, username);
+        activeCall.participants.set(userId, participant);
 
-        // Add tracks to peer connection
-        localStream.getTracks().forEach(track => call.peerConnection.addTrack(track, localStream));
-
-        // Enable insertable streams encryption on sender side if supported
-        try {
-            if (call.peerConnection.getSenders && call.peerConnection.getSenders().length > 0 && window.RTCRtpScriptTransform) {
-                const senders = call.peerConnection.getSenders();
-                for (const sender of senders) {
-                    if (!sender.track || sender.track.kind !== "audio") continue;
-                    // just mark; actual key set after wrap/send
-                }
-            }
-        } catch {}
+        // Add audio track to peer connection
+        localAudioStream.getTracks().forEach(track => participant.peerConnection.addTrack(track, localAudioStream));
 
         // Send call invite
         await sendSignalingMessage({
@@ -227,7 +293,7 @@ export async function initiateCall(userId: number, username: string): Promise<bo
         return true;
     } catch (error) {
         console.error("Failed to initiate call:", error);
-        cleanupCall(userId);
+        cleanupCall();
         return false;
     }
 }
@@ -267,38 +333,46 @@ export async function sendWrappedCallSessionKey(userId: number, sessionKey: Uint
     }
 }
 
-async function applyE2EETransforms(call: WebRTCCall): Promise<void> {
+async function applyE2EETransforms(participant: CallParticipant): Promise<void> {
     try {
         // @ts-ignore
-        if (!call.sessionKey || !window.RTCRtpScriptTransform) return;
-        const key = await importAesGcmKey(call.sessionKey);
-        call.sessionCryptoKey = key;
-        const receiver = call.peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
-        if (receiver) {
-            // @ts-ignore
-            receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt' });
+        if (!participant.sessionKey || !window.RTCRtpScriptTransform) return;
+        const key = await importAesGcmKey(participant.sessionKey);
+        participant.sessionCryptoKey = key;
+        
+        // Apply to all receivers (audio, video, screenshare)
+        const receivers = participant.peerConnection.getReceivers();
+        for (const receiver of receivers) {
+            if (receiver.track) {
+                // @ts-ignore
+                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt' });
+            }
         }
-        const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-        if (sender) {
-            // @ts-ignore
-            sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt' });
+        
+        // Apply to all senders (audio, video, screenshare)
+        const senders = participant.peerConnection.getSenders();
+        for (const sender of senders) {
+            if (sender.track) {
+                // @ts-ignore
+                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt' });
+            }
         }
     } catch {}
 }
 
 export async function setSessionKey(userId: number, keyBytes: Uint8Array): Promise<void> {
-    const call = calls.get(userId);
-    if (!call) return;
-    call.sessionKey = keyBytes;
-    call.lastKeyRotation = Date.now();
-    await applyE2EETransforms(call);
+    const participant = activeCall?.participants.get(userId);
+    if (!participant) return;
+    participant.sessionKey = keyBytes;
+    participant.lastKeyRotation = Date.now();
+    await applyE2EETransforms(participant);
     
     // Start key rotation timer (rotate every 10 minutes for long calls)
-    if (call.keyRotationTimer) {
-        clearInterval(call.keyRotationTimer);
+    if (participant.keyRotationTimer) {
+        clearInterval(participant.keyRotationTimer);
     }
     
-    call.keyRotationTimer = setInterval(async () => {
+    participant.keyRotationTimer = setInterval(async () => {
         await rotateSessionKey(userId);
     }, 10 * 60 * 1000); // 10 minutes
 }
@@ -307,28 +381,28 @@ export async function setSessionKey(userId: number, keyBytes: Uint8Array): Promi
  * Rotate the session key for a call to provide forward secrecy
  */
 async function rotateSessionKey(userId: number): Promise<void> {
-    const call = calls.get(userId);
-    if (!call || !call.sessionKey) return;
+    const participant = activeCall?.participants.get(userId);
+    if (!participant || !participant.sessionKey) return;
     
     try {
-        console.log("Rotating session key for call", userId);
+        console.log("Rotating session key for participant", userId);
         
         // Generate new session key
         const currentSessionKey = {
-            key: call.sessionKey,
+            key: participant.sessionKey,
             hash: "" // We'll generate a new hash
         };
         
         const newSessionKey = await rotateCallSessionKey(currentSessionKey);
         
-        // Update the call with new session key
-        call.sessionKey = newSessionKey.key;
-        call.lastKeyRotation = Date.now();
+        // Update the participant with new session key
+        participant.sessionKey = newSessionKey.key;
+        participant.lastKeyRotation = Date.now();
         
         // Reapply E2EE transforms with new key
-        await applyE2EETransforms(call);
+        await applyE2EETransforms(participant);
         
-        console.log("Session key rotated successfully for call", userId);
+        console.log("Session key rotated successfully for participant", userId);
     } catch (error) {
         console.error("Failed to rotate session key:", error);
     }
@@ -349,8 +423,7 @@ export async function receiveWrappedSessionKey(fromUserId: number, wrappedPayloa
         });
         
         // Then derive the actual session key from the shared secret
-        const call = calls.get(fromUserId);
-        const isInitiator = call?.isInitiator ?? false;
+        const isInitiator = activeCall?.isInitiator ?? false;
         const derivedSessionKey = await createSharedSecretAndDeriveSessionKey(senderPublicKey, sessionKeyHash, isInitiator);
         
         await setSessionKey(fromUserId, derivedSessionKey.key);
@@ -361,18 +434,29 @@ export async function receiveWrappedSessionKey(fromUserId: number, wrappedPayloa
 
 export async function acceptCall(userId: number): Promise<boolean> {
     try {
-        let call = calls.get(userId);
-        if (!call) {
-            // Create call object if it doesn't exist (for race conditions)
-            await createPeerConnection(userId);
-            call = calls.get(userId);
-            if (!call) return false;
+        // Wait a bit for handleIncomingCall to complete if it's running
+        let retries = 0;
+        while (!activeCall?.participants.has(userId) && retries < 10) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
+        }
+        
+        const participant = activeCall?.participants.get(userId);
+        if (!participant) {
+            console.error("No participant found for user", userId, "after waiting");
+            return false;
         }
 
-        // Get user media and attach
-        const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        call.localStream = localStream;
-        localStream.getTracks().forEach(track => call!.peerConnection.addTrack(track, localStream));
+        // Get user audio media and attach
+        const localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        
+        if (activeCall && !activeCall.localStreams.audio) {
+            activeCall.localStreams.audio = localAudioStream;
+            activeCall.localMediaState.hasAudio = true;
+            activeCall.permissionStates.audio = true;
+        }
+        
+        localAudioStream.getTracks().forEach(track => participant!.peerConnection.addTrack(track, localAudioStream));
 
         // Notify initiator that callee accepted; initiator will generate offer
         await sendSignalingMessage({
@@ -385,7 +469,7 @@ export async function acceptCall(userId: number): Promise<boolean> {
         return true;
     } catch (error) {
         console.error("Failed to accept call:", error);
-        cleanupCall(userId);
+        cleanupCall();
         return false;
     }
 }
@@ -398,51 +482,117 @@ export async function rejectCall(userId: number): Promise<void> {
         data: {}
     });
 
-    cleanupCall(userId);
+    cleanupCall();
 }
 
-export async function endCall(userId: number): Promise<void> {
-    const call = calls.get(userId);
-    if (call && !call.isEnding) {
-        call.isEnding = true;
+export async function endCall(): Promise<void> {
+    if (activeCall && !activeCall.participants.values().next().value?.isEnding) {
+        // Mark all participants as ending
+        for (const participant of activeCall.participants.values()) {
+            participant.isEnding = true;
+        }
         
-        // Send call end message
-        await sendSignalingMessage({
-            type: "call_end",
-            fromUserId: 0, // Will be set by server
-            toUserId: userId,
-            data: {}
-        });
+        // Send call end message to all participants
+        for (const [participantId] of activeCall.participants) {
+            await sendSignalingMessage({
+                type: "call_end",
+                fromUserId: 0, // Will be set by server
+                toUserId: participantId,
+                data: {}
+            });
+        }
 
-        cleanupCall(userId);
+        cleanupCall();
     }
 }
 
 export async function handleIncomingCall(userId: number, username: string): Promise<void> {
-    try {
-        // Create peer connection for incoming call
-        await createPeerConnection(userId);
-        const call = calls.get(userId);
-        if (!call) return;
+    // Prevent multiple calls to handleIncomingCall for the same user
+    if (activeCall && activeCall.participants.has(userId)) {
+        console.log("Incoming call already handled for user:", userId);
+        return;
+    }
+    
+    // Don't proceed if cleanup is in progress
+    if (isCleaningUp) {
+        console.log("Cleanup in progress, aborting handleIncomingCall");
+        return;
+    }
 
-        call.remoteUsername = username;
-        call.isInitiator = false;
+    try {
+        // Create active call for incoming call if it doesn't exist
+        if (!activeCall) {
+            const callId = crypto.randomUUID();
+            activeCall = {
+                callId,
+                participants: new Map(),
+                localStreams: {},
+                localMediaState: {
+                    hasAudio: false,
+                    hasVideo: false,
+                    hasScreenshare: false,
+                    isMuted: false
+                },
+                permissionStates: {
+                    audio: false,
+                    video: false,
+                    screenshare: false
+                },
+                isInitiator: false
+            };
+            console.log("Created new activeCall for incoming call:", callId);
+        } else {
+            console.log("Using existing activeCall:", activeCall.callId);
+        }
+
+        // Ensure activeCall exists before proceeding
+        if (!activeCall) {
+            throw new Error("Failed to create activeCall");
+        }
+
+        // Store reference to activeCall to prevent race conditions
+        const currentActiveCall = activeCall;
+        
+        // Double-check that activeCall still exists (might have been cleaned up by rejectCall)
+        if (!currentActiveCall) {
+            console.log("activeCall was cleaned up during participant creation, aborting");
+            return;
+        }
+        
+        // Create participant for incoming call if it doesn't exist
+        if (!currentActiveCall.participants.has(userId)) {
+            console.log("Creating participant for user:", userId);
+            const participant = await createParticipant(userId, username);
+            
+            // Triple-check that activeCall still exists after async operation
+            if (!activeCall) {
+                console.log("activeCall was cleaned up during createParticipant, aborting");
+                return;
+            }
+            
+            activeCall.participants.set(userId, participant);
+            console.log("Participant created and added to activeCall");
+        } else {
+            console.log("Participant already exists for user:", userId);
+        }
     } catch (error) {
         console.error("Failed to handle incoming call:", error);
-        cleanupCall(userId);
+        if (activeCall) {
+            cleanupCall();
+        }
     }
 }
 
 export async function onRemoteAccepted(userId: number): Promise<void> {
-    const call = calls.get(userId);
-    if (!call) {
-        throw new Error("No call found to accept");
+    const participant = activeCall?.participants.get(userId);
+    if (!participant) {
+        throw new Error("No participant found to accept");
     }
 
     try {
         // Create offer
-        const offer = await call.peerConnection.createOffer();
-        await call.peerConnection.setLocalDescription(offer);
+        const offer = await participant.peerConnection.createOffer();
+        await participant.peerConnection.setLocalDescription(offer);
 
         // Send offer to remote peer
         await sendSignalingMessage({
@@ -457,17 +607,25 @@ export async function onRemoteAccepted(userId: number): Promise<void> {
     }
 }
 
-async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKey']>, peerConnection: RTCPeerConnection, sessionId?: string): Promise<void> {
+async function createE2EETransform(sessionKey: NonNullable<CallParticipant['sessionKey']>, peerConnection: RTCPeerConnection, sessionId?: string): Promise<void> {
     try {
         if (sessionKey && window.RTCRtpScriptTransform) {
             const key = await importAesGcmKey(sessionKey);
-            const receiver = peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
-            if (receiver) {
-                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
+            
+            // Apply to all receivers (audio, video, screenshare)
+            const receivers = peerConnection.getReceivers();
+            for (const receiver of receivers) {
+                if (receiver.track) {
+                    receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
+                }
             }
-            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-            if (sender) {
-                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
+            
+            // Apply to all senders (audio, video, screenshare)
+            const senders = peerConnection.getSenders();
+            for (const sender of senders) {
+                if (sender.track) {
+                    sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
+                }
             }
         }
     } catch (error) {
@@ -477,21 +635,21 @@ async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKe
 }
 
 export async function handleCallOffer(userId: number, offer: RTCSessionDescriptionInit): Promise<void> {
-    const call = calls.get(userId);
-    if (!call) {
-        throw new Error("No call found for offer");
+    const participant = activeCall?.participants.get(userId);
+    if (!participant) {
+        throw new Error("No participant found for offer");
     }
 
     try {
         // Set remote description
-        await call.peerConnection.setRemoteDescription(offer);
+        await participant.peerConnection.setRemoteDescription(offer);
 
         // Create answer
-        const answer = await call.peerConnection.createAnswer();
-        await call.peerConnection.setLocalDescription(answer);
+        const answer = await participant.peerConnection.createAnswer();
+        await participant.peerConnection.setLocalDescription(answer);
 
         // Attach transforms on callee side if session key set and insertable streams supported
-        await createE2EETransform(call.sessionKey!, call.peerConnection, call.sessionId);
+        await createE2EETransform(participant.sessionKey!, participant.peerConnection, participant.sessionId);
 
         // Send answer to remote peer
         await sendSignalingMessage({
@@ -507,15 +665,15 @@ export async function handleCallOffer(userId: number, offer: RTCSessionDescripti
 }
 
 export async function handleCallAnswer(userId: number, answer: RTCSessionDescriptionInit): Promise<void> {
-    const call = calls.get(userId);
-    if (!call) {
-        throw new Error("No call found for answer");
+    const participant = activeCall?.participants.get(userId);
+    if (!participant) {
+        throw new Error("No participant found for answer");
     }
 
     try {
-        await call.peerConnection.setRemoteDescription(answer);
+        await participant.peerConnection.setRemoteDescription(answer);
         // After signaling completes, attach transforms on initiator side if supported
-        await createE2EETransform(call.sessionKey!, call.peerConnection, call.sessionId);
+        await createE2EETransform(participant.sessionKey!, participant.peerConnection, participant.sessionId);
     } catch (error) {
         console.error("Failed to handle answer:", error);
         throw error;
@@ -523,32 +681,192 @@ export async function handleCallAnswer(userId: number, answer: RTCSessionDescrip
 }
 
 export async function handleIceCandidate(userId: number, candidate: RTCIceCandidateInit): Promise<void> {
-    const call = calls.get(userId);
-    if (!call) {
-        console.warn("No call found for ICE candidate from user", userId);
+    const participant = activeCall?.participants.get(userId);
+    if (!participant) {
+        console.warn("No participant found for ICE candidate from user", userId);
         return;
     }
 
     try {
         console.log("Adding ICE candidate from user", userId, ":", candidate);
-        await call.peerConnection.addIceCandidate(candidate);
+        await participant.peerConnection.addIceCandidate(candidate);
     } catch (error) {
         console.error("Failed to add ICE candidate:", error);
     }
 }
 
-export function toggleMute(userId: number): boolean {
-    const call = calls.get(userId);
-    if (!call || !call.localStream) {
+export async function toggleVideo(): Promise<boolean> {
+    if (!activeCall) return false;
+
+    try {
+        if (!activeCall.localMediaState.hasVideo) {
+            // Enable video - request permission if not already granted
+            if (!activeCall.permissionStates.video) {
+                const videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+                activeCall.localStreams.video = videoStream;
+                activeCall.permissionStates.video = true;
+            }
+
+            // Add video track to all peer connections
+            const videoTrack = activeCall.localStreams.video!.getVideoTracks()[0];
+            for (const [, participant] of activeCall.participants) {
+                participant.peerConnection.addTrack(videoTrack, activeCall.localStreams.video!);
+                // Reapply E2EE transforms to new track
+                applyE2EETransforms(participant);
+            }
+
+            activeCall.localMediaState.hasVideo = true;
+
+            // Send signaling to notify all participants
+            for (const [participantId] of activeCall.participants) {
+                await sendSignalingMessage({
+                    type: "call_media_state_change",
+                    fromUserId: 0,
+                    toUserId: participantId,
+                    data: {
+                        mediaType: "video",
+                        enabled: true
+                    }
+                });
+            }
+
+            return true;
+        } else {
+            // Disable video
+            if (activeCall.localStreams.video) {
+                activeCall.localStreams.video.getTracks().forEach(track => track.stop());
+            }
+
+            // Remove video tracks from all peer connections
+            for (const [, participant] of activeCall.participants) {
+                const senders = participant.peerConnection.getSenders();
+                senders.forEach(sender => {
+                    if (sender.track && sender.track.kind === 'video') {
+                        participant.peerConnection.removeTrack(sender);
+                    }
+                });
+            }
+
+            activeCall.localMediaState.hasVideo = false;
+
+            // Send signaling to notify all participants
+            for (const [participantId] of activeCall.participants) {
+                await sendSignalingMessage({
+                    type: "call_media_state_change",
+                    fromUserId: 0,
+                    toUserId: participantId,
+                    data: {
+                        mediaType: "video",
+                        enabled: false
+                    }
+                });
+            }
+
+            return false;
+        }
+    } catch (error) {
+        console.error("Failed to toggle video:", error);
+        return activeCall.localMediaState.hasVideo;
+    }
+}
+
+export async function toggleScreenshare(): Promise<boolean> {
+    if (!activeCall) return false;
+
+    try {
+        if (!activeCall.localMediaState.hasScreenshare) {
+            // Enable screenshare - request permission if not already granted
+            if (!activeCall.permissionStates.screenshare) {
+                const screenshareStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: true
+                });
+                activeCall.localStreams.screenshare = screenshareStream;
+                activeCall.permissionStates.screenshare = true;
+
+                // Handle screenshare end event
+                screenshareStream.getVideoTracks()[0].addEventListener('ended', () => {
+                    toggleScreenshare(); // Disable screenshare when user stops sharing
+                });
+            }
+
+            // Add screenshare track to all peer connections
+            const screenshareTrack = activeCall.localStreams.screenshare!.getVideoTracks()[0];
+            for (const [, participant] of activeCall.participants) {
+                participant.peerConnection.addTrack(screenshareTrack, activeCall.localStreams.screenshare!);
+                // Reapply E2EE transforms to new track
+                applyE2EETransforms(participant);
+            }
+
+            activeCall.localMediaState.hasScreenshare = true;
+
+            // Send signaling to notify all participants
+            for (const [participantId] of activeCall.participants) {
+                await sendSignalingMessage({
+                    type: "call_media_state_change",
+                    fromUserId: 0,
+                    toUserId: participantId,
+                    data: {
+                        mediaType: "screenshare",
+                        enabled: true
+                    }
+                });
+            }
+
+            return true;
+        } else {
+            // Disable screenshare
+            if (activeCall.localStreams.screenshare) {
+                activeCall.localStreams.screenshare.getTracks().forEach(track => track.stop());
+            }
+
+            // Remove screenshare tracks from all peer connections
+            for (const [, participant] of activeCall.participants) {
+                const senders = participant.peerConnection.getSenders();
+                senders.forEach(sender => {
+                    if (sender.track && sender.track.kind === 'video' && sender.track.label.includes('screen')) {
+                        participant.peerConnection.removeTrack(sender);
+                    }
+                });
+            }
+
+            activeCall.localMediaState.hasScreenshare = false;
+
+            // Send signaling to notify all participants
+            for (const [participantId] of activeCall.participants) {
+                await sendSignalingMessage({
+                    type: "call_media_state_change",
+                    fromUserId: 0,
+                    toUserId: participantId,
+                    data: {
+                        mediaType: "screenshare",
+                        enabled: false
+                    }
+                });
+            }
+
+            return false;
+        }
+    } catch (error) {
+        console.error("Failed to toggle screenshare:", error);
+        return activeCall.localMediaState.hasScreenshare;
+    }
+}
+
+export function toggleMute(): boolean {
+    if (!activeCall || !activeCall.localStreams.audio) {
         return false;
     }
 
-    if (!call.isMuted) {
+    if (!activeCall.localMediaState.isMuted) {
         // Mute: Stop the track completely (no green dot)
-        const audioTrack = call.localStream.getAudioTracks()[0];
+        const audioTrack = activeCall.localStreams.audio.getAudioTracks()[0];
         if (audioTrack) {
             audioTrack.stop();
-            call.localStream.removeTrack(audioTrack);
+            activeCall.localStreams.audio.removeTrack(audioTrack);
         }
         
         // Create a silent audio track using Web Audio API
@@ -572,38 +890,42 @@ export function toggleMute(userId: number): boolean {
         // Add the silent track to maintain WebRTC connection
         const silentTrack = destination.stream.getAudioTracks()[0];
         if (silentTrack) {
-            call.localStream.addTrack(silentTrack);
+            activeCall.localStreams.audio.addTrack(silentTrack);
         }
         
-        call.isMuted = true;
+        activeCall.localMediaState.isMuted = true;
         return true; // Muted
     } else {
         // Unmute: Re-enable microphone by getting new audio stream
         navigator.mediaDevices.getUserMedia({ audio: true, video: false })
             .then(newStream => {
                 // Remove any existing audio tracks from the stream
-                call.localStream!.getAudioTracks().forEach(track => track.stop());
+                activeCall!.localStreams.audio!.getAudioTracks().forEach(track => track.stop());
                 
                 // Get the new active track
                 const newAudioTrack = newStream.getAudioTracks()[0];
                 
-                // Replace the track in the peer connection
-                const sender = call.peerConnection.getSenders().find(s => 
-                    s.track && s.track.kind === 'audio'
-                );
-                
-                if (sender) {
-                    // Replace the track in the existing sender
-                    sender.replaceTrack(newAudioTrack);
-                } else {
-                    // Add the track to the peer connection if no sender exists
-                    call.peerConnection.addTrack(newAudioTrack, call.localStream!);
+                // Replace the track in all peer connections
+                for (const [, participant] of activeCall!.participants) {
+                    const sender = participant.peerConnection.getSenders().find(s => 
+                        s.track && s.track.kind === 'audio'
+                    );
+                    
+                    if (sender) {
+                        // Replace the track in the existing sender
+                        sender.replaceTrack(newAudioTrack);
+                    } else {
+                        // Add the track to the peer connection if no sender exists
+                        participant.peerConnection.addTrack(newAudioTrack, activeCall!.localStreams.audio!);
+                    }
+                    // Reapply E2EE transforms to new track
+                    applyE2EETransforms(participant);
                 }
                 
                 // Add the track to the local stream
-                call.localStream!.addTrack(newAudioTrack);
+                activeCall!.localStreams.audio!.addTrack(newAudioTrack);
                 
-                call.isMuted = false;
+                activeCall!.localMediaState.isMuted = false;
             })
             .catch(error => {
                 console.error("Failed to re-enable microphone:", error);
@@ -612,36 +934,58 @@ export function toggleMute(userId: number): boolean {
     }
 }
 
-export function getCall(userId: number): WebRTCCall | undefined {
-    return calls.get(userId);
+export function getActiveCall(): ActiveCall | null {
+    return activeCall;
 }
 
-export function cleanupCall(userId: number): void {
-    const call = calls.get(userId);
-    if (call) {
-        // Clear key rotation timer
-        if (call.keyRotationTimer) {
-            clearInterval(call.keyRotationTimer);
+export function getParticipant(userId: number): CallParticipant | undefined {
+    return activeCall?.participants.get(userId);
+}
+
+export function cleanupCall(): void {
+    
+    // Prevent multiple cleanup calls
+    if (isCleaningUp) {
+        console.log("Cleanup already in progress, skipping");
+        return;
+    }
+    
+    // Set cleanup flag immediately to prevent race conditions
+    isCleaningUp = true;
+    
+    if (activeCall) {
+        // Clear key rotation timers
+        for (const participant of activeCall.participants.values()) {
+            if (participant.keyRotationTimer) {
+                clearInterval(participant.keyRotationTimer);
+            }
         }
         
-        // Close peer connection
-        if (call.peerConnection) {
-            call.peerConnection.close();
+        // Close peer connections
+        for (const participant of activeCall.participants.values()) {
+            if (participant.peerConnection) {
+                participant.peerConnection.close();
+            }
         }
 
-        // Stop local stream
-        if (call.localStream) {
-            call.localStream.getTracks().forEach(track => track.stop());
+        // Stop local streams
+        if (activeCall.localStreams.audio) {
+            activeCall.localStreams.audio.getTracks().forEach(track => track.stop());
+        }
+        if (activeCall.localStreams.video) {
+            activeCall.localStreams.video.getTracks().forEach(track => track.stop());
+        }
+        if (activeCall.localStreams.screenshare) {
+            activeCall.localStreams.screenshare.getTracks().forEach(track => track.stop());
         }
 
-        calls.delete(userId);
+        activeCall = null;
     }
+    
+    // Reset cleanup flag
+    isCleaningUp = false;
 }
 
 export function cleanup(): void {
-    // Clean up all calls
-    for (const userId of calls.keys()) {
-        cleanupCall(userId);
-    }
-    calls.clear();
+    cleanupCall();
 }

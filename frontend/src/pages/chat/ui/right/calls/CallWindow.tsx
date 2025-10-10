@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAppState, type CallStatus } from "@/pages/chat/state";
-import useAudioCall from "@/pages/chat/hooks/useAudioCall";
+import useCall from "@/pages/chat/hooks/useCall";
 import defaultAvatar from "@/images/default-avatar.png";
 import { createPortal } from "react-dom";
 import { id } from "@/utils/utils";
@@ -8,7 +8,18 @@ import { id } from "@/utils/utils";
 export function CallWindow() {
     const { chat, toggleCallMinimize } = useAppState();
     const { call } = chat;
-    const { acceptCall, rejectCall, remoteAudioRef, endCall, toggleMute } = useAudioCall();
+    const { 
+        acceptCall, 
+        rejectCall, 
+        remoteAudioRef, 
+        endCall, 
+        toggleMute, 
+        toggleVideo, 
+        toggleScreenshare,
+        localVideoRef,
+        localScreenshareRef,
+        globalRemoteVideoRefs
+    } = useCall();
     const [position, setPosition] = useState({ x: 100, y: 100 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -16,16 +27,16 @@ export function CallWindow() {
     const [isVisible, setIsVisible] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
     const [callData, setCallData] = useState<{
-        remoteUsername: string | null;
+        participants: typeof call.participants;
         status: CallStatus;
-        isInitiator: boolean;
-        isMuted: boolean;
+        localMedia: typeof call.localMedia;
+        permissionErrors: typeof call.permissionErrors;
     } | null>(null);
 
     const status = callData?.status || call.status;
-    const remoteUsername = callData?.remoteUsername || call.remoteUsername;
-    const isInitiator = callData?.isInitiator || call.isInitiator;
-    const isMuted = callData?.isMuted || call.isMuted;
+    const participants = callData?.participants || call.participants;
+    const localMedia = callData?.localMedia || call.localMedia;
+    const permissionErrors = callData?.permissionErrors || call.permissionErrors;
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -47,13 +58,13 @@ export function CallWindow() {
     useEffect(() => {
         if (call.isActive) {
             setCallData({
-                remoteUsername: call.remoteUsername,
+                participants: call.participants,
                 status: call.status,
-                isInitiator: call.isInitiator,
-                isMuted: call.isMuted
+                localMedia: call.localMedia,
+                permissionErrors: call.permissionErrors
             });
         }
-    }, [call.isActive, call.remoteUsername, call.status, call.isInitiator, call.isMuted]);
+    }, [call.isActive, call.participants, call.status, call.localMedia, call.permissionErrors]);
 
     // Handle visibility animation with entrance and exit delays
     useEffect(() => {
@@ -132,6 +143,42 @@ export function CallWindow() {
     }
 
 
+    // ParticipantTile component
+    function ParticipantTile({ participant, isLocal = false }: { participant: any, isLocal?: boolean }) {
+        const videoRef = isLocal ? localVideoRef : globalRemoteVideoRefs.get(participant.userId);
+        
+        return (
+            <div className="participant-tile">
+                {participant.hasVideo ? (
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted={isLocal}
+                        className="participant-video"
+                    />
+                ) : (
+                    <div className="participant-placeholder">
+                        <img src={defaultAvatar} alt="Avatar" className="participant-avatar" />
+                        <span className="participant-name">{participant.username}</span>
+                    </div>
+                )}
+                
+                {/* Audio indicator */}
+                <div className={`audio-indicator ${participant.hasAudio ? 'speaking' : 'muted'}`}>
+                    <mdui-icon name={participant.hasAudio ? "mic" : "mic_off"} />
+                </div>
+                
+                {/* Mute indicator for local participant */}
+                {isLocal && localMedia.isMuted && (
+                    <div className="mute-indicator">
+                        <mdui-icon name="mic_off" />
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     return (
         createPortal(
             <>
@@ -176,41 +223,104 @@ export function CallWindow() {
                                 />
                             </div>
                             
-                            <div className="user-info-centered">
-                                <img
-                                    src={defaultAvatar}
-                                    alt="Avatar"
-                                    className="avatar" />
-                                
-                                <div className="user-details">
-                                    <h3 className="username">
-                                        {remoteUsername}
-                                    </h3>
-                                    <p className="status">
-                                        {getStatusText()}
-                                    </p>
-                                    {call.encryptionEmojis.length > 0 && (
-                                        <div className="encryption-emojis">
-                                            {call.encryptionEmojis.map((emoji, index) => (
-                                                <span key={index} className="encryption-emoji">
-                                                    {emoji}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
+                            <div className="call-info">
+                                <h3 className="call-title">
+                                    {participants.length > 0 ? participants[0].username : "Call"}
+                                </h3>
+                                <p className="status">
+                                    {getStatusText()}
+                                </p>
+                                {call.encryptionEmojis.length > 0 && (
+                                    <div className="encryption-emojis">
+                                        {call.encryptionEmojis.map((emoji, index) => (
+                                            <span key={index} className="encryption-emoji">
+                                                {emoji}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="call-content">
+                            {/* Permission error messages */}
+                            {permissionErrors.video && (
+                                <div className="permission-error">
+                                    <mdui-icon name="videocam_off" />
+                                    <span>Video permission denied</span>
                                 </div>
+                            )}
+                            {permissionErrors.screenshare && (
+                                <div className="permission-error">
+                                    <mdui-icon name="screen_share" />
+                                    <span>Screenshare permission denied</span>
+                                </div>
+                            )}
+
+                            {/* Screenshare tile (if active) */}
+                            {localMedia.hasScreenshare && (
+                                <div className="screenshare-tile">
+                                    <video
+                                        ref={localScreenshareRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        className="screenshare-video"
+                                    />
+                                    <div className="screenshare-label">
+                                        <mdui-icon name="screen_share" />
+                                        <span>You are sharing your screen</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Participant grid */}
+                            <div className="participants-grid">
+                                {/* Local participant tile */}
+                                <ParticipantTile 
+                                    participant={{
+                                        userId: 0,
+                                        username: "You",
+                                        hasAudio: localMedia.hasAudio,
+                                        hasVideo: localMedia.hasVideo,
+                                        hasScreenshare: localMedia.hasScreenshare
+                                    }}
+                                    isLocal={true}
+                                />
+
+                                {/* Remote participant tiles */}
+                                {participants.map(participant => (
+                                    <ParticipantTile 
+                                        key={participant.userId}
+                                        participant={participant}
+                                        isLocal={false}
+                                    />
+                                ))}
                             </div>
                         </div>
 
                         <div className="call-controls">
-                            {status === "calling" && !isInitiator ? (
+                            {status === "calling" && participants.length > 0 ? (
                                 <>
                                     <mdui-button-icon onClick={acceptCall} icon="call" />
                                     <mdui-button-icon onClick={rejectCall} icon="call_end" />
                                 </>
                             ) : (
                                 <>
-                                    <mdui-button-icon onClick={toggleMute} icon={isMuted ? "mic_off" : "mic"} />
+                                    <mdui-button-icon 
+                                        onClick={toggleMute} 
+                                        icon={localMedia.isMuted ? "mic_off" : "mic"} 
+                                    />
+                                    <mdui-button-icon 
+                                        onClick={toggleVideo} 
+                                        icon={localMedia.hasVideo ? "videocam" : "videocam_off"}
+                                        className={localMedia.hasVideo ? "active" : ""}
+                                    />
+                                    <mdui-button-icon 
+                                        onClick={toggleScreenshare} 
+                                        icon={localMedia.hasScreenshare ? "stop_screen_share" : "screen_share"}
+                                        className={localMedia.hasScreenshare ? "active" : ""}
+                                    />
                                     <mdui-button-icon onClick={endCall} icon="call_end" />
                                 </>
                             )}

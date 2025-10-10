@@ -78,12 +78,10 @@ export class CallSignalingHandler {
 
     private handleCallReject(data: any) {
         const state = this.getState();
-        const { fromUserId } = data;
+        const { fromUserId: _ } = data;
         
         // Clean up WebRTC connection first
-        if (fromUserId) {
-            WebRTC.cleanupCall(fromUserId);
-        }
+        WebRTC.cleanupCall();
         
         // End the call
         state.endCall();
@@ -106,12 +104,10 @@ export class CallSignalingHandler {
 
     private handleCallEnd(data: any) {
         const state = this.getState();
-        const { fromUserId } = data;
+        const { fromUserId: _ } = data;
         
         // Clean up WebRTC connection first
-        if (fromUserId) {
-            WebRTC.cleanupCall(fromUserId);
-        }
+        WebRTC.cleanupCall();
         
         // End the call
         state.endCall();

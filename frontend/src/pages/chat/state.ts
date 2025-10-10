@@ -20,14 +20,30 @@ interface ActiveDM {
     publicKey: string | null
 }
 
+interface ParticipantInfo {
+    userId: number;
+    username: string;
+    hasAudio: boolean;
+    hasVideo: boolean;
+    hasScreenshare: boolean;
+}
+
 interface CallState {
     isActive: boolean;
     status: CallStatus;
     startTime: number | null;
-    isMuted: boolean;
-    remoteUserId: number | null;
-    remoteUsername: string | null;
-    isInitiator: boolean;
+    callId: string | null;
+    participants: ParticipantInfo[];
+    localMedia: {
+        hasAudio: boolean;
+        hasVideo: boolean;
+        hasScreenshare: boolean;
+        isMuted: boolean;
+    };
+    permissionErrors: {
+        video: boolean;
+        screenshare: boolean;
+    };
     isMinimized: boolean;
     sessionKeyHash: string | null;
     encryptionEmojis: string[];
@@ -75,8 +91,12 @@ interface AppState {
     endCall: () => void;
     setCallStatus: (status: CallStatus) => void;
     toggleMute: () => void;
+    toggleVideo: () => void;
+    toggleScreenshare: () => void;
     toggleCallMinimize: () => void;
     receiveCall: (userId: number, username: string) => void;
+    updateParticipantMedia: (userId: number, mediaState: { hasAudio: boolean; hasVideo: boolean; hasScreenshare: boolean }) => void;
+    setPermissionError: (type: 'video' | 'screenshare', error: boolean) => void;
     setCallEncryption: (sessionKeyHash: string, encryptionEmojis: string[]) => void;
     setCallSessionKeyHash: (sessionKeyHash: string) => void;
     
@@ -110,10 +130,18 @@ export const useAppState = create<AppState>((set, get) => ({
             isActive: false,
             status: "ended",
             startTime: null,
-            isMuted: false,
-            remoteUserId: null,
-            remoteUsername: null,
-            isInitiator: false,
+            callId: null,
+            participants: [],
+            localMedia: {
+                hasAudio: false,
+                hasVideo: false,
+                hasScreenshare: false,
+                isMuted: false
+            },
+            permissionErrors: {
+                video: false,
+                screenshare: false
+            },
             isMinimized: false,
             sessionKeyHash: null,
             encryptionEmojis: []
@@ -406,10 +434,24 @@ export const useAppState = create<AppState>((set, get) => ({
                 isActive: true,
                 status: "calling",
                 startTime: null,
-                isMuted: false,
-                remoteUserId: userId,
-                remoteUsername: username,
-                isInitiator: true,
+                callId: crypto.randomUUID(),
+                participants: [{
+                    userId,
+                    username,
+                    hasAudio: false,
+                    hasVideo: false,
+                    hasScreenshare: false
+                }],
+                localMedia: {
+                    hasAudio: true,
+                    hasVideo: false,
+                    hasScreenshare: false,
+                    isMuted: false
+                },
+                permissionErrors: {
+                    video: false,
+                    screenshare: false
+                },
                 isMinimized: false,
                 sessionKeyHash: null,
                 encryptionEmojis: []
@@ -424,10 +466,18 @@ export const useAppState = create<AppState>((set, get) => ({
                 isActive: false,
                 status: "ended",
                 startTime: null,
-                isMuted: false,
-                remoteUserId: null,
-                remoteUsername: null,
-                isInitiator: false,
+                callId: null,
+                participants: [],
+                localMedia: {
+                    hasAudio: false,
+                    hasVideo: false,
+                    hasScreenshare: false,
+                    isMuted: false
+                },
+                permissionErrors: {
+                    video: false,
+                    screenshare: false
+                },
                 isMinimized: false,
                 sessionKeyHash: null,
                 encryptionEmojis: []
@@ -451,7 +501,36 @@ export const useAppState = create<AppState>((set, get) => ({
             ...state.chat,
             call: {
                 ...state.chat.call,
-                isMuted: !state.chat.call.isMuted
+                localMedia: {
+                    ...state.chat.call.localMedia,
+                    isMuted: !state.chat.call.localMedia.isMuted
+                }
+            }
+        }
+    })),
+    
+    toggleVideo: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                localMedia: {
+                    ...state.chat.call.localMedia,
+                    hasVideo: !state.chat.call.localMedia.hasVideo
+                }
+            }
+        }
+    })),
+    
+    toggleScreenshare: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                localMedia: {
+                    ...state.chat.call.localMedia,
+                    hasScreenshare: !state.chat.call.localMedia.hasScreenshare
+                }
             }
         }
     })),
@@ -473,13 +552,52 @@ export const useAppState = create<AppState>((set, get) => ({
                 isActive: true,
                 status: "calling",
                 startTime: null,
-                isMuted: false,
-                remoteUserId: userId,
-                remoteUsername: username,
-                isInitiator: false,
+                callId: crypto.randomUUID(),
+                participants: [{
+                    userId,
+                    username,
+                    hasAudio: false,
+                    hasVideo: false,
+                    hasScreenshare: false
+                }],
+                localMedia: {
+                    hasAudio: false,
+                    hasVideo: false,
+                    hasScreenshare: false,
+                    isMuted: false
+                },
+                permissionErrors: {
+                    video: false,
+                    screenshare: false
+                },
                 isMinimized: false,
                 sessionKeyHash: null,
                 encryptionEmojis: []
+            }
+        }
+    })),
+    
+    updateParticipantMedia: (userId: number, mediaState: { hasAudio: boolean; hasVideo: boolean; hasScreenshare: boolean }) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                participants: state.chat.call.participants.map(p => 
+                    p.userId === userId ? { ...p, ...mediaState } : p
+                )
+            }
+        }
+    })),
+    
+    setPermissionError: (type: 'video' | 'screenshare', error: boolean) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                permissionErrors: {
+                    ...state.chat.call.permissionErrors,
+                    [type]: error
+                }
             }
         }
     })),

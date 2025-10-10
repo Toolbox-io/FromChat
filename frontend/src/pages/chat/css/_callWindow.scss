@@ -5,7 +5,8 @@
 
     position: fixed;
     z-index: 1000;
-    width: 300px;
+    width: 400px;
+    min-height: 300px;
     background-color: rgba($color-dark-surface, 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -16,6 +17,8 @@
     transition: opacity 0.3s $transition, transform 0.3s $transition;
     transform-origin: center;
     user-select: none;
+    display: flex;
+    flex-direction: column;
 
     &.visible {
         opacity: 1;
@@ -182,6 +185,208 @@
             }
         }
     }
+
+    .call-info {
+        text-align: center;
+        padding: 16px 0;
+
+        .call-title {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: $color-dark-on-surface;
+            margin: 0 0 4px 0;
+        }
+
+        .status {
+            font-size: 0.875rem;
+            color: rgba($color-dark-on-surface-variant, 0.7);
+            margin: 0;
+        }
+
+        .encryption-emojis {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 8px;
+
+            .encryption-emoji {
+                font-size: 20px;
+                display: inline-block;
+                animation: emoji-pulse 2s ease-in-out infinite;
+                
+                &:nth-child(1) { animation-delay: 0s; }
+                &:nth-child(2) { animation-delay: 0.2s; }
+                &:nth-child(3) { animation-delay: 0.4s; }
+                &:nth-child(4) { animation-delay: 0.6s; }
+            }
+        }
+    }
+}
+
+// Call content area
+.call-content {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 200px;
+
+    .permission-error {
+        background-color: rgba($color-dark-error, 0.1);
+        border: 1px solid rgba($color-dark-error, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: $color-dark-error;
+        font-size: 0.875rem;
+
+        mdui-icon {
+            font-size: 18px;
+        }
+    }
+
+    .screenshare-tile {
+        background-color: rgba($color-dark-surface-variant, 0.3);
+        border-radius: 12px;
+        padding: 8px;
+        margin-bottom: 12px;
+
+        .screenshare-video {
+            width: 100%;
+            height: 200px;
+            border-radius: 8px;
+            object-fit: contain;
+            background-color: rgba($color-dark-surface, 0.5);
+        }
+
+        .screenshare-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            color: $color-dark-on-surface-variant;
+            font-size: 0.875rem;
+
+            mdui-icon {
+                font-size: 16px;
+            }
+        }
+    }
+
+    .participants-grid {
+        display: grid;
+        gap: 12px;
+        flex: 1;
+        
+        // 1 participant (local only): single tile
+        &:has(.participant-tile:nth-child(1):last-child) {
+            grid-template-columns: 1fr;
+            place-items: center;
+        }
+
+        // 2 participants: side by side
+        &:has(.participant-tile:nth-child(2):last-child) {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        // 3-4 participants: 2x2 grid
+        &:has(.participant-tile:nth-child(3):last-child),
+        &:has(.participant-tile:nth-child(4):last-child) {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        // 5+ participants: adaptive grid with scrolling
+        &:has(.participant-tile:nth-child(5)) {
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    }
+
+    .participant-tile {
+        position: relative;
+        background-color: rgba($color-dark-surface-variant, 0.3);
+        border-radius: 12px;
+        overflow: hidden;
+        aspect-ratio: 16/9;
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .participant-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: rgba($color-dark-surface, 0.5);
+        }
+
+        .participant-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+
+            .participant-avatar {
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                object-fit: cover;
+            }
+
+            .participant-name {
+                font-size: 0.875rem;
+                font-weight: 500;
+                color: $color-dark-on-surface;
+                text-align: center;
+                word-break: break-word;
+            }
+        }
+
+        .audio-indicator {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+
+            &.speaking {
+                background-color: rgba($color-dark-primary, 0.8);
+                color: $color-dark-on-primary;
+                animation: pulse 1.5s ease-in-out infinite;
+            }
+
+            &.muted {
+                background-color: rgba($color-dark-error, 0.8);
+                color: $color-dark-on-error;
+            }
+        }
+
+        .mute-indicator {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: rgba($color-dark-error, 0.8);
+            color: $color-dark-on-error;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+    }
 }
 
 .call-controls {
@@ -189,6 +394,13 @@
     display: flex;
     justify-content: center;
     gap: 12px;
+
+    mdui-button-icon {
+        &.active {
+            background-color: rgba($color-dark-primary, 0.2);
+            color: $color-dark-primary;
+        }
+    }
 }
 
 // Minimized call bar
@@ -403,5 +615,16 @@
     50% {
         transform: scale(1.2);
         opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.05);
     }
 }
