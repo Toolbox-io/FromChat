@@ -3,11 +3,11 @@ import { AuthContainer, AuthHeader } from "./Auth";
 import { AlertsContainer, type Alert, type AlertType } from "./Auth";
 import { useRef } from "react";
 import { TextField } from "mdui/components/text-field";
-import type { ErrorResponse, RegisterRequest, LoginResponse } from "../../core/types";
-import { API_BASE_URL } from "../../core/config";
-import { useAppState } from "../chat/state";
-import { MaterialTextField } from "../../core/components/TextField";
-import { ensureKeysOnLogin } from "../../core/api/authApi";
+import type { ErrorResponse, RegisterRequest, LoginResponse } from "@/core/types";
+import { API_BASE_URL } from "@/core/config";
+import { useAppState } from "@/pages/chat/state";
+import { MaterialTextField } from "@/core/components/TextField";
+import { ensureKeysOnLogin } from "@/core/api/authApi";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
 

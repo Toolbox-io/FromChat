@@ -1,6 +1,6 @@
 import { LeftPanel } from "./left/LeftPanel";
 import { RightPanel } from "./right/RightPanel";
-import "../css/chat.scss";
+import "@/pages/chat/css/chat.scss";
 
 export default function ChatPage() {
     return (

@@ -3,6 +3,7 @@ import { createHtmlPlugin } from "vite-plugin-html";
 import autoprefixer from "autoprefixer";
 import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
+import path from "path";
 
 const plugins: PluginOption[] = [
     react(),
@@ -46,6 +47,11 @@ if (process.env.VITE_ELECTRON) {
 
 export default defineConfig({
     plugins: plugins,
+    resolve: {
+        alias: {
+            "@": path.resolve(__dirname, "./src")
+        }
+    },
     server: {
         host: '0.0.0.0',
         port: 8301,

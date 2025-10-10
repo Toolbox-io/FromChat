@@ -1,12 +1,12 @@
-import { PRODUCT_NAME } from "../../../../core/config";
-import { useAppState } from "../../state";
-import defaultAvatar from "../../../../images/default-avatar.png";
+import { PRODUCT_NAME } from "@/core/config";
+import { useAppState } from "@/pages/chat/state";
+import defaultAvatar from "@/images/default-avatar.png";
 import { useState, type FormEvent } from "react";
 import { ProfileDialog } from "./profile/ProfileDialog";
 import { SettingsDialog } from "./settings/SettingsDialog";
 import { DMUsersList } from "./DMUsersList";
 import type { Tabs } from "mdui";
-import type { ChatTabs } from "../../state";
+import type { ChatTabs } from "@/pages/chat/state";
 
 function BottomAppBar() {
     const [settingsOpen, onSettingsOpenChange] = useState(false);

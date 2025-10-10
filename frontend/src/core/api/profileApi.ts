@@ -1,6 +1,6 @@
 import { getAuthHeaders } from "./authApi";
-import { API_BASE_URL } from "../config";
-import type { UserProfile } from "../types";
+import { API_BASE_URL } from "@/core/config";
+import type { UserProfile } from "@/core/types";
 
 export interface ProfileData {
     profile_picture?: string;

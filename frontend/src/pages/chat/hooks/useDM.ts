@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useAppState } from "../state";
+import { useAppState } from "@/pages/chat/state";
 import { 
     fetchUsers, 
     fetchUserPublicKey, 
@@ -7,8 +7,8 @@ import {
     decryptDm, 
     sendDMViaWebSocket 
 } from "../../../core/api/dmApi";
-import type { User, Message, DmEncryptedJSON } from "../../../core/types";
-import { websocket } from "../../../core/websocket";
+import type { User, Message, DmEncryptedJSON } from "@/core/types";
+import { websocket } from "@/core/websocket";
 
 export interface DMUser extends User {
     lastMessage?: string;

@@ -7,8 +7,8 @@ import {
     editDmEnvelope,
     deleteDmEnvelope
 } from "../../../../../core/api/dmApi";
-import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "../../../../../core/types";
-import type { UserState } from "../../../state";
+import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
+import type { UserState } from "@/pages/chat/state";
 
 export interface DMPanelData {
     userId: number;

@@ -1,15 +1,15 @@
 import { useImmer } from "use-immer";
 import { AlertsContainer, type Alert, type AlertType } from "./Auth";
 import { AuthContainer, AuthHeader } from "./Auth";
-import type { ErrorResponse, LoginRequest, LoginResponse } from "../../core/types";
-import { ensureKeysOnLogin } from "../../core/api/authApi";
-import { API_BASE_URL } from "../../core/config";
+import type { ErrorResponse, LoginRequest, LoginResponse } from "@/core/types";
+import { ensureKeysOnLogin } from "@/core/api/authApi";
+import { API_BASE_URL } from "@/core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
-import { useAppState } from "../chat/state";
-import { MaterialTextField } from "../../core/components/TextField";
-import { initialize, isSupported, startElectronReceiver, subscribe } from "../../core/push-notifications/push-notifications";
-import { isElectron } from "../../core/electron/electron";
+import { useAppState } from "@/pages/chat/state";
+import { MaterialTextField } from "@/core/components/TextField";
+import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
+import { isElectron } from "@/core/electron/electron";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
 

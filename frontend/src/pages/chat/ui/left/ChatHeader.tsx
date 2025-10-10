@@ -1,6 +1,6 @@
-import { PRODUCT_NAME } from "../../../../core/config";
-import useProfile from "../../hooks/useProfile";
-import defaultAvatar from "../../../resources/images/default-avatar.png";
+import { PRODUCT_NAME } from "@/core/config";
+import useProfile from "@/pages/chat/hooks/useProfile";
+import defaultAvatar from "@/images/default-avatar.png";
 import { useState } from "react";
 import { ProfileDialog } from "./profile/ProfileDialog";
 

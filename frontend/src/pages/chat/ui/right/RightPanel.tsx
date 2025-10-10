@@ -1,4 +1,4 @@
-import { useAppState } from "../../state";
+import { useAppState } from "@/pages/chat/state";
 import { MessagePanelRenderer } from "./MessagePanelRenderer";
 
 export function RightPanel() {

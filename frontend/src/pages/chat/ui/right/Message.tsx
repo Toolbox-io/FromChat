@@ -1,16 +1,16 @@
-import { formatTime, id } from "../../../../utils/utils";
-import type { Attachment, Message as MessageType, Reaction } from "../../../../core/types";
-import defaultAvatar from "../../../../images/default-avatar.png";
-import Quote from "../../../../core/components/Quote";
+import { formatTime, id } from "@/utils/utils";
+import type { Attachment, Message as MessageType, Reaction } from "@/core/types";
+import defaultAvatar from "@/images/default-avatar.png";
+import Quote from "@/core/components/Quote";
 import { parse } from "marked";
 import DOMPurify from "dompurify";
 import { useEffect, useState, useRef } from "react";
-import { getCurrentKeys } from "../../../../core/api/authApi";
-import { ecdhSharedSecret, deriveWrappingKey } from "../../../../utils/crypto/asymmetric";
-import { importAesGcmKey, aesGcmDecrypt } from "../../../../utils/crypto/symmetric";
-import { getAuthHeaders } from "../../../../core/api/authApi";
-import { useAppState } from "../../state";
-import { ub64 } from "../../../../utils/utils";
+import { getCurrentKeys } from "@/core/api/authApi";
+import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
+import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
+import { getAuthHeaders } from "@/core/api/authApi";
+import { useAppState } from "@/pages/chat/state";
+import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
 

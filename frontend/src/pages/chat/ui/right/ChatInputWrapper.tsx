@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { MaterialDialog } from "../../../../core/components/Dialog";
-import { RichTextArea } from "../../../../core/components/RichTextArea";
-import type { Message } from "../../../../core/types";
-import Quote from "../../../../core/components/Quote";
-import AnimatedHeight from "../../../../core/components/animations/AnimatedHeight";
+import { MaterialDialog } from "@/core/components/Dialog";
+import { RichTextArea } from "@/core/components/RichTextArea";
+import type { Message } from "@/core/types";
+import Quote from "@/core/components/Quote";
+import AnimatedHeight from "@/core/components/animations/AnimatedHeight";
 import { useImmer } from "use-immer";
 import { EmojiMenu } from "./EmojiMenu";
 

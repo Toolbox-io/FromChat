@@ -1,4 +1,4 @@
-import { useAppState } from "../../state";
+import { useAppState } from "@/pages/chat/state";
 
 export function ChatTabs() {
     const { chat, setActiveTab, switchToPublicChat } = useAppState();

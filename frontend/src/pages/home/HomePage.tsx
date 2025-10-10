@@ -1,6 +1,6 @@
 import { Navigate, useNavigate } from "react-router-dom";
-import { useAppState } from "../chat/state";
-import { isElectron } from "../../core/electron/electron";
+import { useAppState } from "@/pages/chat/state";
+import { isElectron } from "@/core/electron/electron";
 import "./home.scss";
 
 function GitHubLink({ children }: { children: React.ReactNode }) {

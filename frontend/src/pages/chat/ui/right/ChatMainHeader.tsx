@@ -1,5 +1,5 @@
-import { useAppState } from "../../state";
-import defaultAvatar from "../../../resources/images/default-avatar.png";
+import { useAppState } from "@/pages/chat/state";
+import defaultAvatar from "@/images/default-avatar.png";
 
 export function ChatMainHeader() {
     const { currentChat } = useAppState().chat;

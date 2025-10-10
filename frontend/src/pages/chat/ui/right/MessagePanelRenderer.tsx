@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { useAppState } from "../../state";
+import { useAppState } from "@/pages/chat/state";
 import { MessagePanel, type MessagePanelState } from "./panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
-import { setGlobalMessageHandler } from "../../../../core/websocket";
-import type { Message, WebSocketMessage } from "../../../../core/types";
-import defaultAvatar from "../../../../images/default-avatar.png";
-import AnimatedOpacity from "../../../../core/components/animations/AnimatedOpacity";
+import { setGlobalMessageHandler } from "@/core/websocket";
+import type { Message, WebSocketMessage } from "@/core/types";
+import defaultAvatar from "@/images/default-avatar.png";
+import AnimatedOpacity from "@/core/components/animations/AnimatedOpacity";
 import type { DMPanel } from "./panels/DMPanel";
 
 interface MessagePanelRendererProps {

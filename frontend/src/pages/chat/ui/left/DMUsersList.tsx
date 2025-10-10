@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { useDM, type DMUser } from "../../hooks/useDM";
-import { useAppState } from "../../state";
-import { fetchUserPublicKey } from "../../../../core/api/dmApi";
-import defaultAvatar from "../../../../images/default-avatar.png";
+import { useDM, type DMUser } from "@/pages/chat/hooks/useDM";
+import { useAppState } from "@/pages/chat/state";
+import { fetchUserPublicKey } from "@/core/api/dmApi";
+import defaultAvatar from "@/images/default-avatar.png";
 
 export function DMUsersList() {
     const { dmUsers, isLoadingUsers, loadUsers } = useDM();
