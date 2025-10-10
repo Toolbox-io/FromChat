@@ -4,6 +4,9 @@ import autoprefixer from "autoprefixer";
 import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { visualizer } from 'rollup-plugin-visualizer';
+
+const outDir = process.env.VITE_ELECTRON ? "build/electron/dist" : "build/normal/dist";
 
 const plugins: PluginOption[] = [
     react(),
@@ -18,6 +21,11 @@ const plugins: PluginOption[] = [
             minifyCSS: true,
             minifyJS: true
         }
+    }),
+    visualizer({
+        filename: `${outDir}/stats.html`,
+        open: true,
+        gzipSize: true
     })
 ]
 
@@ -85,7 +93,7 @@ export default defineConfig({
         },
         cssMinify: true,
         assetsInlineLimit: 0,
-        outDir: process.env.VITE_ELECTRON ? "build/electron/dist" : "build/normal/dist",
+        outDir: outDir,
         chunkSizeWarningLimit: 1024
     }
 });

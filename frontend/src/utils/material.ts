@@ -21,6 +21,7 @@ import 'mdui/components/top-app-bar';
 import 'mdui/components/top-app-bar-title';
 import 'mdui/components/switch';
 import 'mdui/components/chip';
+import "mdui/mdui.css";
 
 import { setColorScheme } from 'mdui/functions/setColorScheme.js';
 

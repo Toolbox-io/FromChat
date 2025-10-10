@@ -6,7 +6,6 @@
  */
 
 import './css/style.scss';
-import "mdui/mdui.css";
 
 import "./utils/material";
 import "./core/init";
