@@ -20,7 +20,7 @@ export function RichTextArea({
     placeholder,
     className,
     rows = 1,
-    autoComplete = "off",
+    autoComplete = "off"
 }: RichTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const hiddenTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -28,7 +28,7 @@ export function RichTextArea({
 
     function getStyleValue(computedStyle: CSSStyleDeclaration, prop: keyof CSSStyleDeclaration): number {
         const raw = computedStyle[prop] as string | number | undefined;
-        if (raw == null) return 0;
+        if (raw === null) return 0;
         const str = String(raw);
         return str.endsWith("px") ? parseFloat(str) : parseFloat(str) || 0;
     }
@@ -202,7 +202,7 @@ export function RichTextArea({
                     height: "auto",
                     minHeight: 0,
                     maxHeight: "none",
-                    overflow: "hidden",
+                    overflow: "hidden"
                 }}
                 rows={1}
             />

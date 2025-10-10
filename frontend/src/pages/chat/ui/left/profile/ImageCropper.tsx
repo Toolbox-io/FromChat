@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Size2D, Rect } from "@/core/types";
 
 interface ImageCropperProps {
@@ -17,13 +17,13 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
     const [dragStart, setDragStart] = useState<Size2D>({ x: 0, y: 0 });
 
     useEffect(() => {
+        const img = imageRef.current;
+
         if (imageFile) {
             const reader = new FileReader();
 
             function handleImageLoad() {
                 setIsLoaded(true);
-                // Initialize crop area to center of image
-                const img = imageRef.current;
                 if (img) {
                     const size = Math.min(img.naturalWidth, img.naturalHeight) * 0.8;
                     setCropArea({
@@ -36,9 +36,9 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
             }
 
             function handleReaderLoad() {
-                if (imageRef.current) {
+                if (img) {
                     setSrc(reader.result as string);
-                    imageRef.current.addEventListener("load", handleImageLoad);
+                    img.addEventListener("load", handleImageLoad);
                 }
             }
 
@@ -48,10 +48,10 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
             return () => {
                 reader.abort();
                 reader.removeEventListener("load", handleReaderLoad);
-                imageRef.current?.removeEventListener("load", handleImageLoad);
+                img?.removeEventListener("load", handleImageLoad);
             }
         }
-    }, [imageFile]);
+    }, [imageFile, imageRef]);
 
     function handleMouseDown(e: React.MouseEvent) {
         if (!isLoaded) return;
@@ -100,10 +100,11 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
     };
 
     function handleCrop() {
-        if (!canvasRef.current || !imageRef.current || !isLoaded) return;
+        const img = imageRef.current;
+        if (!canvasRef.current || !img || !isLoaded) return;
 
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
         // Set canvas size to crop area
@@ -112,47 +113,48 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
 
         // Draw cropped portion
         ctx.drawImage(
-            imageRef.current,
+            img,
             cropArea.x, cropArea.y, cropArea.width, cropArea.height,
             0, 0, cropArea.width, cropArea.height
         );
 
         // Convert to data URL
-        const croppedImageData = canvas.toDataURL('image/jpeg', 0.9);
+        const croppedImageData = canvas.toDataURL("image/jpeg", 0.9);
         onCrop(croppedImageData);
     };
 
-    function drawCropArea() {
-        if (!canvasRef.current || !imageRef.current || !isLoaded) return;
+    const drawCropArea = useCallback(() => {
+        const img = imageRef.current;
+        if (!canvasRef.current || !img || !isLoaded) return;
 
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Draw image
-        ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         // Draw crop overlay
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Clear crop area
-        ctx.globalCompositeOperation = 'destination-out';
+        ctx.globalCompositeOperation = "destination-out";
         ctx.fillRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
 
         // Draw crop border
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = '#fff';
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = "#fff";
         ctx.lineWidth = 2;
         ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
-    };
+    }, [cropArea, isLoaded, imageRef]);
 
     useEffect(() => {
         drawCropArea();
-    }, [cropArea, isLoaded]);
+    }, [cropArea, isLoaded, drawCropArea]);
 
     if (!imageFile) return null;
 
@@ -163,10 +165,10 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
                 width={400}
                 height={400}
                 style={{ 
-                    cursor: isDragging ? 'grabbing' : 'grab',
-                    border: '1px solid #ccc',
-                    maxWidth: '100%',
-                    height: 'auto'
+                    cursor: isDragging ? "grabbing" : "grab",
+                    border: "1px solid #ccc",
+                    maxWidth: "100%",
+                    height: "auto"
                 }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -176,7 +178,7 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
             <img
                 ref={imageRef}
                 src={src}
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
                 alt="Crop source"
             />
             <div className="cropper-actions">

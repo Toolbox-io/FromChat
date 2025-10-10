@@ -7,6 +7,7 @@ export default function AnimatedOpacity({ visible, duration = 0.5, onFinish, chi
 
     useEffect(() => {
         if (visible) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setShouldRender(true);
             setOpacity(0);
 
@@ -36,6 +37,7 @@ export default function AnimatedOpacity({ visible, duration = 0.5, onFinish, chi
                 transition: `opacity ${duration}s ease`,
                 ...props.style
             }}
-        >{children}</div>
+            >{children}
+        </div>
     );
 }

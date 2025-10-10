@@ -7,7 +7,7 @@ import {
     editDmEnvelope,
     deleteDmEnvelope
 } from "../../../../../core/api/dmApi";
-import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
+import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message, Reaction } from "@/core/types";
 import type { UserState } from "@/pages/chat/state";
 
 export interface DMPanelData {
@@ -69,7 +69,13 @@ export class DMPanel extends MessagePanel {
             timestamp: env.timestamp,
             is_read: false,
             is_edited: false,
-            files: env.files?.map(file => { return {"name": file.name, "encrypted": true, "path": file.path} }) || [],
+            files: env.files?.map(file => { 
+                return { 
+                    "name": file.name, 
+                    "encrypted": true, 
+                    "path": file.path 
+                } 
+            }) || [],
             reactions: env.reactions || [],
 
             runtimeData: {
@@ -231,7 +237,7 @@ export class DMPanel extends MessagePanel {
                 } catch {}
                 const updates: Partial<Message> = { content, is_edited: true, files };
                 this.updateMessage(id, updates);
-            } catch (e) {
+            } catch {
                 this.updateMessage(id, { is_edited: true });
             }
         }
@@ -308,7 +314,7 @@ export class DMPanel extends MessagePanel {
     
     handleProfileClick(): void {}
 
-    updateMessageReactions(dmEnvelopeId: number, reactions: any[]): void {
+    updateMessageReactions(dmEnvelopeId: number, reactions: Reaction[]): void {
         const messages = this.getMessages();
         const messageIndex = messages.findIndex(msg => 
             msg.runtimeData?.dmEnvelope?.id === dmEnvelopeId

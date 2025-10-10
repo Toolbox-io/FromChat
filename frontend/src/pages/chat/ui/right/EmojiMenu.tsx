@@ -30,11 +30,32 @@ export function EmojiMenu(props: EmojiMenuProps) {
     const tabsRef = useRef<HTMLDivElement>(null);
     const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-    useEffect(() => {
-        if (isOpen) {
-            setRecentEmojis(getRecentEmojis());
+    const scrollToCategory = useCallback((categoryName: string) => {
+        const element = categoryRefs.current.get(categoryName);
+        if (element && scrollRef.current) {
+            element.scrollIntoView({ 
+                behavior: "smooth", 
+                block: "start" 
+            });
         }
-    }, [isOpen]);
+    }, [categoryRefs, scrollRef]);
+
+    const scrollTabIntoView = useCallback((categoryName: string) => {
+        const tabElement = tabRefs.current.get(categoryName);
+        if (tabElement && tabsRef.current) {
+            const tabsRect = tabsRef.current.getBoundingClientRect();
+            const tabRect = tabElement.getBoundingClientRect();
+            
+            // Check if tab is outside the visible area
+            if (tabRect.left < tabsRect.left || tabRect.right > tabsRect.right) {
+                tabElement.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                    inline: "center"
+                });
+            }
+        }
+    }, [tabRefs, tabsRef]);
 
     const handleScroll = useCallback(() => {
         if (!scrollRef.current) return;
@@ -55,34 +76,14 @@ export function EmojiMenu(props: EmojiMenuProps) {
                 }
             }
         }
-    }, [activeCategory]);
+    }, [activeCategory, scrollTabIntoView]);
 
-    function scrollToCategory(categoryName: string) {
-        const element = categoryRefs.current.get(categoryName);
-        if (element && scrollRef.current) {
-            element.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
+    useEffect(() => {
+        if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setRecentEmojis(getRecentEmojis());
         }
-    }
-
-    function scrollTabIntoView(categoryName: string) {
-        const tabElement = tabRefs.current.get(categoryName);
-        if (tabElement && tabsRef.current) {
-            const tabsRect = tabsRef.current.getBoundingClientRect();
-            const tabRect = tabElement.getBoundingClientRect();
-            
-            // Check if tab is outside the visible area
-            if (tabRect.left < tabsRect.left || tabRect.right > tabsRect.right) {
-                tabElement.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'nearest',
-                    inline: 'center'
-                });
-            }
-        }
-    }
+    }, [isOpen]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {

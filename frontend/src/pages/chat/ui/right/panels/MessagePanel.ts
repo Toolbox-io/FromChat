@@ -1,4 +1,4 @@
-import type { Message, WebSocketMessage } from "@/core/types";
+import type { Message, Reaction, WebSocketMessage } from "@/core/types";
 import type { UserState } from "@/pages/chat/state";
 
 export interface MessagePanelState {
@@ -27,7 +27,7 @@ export abstract class MessagePanel {
 
     constructor(
         id: string,
-        currentUser: UserState,
+        currentUser: UserState
     ) {
         this.state = {
             id,
@@ -46,7 +46,7 @@ export abstract class MessagePanel {
     abstract loadMessages(): Promise<void>;
     protected abstract sendMessage(content: string, replyToId?: number, files?: File[]): Promise<void>;
     abstract isDm(): boolean;
-    abstract handleWebSocketMessage(response: WebSocketMessage<any>): Promise<void>;
+    abstract handleWebSocketMessage(response: WebSocketMessage<object>): Promise<void>;
 
     // Common methods
     protected updateState(updates: Partial<MessagePanelState>): void {
@@ -86,7 +86,7 @@ export abstract class MessagePanel {
         });
     }
 
-    protected updateMessageReactions(messageId: number, reactions: any[]): void {
+    protected updateMessageReactions(messageId: number, reactions: Reaction[]): void {
         this.updateState({
             messages: this.state.messages.map(msg => 
                 msg.id === messageId ? { ...msg, reactions } : msg
@@ -148,7 +148,7 @@ export abstract class MessagePanel {
             runtimeData: {
                 ...message.runtimeData,
                 sendingState: {
-                    status: 'sending',
+                    status: "sending",
                     tempId,
                     retryData: {
                         content,
@@ -194,7 +194,7 @@ export abstract class MessagePanel {
                                 ...msg.runtimeData,
                                 sendingState: {
                                     ...msg.runtimeData.sendingState,
-                                    status: 'failed'
+                                    status: "failed"
                                 }
                             }
                         };
@@ -222,7 +222,7 @@ export abstract class MessagePanel {
                             runtimeData: {
                                 ...confirmedMessage.runtimeData,
                                 sendingState: {
-                                    status: 'sent'
+                                    status: "sent"
                                 }
                             }
                         };
@@ -254,7 +254,7 @@ export abstract class MessagePanel {
         if (!content.trim() && files.length === 0) return;
 
         // Create temporary message for immediate display
-        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         const tempMessage: Message = {
             id: -1, // Temporary negative ID
             username: this.currentUser.currentUser?.username ?? "You",
@@ -269,7 +269,7 @@ export abstract class MessagePanel {
             })),
             runtimeData: {
                 sendingState: {
-                    status: 'sending',
+                    status: "sending",
                     tempId,
                     retryData: {
                         content: content.trim(),
@@ -336,7 +336,7 @@ export abstract class MessagePanel {
                                 ...msg.runtimeData,
                                 sendingState: {
                                     ...msg.runtimeData.sendingState,
-                                    status: 'failed'
+                                    status: "failed"
                                 }
                             }
                         };

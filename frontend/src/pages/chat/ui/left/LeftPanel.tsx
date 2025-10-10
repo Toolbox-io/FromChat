@@ -6,7 +6,7 @@ import { ProfileDialog } from "./profile/ProfileDialog";
 import { SettingsDialog } from "./settings/SettingsDialog";
 import { DMUsersList } from "./DMUsersList";
 import type { Tabs } from "mdui";
-import type { ChatTabs } from "@/pages/chat/state";
+import type { ChatTabs as ChatTabsType } from "@/pages/chat/state";
 
 function BottomAppBar() {
     const [settingsOpen, onSettingsOpenChange] = useState(false);
@@ -19,16 +19,15 @@ function BottomAppBar() {
     return (
         <>
             <mdui-bottom-app-bar>
-                <mdui-button-icon icon="settings--filled" id="settings-open" onClick={() => onSettingsOpenChange(true)}></mdui-button-icon>
-                <mdui-button-icon icon="group_add--filled"></mdui-button-icon>
-                <div style={{ flexGrow: 1 }}></div>
+                <mdui-button-icon icon="settings--filled" id="settings-open" onClick={() => onSettingsOpenChange(true)} />
+                <mdui-button-icon icon="group_add--filled" />
+                <div style={{ flexGrow: 1 }} />
                 <mdui-button-icon 
                     icon="logout--filled" 
                     id="logout-btn" 
                     onClick={handleLogout}
-                    title="Выйти"
-                ></mdui-button-icon>
-                <mdui-fab icon="edit--filled"></mdui-fab>
+                    title="Выйти" />
+                <mdui-fab icon="edit--filled" />
             </mdui-bottom-app-bar>
             <SettingsDialog isOpen={settingsOpen} onOpenChange={onSettingsOpenChange} />
         </>
@@ -45,7 +44,7 @@ function ChatTabs() {
     }
 
     function handleTabChange(e: FormEvent<Tabs>) {
-        setActiveTab((e.target as Tabs).value as ChatTabs);
+        setActiveTab((e.target as Tabs).value as ChatTabsType);
     }
 
     return (

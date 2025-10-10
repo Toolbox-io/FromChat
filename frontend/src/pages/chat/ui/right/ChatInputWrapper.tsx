@@ -51,11 +51,13 @@ export function ChatInputWrapper(
         if (onProvideFileAdder) {
             const addFiles = (files: File[]) => {
                 if (!files || files.length === 0) return;
-                setSelectedFiles(draft => { draft.push(...files) });
+                setSelectedFiles(draft => { 
+                    draft.push(...files) 
+                });
             };
             onProvideFileAdder(addFiles);
         }
-    }, [onProvideFileAdder]);
+    }, [onProvideFileAdder, setSelectedFiles]);
 
     // When entering edit mode, preload the message content
     useEffect(() => {
@@ -85,11 +87,11 @@ export function ChatInputWrapper(
         } else {
             setEmojiMenuOpen(false);
         }
-    };
+    }
 
     function handleEmojiSelect(emoji: string) {
         setMessage(prev => prev + emoji);
-    };
+    }
 
     async function handleSubmit(e: React.FormEvent | Event) {
         e.preventDefault();
@@ -113,14 +115,16 @@ export function ChatInputWrapper(
                 if (onClearReply) onClearReply();
             }
         }
-    };
+    }
 
     function handleAttachClick() {
         const input = document.createElement("input");
         input.type = "file";
         input.multiple = true;
         input.addEventListener("change", () => {
-            setSelectedFiles(draft => { draft.push(...Array.from(input.files || [])) });
+            setSelectedFiles(draft => { 
+                draft.push(...Array.from(input.files || [])) 
+            });
         });
         input.click();
     }
@@ -136,7 +140,7 @@ export function ChatInputWrapper(
                                 <span className="reply-username">{editingMessage!.username}</span>
                                 <span className="reply-text">{editingMessage!.content}</span>
                             </Quote>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearEdit}></mdui-button-icon>
+                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearEdit} />
                         </div>
                     )}
                 </AnimatedHeight>
@@ -148,7 +152,7 @@ export function ChatInputWrapper(
                                 <span className="reply-username">{replyTo!.username}</span>
                                 <span className="reply-text">{replyTo!.content}</span>
                             </Quote>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply}></mdui-button-icon>
+                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply} />
                         </div>
                     )}
                 </AnimatedHeight>
@@ -162,21 +166,23 @@ export function ChatInputWrapper(
                                         key={i}
                                         variant="input"
                                         end-icon="close"
-                                        title={`${file.name} (${Math.round(file.size/1024/1024)} MB)`}
+                                        title={`${file.name} (${Math.round(file.size / 1024 / 1024)} MB)`}
                                         onClick={() => {
-                                            if (selectedFiles.length == 1) {
+                                            if (selectedFiles.length === 1) {
                                                 setAttachmentsVisible(false);
                                             } else {
-                                                setSelectedFiles(draft => { draft.splice(i) })
+                                                setSelectedFiles(draft => { 
+                                                    draft.splice(i);
+                                                });
                                             }
                                         }}
                                     >
-                                        <mdui-icon slot="icon" name="attach_file"></mdui-icon>
+                                        <mdui-icon slot="icon" name="attach_file" />
                                         <span className="name">{file.name}</span>
                                     </mdui-chip>
                                 ))}
                             </div>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={() => setAttachmentsVisible(false)}></mdui-button-icon>
+                            <mdui-button-icon icon="close" className="reply-cancel" onClick={() => setAttachmentsVisible(false)} />
                         </div>
                     )}
                 </AnimatedHeight>
@@ -199,7 +205,7 @@ export function ChatInputWrapper(
                         onTextChange={(value) => setMessage(value)}
                         onEnter={handleSubmit} />
                     <div className="buttons">
-                        <mdui-button-icon icon="attach_file" onClick={handleAttachClick} className="attach-btn"></mdui-button-icon>
+                        <mdui-button-icon icon="attach_file" onClick={handleAttachClick} className="attach-btn" />
                         <button type="submit" className="send-btn">
                             <span className="material-symbols filled">{editingMessage ? "check" : "send"}</span>
                         </button>

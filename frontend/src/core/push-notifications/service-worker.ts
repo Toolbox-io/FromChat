@@ -8,7 +8,7 @@ interface NotificationPayload {
     icon?: string;
     image?: string;
     tag?: string;
-    data?: any;
+    data?: object;
 }
 
 interface NotificationAction {
@@ -22,7 +22,7 @@ interface NotificationOptions {
     badge: string;
     image?: string;
     tag: string;
-    data?: any;
+    data?: object;
     actions: NotificationAction[];
     requireInteraction: boolean;
     silent: boolean;

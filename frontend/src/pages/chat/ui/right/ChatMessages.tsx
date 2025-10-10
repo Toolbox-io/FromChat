@@ -22,7 +22,16 @@ interface ChatMessagesProps {
     dmRecipientPublicKey?: string;
 }
 
-export function ChatMessages({ messages = [], children, isDm = false, onReplySelect, onEditSelect, onDelete, onRetryMessage, dmRecipientPublicKey }: ChatMessagesProps) {
+export function ChatMessages({ 
+    messages = [], 
+    children, 
+    isDm = false, 
+    onReplySelect, 
+    onEditSelect, 
+    onDelete, 
+    onRetryMessage, 
+    dmRecipientPublicKey }: ChatMessagesProps
+) {
     const { user } = useAppState();
     
     // Use prop messages (panels provide their own messages)

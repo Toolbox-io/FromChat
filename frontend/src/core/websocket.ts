@@ -33,17 +33,17 @@ export let websocket: WebSocket = create();
  * Global WebSocket message handler reference
  * This will be set by the active panel to handle incoming messages
  */
-let globalMessageHandler: ((response: WebSocketMessage<any>) => void) | null = null;
+let globalMessageHandler: ((response: WebSocketMessage<object>) => void) | null = null;
 
 /**
  * Set the global WebSocket message handler
  * @param handler - Function to handle WebSocket messages
  */
-export function setGlobalMessageHandler(handler: ((response: WebSocketMessage<any>) => void) | null): void {
+export function setGlobalMessageHandler(handler: ((response: WebSocketMessage<object>) => void) | null): void {
     globalMessageHandler = handler;
 }
 
-export function request<Request, Response = any>(payload: WebSocketMessage<Request>): Promise<WebSocketMessage<Response>> {
+export function request<Request, Response = object>(payload: WebSocketMessage<Request>): Promise<WebSocketMessage<Response>> {
     console.log("WebSocket request:", payload);
     return new Promise((resolve, reject) => {
         function requestInner() {
@@ -58,7 +58,7 @@ export function request<Request, Response = any>(payload: WebSocketMessage<Reque
             setTimeout(() => reject("Request timed out"), 10000);
         }
 
-        if (websocket.readyState == 0) {
+        if (websocket.readyState === 0) {
             websocket.addEventListener("open", requestInner);
             setTimeout(() => reject("Request timed out"), 10000);
         } else {
@@ -79,10 +79,10 @@ async function onError() {
     await delay(3000);
     websocket = create();
 
-    let listener: () => void | null;
+    let listener: (() => void) | null = null;
     listener = () => {
         console.log("WebSocket successfully reconnected!");
-        websocket.removeEventListener("open", listener);
+        websocket.removeEventListener("open", listener!);
     }
 
     websocket.addEventListener("open", listener);
@@ -95,7 +95,7 @@ async function onError() {
 
 websocket.addEventListener("message", (e) => {
     try {
-        const response: WebSocketMessage<any> = JSON.parse(e.data);
+        const response: WebSocketMessage<object> = JSON.parse(e.data);
         
         // Route message to global handler if set
         if (globalMessageHandler) {

@@ -1,5 +1,6 @@
 import { aesGcmDecrypt, aesGcmEncrypt } from "./symmetric";
 import { importPassword, deriveKEK, randomBytes } from "./kdf";
+import { b64, ub64 } from "@/utils/utils";
 
 export interface PrivateKeyBundle {
 	version: 1;
@@ -46,7 +47,6 @@ export async function decryptBackupWithPassword(password: string, blob: Encrypte
 }
 
 export function encodeBlob(blob: EncryptedBackupBlob): string {
-	function b64(a: Uint8Array) { return btoa(String.fromCharCode(...a)); }
 	return JSON.stringify({
 		salt: b64(blob.salt),
 		iv: b64(blob.iv),
@@ -55,14 +55,6 @@ export function encodeBlob(blob: EncryptedBackupBlob): string {
 }
 
 export function decodeBlob(json: string): EncryptedBackupBlob {
-	function ub64(s: string) {
-		const bin = atob(s);
-		const arr = new Uint8Array(bin.length);
-		for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-		return arr;
-	}
 	const obj = JSON.parse(json);
 	return { salt: ub64(obj.salt), iv: ub64(obj.iv), ciphertext: ub64(obj.ciphertext) };
 }
-
-

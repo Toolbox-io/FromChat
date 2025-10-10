@@ -20,6 +20,7 @@ export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
     // Update form fields when profile data changes
     useEffect(() => {
         if (profileData) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setUsername(profileData.nickname || "");
             setDescription(profileData.description || "");
         }
@@ -40,7 +41,7 @@ export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file && file.type.startsWith('image/')) {
+        if (file && file.type.startsWith("image/")) {
             setSelectedImage(file);
             setShowCropper(true);
         }
@@ -57,25 +58,25 @@ export function ProfileDialog({ isOpen, onOpenChange }: DialogProps) {
                 setShowCropper(false);
                 setSelectedImage(null);
                 if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
+                    fileInputRef.current.value = "";
                 }
             }
         } catch (error) {
-            console.error('Error processing cropped image:', error);
+            console.error("Error processing cropped image:", error);
         }
     };
 
-    const handleCropCancel = () => {
+    function handleCropCancel() {
         setShowCropper(false);
         setSelectedImage(null);
         if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+            fileInputRef.current.value = "";
         }
-    };
+    }
 
-    const handleUploadClick = () => {
+    function handleUploadClick() {
         fileInputRef.current?.click();
-    };
+    }
 
     const profilePictureUrl = profileData?.profile_picture || defaultAvatar;
 

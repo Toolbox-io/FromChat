@@ -66,7 +66,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
             
             // Set up WebSocket message handler for this panel
             if (panel.handleWebSocketMessage) {
-                setGlobalMessageHandler((message: WebSocketMessage<any>) => panel.handleWebSocketMessage(message));
+                setGlobalMessageHandler((message: WebSocketMessage<object>) => panel.handleWebSocketMessage(message));
             }
         } else {
             setPanelState(null);
@@ -79,7 +79,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     panel.onStateChange = null;
                 }
 
-                if (typeof panel.destroy === 'function') {
+                if (typeof panel.destroy === "function") {
                     panel.destroy();
                 }
             }
@@ -95,27 +95,28 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
             function handleAnimationEnd(event: Event) {
                 const animationEvent = event as AnimationEvent;
                 
-                if (animationEvent.animationName === 'fadeOutUp') {
+                if (animationEvent.animationName === "fadeOutUp") {
                     // Apply pending panel exactly at the boundary between animations
                     applyPendingPanel();
                     setSwitchOut(false);
                     setSwitchIn(true);
-                } else if (animationEvent.animationName === 'fadeInDown') {
+                } else if (animationEvent.animationName === "fadeInDown") {
                     setSwitchIn(false);
                     // End the chat switching state
                     chat.setIsSwitching(false);
                 }
-            };
+            }
             
             // Add event listener to document to catch all animation events
-            document.addEventListener('animationend', handleAnimationEnd);
+            document.addEventListener("animationend", handleAnimationEnd);
             
             // Cleanup function
             return () => {
-                document.removeEventListener('animationend', handleAnimationEnd);
+                document.removeEventListener("animationend", handleAnimationEnd);
             };
         }
-    }, [chat.isSwitching]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chat.isSwitching, chat.setIsSwitching, applyPendingPanel]);
 
     // Load messages when panel changes and animation is not running
     useEffect(() => {
@@ -138,13 +139,9 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
         const el = messagesEndRef.current;
         if (!el) return;
 
-        // Scroll without animation when messages are initially loaded
         if (previousMessageCount === 0 && currentMessageCount > 0 && !panelState.isLoading) {
             el.scrollIntoView({ behavior: "instant", block: "end" });
-        }
-        // Scroll with animation when a new message is added
-        else if (currentMessageCount > previousMessageCount && previousMessageCount > 0) {
-            // Defer to next frame to ensure layout is stable
+        } else if (currentMessageCount > previousMessageCount && previousMessageCount > 0) {
             const id = requestAnimationFrame(() => {
                 el.scrollIntoView({ behavior: "smooth", block: "end" });
             });
@@ -154,6 +151,8 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
 
         // Update the previous message count
         previousMessageCountRef.current = currentMessageCount;
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps 
     }, [panelState?.messages, panelState?.isLoading, chat.isSwitching, switchOut, switchIn]);
 
     return (
@@ -200,18 +199,14 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                         alt="Avatar" 
                         className="chat-header-avatar"
                         onClick={panel?.handleProfileClick}
-                        style={{ cursor: panel ? "pointer" : "default" }}
-                    />
+                        style={{ cursor: panel ? "pointer" : "default" }} />
                     <div className="chat-header-info">
                         <div className="info-chat">
                             <h4 id="chat-name">{panelState?.title || "Выбор чата"}</h4>
                             <p>
-                                <span className={`online-status ${panelState?.online ? "online" : ""}`}></span>
+                                <span className={`online-status ${panelState?.online ? "online" : ""}`} />
                                 {panelState ? (
-                                    <>
-                                        {panelState.online ? "Online" : "Offline"}
-                                        {panelState.isTyping && " • Typing..."}
-                                    </>
+                                    panelState.online ? "Online" : "Offline"
                                 ) : (
                                     "Выберите чат, чтобы начать переписку"
                                 )}

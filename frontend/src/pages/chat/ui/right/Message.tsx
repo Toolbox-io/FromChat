@@ -4,7 +4,7 @@ import defaultAvatar from "@/images/default-avatar.png";
 import Quote from "@/core/components/Quote";
 import { parse } from "marked";
 import DOMPurify from "dompurify";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { getCurrentKeys } from "@/core/api/authApi";
 import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
@@ -42,6 +42,7 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
                 }, 200);
             } else {
                 // No visible reactions, hide immediately
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setIsVisible(false);
             }
             return;
@@ -99,7 +100,7 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
             
             return updated;
         });
-    }, [reactions]);
+    }, [reactions, visibleReactions]);
 
     // Don't render if not visible
     if (!isVisible) {
@@ -114,7 +115,7 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
                 
                 return (
                     <button
-                        key={`${messageId || 'unknown'}-${reaction.emoji}-${reaction.count}-${index}`}
+                        key={`${messageId || "unknown"}-${reaction.emoji}-${reaction.count}-${index}`}
                         className={`reaction-button ${hasUserReacted ? "reacted" : ""} ${isAnimating ? "removing" : ""}`}
                         onClick={() => onReactionClick(reaction.emoji)}
                         title={reaction.users.map(u => u.username).join(", ")}
@@ -147,7 +148,16 @@ interface Rect {
     height: number
 }
 
-export function Message({ message, isAuthor, onProfileClick, onContextMenu, onReactionClick, isLoadingProfile = false, isDm = false, dmRecipientPublicKey }: MessageProps) {
+export function Message({ 
+    message, 
+    isAuthor, 
+    onProfileClick, 
+    onContextMenu, 
+    onReactionClick, 
+    isLoadingProfile = false, 
+    isDm = false, 
+    dmRecipientPublicKey 
+}: MessageProps) {
     const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
     const [decryptedFiles, updateDecryptedFiles] = useImmer<Map<string, string>>(new Map());
     const [loadedImages, updateLoadedImages] = useImmer<Set<string>>(new Set());
@@ -165,39 +175,8 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
     const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
     const dmEnvelope = message.runtimeData?.dmEnvelope;
 
-    useEffect(() => {
-        (async () => {
-            setFormattedMessage({
-                __html: DOMPurify.sanitize(
-                    await parse(message.content)
-                ).trim()
-            });
-        })();
-    }, [message]);
-
-    // Auto-decrypt images in DMs
-    useEffect(() => {
-        if (isDm && message.files) {
-            message.files.forEach(async (file) => {
-                console.log(file);
-                const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
-                if (isImage && file.encrypted && !decryptedFiles.has(file.path)) {
-                    console.log("Decrypting...");
-                    const decryptedUrl = await decryptFile(file);
-                    console.log(decryptedUrl);
-                    if (decryptedUrl) {
-                        updateDecryptedFiles(draft => {
-                            draft.set(file.path, decryptedUrl);
-                        });
-                    }
-                }
-            });
-        }
-    }, [message.files, isDm, decryptedFiles]);
-
-    async function decryptFile(file: Attachment): Promise<string | null> {
+    const decryptFile = useCallback(async (file: Attachment): Promise<string | null> => {
         if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) {
-            debugger;
             console.warn("Conditions not met")
             return null;
         }
@@ -250,7 +229,37 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
         } finally {
             // no-op decrypt indicator removed from UI
         }
-    };
+    }, [decryptedFiles, isDm, user.authToken, dmRecipientPublicKey, dmEnvelope, updateDecryptedFiles]);
+
+    useEffect(() => {
+        (async () => {
+            setFormattedMessage({
+                __html: DOMPurify.sanitize(
+                    await parse(message.content)
+                ).trim()
+            });
+        })();
+    }, [message]);
+
+    // Auto-decrypt images in DMs
+    useEffect(() => {
+        if (isDm && message.files) {
+            message.files.forEach(async (file) => {
+                console.log(file);
+                const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
+                if (isImage && file.encrypted && !decryptedFiles.has(file.path)) {
+                    console.log("Decrypting...");
+                    const decryptedUrl = await decryptFile(file);
+                    console.log(decryptedUrl);
+                    if (decryptedUrl) {
+                        updateDecryptedFiles(draft => {
+                            draft.set(file.path, decryptedUrl);
+                        });
+                    }
+                }
+            });
+        }
+    }, [message.files, isDm, decryptedFiles, decryptFile, updateDecryptedFiles]);
 
     async function handleImageClick(file: Attachment, imageElement: HTMLImageElement) {
         // Use decrypted URL if available, otherwise decrypt first
@@ -423,6 +432,8 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
                         <div 
                             className={`message-username ${isLoadingProfile ? "loading" : ""}`}
                             onClick={() => !isLoadingProfile && onProfileClick(message.username)} 
+                            role="link"
+                            tabIndex={0}
                             style={{ cursor: isLoadingProfile ? "default" : "pointer" }}>
                             {message.username}
                         </div>
@@ -445,7 +456,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
                                 const decryptedUrl = decryptedFiles.get(file.path);
                                 const imageSrc = isImage ? (isEncryptedDm ? decryptedUrl : file.path) : undefined;
                                 const isDownloading = downloadingPaths.has(file.path);
-                                const isSending = message.runtimeData?.sendingState?.status === 'sending';
+                                const isSending = message.runtimeData?.sendingState?.status === "sending";
 
                                 return (
                                     <div className="attachment" key={idx}>
@@ -458,7 +469,9 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
                                                     src={imageSrc} 
                                                     alt={file.name || "image"}
                                                     onClick={(e) => handleImageClick(file, e.currentTarget)}
-                                                    onLoad={() => updateLoadedImages(draft => { draft.add(file.path); })}
+                                                    onLoad={() => updateLoadedImages(draft => {
+                                                        draft.add(file.path);
+                                                    })}
                                                     className={`attachement-image ${loadedImages.has(file.path) ? "" : "loading"}`}
                                                 />
                                                 {(!loadedImages.has(file.path) || isSending) && (
@@ -500,18 +513,18 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
                         {message.is_edited ? " (edited)" : undefined}
                         
                         {isAuthor && message.is_read && (
-                            <span className="material-symbols outlined"></span>
+                            <span className="material-symbols outlined" />
                         )}
                         
                         {isAuthor && message.runtimeData?.sendingState && (
                             <span className="message-status-indicator">
-                                {message.runtimeData.sendingState.status === 'sending' && (
-                                    <mdui-circular-progress style={{ width: '16px', height: '16px' }} />
+                                {message.runtimeData.sendingState.status === "sending" && (
+                                    <mdui-circular-progress style={{ width: "16px", height: "16px" }} />
                                 )}
-                                {message.runtimeData.sendingState.status === 'failed' && (
+                                {message.runtimeData.sendingState.status === "failed" && (
                                     <span className="material-symbols error-icon">error</span>
                                 )}
-                                {message.runtimeData.sendingState.status === 'sent' && (
+                                {message.runtimeData.sendingState.status === "sent" && (
                                     <span className="material-symbols success-icon">check</span>
                                 )}
                             </span>
@@ -522,9 +535,10 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
 
             {/* Fullscreen Image Viewer with shared-element like transition */}
             {fullscreenImage && createPortal(
-                <div 
+                <div
                     className={`fullscreen-image-overlay ${isAnimatingOpen ? "open" : "closing"}`}
-                    onClick={closeFullscreen}>
+                    onClick={closeFullscreen}
+                    role="dialog">
                     <img
                         src={fullscreenImage.src}
                         alt={fullscreenImage.name}
@@ -537,7 +551,10 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
                         }}
                         onClick={e => e.stopPropagation()}
                     />
-                    <div className="fullscreen-controls top-right" onClick={e => e.stopPropagation()}>
+                    {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+                    <div 
+                        className="fullscreen-controls top-right" 
+                        onClick={e => e.stopPropagation()}>
                         <mdui-button-icon icon="close" onClick={closeFullscreen} />
                         {isDownloadingFullscreen ? (
                             <div className="progress-wrapper">

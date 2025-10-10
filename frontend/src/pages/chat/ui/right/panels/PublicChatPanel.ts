@@ -84,16 +84,22 @@ export class PublicChatPanel extends MessagePanel {
                 }
             } else {
                 const form = new FormData();
+
                 form.append("payload", JSON.stringify({
                     content: content.trim(),
                     reply_to_id: replyToId ?? null 
                 } satisfies SendMessageRequest["data"]));
-                for (const f of files) form.append("files", f, f.name);
+
+                for (const f of files) {
+                    form.append("files", f, f.name);
+                }
+
                 const res = await fetch(`${API_BASE_URL}/send_message`, {
                     method: "POST",
                     headers: getAuthHeaders(this.currentUser.authToken, false),
                     body: form
                 });
+                
                 if (!res.ok) {
                     console.error("Error sending message with files", await res.text());
                 }
@@ -106,17 +112,17 @@ export class PublicChatPanel extends MessagePanel {
     // Handle incoming WebSocket messages
     async handleWebSocketMessage(response: ChatWebSocketMessage | ReactionUpdateWebSocketMessage): Promise<void> {
         switch (response.type) {
-            case 'messageEdited':
+            case "messageEdited":
                 if (response.data) {
                     this.updateMessage(response.data.id, response.data);
                 }
                 break;
-            case 'messageDeleted':
+            case "messageDeleted":
                 if (response.data && response.data.message_id) {
                     this.removeMessage(response.data.message_id);
                 }
                 break;
-            case 'newMessage':
+            case "newMessage":
                 if (response.data) {
                     const newMsg = response.data;
                     
@@ -136,7 +142,7 @@ export class PublicChatPanel extends MessagePanel {
                     this.addMessage(newMsg);
                 }
                 break;
-            case 'reactionUpdate':
+            case "reactionUpdate":
                 if (response.data) {
                     this.updateMessageReactions(response.data.message_id, response.data.reactions);
                 }

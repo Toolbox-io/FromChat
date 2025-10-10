@@ -10,7 +10,11 @@ export async function aesGcmEncrypt(key: CryptoKey, plaintext: Uint8Array | Arra
 	return { iv, ciphertext: new Uint8Array(ct) };
 }
 
-export async function aesGcmDecrypt(key: CryptoKey, iv: Uint8Array | ArrayBuffer, ciphertext: Uint8Array | ArrayBuffer): Promise<Uint8Array> {
+export async function aesGcmDecrypt(
+	key: CryptoKey, 
+	iv: Uint8Array | ArrayBuffer, 
+	ciphertext: Uint8Array | ArrayBuffer
+): Promise<Uint8Array> {
 	// Normalize IV to ArrayBuffer (12 bytes for AES-GCM)
 	const ivBuf: ArrayBuffer = iv instanceof Uint8Array
 		? (iv.buffer as ArrayBuffer).slice(iv.byteOffset, iv.byteOffset + iv.byteLength)

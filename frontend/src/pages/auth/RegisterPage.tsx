@@ -17,15 +17,17 @@ export default function RegisterPage() {
     const setUser = useAppState(state => state.setUser);
     const navigate = useNavigate();
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();
-    if (navigateDownloadApp) return navigateDownloadApp;
-
-    function showAlert(type: AlertType, message: string) {
-        updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
-    }
-
     const usernameElement = useRef<TextField>(null);
     const passwordElement = useRef<TextField>(null);
     const confirmPasswordElement = useRef<TextField>(null);
+
+    if (navigateDownloadApp) return navigateDownloadApp;
+
+    function showAlert(type: AlertType, message: string) {
+        updateAlerts((alerts) => {
+            alerts.push({ type: type, message: message });
+        });
+    }
 
     return (
         <AuthContainer>
@@ -68,9 +70,9 @@ export default function RegisterPage() {
                         }
                 
                         const response = await fetch(`${API_BASE_URL}/register`, {
-                            method: 'POST',
+                            method: "POST",
                             headers: {
-                                'Content-Type': 'application/json',
+                                "Content-Type": "application/json"
                             },
                             body: JSON.stringify(request)
                         });
@@ -83,7 +85,7 @@ export default function RegisterPage() {
                             // Setup keys with the token we just received
                             try {
                                 await ensureKeysOnLogin(password, data.token);
-                            } catch (e) {
+                            } catch {
                                 console.error("Key setup failed:", e);
                             }
 
@@ -92,7 +94,7 @@ export default function RegisterPage() {
                             const data: ErrorResponse = await response.json();
                             showAlert("danger", data.message || "Ошибка при регистрации");
                         }
-                    } catch (error) {
+                    } catch {
                         showAlert("danger", "Ошибка соединения с сервером");
                     }
                 }}>

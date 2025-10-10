@@ -75,7 +75,7 @@ export interface Message {
     runtimeData?: {
         dmEnvelope?: DmEnvelope;
         sendingState?: {
-            status: 'sending' | 'sent' | 'failed';
+            status: "sending" | "sent" | "failed";
             tempId?: string; // Temporary ID for tracking until server confirms
             retryData?: {
                 content: string;
@@ -239,7 +239,7 @@ export interface FetchDMResponse {
 }
 
 export interface DmEncryptedJSON {
-    type: "text",
+    type: "text";
     data: {
         content: string;
         reply_to_id?: number;
@@ -310,13 +310,13 @@ export interface DMEditPayload {
 
 // Requests
 export interface DMEditRequest extends WebSocketMessage {
-    type: "dmEdit",
+    type: "dmEdit";
     credentials: WebSocketCredentials;
     data: DMEditPayload
 }
 
 export interface SendMessageRequest extends WebSocketMessage {
-    type: "sendMessage",
+    type: "sendMessage";
     credentials: WebSocketCredentials;
     data: {
         content: string;
@@ -325,7 +325,7 @@ export interface SendMessageRequest extends WebSocketMessage {
 }
 
 export interface AddReactionRequest extends WebSocketMessage {
-    type: "addReaction",
+    type: "addReaction";
     credentials: WebSocketCredentials;
     data: {
         message_id: number;
@@ -334,7 +334,7 @@ export interface AddReactionRequest extends WebSocketMessage {
 }
 
 export interface AddDmReactionRequest extends WebSocketMessage {
-    type: "addDmReaction",
+    type: "addDmReaction";
     credentials: WebSocketCredentials;
     data: {
         dm_envelope_id: number;
@@ -344,41 +344,41 @@ export interface AddDmReactionRequest extends WebSocketMessage {
 
 // Messages
 export interface DMNewWebSocketMessage extends WebSocketMessage {
-    type: "dmNew",
+    type: "dmNew";
     data: DmEnvelope
 }
 
 export interface DMEditedWebSocketMessage extends WebSocketMessage {
-    type: "dmEdited",
+    type: "dmEdited";
     data: DMEditPayload
 }
 
 export interface DMDeletedWebSocketMessage extends WebSocketMessage {
-    type: "dmDeleted",
+    type: "dmDeleted";
     data: {
         id: number;
     }
 }
 
 export interface MessageEditedWebSocketMessage extends WebSocketMessage {
-    type: "messageEdited",
+    type: "messageEdited";
     data: Partial<Message> & { id: number }
 }
 
 export interface MessageDeletedWebSocketMessage extends WebSocketMessage {
-    type: "messageDeleted",
+    type: "messageDeleted";
     data: {
         message_id: number;
     }
 }
 
 export interface NewMessageWebSocketMessage extends WebSocketMessage {
-    type: "newMessage",
+    type: "newMessage";
     data: Message
 }
 
 export interface ReactionUpdateWebSocketMessage extends WebSocketMessage {
-    type: "reactionUpdate",
+    type: "reactionUpdate";
     data: {
         message_id: number;
         emoji: string;
@@ -402,8 +402,16 @@ export interface DMReactionUpdateWebSocketMessage extends WebSocketMessage {
 }
 
 // Shared types
-export type DMWebSocketMessage = DMNewWebSocketMessage | DMEditedWebSocketMessage | DMDeletedWebSocketMessage | DMReactionUpdateWebSocketMessage
-export type ChatWebSocketMessage = MessageEditedWebSocketMessage | MessageDeletedWebSocketMessage | NewMessageWebSocketMessage | ReactionUpdateWebSocketMessage
+export type DMWebSocketMessage = 
+    DMNewWebSocketMessage | 
+    DMEditedWebSocketMessage | 
+    DMDeletedWebSocketMessage | 
+    DMReactionUpdateWebSocketMessage;
+export type ChatWebSocketMessage = 
+    MessageEditedWebSocketMessage | 
+    MessageDeletedWebSocketMessage | 
+    NewMessageWebSocketMessage | 
+    ReactionUpdateWebSocketMessage;
 
 // -----------
 // Encrypted message JSON (plaintext structure before encryption)

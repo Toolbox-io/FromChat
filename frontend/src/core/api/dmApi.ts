@@ -46,7 +46,13 @@ export async function fetchDMHistory(userId: number, token: string, limit: numbe
     return data.messages || [];
 }
 
-export async function sendDMViaWebSocket(recipientId: number, recipientPublicKeyB64: string, plaintext: string, authToken: string, replyToId?: number): Promise<void> {
+export async function sendDMViaWebSocket(
+    recipientId: number, 
+    recipientPublicKeyB64: string,
+    plaintext: string,
+    authToken: string,
+    replyToId?: number
+): Promise<void> {
     const keys = getCurrentKeys();
     if (!keys) throw new Error("Keys not initialized");
 
@@ -81,7 +87,13 @@ export async function sendDMViaWebSocket(recipientId: number, recipientPublicKey
     });
 }
 
-export async function sendDmWithFiles(recipientId: number, recipientPublicKeyB64: string, plaintextJson: string, files: File[], token: string): Promise<void> {
+export async function sendDmWithFiles(
+    recipientId: number, 
+    recipientPublicKeyB64: string, 
+    plaintextJson: string, 
+    files: File[], 
+    token: string
+): Promise<void> {
     const keys = getCurrentKeys();
     if (!keys) throw new Error("Keys not initialized");
 

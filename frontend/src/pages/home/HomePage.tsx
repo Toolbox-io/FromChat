@@ -5,13 +5,13 @@ import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 
 function GitHubLink({ children }: { children: React.ReactNode }) {
     return (
-        <a href="https://github.com/denis0001-dev/FromChat" target="_blank">{children}</a>
+        <a href="https://github.com/denis0001-dev/FromChat" target="_blank" rel="noopener noreferrer">{children}</a>
     );
 }
 
 function SupportLink({ children }: { children: React.ReactNode }) {
     return (
-        <a href="https://t.me/denis0001-dev" target="_blank">{children}</a>
+        <a href="https://t.me/denis0001-dev" target="_blank" rel="noopener noreferrer">{children}</a>
     );
 }
 
@@ -73,12 +73,13 @@ export default function HomePage() {
                             </p>
                             <div className="hero-actions">
                                 {openBtn}
-                                {!isMobile && <mdui-button
-                                    variant="outlined" 
-                                    onClick={() => navigate("/register")}
-                                >
-                                    Зарегистрироваться
-                                </mdui-button>}
+                                {!isMobile && (
+                                    <mdui-button
+                                        variant="outlined" 
+                                        onClick={() => navigate("/register")}>
+                                        Зарегистрироваться
+                                    </mdui-button>
+                                )}
                             </div>
                         </div>
                         <div className="hero-visual">

@@ -33,7 +33,7 @@ export async function loadProfile(token: string): Promise<ProfileData | null> {
         
         return null;
     } catch (error) {
-        console.error('Error loading profile:', error);
+        console.error("Error loading profile:", error);
         return null;
     }
 }
@@ -44,10 +44,10 @@ export async function loadProfile(token: string): Promise<ProfileData | null> {
 export async function uploadProfilePicture(token: string, file: Blob): Promise<UploadResponse | null> {
     try {
         const formData = new FormData();
-        formData.append('profile_picture', file, 'profile_picture.jpg');
+        formData.append("profile_picture", file, "profile_picture.jpg");
 
         const response = await fetch(`${API_BASE_URL}/upload-profile-picture`, {
-            method: 'POST',
+            method: "POST",
             body: formData,
             headers: getAuthHeaders(token, false)
         });
@@ -57,7 +57,7 @@ export async function uploadProfilePicture(token: string, file: Blob): Promise<U
         }
         return null;
     } catch (error) {
-        console.error('Upload error:', error);
+        console.error("Upload error:", error);
         return null;
     }
 }
@@ -74,17 +74,17 @@ export async function updateProfile(token: string, data: Partial<ProfileData>): 
         };
 
         const response = await fetch(`${API_BASE_URL}/user/profile`, {
-            method: 'PUT',
+            method: "PUT",
             headers: {
                 ...getAuthHeaders(token),
-                'Content-Type': 'application/json'
+                "Content-Type": "application/json"
             },
             body: JSON.stringify(backendData)
         });
 
         return response.ok;
     } catch (error) {
-        console.error('Error updating profile:', error);
+        console.error("Error updating profile:", error);
         return false;
     }
 }
@@ -95,14 +95,14 @@ export async function updateProfile(token: string, data: Partial<ProfileData>): 
 export async function updateBio(token: string, bio: string): Promise<boolean> {
     try {
         const response = await fetch(`${API_BASE_URL}/user/bio`, {
-            method: 'PUT',
+            method: "PUT",
             headers: getAuthHeaders(token),
             body: JSON.stringify({ bio })
         });
 
         return response.ok;
     } catch (error) {
-        console.error('Error updating bio:', error);
+        console.error("Error updating bio:", error);
         return false;
     }
 }
@@ -122,7 +122,7 @@ export async function fetchUserProfile(token: string, username: string): Promise
         
         return null;
     } catch (error) {
-        console.error('Error fetching user profile:', error);
+        console.error("Error fetching user profile:", error);
         return null;
     }
 }

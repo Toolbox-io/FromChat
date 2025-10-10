@@ -155,10 +155,10 @@ export const useAppState = create<AppState>((set, get) => ({
 
         // Store credentials in localStorage
         try {
-            localStorage.setItem('authToken', token);
-            localStorage.setItem('currentUser', JSON.stringify(user));
+            localStorage.setItem("authToken", token);
+            localStorage.setItem("currentUser", JSON.stringify(user));
         } catch (error) {
-            console.error('Failed to store credentials in localStorage:', error);
+            console.error("Failed to store credentials in localStorage:", error);
         }
 
         try {
@@ -177,10 +177,10 @@ export const useAppState = create<AppState>((set, get) => ({
     logout: () => {
         // Clear localStorage
         try {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('currentUser');
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("currentUser");
         } catch (error) {
-            console.error('Failed to clear localStorage:', error);
+            console.error("Failed to clear localStorage:", error);
         }
 
         set(() => ({
@@ -192,7 +192,7 @@ export const useAppState = create<AppState>((set, get) => ({
     },
     restoreUserFromStorage: async () => {
         try {
-            const token = localStorage.getItem('authToken');
+            const token = localStorage.getItem("authToken");
             
             if (token) {
                 const response = await fetch(`${API_BASE_URL}/user/profile`, {
@@ -244,10 +244,10 @@ export const useAppState = create<AppState>((set, get) => ({
                 }
             }
         } catch (error) {
-            console.error('Failed to restore user from localStorage:', error);
+            console.error("Failed to restore user from localStorage:", error);
             // Clear invalid data
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('currentUser');
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("currentUser");
         }
     },
     

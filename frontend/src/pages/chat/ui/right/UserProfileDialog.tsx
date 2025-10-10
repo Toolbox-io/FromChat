@@ -13,8 +13,7 @@ export function UserProfileDialog({ isOpen, onOpenChange, userProfile }: UserPro
         <div className="content">
             <div className="profile-picture-section">
                 <img 
-                    className="profile-picture" 
-                    alt="Profile Picture" 
+                    className="profile-picture"
                     src={userProfile.profile_picture || defaultAvatar}
                     onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -28,17 +27,17 @@ export function UserProfileDialog({ isOpen, onOpenChange, userProfile }: UserPro
                     <div className={`online-status ${userProfile.online ? "online" : "offline"}`}>
                         {userProfile.online ? (
                             <>
-                                <span className="online-indicator"></span> Онлайн
+                                <span className="online-indicator" /> Онлайн
                             </>
                         ) : (
                             <>
-                                <span className="offline-indicator"></span> Последний заход {formatTime(userProfile.last_seen)}
+                                <span className="offline-indicator" /> Последний заход {formatTime(userProfile.last_seen)}
                             </>
                         )}
                     </div>
                 </div>
                 <div className="bio-section">
-                    <label>О себе:</label>
+                    <span>О себе:</span>
                     <div className="bio-display">
                         {userProfile.bio || "No bio available."}
                     </div>
@@ -55,7 +54,7 @@ export function UserProfileDialog({ isOpen, onOpenChange, userProfile }: UserPro
                 </div>
                 <div className="profile-actions">
                     <mdui-button id="dm-button" variant="filled">
-                        <mdui-icon slot="icon" name="chat--filled"></mdui-icon>
+                        <mdui-icon slot="icon" name="chat--filled" />
                         Send Message
                     </mdui-button>
                 </div>

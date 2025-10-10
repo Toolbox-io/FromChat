@@ -5,14 +5,14 @@
  * @version 1.0.0
  */
 
-import './css/style.scss';
+import "./css/style.scss";
 
 import "./utils/material";
 import "./core/init";
 import "./core/electron/electron";
-import { createRoot } from 'react-dom/client';
-import App from './App';
-import { StrictMode } from 'react';
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import { StrictMode } from "react";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>

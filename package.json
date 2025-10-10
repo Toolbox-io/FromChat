@@ -14,7 +14,7 @@
         "backend:clean": "rm -rf backend/data",
         "frontend:dev": "vite frontend",
         "frontend:typecheck": "tsc --project frontend",
-        "frontend:lint": "eslint frontend/src --ext .js,.jsx,.ts,.tsx",
+        "frontend:lint": "eslint --config frontend/eslint.config.ts frontend/src --ext .js,.jsx,.ts,.tsx",
         "frontend:check": "npm run frontend:lint && npm run frontend:typecheck",
         "frontend:build": "npm run frontend:check && vite build frontend",
         "frontend:electron:dev": "VITE_ELECTRON=true npm run frontend:dev",

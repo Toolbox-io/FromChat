@@ -19,14 +19,16 @@ export default function LoginPage() {
     const setUser = useAppState(state => state.setUser);
     const navigate = useNavigate();
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();
+    const usernameElement = useRef<TextField>(null);
+    const passwordElement = useRef<TextField>(null);
+
     if (navigateDownloadApp) return navigateDownloadApp;
 
     function showAlert(type: AlertType, message: string) {
-        updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
+        updateAlerts((alerts) => {
+            alerts.push({ type: type, message: message });
+        });
     }
-
-    const usernameElement = useRef<TextField>(null);
-    const passwordElement = useRef<TextField>(null);
 
     return (
         <AuthContainer>
@@ -50,12 +52,12 @@ export default function LoginPage() {
                             const request: LoginRequest = {
                                 username: username,
                                 password: password
-                            }
+                            };
 
                             const response = await fetch(`${API_BASE_URL}/login`, {
-                                method: 'POST',
+                                method: "POST",
                                 headers: {
-                                    'Content-Type': 'application/json',
+                                    "Content-Type": "application/json"
                                 },
                                 body: JSON.stringify(request)
                             });
@@ -100,7 +102,7 @@ export default function LoginPage() {
                                 const data: ErrorResponse = await response.json();
                                 showAlert("danger", data.message || "Неверное имя пользователя или пароль");
                             }
-                        } catch (error) {
+                        } catch {
                             showAlert("danger", "Ошибка соединения с сервером");
                         }
                     }}>

@@ -9,7 +9,7 @@
  * Notification type enumeration
  * @typedef {'success' | 'error'} NotificationType
  */
-export type NotificationType = 'success' | 'error';
+export type NotificationType = "success" | "error";
 
 /**
  * Shows a notification with the specified message and type
@@ -18,7 +18,7 @@ export type NotificationType = 'success' | 'error';
  * @private
  */
 function showNotification(message: string, type: NotificationType): void {
-    const notification = document.createElement('div');
+    const notification = document.createElement("div");
     notification.textContent = message;
     notification.style.cssText = `
         position: fixed;
@@ -27,7 +27,7 @@ function showNotification(message: string, type: NotificationType): void {
         padding: 12px 16px;
         border-radius: 4px;
         color: white;
-        background: ${type === 'success' ? '#4caf50' : '#f44336'};
+        background: ${type === "success" ? "#4caf50" : "#f44336"};
         z-index: 10000;
         font-family: inherit;
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -38,7 +38,7 @@ function showNotification(message: string, type: NotificationType): void {
     
     // Fade out and remove
     setTimeout(() => {
-        notification.style.opacity = '0';
+        notification.style.opacity = "0";
         setTimeout(() => {
             notification.remove();
         }, 300);
@@ -50,7 +50,7 @@ function showNotification(message: string, type: NotificationType): void {
  * @param {string} message - The success message to display
  */
 export function showSuccess(message: string): void {
-    showNotification(message, 'success');
+    showNotification(message, "success");
 }
 
 /**
@@ -58,5 +58,5 @@ export function showSuccess(message: string): void {
  * @param {string} message - The error message to display
  */
 export function showError(message: string): void {
-    showNotification(message, 'error');
+    showNotification(message, "error");
 }

@@ -4,10 +4,10 @@ export function CropperDialog() {
             <div className="cropper-dialog-content">
                 <div className="cropper-header">
                     <h3>Обрезать фото профиля</h3>
-                    <mdui-button-icon icon="close" id="cropper-close"></mdui-button-icon>
+                    <mdui-button-icon icon="close" id="cropper-close" />
                 </div>
                 <div className="cropper-container">
-                    <div id="cropper-area"></div>
+                    <div id="cropper-area" />
                 </div>
                 <div className="cropper-actions">
                     <mdui-button id="crop-cancel" variant="outlined">Отмена</mdui-button>

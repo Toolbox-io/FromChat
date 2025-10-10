@@ -24,8 +24,8 @@ export interface AuthHeaderProps {
 }
 
 export function AuthHeader({ title, icon, subtitle }: AuthHeaderProps) {
-    const iconType = typeof icon == "string" ? "filled" : icon.type;
-    const iconName = typeof icon == "string" ? icon : icon.name;
+    const iconType = typeof icon === "string" ? "filled" : icon.type;
+    const iconName = typeof icon === "string" ? icon : icon.name;
 
     return (
         <div className="auth-header">

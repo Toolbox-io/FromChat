@@ -12,7 +12,9 @@ export interface BaseDialogProps {
 export type FullDialogProps = React.ComponentPropsWithoutRef<"mdui-dialog"> & BaseDialogProps;
 
 export function MaterialDialog(props: FullDialogProps) {
+    // eslint-disable-next-line react-hooks/refs
     const [setDialogRef, dialogRef] = useCombinedRefs(props.ref);
+    const { open, onOpenChange } = props;
 
     useEffect(() => {
         const dialog = dialogRef.current;
@@ -22,8 +24,8 @@ export function MaterialDialog(props: FullDialogProps) {
             mutations.forEach((mutation) => {
                 if (mutation.type === "attributes" && mutation.attributeName === "open") {
                     const isOpen = dialog.hasAttribute("open");
-                    if (isOpen !== props.open) {
-                        props.onOpenChange(isOpen);
+                    if (isOpen !== open) {
+                        onOpenChange(isOpen);
                     }
                 }
             });
@@ -39,7 +41,8 @@ export function MaterialDialog(props: FullDialogProps) {
         return () => {
             observer.disconnect();
         };
-    }, [dialogRef.current, props.open, props.onOpenChange]);
+    }, [open, onOpenChange, dialogRef]);
 
+    // eslint-disable-next-line react-hooks/refs
     return createPortal(<mdui-dialog {...props} ref={setDialogRef} />, id("root"));
 }

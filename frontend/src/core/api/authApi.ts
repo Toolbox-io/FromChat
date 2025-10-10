@@ -17,7 +17,7 @@ export function getAuthHeaders(token: string | null, json: boolean = true): Head
     }
 
     if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
     }
     return headers;
 }
@@ -35,15 +35,12 @@ async function fetchPublicKey(token: string): Promise<Uint8Array | null> {
 }
 
 async function uploadPublicKey(publicKey: Uint8Array, token: string): Promise<void> {
-	const payload: UploadPublicKeyRequest = { 
-		publicKey: b64(publicKey) 
-	}
-
-	const headers = getAuthHeaders(token, true);
 	await fetch(`${API_BASE_URL}/crypto/public-key`, {
 		method: "POST",
-		headers,
-		body: JSON.stringify(payload)
+		headers: getAuthHeaders(token, true),
+		body: JSON.stringify({ 
+			publicKey: b64(publicKey) 
+		} satisfies UploadPublicKeyRequest)
 	});
 }
 

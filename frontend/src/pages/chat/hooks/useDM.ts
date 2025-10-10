@@ -101,7 +101,7 @@ export function useDM() {
         } finally {
             setIsLoadingUsers(false);
         }
-    }, [user.authToken, isLoadingUsers]);
+    }, [user.authToken, isLoadingUsers, loadUserLastMessage, setDmUsers]);
 
     // Reset users loaded flag when user changes
     useEffect(() => {
@@ -263,7 +263,7 @@ export function useDM() {
         websocket.addEventListener("message", handleWebSocketMessage);
 
         return () => websocket.removeEventListener("message", handleWebSocketMessage);
-    }, [chat.activeDm, user.currentUser, addMessage]);
+    }, [chat.activeDm, user.currentUser, addMessage, user.authToken]);
 
     // Force reload users (useful for refreshing the list)
     const reloadUsers = useCallback(() => {

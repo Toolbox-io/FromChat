@@ -3,7 +3,11 @@ export async function importPassword(password: string): Promise<CryptoKey> {
 	return crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey", "deriveBits"]);
 }
 
-export async function deriveKEK(passwordKey: CryptoKey, salt: Uint8Array | ArrayBuffer, iterations = 210_000): Promise<CryptoKey> {
+export async function deriveKEK(
+	passwordKey: CryptoKey, 
+	salt: Uint8Array | ArrayBuffer, 
+	iterations = 210_000
+): Promise<CryptoKey> {
 	const saltBuffer = salt instanceof Uint8Array ? salt.buffer as ArrayBuffer : salt;
 	return crypto.subtle.deriveKey(
 		{ name: "PBKDF2", salt: saltBuffer, iterations, hash: "SHA-256" },
@@ -14,7 +18,11 @@ export async function deriveKEK(passwordKey: CryptoKey, salt: Uint8Array | Array
 	);
 }
 
-export async function hkdfExtractAndExpand(inputKeyMaterial: Uint8Array | ArrayBuffer, salt: Uint8Array | ArrayBuffer, info: Uint8Array | ArrayBuffer, length = 32): Promise<Uint8Array> {
+export async function hkdfExtractAndExpand(inputKeyMaterial: Uint8Array | ArrayBuffer, 
+	salt: Uint8Array | ArrayBuffer, 
+	info: Uint8Array | ArrayBuffer, 
+	length = 32
+): Promise<Uint8Array> {
 	const inputBuffer = inputKeyMaterial instanceof Uint8Array ? inputKeyMaterial.buffer as ArrayBuffer : inputKeyMaterial;
 	const saltBuffer = salt instanceof Uint8Array ? salt.buffer as ArrayBuffer : salt;
 	const infoBuffer = info instanceof Uint8Array ? info.buffer as ArrayBuffer : info;

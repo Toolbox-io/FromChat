@@ -14,11 +14,11 @@
  */
 export function formatTime(dateString: string): string {
     const date = new Date(dateString);
-    let hours = date.getHours();
-    let minutes = date.getMinutes();
-    const hoursString = hours < 10 ? '0' + hours : hours;
-    const minutesString = minutes < 10 ? '0' + minutes : minutes;
-    return hoursString + ':' + minutesString;
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const hoursString = hours < 10 ? "0" + hours : hours;
+    const minutesString = minutes < 10 ? "0" + minutes : minutes;
+    return hoursString + ":" + minutesString;
 }
 
 /**
@@ -32,12 +32,16 @@ export function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export function b64(a: Uint8Array): string { 
+    return btoa(String.fromCharCode(...a)); 
+}
 
-export function b64(a: Uint8Array): string { return btoa(String.fromCharCode(...a)); }
 export function ub64(s: string): Uint8Array {
 	const bin = atob(s);
 	const arr = new Uint8Array(bin.length);
-	for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+	for (let i = 0; i < bin.length; i++) {
+        arr[i] = bin.charCodeAt(i);
+    }
 	return arr;
 }
 

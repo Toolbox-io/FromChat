@@ -7,7 +7,7 @@
 
 import "./electron.scss";
 
-export const isElectron = import.meta.env.VITE_ELECTRON && window.electronInterface != undefined;
+export const isElectron = import.meta.env.VITE_ELECTRON && window.electronInterface !== undefined;
 
 if (isElectron) {
     console.log("Running in Electron");

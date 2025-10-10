@@ -20,8 +20,8 @@ export default function useProfile() {
                 setProfileData(data);
             }
         } catch (error) {
-            console.error('Error loading profile:', error);
-            showError('Ошибка при загрузке профиля');
+            console.error("Error loading profile:", error);
+            showError("Ошибка при загрузке профиля");
         } finally {
             setIsLoading(false);
         }
@@ -37,15 +37,15 @@ export default function useProfile() {
             if (success) {
                 // Reload profile data to get updated information
                 await loadProfileData();
-                showSuccess('Профиль обновлен!');
+                showSuccess("Профиль обновлен!");
                 return true;
             } else {
-                showError('Ошибка при обновлении профиля');
+                showError("Ошибка при обновлении профиля");
                 return false;
             }
         } catch (error) {
-            console.error('Error updating profile:', error);
-            showError('Ошибка при обновлении профиля');
+            console.error("Error updating profile:", error);
+            showError("Ошибка при обновлении профиля");
             return false;
         } finally {
             setIsUpdating(false);
@@ -65,15 +65,15 @@ export default function useProfile() {
                     ...prev,
                     profile_picture: result.profile_picture_url
                 } : null);
-                showSuccess('Фото профиля обновлено!');
+                showSuccess("Фото профиля обновлено!");
                 return true;
             } else {
-                showError('Ошибка при загрузке фото');
+                showError("Ошибка при загрузке фото");
                 return false;
             }
         } catch (error) {
-            console.error('Error uploading profile picture:', error);
-            showError('Ошибка при загрузке фото');
+            console.error("Error uploading profile picture:", error);
+            showError("Ошибка при загрузке фото");
             return false;
         } finally {
             setIsUpdating(false);

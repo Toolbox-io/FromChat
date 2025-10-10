@@ -20,16 +20,10 @@ export default function NotFoundPage() {
                         >
                             На главную
                         </mdui-button>
-                        <mdui-button 
-                            variant="outlined" 
-                            onClick={() => navigate(-1)}
-                        >
-                            Назад
-                        </mdui-button>
                     </div>
                 </div>
                 <div className="not-found-illustration">
-                    <mdui-icon name="search_off"></mdui-icon>
+                    <mdui-icon name="search_off" />
                 </div>
             </div>
         </div>

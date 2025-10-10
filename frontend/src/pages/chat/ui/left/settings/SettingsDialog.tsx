@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { PRODUCT_NAME, API_BASE_URL } from "@/core/config";
 import type { DialogProps } from "@/core/types";
 import { MaterialDialog } from "@/core/components/Dialog";
@@ -10,22 +10,15 @@ import { getAuthHeaders } from "@/core/api/authApi";
 
 export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     const [activePanel, setActivePanel] = useState("notifications-settings");
-    const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
-    const [pushSupported, setPushSupported] = useState(false);
+    const pushSupported = useMemo(() => isSupported(), []);
+    const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(pushSupported);
     const user = useAppState(state => state.user);
 
-    useEffect(() => {
-        setPushSupported(isSupported());
-        // For Electron, we assume notifications are enabled if supported
-        // For web browsers, we check if there's a subscription
-        setPushNotificationsEnabled(isSupported());
-    }, []);
-
-    const handlePanelChange = (panelId: string) => {
+    function handlePanelChange(panelId: string) {
         setActivePanel(panelId);
-    };
+    }
 
-    const handlePushNotificationToggle = async (enabled: boolean) => {
+    async function handlePushNotificationToggle(enabled: boolean) {
         if (!user.authToken) return;
 
         try {
@@ -66,7 +59,7 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
             <div className="fullscreen-wrapper">
                 <div id="settings-dialog-inner">
                     <div className="header">
-                        <mdui-button-icon icon="close" id="settings-close" onClick={() => onOpenChange(false)}></mdui-button-icon>
+                        <mdui-button-icon icon="close" id="settings-close" onClick={() => onOpenChange(false)} />
                         <mdui-top-app-bar-title>Настройки</mdui-top-app-bar-title>
                     </div>
                     <div id="settings-menu">
@@ -185,7 +178,7 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
                             <div id="storage-settings" className={`settings-panel ${activePanel === "storage-settings" ? "active" : ""}`}>
                                 <h3>Хранилище</h3>
                                 <p>Использовано: 2.5 ГБ из 10 ГБ</p>
-                                <mdui-linear-progress value={25}></mdui-linear-progress>
+                                <mdui-linear-progress value={25} />
                                 <mdui-button variant="outlined">Очистить кэш</mdui-button>
                             </div>
                             

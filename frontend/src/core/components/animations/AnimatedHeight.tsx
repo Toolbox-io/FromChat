@@ -10,6 +10,7 @@ export default function AnimatedHeight({ visible, duration = 0.25, onFinish, chi
 
     useEffect(() => {
         if (visible) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setShouldRender(true);
             setIsAnimating(true);
             // Wait for content to render, then measure
@@ -33,6 +34,7 @@ export default function AnimatedHeight({ visible, duration = 0.25, onFinish, chi
                 requestAnimationFrame(() => {
                     // Read layout to ensure the previous height assignment is flushed
                     if (containerRef.current) {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                         containerRef.current.offsetHeight;
                     }
                     // Use a second frame to ensure the measured pixel height is applied before collapsing
@@ -50,7 +52,7 @@ export default function AnimatedHeight({ visible, duration = 0.25, onFinish, chi
                 }
             }, duration * 1000);
         }
-    }, [visible, shouldRender]);
+    }, [visible, shouldRender, duration, onFinish]);
 
     return (visible || shouldRender || isAnimating) && (
         <div

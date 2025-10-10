@@ -1,4 +1,4 @@
-import { useRef, useCallback, type RefCallback, type Ref } from 'react';
+import { useRef, useCallback, type RefCallback, type Ref } from "react";
 
 // Определяем тип для ref, который может быть либо функцией, либо объектом
 type PossibleRef<T> = Ref<T> | undefined;
@@ -14,7 +14,7 @@ export default function useCombinedRefs<T>(...refs: PossibleRef<T>[]): [RefCallb
         refs.forEach((ref) => {
             if (!ref) return;
 
-            if (typeof ref === 'function') {
+            if (typeof ref === "function") {
                 // Если ref - это функция, вызываем её
                 ref(node);
             } else {

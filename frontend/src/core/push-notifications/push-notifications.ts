@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "@/core/config";
 import { isElectron } from "@/core/electron/electron";
 import { websocket } from "@/core/websocket";
-import type { NewMessageWebSocketMessage, WebSocketMessage } from "@/core/types";
+import type { Message, NewMessageWebSocketMessage, WebSocketMessage } from "@/core/types";
 import serviceWorker from "./service-worker?worker&url";
 
 export interface PushSubscriptionData {
@@ -18,7 +18,6 @@ export interface NotificationPayload {
     icon?: string;
     image?: string;
     tag?: string;
-    data?: any;
 }
 
 // Global state
@@ -104,7 +103,7 @@ async function sendSubscriptionToServer(token: string): Promise<boolean> {
     }
 }
 
-async function showMessageNotification(message: any): Promise<void> {
+async function showMessageNotification(message: Message): Promise<void> {
     try {
         await showNotification({
             title: `New message from ${message.username}`,
@@ -112,20 +111,14 @@ async function showMessageNotification(message: any): Promise<void> {
                 ? message.content.substring(0, 100) + "..." 
                 : message.content,
             icon: message.profile_picture || "/logo.png",
-            tag: `message_${message.id}`,
-            data: {
-                type: "public_message",
-                message_id: message.id,
-                sender_id: message.user_id,
-                sender_username: message.username
-            }
+            tag: `message_${message.id}`
         });
     } catch (error) {
         console.error("Failed to show message notification:", error);
     }
 }
 
-async function handleWebSocketMessage(response: WebSocketMessage<any>): Promise<void> {
+async function handleWebSocketMessage(response: WebSocketMessage<object>): Promise<void> {
     // Handle notifications for new messages
     if (response.type === "newMessage" && response.data) {
         const newResponse = response as NewMessageWebSocketMessage;
@@ -189,12 +182,7 @@ export async function subscribe(token: string): Promise<boolean> {
 export async function showNotification(payload: NotificationPayload): Promise<boolean> {
     if (isElectron) {
         try {
-            return await window.electronInterface.notifications.show({
-                title: payload.title,
-                body: payload.body,
-                icon: payload.icon,
-                tag: payload.tag
-            });
+            return await window.electronInterface.notifications.show(payload);
         } catch (error) {
             console.error("Failed to show Electron notification:", error);
             return false;
@@ -244,14 +232,14 @@ export async function startElectronReceiver(): Promise<void> {
     // Add our own message listener to the existing WebSocket
     messageListener = (event: MessageEvent) => {
         try {
-            const response: WebSocketMessage<any> = JSON.parse(event.data);
+            const response: WebSocketMessage<object> = JSON.parse(event.data);
             handleWebSocketMessage(response);
         } catch (error) {
-            console.error('Failed to parse WebSocket message:', error);
+            console.error("Failed to parse WebSocket message:", error);
         }
     };
     
-    websocket.addEventListener('message', messageListener);
+    websocket.addEventListener("message", messageListener);
 }
 
 export function stopElectronReceiver(): void {
@@ -263,7 +251,7 @@ export function stopElectronReceiver(): void {
     
     // Remove our message listener
     if (messageListener) {
-        websocket.removeEventListener('message', messageListener);
+        websocket.removeEventListener("message", messageListener);
         messageListener = null;
     }
 }
