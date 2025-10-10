@@ -12,11 +12,14 @@ import { initialize, isSupported, startElectronReceiver, subscribe } from "@/cor
 import { isElectron } from "@/core/electron/electron";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
+import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 
 export default function LoginPage() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
     const setUser = useAppState(state => state.setUser);
     const navigate = useNavigate();
+    const { navigate: navigateDownloadApp } = useDownloadAppScreen();
+    if (navigateDownloadApp) return navigateDownloadApp;
 
     function showAlert(type: AlertType, message: string) {
         updateAlerts((alerts) => { alerts.push({type: type, message: message}) });

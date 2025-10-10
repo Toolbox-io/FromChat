@@ -1,7 +1,7 @@
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/pages/chat/state";
-import { isElectron } from "@/core/electron/electron";
 import "./home.scss";
+import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 
 function GitHubLink({ children }: { children: React.ReactNode }) {
     return (
@@ -18,18 +18,24 @@ function SupportLink({ children }: { children: React.ReactNode }) {
 export default function HomePage() {
     const navigate = useNavigate();
     const { user } = useAppState();
+    const { isMobile } = useDownloadAppScreen();
+    const isLoggedIn = user.authToken && user.currentUser;
 
-    const handleGetStarted = () => {
-        if (user.authToken && user.currentUser) {
+    function handleGetStarted() {
+        if (isMobile) {
+            navigate("/download-app");
+        } else if (isLoggedIn) {
             navigate("/chat");
         } else {
             navigate("/login");
         }
     }
 
-    if (isElectron) {
-        return <Navigate to="/chat" />;
-    }
+    const openBtn = (
+        <mdui-button variant="filled" onClick={handleGetStarted}>
+            {isMobile ? "Скачать приложение" : isLoggedIn ? "Перейти в чат" : "Войти"}
+        </mdui-button>
+    );
 
     return (
         <div className="homepage">
@@ -48,15 +54,7 @@ export default function HomePage() {
                                 <mdui-button variant="text">Поддержка</mdui-button>
                             </SupportLink>
 
-                            {user.authToken ? (
-                                <mdui-button variant="filled" onClick={() => navigate("/chat")}>
-                                    Перейти в чат
-                                </mdui-button>
-                            ) : (
-                                <mdui-button variant="filled" onClick={() => navigate("/login")}>
-                                    Войти
-                                </mdui-button>
-                            )}
+                            {openBtn}
                         </nav>
                     </div>
                 </div>
@@ -74,18 +72,13 @@ export default function HomePage() {
                                 поддержкой файлов и уведомлений. Создан для тех, кто ценит приватность и свободу.
                             </p>
                             <div className="hero-actions">
-                                <mdui-button 
-                                    variant="filled" 
-                                    onClick={handleGetStarted}
-                                >
-                                    {user.authToken ? "Перейти в чат" : "Начать общение"}
-                                </mdui-button>
-                                <mdui-button 
+                                {openBtn}
+                                {!isMobile && <mdui-button
                                     variant="outlined" 
                                     onClick={() => navigate("/register")}
                                 >
                                     Зарегистрироваться
-                                </mdui-button>
+                                </mdui-button>}
                             </div>
                         </div>
                         <div className="hero-visual">
@@ -129,7 +122,7 @@ export default function HomePage() {
                         <div className="features-grid">
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="security"></mdui-icon>
+                                    <mdui-icon name="security" />
                                 </div>
                                 <h4>End-to-End Шифрование</h4>
                                 <p>
@@ -140,7 +133,7 @@ export default function HomePage() {
                             
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="code"></mdui-icon>
+                                    <mdui-icon name="code" />
                                 </div>
                                 <h4>100% открытый код</h4>
                                 <p>
@@ -151,7 +144,7 @@ export default function HomePage() {
                             
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="attach_file"></mdui-icon>
+                                    <mdui-icon name="attach_file" />
                                 </div>
                                 <h4>Обмен Файлами</h4>
                                 <p>
@@ -162,7 +155,7 @@ export default function HomePage() {
                             
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="notifications"></mdui-icon>
+                                    <mdui-icon name="notifications" />
                                 </div>
                                 <h4>Уведомления</h4>
                                 <p>
@@ -173,7 +166,7 @@ export default function HomePage() {
                             
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="edit"></mdui-icon>
+                                    <mdui-icon name="edit" />
                                 </div>
                                 <h4>Редактирование</h4>
                                 <p>
@@ -184,7 +177,7 @@ export default function HomePage() {
                             
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="computer"></mdui-icon>
+                                    <mdui-icon name="computer" />
                                 </div>
                                 <h4>Кроссплатформенность</h4>
                                 <p>
@@ -205,20 +198,28 @@ export default function HomePage() {
                                 уведомлений и автономной работы.
                             </p>
                             <div className="download-buttons">
-                                <a 
-                                    href="https://github.com/Toolbox-io/FromChat/actions/workflows/build.yml" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                >
-                                    <mdui-button variant="filled">
-                                        <mdui-icon name="download" slot="icon"></mdui-icon>
-                                        Скачать для ПК
+                                {!isMobile ? (
+                                    <>
+                                        <a 
+                                            href="https://github.com/Toolbox-io/FromChat/actions/workflows/build.yml" 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                        >
+                                            <mdui-button variant="filled">
+                                                <mdui-icon name="download" slot="icon" />
+                                                Скачать для ПК
+                                            </mdui-button>
+                                        </a>
+                                        <mdui-button variant="outlined" onClick={() => navigate("/login")}>
+                                            <mdui-icon name="language" slot="icon" />
+                                            Веб-версия
+                                        </mdui-button>
+                                    </>
+                                ) : (
+                                    <mdui-button variant="filled" onClick={() => navigate("/download-app")}>
+                                        Скачать приложение
                                     </mdui-button>
-                                </a>
-                                <mdui-button variant="outlined" onClick={() => navigate("/login")}>
-                                    <mdui-icon name="language" slot="icon"></mdui-icon>
-                                    Веб-версия
-                                </mdui-button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -232,18 +233,24 @@ export default function HomePage() {
                                 Присоединяйтесь к FromChat и общайтесь безопасно с друзьями и коллегами.
                             </p>
                             <div className="cta-actions">
-                                <mdui-button 
-                                    variant="filled" 
-                                    onClick={() => navigate("/register")}
-                                >
-                                    Создать аккаунт
-                                </mdui-button>
-                                <mdui-button 
-                                    variant="outlined" 
-                                    onClick={() => navigate("/login")}
-                                >
-                                    Войти
-                                </mdui-button>
+                                {isMobile ? (
+                                    <mdui-button variant="filled" onClick={() => navigate("/download-app")}>
+                                        Скачать приложение
+                                    </mdui-button>
+                                ) : (
+                                    <>
+                                        <mdui-button 
+                                            variant="filled" 
+                                            onClick={() => navigate("/register")}>
+                                            Создать аккаунт
+                                        </mdui-button>
+                                        <mdui-button 
+                                            variant="outlined" 
+                                            onClick={() => navigate("/login")}>
+                                            Войти
+                                        </mdui-button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>

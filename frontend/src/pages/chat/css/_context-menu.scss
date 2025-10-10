@@ -84,7 +84,6 @@
 }
 
 .context-menu {
-    position: fixed;
     background: $color-dark-surface;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -267,26 +266,5 @@
     
     &:hover .material-symbols {
         transform: rotate(90deg);
-    }
-}
-
-// Mobile responsive
-@media (max-width: 768px) {
-    .reaction-bar {
-        padding: 6px;
-    }
-    
-    .reaction-emoji-button,
-    .reaction-expand-button {
-        width: 28px;
-        height: 28px;
-    }
-    
-    .reaction-emoji-button {
-        font-size: 16px;
-    }
-    
-    .reaction-expand-button .material-symbols {
-        font-size: 16px;
     }
 }
