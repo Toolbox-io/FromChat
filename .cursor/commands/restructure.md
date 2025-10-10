@@ -1,0 +1,1 @@
+Analyze my codebase and think how it could be better organized, like a better folder or code structure.
