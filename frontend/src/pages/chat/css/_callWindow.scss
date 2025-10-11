@@ -40,7 +40,7 @@
 
         &.hidden {
             opacity: 0;
-            transform: translateY(-100%);
+            transform: translateY(-100%); // Slide up when ending in fullscreen
             pointer-events: none;
         }
 
@@ -86,13 +86,14 @@
 
         &.visible {
             opacity: 1;
-            transform: scale(1) translateY(0);
+            transform: scale(1);
         }
 
         &.hidden {
-            opacity: 0;
-            transform: scale(0.8) translateY(20px);
+            opacity: 0 !important;
+            transform: scale(0.7) !important; // Scale down and fade when ending in PiP
             pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
 
         &.dragging {

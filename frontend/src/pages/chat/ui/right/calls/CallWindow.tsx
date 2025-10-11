@@ -27,6 +27,7 @@ export function CallWindow() {
     const [callDuration, setCallDuration] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
+    const [wasMinimized, setWasMinimized] = useState(false);
     const [callData, setCallData] = useState<{
         remoteUsername: string | null;
         status: CallStatus;
@@ -67,6 +68,13 @@ export function CallWindow() {
         }
     }, [call.isActive, call.remoteUsername, call.status, call.isInitiator, call.isMuted]);
 
+    // Track minimized state for exit animation
+    useEffect(() => {
+        if (call.isActive) {
+            setWasMinimized(call.isMinimized);
+        }
+    }, [call.isActive, call.isMinimized]);
+
     // Handle visibility animation with entrance and exit delays
     useEffect(() => {
         if (call.isActive) {
@@ -80,11 +88,14 @@ export function CallWindow() {
         } else {
             if (shouldRender) {
                 // Call ended - start exit animation
+                console.log(`Call ended - starting exit animation. Was minimized: ${wasMinimized}`);
                 setIsVisible(false);
                 // After animation completes, stop rendering
                 const timer = setTimeout(() => {
+                    console.log("Exit animation complete, removing window");
                     setShouldRender(false);
                     setCallData(null);
+                    setWasMinimized(false);
                 }, 400); // Match the CSS transition duration
                 return () => clearTimeout(timer);
             } else {
@@ -92,9 +103,10 @@ export function CallWindow() {
                 setShouldRender(false);
                 setIsVisible(false);
                 setCallData(null);
+                setWasMinimized(false);
             }
         }
-    }, [call.isActive, shouldRender]);
+    }, [call.isActive, shouldRender, wasMinimized]);
 
     // Handle dragging for PiP mode
     useEffect(() => {
@@ -178,11 +190,17 @@ export function CallWindow() {
                 
                 {shouldRender && (
                     <div
-                        className={`call-window ${call.isMinimized ? "minimized" : "maximized"} ${isDragging ? "dragging" : ""} ${getGradientClass()} ${isVisible ? "visible" : "hidden"}`}
-                        style={call.isMinimized ? {
+                        className={`call-window ${(call.isActive ? call.isMinimized : wasMinimized) ? "minimized" : "maximized"} ${isDragging ? "dragging" : ""} ${getGradientClass()} ${isVisible ? "visible" : "hidden"}`}
+                        style={(call.isActive ? call.isMinimized : wasMinimized) ? {
                             left: pipPosition.x,
                             top: pipPosition.y
                         } : undefined}
+                        ref={(el) => {
+                            if (el && !isVisible) {
+                                console.log(`Window classes: ${el.className}`);
+                                console.log(`Window state - was minimized: ${wasMinimized}, visible: ${isVisible}`);
+                            }
+                        }}
                         onMouseDown={(e) => {
                             if (call.isMinimized) {
                                 // Only start dragging if not clicking on a button
