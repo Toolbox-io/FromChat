@@ -12,6 +12,11 @@
     
     // Base transition for all properties
     transition: all 0.4s $transition;
+    
+    // Disable all transitions while dragging for immediate feedback
+    &.dragging {
+        transition: none !important;
+    }
 
     // Maximized mode (fullscreen)
     &.maximized {
