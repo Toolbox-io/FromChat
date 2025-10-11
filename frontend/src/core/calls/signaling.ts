@@ -138,26 +138,32 @@ export class CallSignalingHandler {
     private handleVideoToggle(data: any) {
         console.log("handleVideoToggle called with data:", data);
         const state = this.getState();
-        const { data: toggleData } = data;
+        const { fromUserId, data: toggleData } = data;
         
-        if (toggleData && typeof toggleData.enabled === "boolean") {
+        if (toggleData && typeof toggleData.enabled === "boolean" && fromUserId) {
             console.log("Setting remote video enabled to:", toggleData.enabled);
+            // Update Zustand state (for UI)
             state.setRemoteVideoEnabled(toggleData.enabled);
+            // Update WebRTC internal state (for track routing)
+            WebRTC.setRemoteVideoEnabled(fromUserId, toggleData.enabled);
         } else {
-            console.warn("Invalid toggle data:", toggleData);
+            console.warn("Invalid toggle data:", data);
         }
     }
 
     private handleScreenShareToggle(data: any) {
         console.log("handleScreenShareToggle called with data:", data);
         const state = this.getState();
-        const { data: toggleData } = data;
+        const { fromUserId, data: toggleData } = data;
         
-        if (toggleData && typeof toggleData.enabled === "boolean") {
+        if (toggleData && typeof toggleData.enabled === "boolean" && fromUserId) {
             console.log("Setting remote screen sharing to:", toggleData.enabled);
+            // Update Zustand state (for UI)
             state.setRemoteScreenSharing(toggleData.enabled);
+            // Update WebRTC internal state (for track routing)
+            WebRTC.setRemoteScreenSharing(fromUserId, toggleData.enabled);
         } else {
-            console.warn("Invalid toggle data:", toggleData);
+            console.warn("Invalid toggle data:", data);
         }
     }
 }

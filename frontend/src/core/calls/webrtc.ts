@@ -19,6 +19,8 @@ export interface WebRTCCall {
     isMuted?: boolean;
     isLocalVideoEnabled: boolean;
     isScreenSharing: boolean;
+    isRemoteScreenSharing: boolean; // Track remote screen share state from signaling
+    isRemoteVideoEnabled: boolean; // Track remote video state from signaling
     isNegotiating?: boolean;
     // Insertable Streams E2EE
     sessionKey?: Uint8Array | null;
@@ -133,6 +135,8 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
         isMuted: false,
         isLocalVideoEnabled: false,
         isScreenSharing: false,
+        isRemoteScreenSharing: false,
+        isRemoteVideoEnabled: false,
         sessionKey: null,
         sessionCryptoKey: null,
         sessionId: crypto.randomUUID(),
@@ -250,21 +254,27 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
                 }
             }
             
-            // Determine stream type based on track kind and stream ID
-            const streamId = remoteStream.id;
+            // Determine stream type based on track kind and signaling state
+            console.log(`Track received: kind=${track.kind}, isRemoteScreenSharing=${call.isRemoteScreenSharing}, isRemoteVideoEnabled=${call.isRemoteVideoEnabled}`);
             
-            // Check if this is a screen share stream (we'll use a convention: screen share streams have "screen" in their ID)
-            if (streamId.includes("screen")) {
-                console.log("Detected screen share track, notifying handler");
-                // Handle remote screen share
-                if (onRemoteScreenShare) {
-                    onRemoteScreenShare(userId, remoteStream);
-                }
-            } else if (track.kind === "video") {
-                console.log("Detected video track, notifying handler");
-                // Handle remote video
-                if (onRemoteVideoStream) {
-                    onRemoteVideoStream(userId, remoteStream);
+            if (track.kind === "video") {
+                // Prioritize screen share over regular video
+                // If remote is screen sharing, this video track is the screen share
+                if (call.isRemoteScreenSharing) {
+                    console.log("Detected screen share track (based on signaling), notifying handler");
+                    if (onRemoteScreenShare) {
+                        onRemoteScreenShare(userId, remoteStream);
+                    } else {
+                        console.warn("onRemoteScreenShare handler not set!");
+                    }
+                } else {
+                    console.log("Detected video track (based on signaling), notifying handler");
+                    // Handle remote video
+                    if (onRemoteVideoStream) {
+                        onRemoteVideoStream(userId, remoteStream);
+                    } else {
+                        console.warn("onRemoteVideoStream handler not set!");
+                    }
                 }
             } else if (track.kind === "audio") {
                 console.log("Detected audio track, notifying handler");
@@ -272,6 +282,8 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
                 call.remoteStream = remoteStream;
                 if (onRemoteStream) {
                     onRemoteStream(userId, remoteStream);
+                } else {
+                    console.warn("onRemoteStream handler not set!");
                 }
             }
         }
@@ -983,10 +995,16 @@ export async function toggleScreenShare(userId: number): Promise<boolean> {
             });
 
             // Set a special ID to identify screen share streams
-            Object.defineProperty(screenStream, "id", {
-                value: `screen-${crypto.randomUUID()}`,
-                writable: false
-            });
+            try {
+                Object.defineProperty(screenStream, "id", {
+                    value: `screen-${crypto.randomUUID()}`,
+                    writable: false,
+                    configurable: true
+                });
+                console.log("Set screen share stream ID to:", screenStream.id);
+            } catch (e) {
+                console.warn("Failed to set custom stream ID, using default:", screenStream.id);
+            }
 
             call.screenShareStream = screenStream;
             call.isScreenSharing = true;
@@ -1100,6 +1118,28 @@ export function cleanupCall(userId: number): void {
         }
 
         calls.delete(userId);
+    }
+}
+
+/**
+ * Update the remote video enabled state (called when receiving signaling)
+ */
+export function setRemoteVideoEnabled(userId: number, enabled: boolean): void {
+    const call = calls.get(userId);
+    if (call) {
+        console.log(`Setting remote video enabled to ${enabled} for user ${userId}`);
+        call.isRemoteVideoEnabled = enabled;
+    }
+}
+
+/**
+ * Update the remote screen sharing state (called when receiving signaling)
+ */
+export function setRemoteScreenSharing(userId: number, enabled: boolean): void {
+    const call = calls.get(userId);
+    if (call) {
+        console.log(`Setting remote screen sharing to ${enabled} for user ${userId}`);
+        call.isRemoteScreenSharing = enabled;
     }
 }
 
