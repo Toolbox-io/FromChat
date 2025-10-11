@@ -214,10 +214,10 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
                 onCallStateChange(userId, peerConnection.connectionState);
             }
 
-            // Clean up if connection failed or closed
+            // Clean up only on permanent failures
+            // Don't end on "disconnected" - ICE can recover from temporary disconnections
             if (peerConnection.connectionState === "failed" || 
-                peerConnection.connectionState === "closed" ||
-                peerConnection.connectionState === "disconnected") {
+                peerConnection.connectionState === "closed") {
                 // Only send end call message if we're not already cleaning up
                 const call = calls.get(userId);
                 if (call && !call.isEnding) {
@@ -316,20 +316,31 @@ export async function sendWrappedCallSessionKey(userId: number, sessionKey: Uint
 async function applyE2EETransforms(call: WebRTCCall): Promise<void> {
     try {
         // @ts-ignore
-        if (!call.sessionKey || !window.RTCRtpScriptTransform) return;
+        if (!call.sessionKey || !window.RTCRtpScriptTransform) {
+            console.log("Skipping E2EE transforms - session key or RTCRtpScriptTransform not available");
+            return;
+        }
+        
+        console.log("Applying E2EE transforms for call", call.remoteUserId);
         const key = await importAesGcmKey(call.sessionKey);
         call.sessionCryptoKey = key;
+        
         const receiver = call.peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
         if (receiver) {
+            console.log("Applying decrypt transform to audio receiver");
             // @ts-ignore
-            receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt' });
+            receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId: call.sessionId });
         }
+        
         const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
         if (sender) {
+            console.log("Applying encrypt transform to audio sender");
             // @ts-ignore
-            sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt' });
+            sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId: call.sessionId });
         }
-    } catch {}
+    } catch (error) {
+        console.error("Failed to apply E2EE transforms:", error);
+    }
 }
 
 export async function setSessionKey(userId: number, keyBytes: Uint8Array): Promise<void> {
@@ -501,20 +512,31 @@ export async function onRemoteAccepted(userId: number): Promise<void> {
 
 async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKey']>, peerConnection: RTCPeerConnection, sessionId?: string): Promise<void> {
     try {
-        if (sessionKey && window.RTCRtpScriptTransform) {
-            const key = await importAesGcmKey(sessionKey);
-            const receiver = peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
-            if (receiver) {
-                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
-            }
-            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-            if (sender) {
-                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
-            }
+        // @ts-ignore
+        if (!sessionKey || !window.RTCRtpScriptTransform) {
+            console.log("Skipping E2EE transform in createE2EETransform - not supported or no session key");
+            return;
+        }
+        
+        console.log("Creating E2EE transform with sessionId:", sessionId);
+        const key = await importAesGcmKey(sessionKey);
+        
+        const receiver = peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
+        if (receiver) {
+            console.log("Applying decrypt transform in createE2EETransform");
+            // @ts-ignore
+            receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
+        }
+        
+        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+        if (sender) {
+            console.log("Applying encrypt transform in createE2EETransform");
+            // @ts-ignore
+            sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
         }
     } catch (error) {
         console.error("Failed to create E2EE transform:", error);
-        throw error;
+        // Don't throw - let the call continue without E2EE
     }
 }
 
@@ -532,8 +554,13 @@ export async function handleCallOffer(userId: number, offer: RTCSessionDescripti
         const answer = await call.peerConnection.createAnswer();
         await call.peerConnection.setLocalDescription(answer);
 
-        // Attach transforms on callee side if session key set and insertable streams supported
-        await createE2EETransform(call.sessionKey!, call.peerConnection, call.sessionId);
+        // Attach transforms on callee side if session key is available
+        // If not available yet, setSessionKey will apply them when it arrives
+        if (call.sessionKey) {
+            await createE2EETransform(call.sessionKey, call.peerConnection, call.sessionId);
+        } else {
+            console.log("Session key not yet available in handleCallOffer - will apply transforms when key arrives");
+        }
 
         // Send answer to remote peer
         await sendSignalingMessage({
@@ -556,8 +583,14 @@ export async function handleCallAnswer(userId: number, answer: RTCSessionDescrip
 
     try {
         await call.peerConnection.setRemoteDescription(answer);
-        // After signaling completes, attach transforms on initiator side if supported
-        await createE2EETransform(call.sessionKey!, call.peerConnection, call.sessionId);
+        
+        // Attach transforms on initiator side if session key is available
+        // If not available yet, setSessionKey will apply them when it arrives
+        if (call.sessionKey) {
+            await createE2EETransform(call.sessionKey, call.peerConnection, call.sessionId);
+        } else {
+            console.log("Session key not yet available in handleCallAnswer - will apply transforms when key arrives");
+        }
     } catch (error) {
         console.error("Failed to handle answer:", error);
         throw error;

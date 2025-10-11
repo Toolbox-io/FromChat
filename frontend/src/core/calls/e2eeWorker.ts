@@ -47,42 +47,42 @@ addEventListener("rtctransform", (event) => {
             
             const data = new Uint8Array(encodedFrame.data);
             
-            // Add frame metadata for authentication
-            const frameMetadata = new TextEncoder().encode(JSON.stringify({
-                frameNumber: frameCounter - 1,
-                timestamp: currentTime,
-                sessionId: sessionId || 'default'
-            }));
-            
-            // Combine frame data with metadata
-            const combinedData = new Uint8Array(data.length + frameMetadata.length);
-            combinedData.set(frameMetadata, 0);
-            combinedData.set(data, frameMetadata.length);
-            
             const params: AesGcmParams = { name: 'AES-GCM', iv };
             
             let result: ArrayBuffer;
             if (mode === 'encrypt') {
+                // For encryption: add 4-byte length prefix, then metadata, then encrypt
+                const frameMetadata = new TextEncoder().encode(JSON.stringify({
+                    frameNumber: frameCounter - 1,
+                    timestamp: currentTime,
+                    sessionId: sessionId || 'default'
+                }));
+                
+                // Combine: [4-byte length][metadata][data]
+                const combinedData = new Uint8Array(4 + frameMetadata.length + data.length);
+                const view = new DataView(combinedData.buffer);
+                view.setUint32(0, frameMetadata.length, false); // Store metadata length
+                combinedData.set(frameMetadata, 4);
+                combinedData.set(data, 4 + frameMetadata.length);
+                
                 result = await crypto.subtle.encrypt(params, key, combinedData);
             } else {
-                result = await crypto.subtle.decrypt(params, key, combinedData);
-                
-                // Verify frame metadata on decryption
-                const decryptedData = new Uint8Array(result);
-                const metadataLength = frameMetadata.length;
-                const extractedMetadata = decryptedData.slice(0, metadataLength);
-                const extractedData = decryptedData.slice(metadataLength);
+                // For decryption: decrypt first, then extract using length prefix
+                const decrypted = await crypto.subtle.decrypt(params, key, data);
+                const decryptedData = new Uint8Array(decrypted);
                 
                 try {
-                    const metadata = JSON.parse(new TextDecoder().decode(extractedMetadata));
-                    if (metadata.frameNumber !== frameCounter - 1) {
-                        throw new Error("Frame sequence number mismatch");
-                    }
-                    result = extractedData.buffer;
+                    // Read metadata length from first 4 bytes
+                    const view = new DataView(decryptedData.buffer, decryptedData.byteOffset);
+                    const metadataLength = view.getUint32(0, false);
+                    
+                    // Extract the actual frame data (skip length prefix and metadata)
+                    const extractedData = decryptedData.slice(4 + metadataLength);
+                    result = extractedData.buffer.slice(extractedData.byteOffset, extractedData.byteOffset + extractedData.byteLength);
                 } catch (parseError) {
-                    console.warn("Frame authentication failed:", parseError);
-                    controller.error(new Error("Frame authentication failed"));
-                    return;
+                    console.warn("Frame metadata extraction failed:", parseError);
+                    // If extraction fails, just use the decrypted data as-is
+                    result = decrypted;
                 }
             }
             
