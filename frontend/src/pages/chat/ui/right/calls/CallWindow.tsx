@@ -23,7 +23,7 @@ export function CallWindow() {
     } = useCall();
     const [pipPosition, setPipPosition] = useState({ x: window.innerWidth - 420, y: window.innerHeight - 320 });
     const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [callDuration, setCallDuration] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
@@ -96,6 +96,34 @@ export function CallWindow() {
         }
     }, [call.isActive, shouldRender]);
 
+    // Handle dragging for PiP mode
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (isDragging && call.isMinimized) {
+                setPipPosition({
+                    x: e.clientX - dragOffset.x,
+                    y: e.clientY - dragOffset.y
+                });
+            }
+        };
+
+        const handleMouseUp = () => {
+            if (isDragging) {
+                setIsDragging(false);
+            }
+        };
+
+        if (isDragging) {
+            window.addEventListener("mousemove", handleMouseMove);
+            window.addEventListener("mouseup", handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, [isDragging, call.isMinimized, dragOffset]);
+
     // Cleanup effect to reset state when component unmounts
     useEffect(() => {
         return () => {
@@ -156,24 +184,18 @@ export function CallWindow() {
                             top: pipPosition.y
                         } : undefined}
                         onMouseDown={(e) => {
-                            if (call.isMinimized && e.target === e.currentTarget) {
-                                setIsDragging(true);
-                                setDragStart({
-                                    x: e.clientX - pipPosition.x,
-                                    y: e.clientY - pipPosition.y
-                                });
+                            if (call.isMinimized) {
+                                // Only start dragging if not clicking on a button
+                                const target = e.target as HTMLElement;
+                                if (!target.closest("mdui-button-icon")) {
+                                    setIsDragging(true);
+                                    setDragOffset({
+                                        x: e.clientX - pipPosition.x,
+                                        y: e.clientY - pipPosition.y
+                                    });
+                                }
                             }
                         }}
-                        onMouseMove={(e) => {
-                            if (isDragging && call.isMinimized) {
-                                setPipPosition({
-                                    x: e.clientX - dragStart.x,
-                                    y: e.clientY - dragStart.y
-                                });
-                            }
-                        }}
-                        onMouseUp={() => setIsDragging(false)}
-                        onMouseLeave={() => setIsDragging(false)}
                     >
                         <div className="call-header">
                             <div className="window-controls">
