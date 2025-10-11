@@ -19,6 +19,7 @@ export interface WebRTCCall {
     isMuted?: boolean;
     isLocalVideoEnabled: boolean;
     isScreenSharing: boolean;
+    isNegotiating?: boolean;
     // Insertable Streams E2EE
     sessionKey?: Uint8Array | null;
     sessionCryptoKey?: CryptoKey | null;
@@ -171,31 +172,98 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
     });
 
     peerConnection.addEventListener("signalingstatechange", () => {
-        // Signaling state changed
+        console.log("Signaling state changed:", peerConnection.signalingState);
+    });
+
+    // Handle renegotiation when tracks are added/removed
+    peerConnection.addEventListener("negotiationneeded", async () => {
+        try {
+            console.log("Negotiation needed for user", userId);
+            const call = calls.get(userId);
+            if (!call) {
+                console.log("Skipping renegotiation - call not found");
+                return;
+            }
+
+            // Prevent multiple simultaneous negotiations
+            if (call.isNegotiating) {
+                console.log("Already negotiating, skipping");
+                return;
+            }
+
+            // Only the initiator creates new offers during renegotiation
+            // The non-initiator should wait for the initiator to send a new offer
+            if (!call.isInitiator) {
+                console.log("Skipping renegotiation - not initiator, waiting for offer");
+                return;
+            }
+
+            call.isNegotiating = true;
+            console.log("Creating new offer for renegotiation");
+            
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            await sendSignalingMessage({
+                type: "call_offer",
+                fromUserId: 0,
+                toUserId: userId,
+                data: offer
+            });
+
+            call.isNegotiating = false;
+        } catch (error) {
+            console.error("Failed to handle negotiation:", error);
+            const call = calls.get(userId);
+            if (call) {
+                call.isNegotiating = false;
+            }
+        }
     });
 
     // Handle remote stream
-    peerConnection.addEventListener("track", (event) => {
+    peerConnection.addEventListener("track", async (event) => {
+        console.log("Received track:", event.track.kind, "from user", userId, "stream ID:", event.streams[0]?.id);
+        
         const [remoteStream] = event.streams;
         const call = calls.get(userId);
         if (call && remoteStream) {
             const track = event.track;
+            
+            // Apply E2EE transform to the receiver for this new track if session key is available
+            // Currently disabled for video tracks due to counter synchronization issues
+            if (call.sessionKey && window.RTCRtpScriptTransform && track.kind === "audio") {
+                try {
+                    const key = await importAesGcmKey(call.sessionKey);
+                    const receiver = call.peerConnection.getReceivers().find(r => r.track === track);
+                    if (receiver) {
+                        console.log(`Applying decrypt transform to newly received ${track.kind} track`);
+                        // @ts-ignore
+                        receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId: call.sessionId });
+                    }
+                } catch (error) {
+                    console.error("Failed to apply E2EE to received track:", error);
+                }
+            }
             
             // Determine stream type based on track kind and stream ID
             const streamId = remoteStream.id;
             
             // Check if this is a screen share stream (we'll use a convention: screen share streams have "screen" in their ID)
             if (streamId.includes("screen")) {
+                console.log("Detected screen share track, notifying handler");
                 // Handle remote screen share
                 if (onRemoteScreenShare) {
                     onRemoteScreenShare(userId, remoteStream);
                 }
             } else if (track.kind === "video") {
+                console.log("Detected video track, notifying handler");
                 // Handle remote video
                 if (onRemoteVideoStream) {
                     onRemoteVideoStream(userId, remoteStream);
                 }
             } else if (track.kind === "audio") {
+                console.log("Detected audio track, notifying handler");
                 // Handle remote audio (existing behavior)
                 call.remoteStream = remoteStream;
                 if (onRemoteStream) {
@@ -325,18 +393,24 @@ async function applyE2EETransforms(call: WebRTCCall): Promise<void> {
         const key = await importAesGcmKey(call.sessionKey);
         call.sessionCryptoKey = key;
         
-        const receiver = call.peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
-        if (receiver) {
-            console.log("Applying decrypt transform to audio receiver");
-            // @ts-ignore
-            receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId: call.sessionId });
+        // Apply to audio receivers only (video E2EE requires synchronized counters)
+        const receivers = call.peerConnection.getReceivers();
+        for (const receiver of receivers) {
+            if (receiver.track && receiver.track.kind === "audio") {
+                console.log(`Applying decrypt transform to ${receiver.track.kind} receiver`);
+                // @ts-ignore
+                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId: call.sessionId });
+            }
         }
         
-        const sender = call.peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-        if (sender) {
-            console.log("Applying encrypt transform to audio sender");
-            // @ts-ignore
-            sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId: call.sessionId });
+        // Apply to audio senders only (video E2EE requires synchronized counters)
+        const senders = call.peerConnection.getSenders();
+        for (const sender of senders) {
+            if (sender.track && sender.track.kind === "audio") {
+                console.log(`Applying encrypt transform to ${sender.track.kind} sender`);
+                // @ts-ignore
+                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId: call.sessionId });
+            }
         }
     } catch (error) {
         console.error("Failed to apply E2EE transforms:", error);
@@ -422,10 +496,12 @@ export async function acceptCall(userId: number): Promise<boolean> {
             if (!call) return false;
         }
 
-        // Get user media and attach
-        const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        call.localStream = localStream;
-        localStream.getTracks().forEach(track => call!.peerConnection.addTrack(track, localStream));
+        // Get user media and attach (only if not already attached)
+        if (!call.localStream) {
+            const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            call.localStream = localStream;
+            localStream.getTracks().forEach(track => call!.peerConnection.addTrack(track, localStream));
+        }
 
         // Notify initiator that callee accepted; initiator will generate offer
         await sendSignalingMessage({
@@ -493,6 +569,10 @@ export async function onRemoteAccepted(userId: number): Promise<void> {
     }
 
     try {
+        // Small delay to ensure remote peer finishes processing the accept
+        // This prevents race conditions where our offer arrives before they're ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Create offer
         const offer = await call.peerConnection.createOffer();
         await call.peerConnection.setLocalDescription(offer);
@@ -521,18 +601,24 @@ async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKe
         console.log("Creating E2EE transform with sessionId:", sessionId);
         const key = await importAesGcmKey(sessionKey);
         
-        const receiver = peerConnection.getReceivers().find(r => r.track && r.track.kind === 'audio');
-        if (receiver) {
-            console.log("Applying decrypt transform in createE2EETransform");
-            // @ts-ignore
-            receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
+        // Apply to audio receivers only (video E2EE requires synchronized counters)
+        const receivers = peerConnection.getReceivers();
+        for (const receiver of receivers) {
+            if (receiver.track && receiver.track.kind === "audio") {
+                console.log(`Applying decrypt transform to ${receiver.track.kind} in createE2EETransform`);
+                // @ts-ignore
+                receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId });
+            }
         }
         
-        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-        if (sender) {
-            console.log("Applying encrypt transform in createE2EETransform");
-            // @ts-ignore
-            sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
+        // Apply to audio senders only (video E2EE requires synchronized counters)
+        const senders = peerConnection.getSenders();
+        for (const sender of senders) {
+            if (sender.track && sender.track.kind === "audio") {
+                console.log(`Applying encrypt transform to ${sender.track.kind} in createE2EETransform`);
+                // @ts-ignore
+                sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'encrypt', sessionId });
+            }
         }
     } catch (error) {
         console.error("Failed to create E2EE transform:", error);
@@ -541,12 +627,32 @@ async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKe
 }
 
 export async function handleCallOffer(userId: number, offer: RTCSessionDescriptionInit): Promise<void> {
-    const call = calls.get(userId);
+    let call = calls.get(userId);
+    
+    // Handle race condition - offer might arrive before peer connection is created
     if (!call) {
-        throw new Error("No call found for offer");
+        console.log("No call found for offer, creating peer connection (race condition handling)");
+        await createPeerConnection(userId);
+        call = calls.get(userId);
+        if (!call) {
+            throw new Error("Failed to create call for offer");
+        }
     }
 
     try {
+        // Ensure we have local media before answering
+        if (!call.localStream) {
+            console.log("Getting local media for answer");
+            try {
+                const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                call.localStream = localStream;
+                localStream.getTracks().forEach(track => call!.peerConnection.addTrack(track, localStream));
+            } catch (mediaError) {
+                console.error("Failed to get local media:", mediaError);
+                // Continue anyway - we can still receive media
+            }
+        }
+
         // Set remote description
         await call.peerConnection.setRemoteDescription(offer);
 
@@ -584,6 +690,9 @@ export async function handleCallAnswer(userId: number, answer: RTCSessionDescrip
     try {
         await call.peerConnection.setRemoteDescription(answer);
         
+        // Reset negotiating flag
+        call.isNegotiating = false;
+        
         // Attach transforms on initiator side if session key is available
         // If not available yet, setSessionKey will apply them when it arrives
         if (call.sessionKey) {
@@ -598,9 +707,10 @@ export async function handleCallAnswer(userId: number, answer: RTCSessionDescrip
 }
 
 export async function handleIceCandidate(userId: number, candidate: RTCIceCandidateInit): Promise<void> {
-    const call = calls.get(userId);
+    let call = calls.get(userId);
     if (!call) {
-        console.warn("No call found for ICE candidate from user", userId);
+        console.warn("No call found for ICE candidate from user", userId, "- might arrive before connection setup");
+        // Don't create peer connection here - ICE candidates will be gathered again after connection is established
         return;
     }
 
@@ -710,18 +820,13 @@ export async function toggleVideo(userId: number): Promise<boolean> {
 
             // Add video track to peer connection
             const videoTrack = videoStream.getVideoTracks()[0];
-            const sender = call.peerConnection.addTrack(videoTrack, videoStream);
+            call.peerConnection.addTrack(videoTrack, videoStream);
 
-            // Apply E2EE transform if session key exists
-            if (call.sessionKey && window.RTCRtpScriptTransform) {
-                try {
-                    const key = await importAesGcmKey(call.sessionKey);
-                    // @ts-ignore
-                    sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: "encrypt", sessionId: call.sessionId });
-                } catch (error) {
-                    console.error("Failed to apply E2EE to video:", error);
-                }
-            }
+            console.log("Video track added successfully");
+
+            // Note: E2EE for video is temporarily disabled for testing
+            // Will re-enable with proper counter synchronization
+            console.log("Video sent without E2EE (will implement synchronized encryption)");
 
             // Notify local video stream handler
             if (onLocalVideoStream) {
@@ -807,18 +912,13 @@ export async function toggleScreenShare(userId: number): Promise<boolean> {
                 toggleScreenShare(userId);
             });
 
-            const sender = call.peerConnection.addTrack(videoTrack, screenStream);
+            call.peerConnection.addTrack(videoTrack, screenStream);
 
-            // Apply E2EE transform if session key exists
-            if (call.sessionKey && window.RTCRtpScriptTransform) {
-                try {
-                    const key = await importAesGcmKey(call.sessionKey);
-                    // @ts-ignore
-                    sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: "encrypt", sessionId: call.sessionId });
-                } catch (error) {
-                    console.error("Failed to apply E2EE to screen share:", error);
-                }
-            }
+            console.log("Screen share track added successfully");
+
+            // Note: E2EE for screen share is temporarily disabled for testing
+            // Will re-enable with proper counter synchronization
+            console.log("Screen share sent without E2EE (will implement synchronized encryption)");
 
             // Notify local screen share handler
             if (onLocalScreenShare) {

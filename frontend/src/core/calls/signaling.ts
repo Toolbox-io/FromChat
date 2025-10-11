@@ -67,11 +67,11 @@ export class CallSignalingHandler {
         const { fromUserId, fromUsername } = data;
         const state = this.getState();
         
-        // Show incoming call UI
-        state.receiveCall(fromUserId, fromUsername);
-        
-        // Handle incoming call in WebRTC service
+        // First, create the peer connection in WebRTC service
         await WebRTC.handleIncomingCall(fromUserId, fromUsername);
+        
+        // Then show incoming call UI
+        state.receiveCall(fromUserId, fromUsername);
     }
 
     private async handleCallAccept(data: any) {

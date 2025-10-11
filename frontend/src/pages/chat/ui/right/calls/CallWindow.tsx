@@ -205,41 +205,42 @@ export function CallWindow() {
 
                         <div className="call-content">
                             {/* Screen share tiles - larger and more prominent */}
-                            {call.isSharingScreen && (
-                                <div className="video-tile screen-share-tile local-screen-share">
-                                    <video
-                                        ref={localScreenShareRef}
-                                        className="video-element"
-                                        autoPlay
-                                        playsInline
-                                        muted />
-                                    <div className="tile-label">Your Screen</div>
-                                </div>
-                            )}
+                            {/* Always render but hide when not in use to keep refs valid */}
+                            <div 
+                                className="video-tile screen-share-tile local-screen-share"
+                                style={{ display: call.isSharingScreen ? "flex" : "none" }}>
+                                <video
+                                    ref={localScreenShareRef}
+                                    className="video-element"
+                                    autoPlay
+                                    playsInline
+                                    muted />
+                                <div className="tile-label">Your Screen</div>
+                            </div>
                             
-                            {call.isRemoteScreenSharing && (
-                                <div className="video-tile screen-share-tile remote-screen-share">
-                                    <video
-                                        ref={remoteScreenShareRef}
-                                        className="video-element"
-                                        autoPlay
-                                        playsInline />
-                                    <div className="tile-label">{remoteUsername}&apos;s Screen</div>
-                                </div>
-                            )}
+                            <div 
+                                className="video-tile screen-share-tile remote-screen-share"
+                                style={{ display: call.isRemoteScreenSharing ? "flex" : "none" }}>
+                                <video
+                                    ref={remoteScreenShareRef}
+                                    className="video-element"
+                                    autoPlay
+                                    playsInline />
+                                <div className="tile-label">{remoteUsername}&apos;s Screen</div>
+                            </div>
 
                             {/* Video tiles grid */}
                             <div className="video-tiles-grid">
                                 {/* Local video tile */}
                                 <div className="video-tile local-video">
-                                    {call.isVideoEnabled ? (
-                                        <video
-                                            ref={localVideoRef}
-                                            className="video-element"
-                                            autoPlay
-                                            playsInline
-                                            muted />
-                                    ) : (
+                                    <video
+                                        ref={localVideoRef}
+                                        className="video-element"
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        style={{ display: call.isVideoEnabled ? "block" : "none" }} />
+                                    {!call.isVideoEnabled && (
                                         <div className="video-placeholder">
                                             <img src={defaultAvatar} alt="Avatar" className="placeholder-avatar" />
                                             <span className="placeholder-username">{user.currentUser?.username || "You"}</span>
@@ -250,13 +251,13 @@ export function CallWindow() {
 
                                 {/* Remote video tile */}
                                 <div className="video-tile remote-video">
-                                    {call.isRemoteVideoEnabled ? (
-                                        <video
-                                            ref={remoteVideoRef}
-                                            className="video-element"
-                                            autoPlay
-                                            playsInline />
-                                    ) : (
+                                    <video
+                                        ref={remoteVideoRef}
+                                        className="video-element"
+                                        autoPlay
+                                        playsInline
+                                        style={{ display: call.isRemoteVideoEnabled ? "block" : "none" }} />
+                                    {!call.isRemoteVideoEnabled && (
                                         <div className="video-placeholder">
                                             <img src={defaultAvatar} alt="Avatar" className="placeholder-avatar" />
                                             <span className="placeholder-username">{remoteUsername}</span>
