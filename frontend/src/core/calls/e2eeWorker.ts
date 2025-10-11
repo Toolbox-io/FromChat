@@ -34,7 +34,7 @@ export interface WorkerOptions {
  * For RTCEncodedVideoFrame/AudioFrame, we use the frame's metadata if available,
  * otherwise fall back to extracting from RTP header
  */
-function makeIV(encodedFrame: EncodedFrame, frameCount: number): ArrayBuffer {
+function makeIV(encodedFrame: EncodedFrame, frameCount: number, mode: 'encrypt' | 'decrypt'): ArrayBuffer {
     // Create IV using ONLY RTP metadata - this ensures sender and receiver use the same IV
     // Frame count causes desynchronization during renegotiation
     const ivBuffer = new ArrayBuffer(12);
@@ -50,9 +50,9 @@ function makeIV(encodedFrame: EncodedFrame, frameCount: number): ArrayBuffer {
                 view.setUint32(4, 0, false); // Middle 4 bytes (was frameCount)
                 view.setUint32(8, metadata.synchronizationSource || 0, false); // Last 4 bytes
                 
-                // Debug first few frames
-                if (frameCount <= 3) {
-                    console.log(`IV for frame #${frameCount}:`, {
+                // Debug first few frames for both encrypt and decrypt (always log for encrypt)
+                if (frameCount <= 3 || (mode === 'encrypt' && frameCount <= 10)) {
+                    console.log(`${mode.toUpperCase()} IV for frame #${frameCount}:`, {
                         rtpTimestamp: metadata.rtpTimestamp,
                         frameCount,
                         syncSource: metadata.synchronizationSource,
@@ -81,6 +81,8 @@ addEventListener("rtctransform", (event) => {
     
     const isEncrypting = mode === 'encrypt';
     
+    console.log(`E2EE Worker started in ${mode.toUpperCase()} mode`);
+    
     let frameCount = 0;
     let lastLogTime = 0;
     let lastKeyCheck = Date.now();
@@ -92,8 +94,13 @@ addEventListener("rtctransform", (event) => {
             // Increment frame counter
             frameCount++;
             
+            // Log every frame for debugging
+            if (frameCount <= 10) {
+                console.log(`${mode.toUpperCase()} Processing frame #${frameCount}, size: ${data.length}`);
+            }
+            
             // Create IV using RTP timestamp from metadata (synchronized between peers)
-            const iv = makeIV(encodedFrame, frameCount);
+            const iv = makeIV(encodedFrame, frameCount, mode);
             
             // Log first few frames and periodically for debugging
             const now = Date.now();
@@ -107,6 +114,14 @@ addEventListener("rtctransform", (event) => {
             if (data.length > 50000 && now - lastKeyCheck > 60000) { // 1 minute for large frames
                 console.log("Large frame detected, suggesting key rotation for screen share");
                 lastKeyCheck = now;
+            }
+
+            // Detect potential browser window glitching - frames with specific characteristics
+            if (data.length > 100000 && frameCount > 10) { // Large frames after initial setup
+                const frameType = encodedFrame.type || 'unknown';
+                if (frameType === 'key' && data.length > 200000) {
+                    console.log("Large keyframe detected - possible browser window glitch, frame size:", data.length);
+                }
             }
             
             // Ensure IV is properly typed

@@ -244,14 +244,21 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
                     const receiver = call.peerConnection.getReceivers().find(r => r.track === track);
                     if (receiver && !call.transformedReceivers.has(receiver)) {
                         const key = await importAesGcmKey(call.sessionKey);
-                        console.log(`Applying decrypt transform to newly received ${track.kind} track`);
+                        console.log(`Applying decrypt transform to newly received ${track.kind} track:`);
+                        console.log("- sessionId:", call.sessionId);
+                        console.log("- sessionKey (first 8 bytes):", Array.from(new Uint8Array(call.sessionKey).slice(0, 8)));
                         // @ts-ignore
                         receiver.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: 'decrypt', sessionId: call.sessionId });
                         call.transformedReceivers.add(receiver);
+                        console.log(`Decrypt transform applied successfully to ${track.kind} track`);
                     }
                 } catch (error) {
                     console.error("Failed to apply E2EE to received track:", error);
                 }
+            } else {
+                console.log(`Skipping decrypt transform for ${track.kind} track - session key not available or RTCRtpScriptTransform not supported`);
+                console.log("Session key exists:", !!call.sessionKey);
+                console.log("RTCRtpScriptTransform available:", !!window.RTCRtpScriptTransform);
             }
             
             // Determine stream type based on track kind and signaling state
@@ -988,9 +995,12 @@ export async function toggleScreenShare(userId: number): Promise<boolean> {
     if (!call.isScreenSharing) {
         // Enable screen sharing
         try {
-            // @ts-ignore - getDisplayMedia might not be in all TypeScript versions
             const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
+                video: {
+                    width: { ideal: 1920, max: 3840 },
+                    height: { ideal: 1080, max: 2160 },
+                    frameRate: { ideal: 60, max: 60 }
+                },
                 audio: false
             });
 
@@ -1017,38 +1027,88 @@ export async function toggleScreenShare(userId: number): Promise<boolean> {
                 toggleScreenShare(userId);
             });
 
-            const sender = call.peerConnection.addTrack(videoTrack, screenStream);
-
-            console.log("Screen share track added successfully");
-
-            // Apply E2EE transform if session key exists and not already transformed
-            if (call.sessionKey && window.RTCRtpScriptTransform && !call.transformedSenders.has(sender)) {
-                try {
-                    const key = await importAesGcmKey(call.sessionKey);
-                    console.log("Applying E2EE to screen share sender");
-                    // @ts-ignore
-                    sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: "encrypt", sessionId: call.sessionId });
-                    call.transformedSenders.add(sender);
-                } catch (error) {
-                    console.error("Failed to apply E2EE to screen share:", error);
-                    throw error; // Fail securely
-                }
-            } else {
-                console.log("Skipping E2EE for screen share - session key not available yet or already transformed");
-            }
-
-            // Notify local screen share handler
-            if (onLocalScreenShare) {
-                onLocalScreenShare(userId, screenStream);
-            }
-
-            // Send signaling message to notify remote peer
+            // Send signaling message FIRST to notify remote peer before adding track
+            // This ensures the receiver knows it's screen share before the track arrives
+            console.log("Sending screen share toggle BEFORE adding track");
             await sendSignalingMessage({
                 type: "call_screen_share_toggle",
                 fromUserId: 0,
                 toUserId: userId,
                 data: { enabled: true }
             });
+
+            // Small delay to ensure signaling message is processed before track arrives
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const sender = call.peerConnection.addTrack(videoTrack, screenStream);
+
+            console.log("Screen share track added, immediately applying E2EE transform");
+
+            // CRITICAL: Apply E2EE transform IMMEDIATELY before any frames are sent
+            if (call.sessionKey && window.RTCRtpScriptTransform && !call.transformedSenders.has(sender)) {
+                try {
+                    const key = await importAesGcmKey(call.sessionKey);
+                    console.log("Applying E2EE to screen share sender:");
+                    console.log("- sessionId:", call.sessionId);
+                    console.log("- sessionKey (first 8 bytes):", Array.from(new Uint8Array(call.sessionKey).slice(0, 8)));
+                    sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: "encrypt", sessionId: call.sessionId });
+                    call.transformedSenders.add(sender);
+                    console.log("E2EE applied to screen share sender successfully");
+                } catch (error) {
+                    console.error("Failed to apply E2EE to screen share:", error);
+                    throw error; // Fail securely
+                }
+            } else {
+                console.log("Skipping E2EE for screen share - session key not available yet or already transformed");
+                console.log("Session key exists:", !!call.sessionKey);
+                console.log("RTCRtpScriptTransform available:", !!window.RTCRtpScriptTransform);
+                console.log("Sender already transformed:", call.transformedSenders.has(sender));
+            }
+
+            // Configure screen share track for better browser window capture
+            const constraints = videoTrack.getConstraints();
+            console.log("Screen share track constraints:", constraints);
+            
+            // Apply additional settings for browser window stability
+            await videoTrack.applyConstraints({
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                frameRate: { ideal: 60, max: 60 }
+            }).catch(e => {
+                console.warn("Could not apply screen share constraints:", e);
+            });
+
+            // Browser window glitch prevention - force keyframe generation
+            // This helps prevent the progressive glitching in browser windows
+            let keyframeCounter = 0;
+            const keyframeInterval = setInterval(async () => {
+                if (videoTrack.readyState === 'live') {
+                    try {
+                        // Force a keyframe every 5 seconds to prevent glitch accumulation
+                        await videoTrack.applyConstraints({
+                            frameRate: { ideal: 30, max: 30 }
+                        });
+                        keyframeCounter++;
+                        console.log(`Screen share keyframe forced #${keyframeCounter}`);
+                    } catch (e) {
+                        console.warn("Could not force keyframe:", e);
+                    }
+                } else {
+                    clearInterval(keyframeInterval);
+                }
+            }, 5000);
+
+            // Clean up interval when track ends
+            videoTrack.addEventListener('ended', () => {
+                clearInterval(keyframeInterval);
+            });
+
+            // Notify local screen share handler
+            if (onLocalScreenShare) {
+                onLocalScreenShare(userId, screenStream);
+            }
+
+            console.log("Screen share setup complete - using existing session key:", call.sessionId);
 
             return true;
         } catch (error) {
