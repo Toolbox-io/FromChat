@@ -191,19 +191,19 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
                 return;
             }
 
-            // Only the initiator creates new offers during renegotiation
-            // The non-initiator should wait for the initiator to send a new offer
-            if (!call.isInitiator) {
-                console.log("Skipping renegotiation - not initiator, waiting for offer");
+            // Skip if we're in "stable" state and haven't finished the initial handshake
+            if (peerConnection.signalingState !== "stable") {
+                console.log("Skipping renegotiation - signaling state is", peerConnection.signalingState);
                 return;
             }
 
             call.isNegotiating = true;
-            console.log("Creating new offer for renegotiation");
+            console.log("Creating new offer for renegotiation (signalingState:", peerConnection.signalingState + ")");
             
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
 
+            console.log("Sending renegotiation offer to user", userId);
             await sendSignalingMessage({
                 type: "call_offer",
                 fromUserId: 0,
@@ -629,6 +629,8 @@ async function createE2EETransform(sessionKey: NonNullable<WebRTCCall['sessionKe
 export async function handleCallOffer(userId: number, offer: RTCSessionDescriptionInit): Promise<void> {
     let call = calls.get(userId);
     
+    console.log("handleCallOffer called for user", userId, "offer type:", offer.type);
+    
     // Handle race condition - offer might arrive before peer connection is created
     if (!call) {
         console.log("No call found for offer, creating peer connection (race condition handling)");
@@ -653,12 +655,17 @@ export async function handleCallOffer(userId: number, offer: RTCSessionDescripti
             }
         }
 
+        console.log("Setting remote description with", offer.sdp?.split('\n').filter(l => l.includes('m=')).join(', '));
+
         // Set remote description
         await call.peerConnection.setRemoteDescription(offer);
 
+        console.log("Creating answer...");
         // Create answer
         const answer = await call.peerConnection.createAnswer();
         await call.peerConnection.setLocalDescription(answer);
+
+        console.log("Answer created with", answer.sdp?.split('\n').filter(l => l.includes('m=')).join(', '));
 
         // Attach transforms on callee side if session key is available
         // If not available yet, setSessionKey will apply them when it arrives
@@ -675,6 +682,8 @@ export async function handleCallOffer(userId: number, offer: RTCSessionDescripti
             toUserId: userId,
             data: answer
         });
+        
+        console.log("Answer sent successfully");
     } catch (error) {
         console.error("Failed to handle offer:", error);
         throw error;
@@ -823,6 +832,12 @@ export async function toggleVideo(userId: number): Promise<boolean> {
             call.peerConnection.addTrack(videoTrack, videoStream);
 
             console.log("Video track added successfully");
+            console.log("Current senders:", call.peerConnection.getSenders().map(s => s.track?.kind));
+            console.log("Current transceivers:", call.peerConnection.getTransceivers().map(t => ({
+                sender: t.sender.track?.kind,
+                receiver: t.receiver.track?.kind,
+                direction: t.direction
+            })));
 
             // Note: E2EE for video is temporarily disabled for testing
             // Will re-enable with proper counter synchronization
@@ -830,10 +845,14 @@ export async function toggleVideo(userId: number): Promise<boolean> {
 
             // Notify local video stream handler
             if (onLocalVideoStream) {
+                console.log("Calling onLocalVideoStream handler with stream:", videoStream);
                 onLocalVideoStream(userId, videoStream);
+            } else {
+                console.warn("onLocalVideoStream handler is not set!");
             }
 
             // Send signaling message to notify remote peer
+            console.log("Sending call_video_toggle with enabled: true");
             await sendSignalingMessage({
                 type: "call_video_toggle",
                 fromUserId: 0,
@@ -841,6 +860,7 @@ export async function toggleVideo(userId: number): Promise<boolean> {
                 data: { enabled: true }
             });
 
+            console.log("Video enabled successfully");
             return true;
         } catch (error) {
             console.error("Failed to enable video:", error);

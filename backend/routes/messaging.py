@@ -959,7 +959,7 @@ class MessaggingSocketManager:
                             "type": "call_video_toggle",
                             "fromUserId": current_user.id,
                             "toUserId": to_user_id,
-                            "data": payload.get("data", {})
+                            "data": {"enabled": payload.get("enabled", False)}
                         }
                     })
 
@@ -988,7 +988,7 @@ class MessaggingSocketManager:
                             "type": "call_screen_share_toggle",
                             "fromUserId": current_user.id,
                             "toUserId": to_user_id,
-                            "data": payload.get("data", {})
+                            "data": {"enabled": payload.get("enabled", False)}
                         }
                     })
 

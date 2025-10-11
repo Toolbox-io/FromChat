@@ -136,20 +136,28 @@ export class CallSignalingHandler {
     }
 
     private handleVideoToggle(data: any) {
+        console.log("handleVideoToggle called with data:", data);
         const state = this.getState();
         const { data: toggleData } = data;
         
         if (toggleData && typeof toggleData.enabled === "boolean") {
+            console.log("Setting remote video enabled to:", toggleData.enabled);
             state.setRemoteVideoEnabled(toggleData.enabled);
+        } else {
+            console.warn("Invalid toggle data:", toggleData);
         }
     }
 
     private handleScreenShareToggle(data: any) {
+        console.log("handleScreenShareToggle called with data:", data);
         const state = this.getState();
         const { data: toggleData } = data;
         
         if (toggleData && typeof toggleData.enabled === "boolean") {
+            console.log("Setting remote screen sharing to:", toggleData.enabled);
             state.setRemoteScreenSharing(toggleData.enabled);
+        } else {
+            console.warn("Invalid toggle data:", toggleData);
         }
     }
 }
