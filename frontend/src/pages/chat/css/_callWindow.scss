@@ -154,9 +154,13 @@
                 }
             }
 
-            .screen-share-tile {
-                min-height: 150px;
+        .screen-share-tile {
+            min-height: 150px;
+            
+            .screen-share-video {
+                object-fit: contain;
             }
+        }
         }
 
         .call-controls {
@@ -391,10 +395,13 @@
         min-height: 480px;
         grid-column: 1 / -1;
         border: 2px solid rgba($color-dark-primary, 0.6);
+        overflow: hidden;
 
-        .video-element {
+        .screen-share-video {
+            width: 100%;
+            height: 100%;
             object-fit: contain;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
         }
 
         .tile-label {

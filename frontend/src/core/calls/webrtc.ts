@@ -30,6 +30,12 @@ export interface WebRTCCall {
     lastKeyRotation?: number;
     transformedSenders: Set<RTCRtpSender>;
     transformedReceivers: Set<RTCRtpReceiver>;
+    // Track specific senders for proper routing when both video and screen share are active
+    videoSender?: RTCRtpSender | null;
+    screenShareSender?: RTCRtpSender | null;
+    // Track the number of video tracks received for each type
+    receivedVideoTrackCount: number;
+    receivedScreenShareTrackCount: number;
 }
 
 // Global state
@@ -40,6 +46,7 @@ export let onLocalVideoStream: ((userId: number, stream: MediaStream | null) => 
 export let onRemoteVideoStream: ((userId: number, stream: MediaStream | null) => void) | null = null;
 export let onLocalScreenShare: ((userId: number, stream: MediaStream | null) => void) | null = null;
 export let onRemoteScreenShare: ((userId: number, stream: MediaStream | null) => void) | null = null;
+export let onScreenShareStateChange: ((userId: number, isSharing: boolean) => void) | null = null;
 const calls: Map<number, WebRTCCall> = new Map();
 
 export function setAuthToken(token: string) {
@@ -141,7 +148,9 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
         sessionCryptoKey: null,
         sessionId: crypto.randomUUID(),
         transformedSenders: new Set(),
-        transformedReceivers: new Set()
+        transformedReceivers: new Set(),
+        receivedVideoTrackCount: 0,
+        receivedScreenShareTrackCount: 0
     };
 
     calls.set(userId, call);
@@ -265,18 +274,61 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
             console.log(`Track received: kind=${track.kind}, isRemoteScreenSharing=${call.isRemoteScreenSharing}, isRemoteVideoEnabled=${call.isRemoteVideoEnabled}`);
             
             if (track.kind === "video") {
-                // Prioritize screen share over regular video
-                // If remote is screen sharing, this video track is the screen share
-                if (call.isRemoteScreenSharing) {
-                    console.log("Detected screen share track (based on signaling), notifying handler");
+                const receiver = call.peerConnection.getReceivers().find(r => r.track === track);
+                const transceiver = receiver ? call.peerConnection.getTransceivers().find(t => t.receiver === receiver) : null;
+                
+                console.log("Video track transceiver mid:", transceiver?.mid);
+                console.log("Video sender mid:", call.videoSender ? call.peerConnection.getTransceivers().find(t => t.sender === call.videoSender)?.mid : "none");
+                console.log("Screen share sender mid:", call.screenShareSender ? call.peerConnection.getTransceivers().find(t => t.sender === call.screenShareSender)?.mid : "none");
+                
+                let isScreenShare = false;
+                let isVideo = false;
+                
+                if (call.isRemoteScreenSharing && call.isRemoteVideoEnabled) {
+                    // Both active - route based on which one we haven't received yet
+                    console.log("Both features active - routing based on received track counts");
+                    console.log("Received video tracks:", call.receivedVideoTrackCount);
+                    console.log("Received screen share tracks:", call.receivedScreenShareTrackCount);
+                    
+                    // Simple logic: if we haven't received video yet, this is video
+                    // if we haven't received screen share yet, this is screen share
+                    if (call.receivedVideoTrackCount === 0) {
+                        isVideo = true;
+                        call.receivedVideoTrackCount++;
+                        console.log("Routing as video (first video track)");
+                    } else if (call.receivedScreenShareTrackCount === 0) {
+                        isScreenShare = true;
+                        call.receivedScreenShareTrackCount++;
+                        console.log("Routing as screen share (first screen share track)");
+                    } else {
+                        // Both already received - this shouldn't happen, log warning
+                        console.warn("Both tracks already received, but got another video track!");
+                        console.warn("This might be a track replacement, routing as screen share by default");
+                        isScreenShare = true;
+                    }
+                } else if (call.isRemoteScreenSharing) {
+                    console.log("Only screen share active");
+                    isScreenShare = true;
+                    call.receivedScreenShareTrackCount++;
+                } else if (call.isRemoteVideoEnabled) {
+                    console.log("Only video active");
+                    isVideo = true;
+                    call.receivedVideoTrackCount++;
+                } else {
+                    console.log("Neither video nor screen share active - this shouldn't happen!");
+                }
+                
+                console.log("Routing decision: isScreenShare:", isScreenShare, "isVideo:", isVideo);
+                
+                if (isScreenShare) {
+                    console.log("Detected screen share track, notifying handler");
                     if (onRemoteScreenShare) {
                         onRemoteScreenShare(userId, remoteStream);
                     } else {
                         console.warn("onRemoteScreenShare handler not set!");
                     }
-                } else {
-                    console.log("Detected video track (based on signaling), notifying handler");
-                    // Handle remote video
+                } else if (isVideo) {
+                    console.log("Detected video track, notifying handler");
                     if (onRemoteVideoStream) {
                         onRemoteVideoStream(userId, remoteStream);
                     } else {
@@ -904,14 +956,16 @@ export async function toggleVideo(userId: number): Promise<boolean> {
 
             // Add video track to peer connection
             const videoTrack = videoStream.getVideoTracks()[0];
-            call.peerConnection.addTrack(videoTrack, videoStream);
+            const sender = call.peerConnection.addTrack(videoTrack, videoStream);
+            call.videoSender = sender;
 
             console.log("Video track added successfully");
             console.log("Current senders:", call.peerConnection.getSenders().map(s => s.track?.kind));
             console.log("Current transceivers:", call.peerConnection.getTransceivers().map(t => ({
                 sender: t.sender.track?.kind,
                 receiver: t.receiver.track?.kind,
-                direction: t.direction
+                direction: t.direction,
+                mid: t.mid
             })));
 
             // Apply E2EE transform with header-preserving encryption for video
@@ -964,6 +1018,11 @@ export async function toggleVideo(userId: number): Promise<boolean> {
                 const videoSender = senders.find(s => s.track === track);
                 if (videoSender) {
                     call.peerConnection.removeTrack(videoSender);
+                    call.transformedSenders.delete(videoSender);
+                    // Clear sender reference
+                    if (call.videoSender === videoSender) {
+                        call.videoSender = null;
+                    }
                 }
             });
             call.localVideoStream = null;
@@ -1025,8 +1084,46 @@ export async function toggleScreenShare(userId: number): Promise<boolean> {
             const videoTrack = screenStream.getVideoTracks()[0];
             
             // Handle when user stops sharing via browser UI
-            videoTrack.addEventListener("ended", () => {
-                toggleScreenShare(userId);
+            videoTrack.addEventListener("ended", async () => {
+                console.log("Screen share track ended by browser controls");
+                
+                // Clean up screen share state
+                if (call.screenShareStream) {
+                    call.screenShareStream.getTracks().forEach(t => t.stop());
+                    call.screenShareStream = null;
+                }
+                call.isScreenSharing = false;
+
+                // Remove screen share track from peer connection
+                const senders = call.peerConnection.getSenders();
+                const screenSender = senders.find(sender => 
+                    sender.track && sender.track.kind === 'video' && 
+                    sender.track.readyState === 'ended' &&
+                    call.transformedSenders.has(sender)
+                );
+                
+                if (screenSender) {
+                    await call.peerConnection.removeTrack(screenSender);
+                    call.transformedSenders.delete(screenSender);
+                }
+
+                // Notify local screen share handler
+                if (onLocalScreenShare) {
+                    onLocalScreenShare(userId, null);
+                }
+
+                // Notify state change handler
+                if (onScreenShareStateChange) {
+                    onScreenShareStateChange(userId, false);
+                }
+
+                // Send signaling message to remote peer
+                await sendSignalingMessage({
+                    type: "call_screen_share_toggle",
+                    fromUserId: 0, // Will be set by server
+                    toUserId: userId,
+                    data: { enabled: false }
+                });
             });
 
             // Send signaling message FIRST to notify remote peer before adding track
@@ -1042,7 +1139,8 @@ export async function toggleScreenShare(userId: number): Promise<boolean> {
             // Small delay to ensure signaling message is processed before track arrives
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            call.peerConnection.addTrack(videoTrack, screenStream);
+            const sender = call.peerConnection.addTrack(videoTrack, screenStream);
+            call.screenShareSender = sender;
 
             console.log("Screen share track added, immediately applying E2EE transform");
 
@@ -1104,6 +1202,11 @@ export async function toggleScreenShare(userId: number): Promise<boolean> {
                 const screenSender = senders.find(s => s.track === track);
                 if (screenSender) {
                     call.peerConnection.removeTrack(screenSender);
+                    call.transformedSenders.delete(screenSender);
+                    // Clear sender reference
+                    if (call.screenShareSender === screenSender) {
+                        call.screenShareSender = null;
+                    }
                 }
             });
             call.screenShareStream = null;
@@ -1168,6 +1271,11 @@ export function setRemoteVideoEnabled(userId: number, enabled: boolean): void {
     if (call) {
         console.log(`Setting remote video enabled to ${enabled} for user ${userId}`);
         call.isRemoteVideoEnabled = enabled;
+        // Reset counter when feature is disabled
+        if (!enabled) {
+            call.receivedVideoTrackCount = 0;
+            console.log("Reset video track counter");
+        }
     }
 }
 
@@ -1179,7 +1287,16 @@ export function setRemoteScreenSharing(userId: number, enabled: boolean): void {
     if (call) {
         console.log(`Setting remote screen sharing to ${enabled} for user ${userId}`);
         call.isRemoteScreenSharing = enabled;
+        // Reset counter when feature is disabled
+        if (!enabled) {
+            call.receivedScreenShareTrackCount = 0;
+            console.log("Reset screen share track counter");
+        }
     }
+}
+
+export function setScreenShareStateChangeHandler(handler: ((userId: number, isSharing: boolean) => void) | null): void {
+    onScreenShareStateChange = handler;
 }
 
 export function cleanup(): void {

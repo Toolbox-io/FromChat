@@ -247,7 +247,7 @@ export function CallWindow() {
                                 style={{ display: call.isSharingScreen ? "flex" : "none" }}>
                                 <video
                                     ref={localScreenShareRef}
-                                    className="video-element"
+                                    className="video-element screen-share-video"
                                     autoPlay
                                     playsInline
                                     muted />
@@ -259,7 +259,7 @@ export function CallWindow() {
                                 style={{ display: call.isRemoteScreenSharing ? "flex" : "none" }}>
                                 <video
                                     ref={remoteScreenShareRef}
-                                    className="video-element"
+                                    className="video-element screen-share-video"
                                     autoPlay
                                     playsInline />
                                 <div className="tile-label">{remoteUsername}&apos;s Screen</div>

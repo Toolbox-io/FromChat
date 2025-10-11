@@ -132,9 +132,9 @@ addEventListener("rtctransform", (event) => {
             let payloadData: Uint8Array;
             
             if (data.length > 20) {
-                // For video frames, preserve only the first 2 bytes (minimal codec sync)
-                // This is the absolute minimum needed for frame identification
-                headerSize = 2;
+                // For video frames, preserve first 8 bytes for better codec compatibility
+                // This includes frame type, keyframe info, and basic header structure
+                headerSize = Math.min(8, Math.floor(data.length / 10));
                 payloadData = data.slice(headerSize);
             } else {
                 // For small frames (likely audio), encrypt everything
@@ -171,6 +171,12 @@ addEventListener("rtctransform", (event) => {
             // Log first few frames for debugging
             if (frameCount <= 3) {
                 console.log(`E2EE ${mode} frame #${frameCount}: ${data.length} -> ${result.length} bytes (header: ${headerSize})`);
+            }
+            
+            // For video frames, check if we need to force keyframes more frequently
+            // This helps prevent "stuck at first frame" issues with encrypted video
+            if (data.length > 10000 && frameCount > 0 && frameCount % 30 === 0) {
+                console.log(`Large video frame #${frameCount} - suggesting keyframe for stability`);
             }
             
             // CRITICAL: Video frames need ArrayBuffer, not Uint8Array
