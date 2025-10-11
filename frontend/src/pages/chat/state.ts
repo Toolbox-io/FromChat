@@ -87,6 +87,7 @@ interface AppState {
     toggleScreenShare: () => void;
     setRemoteVideoEnabled: (enabled: boolean) => void;
     setRemoteScreenSharing: (enabled: boolean) => void;
+    toggleCallMinimized: () => void;
     
     // User state
     user: UserState;
@@ -565,6 +566,15 @@ export const useAppState = create<AppState>((set, get) => ({
             call: {
                 ...state.chat.call,
                 isRemoteScreenSharing: enabled
+            }
+        }
+    })),
+    toggleCallMinimized: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isMinimized: !state.chat.call.isMinimized
             }
         }
     }))
