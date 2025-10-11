@@ -1,11 +1,26 @@
 /**
  * E2EE Worker for WebRTC Insertable Streams
  * Encrypts/decrypts encoded audio and video frames using AES-GCM
- * Optimized for both small audio frames and large video frames
+ * Uses RTP timestamps for IVs to handle out-of-order and dropped frames
  */
 
+export interface FrameMetadata {
+    contributingSources?: number[];
+    mimeType?: string;
+    payloadType?: number;
+    rtpTimestamp: number;
+    synchronizationSource: number;
+    dependencies?: number[];
+    frameId?: number;
+    spatialIndex?: number;
+    temporalIndex?: number;
+}
+
 export interface EncodedFrame {
-    data: Uint8Array;
+    data: Uint8Array | ArrayBuffer;
+    timestamp?: number;
+    type?: string;
+    getMetadata?: () => FrameMetadata;
 }
 
 export interface WorkerOptions {
@@ -14,28 +29,75 @@ export interface WorkerOptions {
     sessionId?: string;
 }
 
+/**
+ * Extract sequence number from encoded frame
+ * For RTCEncodedVideoFrame/AudioFrame, we use the frame's metadata if available,
+ * otherwise fall back to extracting from RTP header
+ */
+function makeIV(encodedFrame: EncodedFrame, frameCount: number): ArrayBuffer {
+    // Debug: log frame properties
+    if (frameCount <= 3) {
+        console.log("Frame object keys:", Object.keys(encodedFrame));
+        console.log("Frame timestamp:", encodedFrame.timestamp);
+        if (encodedFrame.getMetadata) {
+            const metadata = encodedFrame.getMetadata();
+            console.log("Metadata:", metadata);
+            console.log("RTP timestamp:", metadata?.rtpTimestamp);
+        }
+    }
+    
+    // Use RTP timestamp from metadata as IV base
+    // This is synchronized between sender and receiver
+    const ivBuffer = new ArrayBuffer(12);
+    
+    if (encodedFrame.getMetadata) {
+        try {
+            const metadata = encodedFrame.getMetadata();
+            if (metadata && typeof metadata.rtpTimestamp === 'number') {
+                // Use RTP timestamp as IV - it's synchronized between peers
+                const view = new DataView(ivBuffer);
+                view.setUint32(0, metadata.rtpTimestamp, false); // First 4 bytes
+                view.setUint32(8, metadata.synchronizationSource || 0, false); // Last 4 bytes
+                return ivBuffer;
+            }
+        } catch (e) {
+            console.error("Failed to get metadata:", e);
+        }
+    }
+    
+    // Fallback: use frame count (not ideal but better than nothing)
+    const view = new DataView(ivBuffer);
+    view.setUint32(8, frameCount, false);
+    return ivBuffer;
+}
+
 addEventListener("rtctransform", (event) => {
     const { transformer } = event;
     const { readable, writable } = transformer;
     const { key, mode } = transformer.options as WorkerOptions;
     
-    // Use a synchronized counter for IV generation
-    // Both sides must start from the same point for the same session
-    let frameCounter = 0;
-    
-    // Track sender vs receiver side independently
-    // Each side maintains its own counter
     const isEncrypting = mode === 'encrypt';
+    
+    let frameCount = 0;
+    let lastLogTime = 0;
     
     async function transform(encodedFrame: EncodedFrame, controller: TransformStreamDefaultController<EncodedFrame>) {
         try {
-            // Create a unique IV for each frame using the counter
-            // Format: 12 bytes total = 8 bytes of zeros + 4 bytes counter
-            const iv = new Uint8Array(12);
-            const view = new DataView(iv.buffer);
-            view.setUint32(8, frameCounter++, false); // Big-endian counter
-            
             const data = new Uint8Array(encodedFrame.data);
+            
+            // Increment frame counter
+            frameCount++;
+            
+            // Create IV using RTP timestamp from metadata (synchronized between peers)
+            const iv = makeIV(encodedFrame, frameCount);
+            
+            // Log first few frames and periodically for debugging
+            const now = Date.now();
+            if (frameCount <= 5 || now - lastLogTime > 5000) {
+                console.log(`E2EE ${mode} frame #${frameCount}, size: ${data.length} bytes`);
+                lastLogTime = now;
+            }
+            
             const params: AesGcmParams = { name: 'AES-GCM', iv };
             
             let result: ArrayBuffer;
@@ -48,23 +110,18 @@ addEventListener("rtctransform", (event) => {
                 result = await crypto.subtle.decrypt(params, key, data);
             }
             
-            // Update frame data with encrypted/decrypted result
-            encodedFrame.data = new Uint8Array(result);
+            // CRITICAL: Video frames need ArrayBuffer, not Uint8Array
+            // Must assign the buffer directly, not wrapped in Uint8Array
+            encodedFrame.data = result;
             controller.enqueue(encodedFrame);
             
         } catch (e) {
-            // Log error but don't stop the stream - allows graceful degradation
-            console.error(`E2EE ${mode} failed for frame ${frameCounter}:`, e);
-            
-            // For decryption errors, we can't recover - must drop the frame
-            if (!isEncrypting) {
-                // Just drop the frame silently to avoid breaking the stream
-                return;
-            }
-            
-            // For encryption errors, pass through unencrypted as last resort
-            console.warn("Passing through unencrypted frame due to encryption failure");
-            controller.enqueue(encodedFrame);
+            // FAIL SECURELY: Never send unencrypted frames
+            const data = new Uint8Array(encodedFrame.data);
+            console.error(`E2EE ${mode} FAILED - dropping frame #${frameCount}, size: ${data.length}`, e);
+            console.error('Frame type:', encodedFrame.type || 'unknown');
+            // Drop the frame completely - don't enqueue anything
+            return;
         }
     }
 
