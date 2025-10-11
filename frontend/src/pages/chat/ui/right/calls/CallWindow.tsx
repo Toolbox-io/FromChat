@@ -21,7 +21,7 @@ export function CallWindow() {
         localScreenShareRef,
         remoteScreenShareRef
     } = useCall();
-    const [position, setPosition] = useState({ x: 100, y: 100 });
+    const [pipPosition, setPipPosition] = useState({ x: window.innerWidth - 420, y: window.innerHeight - 320 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [callDuration, setCallDuration] = useState(0);
@@ -71,18 +71,12 @@ export function CallWindow() {
     useEffect(() => {
         if (call.isActive) {
             setShouldRender(true);
-            if (!call.isMinimized) {
-                // Call is active and not minimized - show window with entrance animation
-                if (!isVisible) {
-                    // Only animate in if not already visible (prevents animation on rapid calls)
-                    requestAnimationFrame(() => {
-                        setIsVisible(true);
-                    });
-                }
-            } else {
-                // Call is active but minimized - hide window but keep rendered
-                setIsVisible(false);
-            }
+            // Small delay to ensure DOM is ready, then trigger animation
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setIsVisible(true);
+                });
+            });
         } else {
             if (shouldRender) {
                 // Call ended - start exit animation
@@ -91,7 +85,7 @@ export function CallWindow() {
                 const timer = setTimeout(() => {
                     setShouldRender(false);
                     setCallData(null);
-                }, 300); // Match the CSS transition duration
+                }, 400); // Match the CSS transition duration
                 return () => clearTimeout(timer);
             } else {
                 // Call not active and not rendered - ensure clean state
@@ -100,7 +94,7 @@ export function CallWindow() {
                 setCallData(null);
             }
         }
-    }, [call.isActive, call.isMinimized, shouldRender, isVisible]);
+    }, [call.isActive, shouldRender]);
 
     // Cleanup effect to reset state when component unmounts
     useEffect(() => {
@@ -156,21 +150,23 @@ export function CallWindow() {
                 
                 {shouldRender && (
                     <div
-                        className={`call-window ${isDragging ? "dragging" : ""} ${getGradientClass()} ${isVisible ? "visible" : "hidden"}`}
-                        style={{
-                            left: position.x,
-                            top: position.y
-                        }}
+                        className={`call-window ${call.isMinimized ? "minimized" : "maximized"} ${isDragging ? "dragging" : ""} ${getGradientClass()} ${isVisible ? "visible" : "hidden"}`}
+                        style={call.isMinimized ? {
+                            left: pipPosition.x,
+                            top: pipPosition.y
+                        } : undefined}
                         onMouseDown={(e) => {
-                            setIsDragging(true);
-                            setDragStart({
-                                x: e.clientX - position.x,
-                                y: e.clientY - position.y
-                            });
+                            if (call.isMinimized && e.target === e.currentTarget) {
+                                setIsDragging(true);
+                                setDragStart({
+                                    x: e.clientX - pipPosition.x,
+                                    y: e.clientY - pipPosition.y
+                                });
+                            }
                         }}
                         onMouseMove={(e) => {
-                            if (isDragging) {
-                                setPosition({
+                            if (isDragging && call.isMinimized) {
+                                setPipPosition({
                                     x: e.clientX - dragStart.x,
                                     y: e.clientY - dragStart.y
                                 });
@@ -183,15 +179,15 @@ export function CallWindow() {
                             <div className="window-controls">
                                 <mdui-button-icon 
                                     onClick={toggleCallMinimize} 
-                                    icon="minimize" 
-                                    className="minimize-btn" 
+                                    icon={call.isMinimized ? "open_in_full" : "close_fullscreen"} 
+                                    className="window-control-btn" 
                                 />
                             </div>
                             
                             <div className="call-header-info">
                                 <h3 className="username">{remoteUsername}</h3>
                                 <p className="status">{getStatusText()}</p>
-                                {call.encryptionEmojis.length > 0 && (
+                                {!call.isMinimized && call.encryptionEmojis.length > 0 && (
                                     <div className="encryption-emojis">
                                         {call.encryptionEmojis.map((emoji, index) => (
                                             <span key={index} className="encryption-emoji">
