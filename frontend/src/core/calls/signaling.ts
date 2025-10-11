@@ -5,6 +5,8 @@ export interface CallState {
     receiveCall: (userId: number, username: string) => void;
     endCall: () => void;
     setCallSessionKeyHash: (sessionKeyHash: string) => void;
+    setRemoteVideoEnabled: (enabled: boolean) => void;
+    setRemoteScreenSharing: (enabled: boolean) => void;
 }
 
 export class CallSignalingHandler {
@@ -52,6 +54,12 @@ export class CallSignalingHandler {
             case "call_session_key":
                 this.handleCallSessionKey(data);
                 break;
+            case "call_video_toggle":
+                this.handleVideoToggle(data);
+                break;
+            case "call_screen_share_toggle":
+                this.handleScreenShareToggle(data);
+                break;
         }
     }
 
@@ -59,11 +67,11 @@ export class CallSignalingHandler {
         const { fromUserId, fromUsername } = data;
         const state = this.getState();
         
-        // Show incoming call UI
-        state.receiveCall(fromUserId, fromUsername);
-        
-        // Handle incoming call in WebRTC service
+        // First, create the peer connection in WebRTC service
         await WebRTC.handleIncomingCall(fromUserId, fromUsername);
+        
+        // Then show incoming call UI
+        state.receiveCall(fromUserId, fromUsername);
     }
 
     private async handleCallAccept(data: any) {
@@ -124,6 +132,32 @@ export class CallSignalingHandler {
         }
         if (data?.wrappedSessionKey && message.fromUserId) {
             WebRTC.receiveWrappedSessionKey(message.fromUserId, data.wrappedSessionKey, sessionKeyHash);
+        }
+    }
+
+    private handleVideoToggle(data: any) {
+        console.log("handleVideoToggle called with data:", data);
+        const state = this.getState();
+        const { data: toggleData } = data;
+        
+        if (toggleData && typeof toggleData.enabled === "boolean") {
+            console.log("Setting remote video enabled to:", toggleData.enabled);
+            state.setRemoteVideoEnabled(toggleData.enabled);
+        } else {
+            console.warn("Invalid toggle data:", toggleData);
+        }
+    }
+
+    private handleScreenShareToggle(data: any) {
+        console.log("handleScreenShareToggle called with data:", data);
+        const state = this.getState();
+        const { data: toggleData } = data;
+        
+        if (toggleData && typeof toggleData.enabled === "boolean") {
+            console.log("Setting remote screen sharing to:", toggleData.enabled);
+            state.setRemoteScreenSharing(toggleData.enabled);
+        } else {
+            console.warn("Invalid toggle data:", toggleData);
         }
     }
 }

@@ -31,6 +31,10 @@ interface CallState {
     isMinimized: boolean;
     sessionKeyHash: string | null;
     encryptionEmojis: string[];
+    isVideoEnabled: boolean;
+    isRemoteVideoEnabled: boolean;
+    isSharingScreen: boolean;
+    isRemoteScreenSharing: boolean;
 }
 
 interface ChatState {
@@ -79,6 +83,10 @@ interface AppState {
     receiveCall: (userId: number, username: string) => void;
     setCallEncryption: (sessionKeyHash: string, encryptionEmojis: string[]) => void;
     setCallSessionKeyHash: (sessionKeyHash: string) => void;
+    toggleVideo: () => void;
+    toggleScreenShare: () => void;
+    setRemoteVideoEnabled: (enabled: boolean) => void;
+    setRemoteScreenSharing: (enabled: boolean) => void;
     
     // User state
     user: UserState;
@@ -116,7 +124,11 @@ export const useAppState = create<AppState>((set, get) => ({
             isInitiator: false,
             isMinimized: false,
             sessionKeyHash: null,
-            encryptionEmojis: []
+            encryptionEmojis: [],
+            isVideoEnabled: false,
+            isRemoteVideoEnabled: false,
+            isSharingScreen: false,
+            isRemoteScreenSharing: false
         }
     },
     addMessage: (message: Message) => set((state) => {
@@ -412,7 +424,11 @@ export const useAppState = create<AppState>((set, get) => ({
                 isInitiator: true,
                 isMinimized: false,
                 sessionKeyHash: null,
-                encryptionEmojis: []
+                encryptionEmojis: [],
+                isVideoEnabled: false,
+                isRemoteVideoEnabled: false,
+                isSharingScreen: false,
+                isRemoteScreenSharing: false
             }
         }
     })),
@@ -430,7 +446,11 @@ export const useAppState = create<AppState>((set, get) => ({
                 isInitiator: false,
                 isMinimized: false,
                 sessionKeyHash: null,
-                encryptionEmojis: []
+                encryptionEmojis: [],
+                isVideoEnabled: false,
+                isRemoteVideoEnabled: false,
+                isSharingScreen: false,
+                isRemoteScreenSharing: false
             }
         }
     })),
@@ -479,7 +499,11 @@ export const useAppState = create<AppState>((set, get) => ({
                 isInitiator: false,
                 isMinimized: false,
                 sessionKeyHash: null,
-                encryptionEmojis: []
+                encryptionEmojis: [],
+                isVideoEnabled: false,
+                isRemoteVideoEnabled: false,
+                isSharingScreen: false,
+                isRemoteScreenSharing: false
             }
         }
     })),
@@ -501,6 +525,46 @@ export const useAppState = create<AppState>((set, get) => ({
             call: {
                 ...state.chat.call,
                 sessionKeyHash
+            }
+        }
+    })),
+    
+    toggleVideo: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isVideoEnabled: !state.chat.call.isVideoEnabled
+            }
+        }
+    })),
+    
+    toggleScreenShare: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isSharingScreen: !state.chat.call.isSharingScreen
+            }
+        }
+    })),
+    
+    setRemoteVideoEnabled: (enabled: boolean) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isRemoteVideoEnabled: enabled
+            }
+        }
+    })),
+    
+    setRemoteScreenSharing: (enabled: boolean) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isRemoteScreenSharing: enabled
             }
         }
     }))
