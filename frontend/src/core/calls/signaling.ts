@@ -5,6 +5,8 @@ export interface CallState {
     receiveCall: (userId: number, username: string) => void;
     endCall: () => void;
     setCallSessionKeyHash: (sessionKeyHash: string) => void;
+    setRemoteVideoEnabled: (enabled: boolean) => void;
+    setRemoteScreenSharing: (enabled: boolean) => void;
 }
 
 export class CallSignalingHandler {
@@ -51,6 +53,12 @@ export class CallSignalingHandler {
                 break;
             case "call_session_key":
                 this.handleCallSessionKey(data);
+                break;
+            case "call_video_toggle":
+                this.handleVideoToggle(data);
+                break;
+            case "call_screen_share_toggle":
+                this.handleScreenShareToggle(data);
                 break;
         }
     }
@@ -124,6 +132,24 @@ export class CallSignalingHandler {
         }
         if (data?.wrappedSessionKey && message.fromUserId) {
             WebRTC.receiveWrappedSessionKey(message.fromUserId, data.wrappedSessionKey, sessionKeyHash);
+        }
+    }
+
+    private handleVideoToggle(data: any) {
+        const state = this.getState();
+        const { data: toggleData } = data;
+        
+        if (toggleData && typeof toggleData.enabled === "boolean") {
+            state.setRemoteVideoEnabled(toggleData.enabled);
+        }
+    }
+
+    private handleScreenShareToggle(data: any) {
+        const state = this.getState();
+        const { data: toggleData } = data;
+        
+        if (toggleData && typeof toggleData.enabled === "boolean") {
+            state.setRemoteScreenSharing(toggleData.enabled);
         }
     }
 }

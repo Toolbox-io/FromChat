@@ -1,14 +1,26 @@
 import { useState, useEffect } from "react";
 import { useAppState, type CallStatus } from "@/pages/chat/state";
-import useAudioCall from "@/pages/chat/hooks/useAudioCall";
+import useCall from "@/pages/chat/hooks/useCall";
 import defaultAvatar from "@/images/default-avatar.png";
 import { createPortal } from "react-dom";
 import { id } from "@/utils/utils";
 
 export function CallWindow() {
-    const { chat, toggleCallMinimize } = useAppState();
+    const { chat, toggleCallMinimize, user } = useAppState();
     const { call } = chat;
-    const { acceptCall, rejectCall, remoteAudioRef, endCall, toggleMute } = useAudioCall();
+    const { 
+        acceptCall, 
+        rejectCall, 
+        remoteAudioRef, 
+        endCall, 
+        toggleMute,
+        toggleVideo,
+        toggleScreenShare,
+        localVideoRef,
+        remoteVideoRef,
+        localScreenShareRef,
+        remoteScreenShareRef
+    } = useCall();
     const [position, setPosition] = useState({ x: 100, y: 100 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -144,7 +156,7 @@ export function CallWindow() {
                 
                 {shouldRender && (
                     <div
-                        className={`call-window ${isDragging ? 'dragging' : ''} ${getGradientClass()} ${isVisible ? 'visible' : 'hidden'}`}
+                        className={`call-window ${isDragging ? "dragging" : ""} ${getGradientClass()} ${isVisible ? "visible" : "hidden"}`}
                         style={{
                             left: position.x,
                             top: position.y
@@ -176,28 +188,81 @@ export function CallWindow() {
                                 />
                             </div>
                             
-                            <div className="user-info-centered">
-                                <img
-                                    src={defaultAvatar}
-                                    alt="Avatar"
-                                    className="avatar" />
-                                
-                                <div className="user-details">
-                                    <h3 className="username">
-                                        {remoteUsername}
-                                    </h3>
-                                    <p className="status">
-                                        {getStatusText()}
-                                    </p>
-                                    {call.encryptionEmojis.length > 0 && (
-                                        <div className="encryption-emojis">
-                                            {call.encryptionEmojis.map((emoji, index) => (
-                                                <span key={index} className="encryption-emoji">
-                                                    {emoji}
-                                                </span>
-                                            ))}
+                            <div className="call-header-info">
+                                <h3 className="username">{remoteUsername}</h3>
+                                <p className="status">{getStatusText()}</p>
+                                {call.encryptionEmojis.length > 0 && (
+                                    <div className="encryption-emojis">
+                                        {call.encryptionEmojis.map((emoji, index) => (
+                                            <span key={index} className="encryption-emoji">
+                                                {emoji}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="call-content">
+                            {/* Screen share tiles - larger and more prominent */}
+                            {call.isSharingScreen && (
+                                <div className="video-tile screen-share-tile local-screen-share">
+                                    <video
+                                        ref={localScreenShareRef}
+                                        className="video-element"
+                                        autoPlay
+                                        playsInline
+                                        muted />
+                                    <div className="tile-label">Your Screen</div>
+                                </div>
+                            )}
+                            
+                            {call.isRemoteScreenSharing && (
+                                <div className="video-tile screen-share-tile remote-screen-share">
+                                    <video
+                                        ref={remoteScreenShareRef}
+                                        className="video-element"
+                                        autoPlay
+                                        playsInline />
+                                    <div className="tile-label">{remoteUsername}&apos;s Screen</div>
+                                </div>
+                            )}
+
+                            {/* Video tiles grid */}
+                            <div className="video-tiles-grid">
+                                {/* Local video tile */}
+                                <div className="video-tile local-video">
+                                    {call.isVideoEnabled ? (
+                                        <video
+                                            ref={localVideoRef}
+                                            className="video-element"
+                                            autoPlay
+                                            playsInline
+                                            muted />
+                                    ) : (
+                                        <div className="video-placeholder">
+                                            <img src={defaultAvatar} alt="Avatar" className="placeholder-avatar" />
+                                            <span className="placeholder-username">{user.currentUser?.username || "You"}</span>
                                         </div>
                                     )}
+                                    <div className="tile-label">You</div>
+                                </div>
+
+                                {/* Remote video tile */}
+                                <div className="video-tile remote-video">
+                                    {call.isRemoteVideoEnabled ? (
+                                        <video
+                                            ref={remoteVideoRef}
+                                            className="video-element"
+                                            autoPlay
+                                            playsInline />
+                                    ) : (
+                                        <div className="video-placeholder">
+                                            <img src={defaultAvatar} alt="Avatar" className="placeholder-avatar" />
+                                            <span className="placeholder-username">{remoteUsername}</span>
+                                        </div>
+                                    )}
+                                    <div className="tile-label">{remoteUsername}</div>
                                 </div>
                             </div>
                         </div>
@@ -211,6 +276,8 @@ export function CallWindow() {
                             ) : (
                                 <>
                                     <mdui-button-icon onClick={toggleMute} icon={isMuted ? "mic_off" : "mic"} />
+                                    <mdui-button-icon onClick={toggleVideo} icon={call.isVideoEnabled ? "videocam" : "videocam_off"} />
+                                    <mdui-button-icon onClick={toggleScreenShare} icon={call.isSharingScreen ? "stop_screen_share" : "screen_share"} />
                                     <mdui-button-icon onClick={endCall} icon="call_end" />
                                 </>
                             )}

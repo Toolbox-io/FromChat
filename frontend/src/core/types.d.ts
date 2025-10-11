@@ -442,7 +442,7 @@ export interface CallInvite extends CallSignalingData {
     timestamp: string;
 }
 
-export type CallSignalingDataType = "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject" | "call_session_key" | "call_signaling";
+export type CallSignalingDataType = "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject" | "call_session_key" | "call_signaling" | "call_video_toggle" | "call_screen_share_toggle";
 
 export interface CallSignalingMessage extends WebSocketMessage {
     type: CallSignalingDataType;
@@ -450,4 +450,18 @@ export interface CallSignalingMessage extends WebSocketMessage {
     toUserId: number;
     sessionKeyHash?: string;
     data: any;
+}
+
+export interface CallVideoToggleMessage extends CallSignalingMessage {
+    type: "call_video_toggle";
+    data: {
+        enabled: boolean;
+    };
+}
+
+export interface CallScreenShareToggleMessage extends CallSignalingMessage {
+    type: "call_screen_share_toggle";
+    data: {
+        enabled: boolean;
+    };
 }

@@ -1,21 +1,24 @@
 import { getAuthHeaders } from "@/core/api/authApi";
 import type { CallSignalingMessage, IceServersResponse } from "@/core/types";
 import { request } from "@/core/websocket";
-import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender } from "./encryption";
+import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender, rotateCallSessionKey } from "./encryption";
 import { fetchUserPublicKey } from "@/core/api/dmApi";
 import { importAesGcmKey } from "@/utils/crypto/symmetric";
 import E2EEWorker from "./e2eeWorker?worker";
-import { rotateCallSessionKey, createSharedSecretAndDeriveSessionKey } from "./encryption";
 
 export interface WebRTCCall {
     peerConnection: RTCPeerConnection;
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
+    localVideoStream: MediaStream | null;
+    screenShareStream: MediaStream | null;
     isInitiator: boolean;
     remoteUserId: number;
     remoteUsername: string;
     isEnding?: boolean;
     isMuted?: boolean;
+    isLocalVideoEnabled: boolean;
+    isScreenSharing: boolean;
     // Insertable Streams E2EE
     sessionKey?: Uint8Array | null;
     sessionCryptoKey?: CryptoKey | null;
@@ -28,6 +31,10 @@ export interface WebRTCCall {
 export let authToken: string | null = null;
 export let onCallStateChange: ((userId: number, state: string) => void) | null = null;
 export let onRemoteStream: ((userId: number, stream: MediaStream) => void) | null = null;
+export let onLocalVideoStream: ((userId: number, stream: MediaStream | null) => void) | null = null;
+export let onRemoteVideoStream: ((userId: number, stream: MediaStream | null) => void) | null = null;
+export let onLocalScreenShare: ((userId: number, stream: MediaStream | null) => void) | null = null;
+export let onRemoteScreenShare: ((userId: number, stream: MediaStream | null) => void) | null = null;
 const calls: Map<number, WebRTCCall> = new Map();
 
 export function setAuthToken(token: string) {
@@ -40,6 +47,22 @@ export function setCallStateChangeHandler(handler: (userId: number, state: strin
 
 export function setRemoteStreamHandler(handler: (userId: number, stream: MediaStream) => void) {
     onRemoteStream = handler;
+}
+
+export function setLocalVideoStreamHandler(handler: (userId: number, stream: MediaStream | null) => void) {
+    onLocalVideoStream = handler;
+}
+
+export function setRemoteVideoStreamHandler(handler: (userId: number, stream: MediaStream | null) => void) {
+    onRemoteVideoStream = handler;
+}
+
+export function setLocalScreenShareHandler(handler: (userId: number, stream: MediaStream | null) => void) {
+    onLocalScreenShare = handler;
+}
+
+export function setRemoteScreenShareHandler(handler: (userId: number, stream: MediaStream | null) => void) {
+    onRemoteScreenShare = handler;
 }
 
 async function sendSignalingMessage(message: CallSignalingMessage) {
@@ -99,10 +122,14 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
         peerConnection,
         localStream: null,
         remoteStream: null,
+        localVideoStream: null,
+        screenShareStream: null,
         isInitiator: false,
         remoteUserId: userId,
         remoteUsername: "",
         isMuted: false,
+        isLocalVideoEnabled: false,
+        isScreenSharing: false,
         sessionKey: null,
         sessionCryptoKey: null,
         sessionId: crypto.randomUUID()
@@ -151,10 +178,29 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
     peerConnection.addEventListener("track", (event) => {
         const [remoteStream] = event.streams;
         const call = calls.get(userId);
-        if (call) {
-            call.remoteStream = remoteStream;
-            if (onRemoteStream) {
-                onRemoteStream(userId, remoteStream);
+        if (call && remoteStream) {
+            const track = event.track;
+            
+            // Determine stream type based on track kind and stream ID
+            const streamId = remoteStream.id;
+            
+            // Check if this is a screen share stream (we'll use a convention: screen share streams have "screen" in their ID)
+            if (streamId.includes("screen")) {
+                // Handle remote screen share
+                if (onRemoteScreenShare) {
+                    onRemoteScreenShare(userId, remoteStream);
+                }
+            } else if (track.kind === "video") {
+                // Handle remote video
+                if (onRemoteVideoStream) {
+                    onRemoteVideoStream(userId, remoteStream);
+                }
+            } else if (track.kind === "audio") {
+                // Handle remote audio (existing behavior)
+                call.remoteStream = remoteStream;
+                if (onRemoteStream) {
+                    onRemoteStream(userId, remoteStream);
+                }
             }
         }
     });
@@ -341,19 +387,15 @@ export async function receiveWrappedSessionKey(fromUserId: number, wrappedPayloa
         if (!senderPublicKey) return;
         if (!wrappedPayload || !sessionKeyHash) return;
         
-        // First unwrap the session key from the encrypted payload (for validation)
-        await unwrapCallSessionKeyFromSender(senderPublicKey, {
+        // Unwrap the session key from the encrypted payload
+        const unwrappedSessionKey = await unwrapCallSessionKeyFromSender(senderPublicKey, {
             salt: wrappedPayload.salt,
             iv2: wrappedPayload.iv2,
             wrapped: wrappedPayload.wrapped
         });
         
-        // Then derive the actual session key from the shared secret
-        const call = calls.get(fromUserId);
-        const isInitiator = call?.isInitiator ?? false;
-        const derivedSessionKey = await createSharedSecretAndDeriveSessionKey(senderPublicKey, sessionKeyHash, isInitiator);
-        
-        await setSessionKey(fromUserId, derivedSessionKey.key);
+        // Use the unwrapped session key directly (both sides should have the same key)
+        await setSessionKey(fromUserId, unwrappedSessionKey);
     } catch (e) {
         console.error("Failed to unwrap session key:", e);
     }
@@ -616,6 +658,187 @@ export function getCall(userId: number): WebRTCCall | undefined {
     return calls.get(userId);
 }
 
+export async function toggleVideo(userId: number): Promise<boolean> {
+    const call = calls.get(userId);
+    if (!call) {
+        return false;
+    }
+
+    if (!call.isLocalVideoEnabled) {
+        // Enable video
+        try {
+            const videoStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
+
+            call.localVideoStream = videoStream;
+            call.isLocalVideoEnabled = true;
+
+            // Add video track to peer connection
+            const videoTrack = videoStream.getVideoTracks()[0];
+            const sender = call.peerConnection.addTrack(videoTrack, videoStream);
+
+            // Apply E2EE transform if session key exists
+            if (call.sessionKey && window.RTCRtpScriptTransform) {
+                try {
+                    const key = await importAesGcmKey(call.sessionKey);
+                    // @ts-ignore
+                    sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: "encrypt", sessionId: call.sessionId });
+                } catch (error) {
+                    console.error("Failed to apply E2EE to video:", error);
+                }
+            }
+
+            // Notify local video stream handler
+            if (onLocalVideoStream) {
+                onLocalVideoStream(userId, videoStream);
+            }
+
+            // Send signaling message to notify remote peer
+            await sendSignalingMessage({
+                type: "call_video_toggle",
+                fromUserId: 0,
+                toUserId: userId,
+                data: { enabled: true }
+            });
+
+            return true;
+        } catch (error) {
+            console.error("Failed to enable video:", error);
+            return false;
+        }
+    } else {
+        // Disable video
+        if (call.localVideoStream) {
+            call.localVideoStream.getTracks().forEach(track => {
+                track.stop();
+                // Remove track from peer connection
+                const senders = call.peerConnection.getSenders();
+                const videoSender = senders.find(s => s.track === track);
+                if (videoSender) {
+                    call.peerConnection.removeTrack(videoSender);
+                }
+            });
+            call.localVideoStream = null;
+        }
+
+        call.isLocalVideoEnabled = false;
+
+        // Notify local video stream handler
+        if (onLocalVideoStream) {
+            onLocalVideoStream(userId, null);
+        }
+
+        // Send signaling message to notify remote peer
+        await sendSignalingMessage({
+            type: "call_video_toggle",
+            fromUserId: 0,
+            toUserId: userId,
+            data: { enabled: false }
+        });
+
+        return false;
+    }
+}
+
+export async function toggleScreenShare(userId: number): Promise<boolean> {
+    const call = calls.get(userId);
+    if (!call) {
+        return false;
+    }
+
+    if (!call.isScreenSharing) {
+        // Enable screen sharing
+        try {
+            // @ts-ignore - getDisplayMedia might not be in all TypeScript versions
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: false
+            });
+
+            // Set a special ID to identify screen share streams
+            Object.defineProperty(screenStream, "id", {
+                value: `screen-${crypto.randomUUID()}`,
+                writable: false
+            });
+
+            call.screenShareStream = screenStream;
+            call.isScreenSharing = true;
+
+            // Add screen share track to peer connection
+            const videoTrack = screenStream.getVideoTracks()[0];
+            
+            // Handle when user stops sharing via browser UI
+            videoTrack.addEventListener("ended", () => {
+                toggleScreenShare(userId);
+            });
+
+            const sender = call.peerConnection.addTrack(videoTrack, screenStream);
+
+            // Apply E2EE transform if session key exists
+            if (call.sessionKey && window.RTCRtpScriptTransform) {
+                try {
+                    const key = await importAesGcmKey(call.sessionKey);
+                    // @ts-ignore
+                    sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: "encrypt", sessionId: call.sessionId });
+                } catch (error) {
+                    console.error("Failed to apply E2EE to screen share:", error);
+                }
+            }
+
+            // Notify local screen share handler
+            if (onLocalScreenShare) {
+                onLocalScreenShare(userId, screenStream);
+            }
+
+            // Send signaling message to notify remote peer
+            await sendSignalingMessage({
+                type: "call_screen_share_toggle",
+                fromUserId: 0,
+                toUserId: userId,
+                data: { enabled: true }
+            });
+
+            return true;
+        } catch (error) {
+            console.error("Failed to enable screen sharing:", error);
+            return false;
+        }
+    } else {
+        // Disable screen sharing
+        if (call.screenShareStream) {
+            call.screenShareStream.getTracks().forEach(track => {
+                track.stop();
+                // Remove track from peer connection
+                const senders = call.peerConnection.getSenders();
+                const screenSender = senders.find(s => s.track === track);
+                if (screenSender) {
+                    call.peerConnection.removeTrack(screenSender);
+                }
+            });
+            call.screenShareStream = null;
+        }
+
+        call.isScreenSharing = false;
+
+        // Notify local screen share handler
+        if (onLocalScreenShare) {
+            onLocalScreenShare(userId, null);
+        }
+
+        // Send signaling message to notify remote peer
+        await sendSignalingMessage({
+            type: "call_screen_share_toggle",
+            fromUserId: 0,
+            toUserId: userId,
+            data: { enabled: false }
+        });
+
+        return false;
+    }
+}
+
 export function cleanupCall(userId: number): void {
     const call = calls.get(userId);
     if (call) {
@@ -632,6 +855,16 @@ export function cleanupCall(userId: number): void {
         // Stop local stream
         if (call.localStream) {
             call.localStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Stop local video stream
+        if (call.localVideoStream) {
+            call.localVideoStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Stop screen share stream
+        if (call.screenShareStream) {
+            call.screenShareStream.getTracks().forEach(track => track.stop());
         }
 
         calls.delete(userId);
