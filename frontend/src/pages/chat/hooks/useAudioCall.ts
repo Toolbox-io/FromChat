@@ -148,6 +148,9 @@ export default function useAudioCall() {
         const success = await WebRTC.initiateCall(userId, username);
         
         if (success && sessionKey) {
+            // Set the session key for ourselves (initiator)
+            await WebRTC.setSessionKey(userId, sessionKey.key);
+            
             // Send session key hash to the receiver for visual verification
             await WebRTC.sendCallSessionKey(userId, sessionKey.hash);
             // Also wrap and send the actual session key for E2EE media
