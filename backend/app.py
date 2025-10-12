@@ -38,7 +38,15 @@ app = FastAPI(title="FromChat", lifespan=lifespan)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # В продакшене замените на нужные домены
+    allow_origins=[
+        "https://fromchat.ru",
+        "https://beta.fromchat.ru",
+        "https://www.fromchat.ru",
+        "http://127.0.0.1:8301",
+        "http://127.0.0.1:8300",
+        "http://localhost:8301",
+        "http://localhost:8300",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
