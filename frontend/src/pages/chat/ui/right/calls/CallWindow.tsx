@@ -239,34 +239,37 @@ export function CallWindow() {
                             </div>
                         </div>
 
-                        <div className="call-content">
-                            {/* Screen share tiles - larger and more prominent */}
-                            {/* Always render but hide when not in use to keep refs valid */}
-                            <div 
-                                className="video-tile screen-share-tile local-screen-share"
-                                style={{ display: call.isSharingScreen ? "flex" : "none" }}>
-                                <video
-                                    ref={localScreenShareRef}
-                                    className="video-element screen-share-video"
-                                    autoPlay
-                                    playsInline
-                                    muted />
-                                <div className="tile-label">Your Screen</div>
-                            </div>
-                            
-                            <div 
-                                className="video-tile screen-share-tile remote-screen-share"
-                                style={{ display: call.isRemoteScreenSharing ? "flex" : "none" }}>
-                                <video
-                                    ref={remoteScreenShareRef}
-                                    className="video-element screen-share-video"
-                                    autoPlay
-                                    playsInline />
-                                <div className="tile-label">{remoteUsername}&apos;s Screen</div>
+                        <div className={`call-content ${(call.isSharingScreen || call.isRemoteScreenSharing) ? "with-screen-share" : ""}`}>
+                            {/* Main screen share area - takes most space when active */}
+                            <div className="screen-share-area">
+                                {/* Local screen share */}
+                                <div 
+                                    className="video-tile screen-share-tile local-screen-share"
+                                    style={{ display: call.isSharingScreen ? "flex" : "none" }}>
+                                    <video
+                                        ref={localScreenShareRef}
+                                        className="video-element screen-share-video"
+                                        autoPlay
+                                        playsInline
+                                        muted />
+                                    <div className="tile-label">Your Screen</div>
+                                </div>
+                                
+                                {/* Remote screen share */}
+                                <div 
+                                    className="video-tile screen-share-tile remote-screen-share"
+                                    style={{ display: call.isRemoteScreenSharing ? "flex" : "none" }}>
+                                    <video
+                                        ref={remoteScreenShareRef}
+                                        className="video-element screen-share-video"
+                                        autoPlay
+                                        playsInline />
+                                    <div className="tile-label">{remoteUsername}&apos;s Screen</div>
+                                </div>
                             </div>
 
-                            {/* Video tiles grid */}
-                            <div className="video-tiles-grid">
+                            {/* Video tiles sidebar - appears on right when screen share is active */}
+                            <div className="video-tiles-sidebar">
                                 {/* Local video tile */}
                                 <div className="video-tile local-video">
                                     <video

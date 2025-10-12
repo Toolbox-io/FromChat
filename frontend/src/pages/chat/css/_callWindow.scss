@@ -52,10 +52,6 @@
                 gap: 24px;
                 min-height: 400px;
             }
-
-            .screen-share-tile {
-                min-height: 60vh;
-            }
         }
 
         .call-header {
@@ -155,7 +151,7 @@
             }
 
         .screen-share-tile {
-            min-height: 150px;
+            // min-height removed to allow dynamic sizing based on video content
             
             .screen-share-video {
                 object-fit: contain;
@@ -307,18 +303,84 @@
 .call-content {
     padding: 24px;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 20px;
     position: relative;
     z-index: 1;
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden;
 
-    .video-tiles-grid {
+    // Reduce padding when screen share is active to maximize space
+    &.with-screen-share {
+        padding: 12px;
+        gap: 16px;
+    }
+
+    // Default layout (no screen share): tiles in grid
+    .screen-share-area {
+        display: none;
+    }
+
+    .video-tiles-sidebar {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 20px;
-        min-height: 300px;
+        flex: 1;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    // Layout with screen share: screen share on left, video tiles on right
+    &.with-screen-share {
+        .screen-share-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 4; // Give 4x more space than sidebar
+            min-width: 0;
+            max-width: 80vw; // Limit screen share to 80% of viewport width
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            // Ensure no padding/margin that could create blank space
+            padding: 0;
+            margin: 0;
+        }
+
+        .video-tiles-sidebar {
+            display: flex;
+            flex-direction: column;
+            grid-template-columns: none;
+            flex: 1; // Give 1x space (4:1 ratio = 80:20)
+            min-width: 250px; // Ensure minimum 300px width
+            max-width: 20%; // Cap at 20% of container
+            flex-shrink: 0;
+            gap: 16px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 5px;
+            
+            // Custom scrollbar
+            &::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            &::-webkit-scrollbar-track {
+                background: rgba($color-dark-surface-variant, 0.3);
+                border-radius: 3px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                background: rgba($color-dark-primary, 0.5);
+                border-radius: 3px;
+                
+                &:hover {
+                    background: rgba($color-dark-primary, 0.7);
+                }
+            }
+
+            .video-tile {
+                min-height: 168px;
+            }
+        }
     }
 
     .video-tile {
@@ -326,7 +388,6 @@
         background: rgba($color-dark-surface-variant, 0.5);
         border-radius: 16px;
         overflow: hidden;
-        aspect-ratio: 4 / 3;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -391,24 +452,40 @@
     }
 
     .screen-share-tile {
-        aspect-ratio: 16 / 9;
-        min-height: 480px;
-        grid-column: 1 / -1;
+        position: relative;
         border: 2px solid rgba($color-dark-primary, 0.6);
+        border-radius: 12px;
         overflow: hidden;
+        background: rgba(0, 0, 0, 0.95);
+        display: inline-block;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        // Constrain to available space but size to content
+        max-width: 100%;
+        max-height: 100%;
 
         .screen-share-video {
-            width: 100%;
-            height: 100%;
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
             object-fit: contain;
-            background: rgba(0, 0, 0, 0.95);
         }
 
         .tile-label {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
             font-size: 14px;
             padding: 8px 16px;
             background: rgba($color-dark-primary, 0.9);
             color: $color-dark-on-primary;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            pointer-events: none;
+            z-index: 1;
         }
     }
 }
