@@ -150,13 +150,11 @@
                 }
             }
 
-        .screen-share-tile {
-            // min-height removed to allow dynamic sizing based on video content
-            
-            .screen-share-video {
-                object-fit: contain;
+            .screen-share-tile {
+                .screen-share-video {
+                    object-fit: contain;
+                }
             }
-        }
         }
 
         .call-controls {

@@ -8,7 +8,7 @@ import type { Message, WebSocketMessage } from "@/core/types";
 import defaultAvatar from "@/images/default-avatar.png";
 import AnimatedOpacity from "@/core/components/animations/AnimatedOpacity";
 import type { DMPanel } from "./panels/DMPanel";
-import useAudioCall from "@/pages/chat/hooks/useAudioCall";
+import useCall from "@/pages/chat/hooks/useCall";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
@@ -27,7 +27,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     const [editMessage, setEditMessage] = useState<Message | null>(null);
     const [editVisible, setEditVisible] = useState(Boolean(editMessage));
     const [pendingAction, setPendingAction] = useState<null | { type: "reply" | "edit"; message: Message }>(null);
-    const { initiateCall } = useAudioCall();
+    const { initiateCall } = useCall();
 
 
     // Drag & drop

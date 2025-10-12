@@ -109,7 +109,6 @@ async function getIceServers(): Promise<RTCIceServer[]> {
         
         if (response.ok) {
             const data = await response.json() as IceServersResponse;
-            console.log("Received ICE servers:", data.iceServers);
             return data.iceServers || [];
         } else {
             console.warn("Failed to fetch ICE servers:", response.status, response.statusText);
@@ -162,8 +161,6 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
     // Add ICE candidate event listener for debugging and sending
     peerConnection.addEventListener("icecandidate", async (event) => {
         if (event.candidate) {
-            console.log("Local ICE candidate:", event.candidate.candidate);
-            
             // Send ICE candidate to remote peer
             try {
                 await sendSignalingMessage({
@@ -179,8 +176,6 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
             } catch (error) {
                 console.error("Failed to send ICE candidate:", error);
             }
-        } else {
-            console.log("ICE gathering complete");
         }
     });
 
@@ -195,27 +190,22 @@ async function createPeerConnection(userId: number): Promise<RTCPeerConnection> 
     // Handle renegotiation when tracks are added/removed
     peerConnection.addEventListener("negotiationneeded", async () => {
         try {
-            console.log("Negotiation needed for user", userId);
             const call = calls.get(userId);
             if (!call) {
-                console.log("Skipping renegotiation - call not found");
                 return;
             }
 
             // Prevent multiple simultaneous negotiations
             if (call.isNegotiating) {
-                console.log("Already negotiating, skipping");
                 return;
             }
 
             // Skip if we're in "stable" state and haven't finished the initial handshake
             if (peerConnection.signalingState !== "stable") {
-                console.log("Skipping renegotiation - signaling state is", peerConnection.signalingState);
                 return;
             }
 
             call.isNegotiating = true;
-            console.log("Creating new offer for renegotiation (signalingState:", peerConnection.signalingState + ")");
             
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);

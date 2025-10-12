@@ -34,7 +34,7 @@ export interface WorkerOptions {
  * For RTCEncodedVideoFrame/AudioFrame, we use the frame's metadata if available,
  * otherwise fall back to extracting from RTP header
  */
-function makeIV(encodedFrame: EncodedFrame, frameCount: number, mode: 'encrypt' | 'decrypt'): ArrayBuffer {
+function makeIV(encodedFrame: EncodedFrame): ArrayBuffer {
     // Create IV using ONLY RTP metadata - this ensures sender and receiver use identical IVs
     // Frame data can differ between sender/receiver due to encoding differences
     const ivBuffer = new ArrayBuffer(12);
@@ -49,14 +49,6 @@ function makeIV(encodedFrame: EncodedFrame, frameCount: number, mode: 'encrypt' 
                 view.setUint32(4, metadata.synchronizationSource || 0, false); // Middle 4 bytes
                 view.setUint32(8, 0, false); // Last 4 bytes (padding for 12-byte IV)
                 
-                // Debug first few frames only
-                if (frameCount <= 3) {
-                    console.log(`${mode.toUpperCase()} IV for frame #${frameCount}:`, {
-                        rtpTimestamp: metadata.rtpTimestamp,
-                        syncSource: metadata.synchronizationSource,
-                        mimeType: metadata.mimeType
-                    });
-                }
                 
                 return ivBuffer;
             }
@@ -82,8 +74,6 @@ addEventListener("rtctransform", (event) => {
     console.log(`E2EE Worker started in ${mode.toUpperCase()} mode`);
     
     let frameCount = 0;
-    let lastLogTime = 0;
-    let lastKeyCheck = Date.now();
     
     async function transform(encodedFrame: EncodedFrame, controller: TransformStreamDefaultController<EncodedFrame>) {
         try {
@@ -92,35 +82,8 @@ addEventListener("rtctransform", (event) => {
             // Increment frame counter
             frameCount++;
             
-            // Log every frame for debugging (only first 3)
-            if (frameCount <= 3) {
-                console.log(`${mode.toUpperCase()} Processing frame #${frameCount}, size: ${data.length}`);
-            }
-            
             // Create IV using RTP timestamp from metadata (synchronized between peers)
-            const iv = makeIV(encodedFrame, frameCount, mode);
-            
-            // Log first few frames and periodically for debugging
-            const now = Date.now();
-            if (frameCount <= 5 || now - lastLogTime > 5000) {
-                console.log(`E2EE ${mode} frame #${frameCount}, size: ${data.length} bytes`);
-                lastLogTime = now;
-            }
-            
-            // For screen share, check if we need to request key rotation more frequently
-            // Screen share generates much more data and can benefit from more frequent key rotation
-            if (data.length > 50000 && now - lastKeyCheck > 60000) { // 1 minute for large frames
-                console.log("Large frame detected, suggesting key rotation for screen share");
-                lastKeyCheck = now;
-            }
-
-            // Detect potential browser window glitching - frames with specific characteristics
-            if (data.length > 100000 && frameCount > 10) { // Large frames after initial setup
-                const frameType = encodedFrame.type || 'unknown';
-                if (frameType === 'key' && data.length > 200000) {
-                    console.log("Large keyframe detected - possible browser window glitch, frame size:", data.length);
-                }
-            }
+            const iv = makeIV(encodedFrame);
             
             // Ensure IV is properly typed
             const ivArray = new Uint8Array(iv);
@@ -168,16 +131,6 @@ addEventListener("rtctransform", (event) => {
                 result.set(encryptedArray, 0);
             }
             
-            // Log first few frames for debugging
-            if (frameCount <= 3) {
-                console.log(`E2EE ${mode} frame #${frameCount}: ${data.length} -> ${result.length} bytes (header: ${headerSize})`);
-            }
-            
-            // For video frames, check if we need to force keyframes more frequently
-            // This helps prevent "stuck at first frame" issues with encrypted video
-            if (data.length > 10000 && frameCount > 0 && frameCount % 30 === 0) {
-                console.log(`Large video frame #${frameCount} - suggesting keyframe for stability`);
-            }
             
             // CRITICAL: Video frames need ArrayBuffer, not Uint8Array
             encodedFrame.data = result.buffer;
@@ -187,16 +140,7 @@ addEventListener("rtctransform", (event) => {
             // FAIL SECURELY: Never send unencrypted frames
             const data = new Uint8Array(encodedFrame.data);
             console.error(`E2EE ${mode} FAILED - dropping frame #${frameCount}, size: ${data.length}`, e);
-            console.error('Frame type:', encodedFrame.type || 'unknown');
-            
-            // For screen share, be more aggressive about dropping corrupted frames
-            // to prevent progressive glitch accumulation
-            if (mode === 'decrypt' && frameCount > 10) {
-                console.warn(`Dropping corrupted frame #${frameCount} to prevent glitch accumulation`);
-            }
-            
-            // Drop the frame completely - don't enqueue anything
-            return;
+            return; // Drop the frame completely
         }
     }
 
