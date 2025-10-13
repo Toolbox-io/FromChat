@@ -435,11 +435,17 @@ export interface DialogProps {
 }
 
 // Call types
-export interface CallInvite extends CallSignalingData {
-    type: "call_invite";
+export interface CallSignalingData {
     fromUserId: number;
+    toUserId: number;
+}
+
+export interface CallInviteData {
     fromUsername: string;
-    timestamp: string;
+}
+
+export interface CallInviteMessageData {
+    fromUsername: string;
 }
 
 export type CallSignalingDataType = "call_offer" | "call_answer" | "call_ice_candidate" | "call_end" | "call_invite" | "call_accept" | "call_reject" | "call_session_key" | "call_signaling" | "call_video_toggle" | "call_screen_share_toggle";
@@ -449,19 +455,76 @@ export interface CallSignalingMessage extends WebSocketMessage {
     fromUserId: number;
     toUserId: number;
     sessionKeyHash?: string;
-    data: any;
+    data: CallSignalingMessageData;
+}
+
+export type CallSignalingMessageData = 
+    | CallInviteMessageData
+    | CallAcceptData
+    | CallRejectData
+    | CallOfferData
+    | CallAnswerData
+    | CallIceCandidateData
+    | CallEndData
+    | CallSessionKeyData
+    | CallVideoToggleData
+    | CallScreenShareToggleData;
+
+export interface CallAcceptData {
+    fromUserId: number;
+}
+
+export interface CallRejectData {
+    fromUserId: number;
+}
+
+export interface CallOfferData extends RTCSessionDescriptionInit {
+}
+
+export interface CallAnswerData extends RTCSessionDescriptionInit {
+}
+
+export interface CallIceCandidateData extends RTCIceCandidateInit {
+}
+
+export interface CallEndData {
+    fromUserId: number;
+}
+
+export interface CallSessionKeyData {
+    wrappedSessionKey?: WrappedSessionKeyPayload;
+}
+
+export interface CallVideoToggleData {
+    enabled: boolean;
+}
+
+export interface CallScreenShareToggleData {
+    enabled: boolean;
+}
+
+export interface CallVideoToggleMessageData {
+    fromUserId: number;
+    data: CallVideoToggleData;
+}
+
+export interface CallScreenShareToggleMessageData {
+    fromUserId: number;
+    data: CallScreenShareToggleData;
+}
+
+export interface WrappedSessionKeyPayload {
+    salt: string;
+    iv2: string;
+    wrapped: string;
 }
 
 export interface CallVideoToggleMessage extends CallSignalingMessage {
     type: "call_video_toggle";
-    data: {
-        enabled: boolean;
-    };
+    data: CallVideoToggleData;
 }
 
 export interface CallScreenShareToggleMessage extends CallSignalingMessage {
     type: "call_screen_share_toggle";
-    data: {
-        enabled: boolean;
-    };
+    data: CallScreenShareToggleData;
 }

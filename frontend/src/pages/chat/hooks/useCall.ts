@@ -4,6 +4,7 @@ import { CallSignalingHandler } from "@/core/calls/signaling";
 import { setCallSignalingHandler } from "@/core/websocket";
 import { generateCallSessionKey, generateCallEmojis } from "@/core/calls/encryption";
 import { createRef, useEffect } from "react";
+import { doAfterInteraction } from "@/utils/utils";
 
 // Global refs shared across all instances
 let globalRemoteAudioRef = createRef<HTMLAudioElement>();
@@ -91,14 +92,7 @@ export default function useCall() {
                 });
 
                 el.play().catch(() => {
-                    // Try to play after user interaction if autoplay is blocked
-                    const playAfterInteraction = () => {
-                        el.play().catch(() => {});
-                        document.removeEventListener("click", playAfterInteraction);
-                        document.removeEventListener("touchstart", playAfterInteraction);
-                    };
-                    document.addEventListener("click", playAfterInteraction);
-                    document.addEventListener("touchstart", playAfterInteraction);
+                    doAfterInteraction(() => el.play());
                 });
             } catch (e) {
                 console.warn("failed to attach remote stream:", e);
@@ -107,9 +101,7 @@ export default function useCall() {
 
         // Set up local video stream handler
         WebRTC.setLocalVideoStreamHandler((_userId: number, stream: MediaStream | null) => {
-            console.log("Local video stream handler called, stream:", stream, "ref exists:", !!localVideoRef.current);
             if (!localVideoRef.current) {
-                console.warn("Local video ref not available yet");
                 return;
             }
             const el = localVideoRef.current;
@@ -118,9 +110,9 @@ export default function useCall() {
                 el.muted = true; // Always mute local video to avoid feedback
                 el.autoplay = true;
                 if (stream) {
-                    console.log("Playing local video stream");
                     el.play().catch((err) => {
                         console.error("Failed to play local video:", err);
+                        doAfterInteraction(() => el.play()).catch(() => {});
                     });
                 }
             } catch (e) {
@@ -130,9 +122,7 @@ export default function useCall() {
 
         // Set up remote video stream handler
         WebRTC.setRemoteVideoStreamHandler((_userId: number, stream: MediaStream | null) => {
-            console.log("Remote video stream handler called, stream:", stream, "ref exists:", !!remoteVideoRef.current);
             if (!remoteVideoRef.current) {
-                console.warn("Remote video ref not available yet");
                 return;
             }
             const el = remoteVideoRef.current;
@@ -141,16 +131,9 @@ export default function useCall() {
                 el.muted = false;
                 el.autoplay = true;
                 if (stream) {
-                    console.log("Playing remote video stream");
                     el.play().catch((err) => {
                         console.error("Failed to play remote video:", err);
-                        const playAfterInteraction = () => {
-                            el.play().catch(() => {});
-                            document.removeEventListener("click", playAfterInteraction);
-                            document.removeEventListener("touchstart", playAfterInteraction);
-                        };
-                        document.addEventListener("click", playAfterInteraction);
-                        document.addEventListener("touchstart", playAfterInteraction);
+                        doAfterInteraction(() => el.play()).catch(() => {});
                     });
                 }
             } catch (e) {
@@ -160,9 +143,7 @@ export default function useCall() {
 
         // Set up local screen share handler
         WebRTC.setLocalScreenShareHandler((_userId: number, stream: MediaStream | null) => {
-            console.log("Local screen share handler called, stream:", stream, "ref exists:", !!localScreenShareRef.current);
             if (!localScreenShareRef.current) {
-                console.warn("Local screen share ref not available yet");
                 return;
             }
             const el = localScreenShareRef.current;
@@ -171,9 +152,9 @@ export default function useCall() {
                 el.muted = true;
                 el.autoplay = true;
                 if (stream) {
-                    console.log("Playing local screen share");
                     el.play().catch((err) => {
                         console.error("Failed to play local screen share:", err);
+                        doAfterInteraction(() => el.play()).catch(() => {});
                     });
                 }
             } catch (e) {
@@ -183,9 +164,7 @@ export default function useCall() {
 
         // Set up remote screen share handler
         WebRTC.setRemoteScreenShareHandler((_userId: number, stream: MediaStream | null) => {
-            console.log("Remote screen share handler called, stream:", stream, "ref exists:", !!remoteScreenShareRef.current);
             if (!remoteScreenShareRef.current) {
-                console.warn("Remote screen share ref not available yet");
                 return;
             }
             const el = remoteScreenShareRef.current;
@@ -194,16 +173,9 @@ export default function useCall() {
                 el.muted = false;
                 el.autoplay = true;
                 if (stream) {
-                    console.log("Playing remote screen share");
                     el.play().catch((err) => {
                         console.error("Failed to play remote screen share:", err);
-                        const playAfterInteraction = () => {
-                            el.play().catch(() => {});
-                            document.removeEventListener("click", playAfterInteraction);
-                            document.removeEventListener("touchstart", playAfterInteraction);
-                        };
-                        document.addEventListener("click", playAfterInteraction);
-                        document.addEventListener("touchstart", playAfterInteraction);
+                        doAfterInteraction(() => el.play()).catch(() => {});
                     });
                 }
             } catch (e) {
@@ -245,7 +217,6 @@ export default function useCall() {
         const hasPermission = await requestAudioPermissions();
         
         if (!hasPermission) {
-            console.log("Audio permission denied");
             return;
         }
 

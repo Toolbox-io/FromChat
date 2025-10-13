@@ -49,7 +49,6 @@ function makeIV(encodedFrame: EncodedFrame): ArrayBuffer {
                 view.setUint32(4, metadata.synchronizationSource || 0, false); // Middle 4 bytes
                 view.setUint32(8, 0, false); // Last 4 bytes (padding for 12-byte IV)
                 
-                
                 return ivBuffer;
             }
         } catch (e) {
@@ -70,8 +69,6 @@ addEventListener("rtctransform", (event) => {
     const { key, mode } = transformer.options as WorkerOptions;
     
     const isEncrypting = mode === 'encrypt';
-    
-    console.log(`E2EE Worker started in ${mode.toUpperCase()} mode`);
     
     let frameCount = 0;
     
@@ -131,11 +128,9 @@ addEventListener("rtctransform", (event) => {
                 result.set(encryptedArray, 0);
             }
             
-            
             // CRITICAL: Video frames need ArrayBuffer, not Uint8Array
             encodedFrame.data = result.buffer;
             controller.enqueue(encodedFrame);
-            
         } catch (e) {
             // FAIL SECURELY: Never send unencrypted frames
             const data = new Uint8Array(encodedFrame.data);

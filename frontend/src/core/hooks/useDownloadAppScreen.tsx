@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { MINIMUM_WIDTH } from "../config";
+import { MINIMUM_WIDTH } from "@/core/config";
 import useWindowSize from "./useWindowSize";
 
 export default function useDownloadAppScreen() {

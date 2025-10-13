@@ -88,11 +88,9 @@ export function CallWindow() {
         } else {
             if (shouldRender) {
                 // Call ended - start exit animation
-                console.log(`Call ended - starting exit animation. Was minimized: ${wasMinimized}`);
                 setIsVisible(false);
                 // After animation completes, stop rendering
                 const timer = setTimeout(() => {
-                    console.log("Exit animation complete, removing window");
                     setShouldRender(false);
                     setCallData(null);
                     setWasMinimized(false);
@@ -195,12 +193,6 @@ export function CallWindow() {
                             left: pipPosition.x,
                             top: pipPosition.y
                         } : undefined}
-                        ref={(el) => {
-                            if (el && !isVisible) {
-                                console.log(`Window classes: ${el.className}`);
-                                console.log(`Window state - was minimized: ${wasMinimized}, visible: ${isVisible}`);
-                            }
-                        }}
                         onMouseDown={(e) => {
                             if (call.isMinimized) {
                                 // Only start dragging if not clicking on a button

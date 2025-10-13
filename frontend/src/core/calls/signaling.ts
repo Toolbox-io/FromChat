@@ -1,4 +1,4 @@
-import type { CallInvite, CallSignalingMessage } from "@/core/types";
+import type { CallSignalingMessage, CallAcceptData, CallRejectData, CallOfferData, CallAnswerData, CallIceCandidateData, CallEndData, CallVideoToggleData, CallScreenShareToggleData, CallInviteMessageData } from "@/core/types";
 import * as WebRTC from "./webrtc";
 
 export interface CallState {
@@ -9,6 +9,9 @@ export interface CallState {
     setRemoteScreenSharing: (enabled: boolean) => void;
 }
 
+/**
+ * Handles incoming WebSocket messages related to call signaling
+ */
 export class CallSignalingHandler {
     private getState: () => CallState;
 
@@ -16,55 +19,56 @@ export class CallSignalingHandler {
         this.getState = getState;
     }
 
+    /**
+     * Routes incoming call signaling messages to appropriate handlers
+     */
     handleWebSocketMessage(message: CallSignalingMessage) {
-        if (message.type !== "call_signaling") {
-            return;
-        }
-
         const { data } = message;
         if (!data) {
-            console.warn("Received call_signaling message with no data:", message);
+            console.warn("Received call signaling message with no data:", message);
             return;
         }
 
-        console.log("Received signaling message:", data.type, "from user", data.fromUserId, "full data:", data);
-
-        switch (data.type) {
+        switch (message.type) {
             case "call_invite":
-                this.handleCallInvite(data as CallInvite);
+                this.handleCallInvite(message, data as CallInviteMessageData);
                 break;
             case "call_accept":
-                this.handleCallAccept(data);
+                this.handleCallAccept(data as CallAcceptData);
                 break;
             case "call_reject":
-                this.handleCallReject(data);
+                this.handleCallReject(data as CallRejectData);
                 break;
             case "call_offer":
-                this.handleCallOffer(data);
+                this.handleCallOffer(message, data as CallOfferData);
                 break;
             case "call_answer":
-                this.handleCallAnswer(data);
+                this.handleCallAnswer(message, data as CallAnswerData);
                 break;
             case "call_ice_candidate":
-                this.handleIceCandidate(data);
+                this.handleIceCandidate(message, data as CallIceCandidateData);
                 break;
             case "call_end":
-                this.handleCallEnd(data);
+                this.handleCallEnd(data as CallEndData);
                 break;
             case "call_session_key":
-                this.handleCallSessionKey(data);
+                this.handleCallSessionKey(message);
                 break;
             case "call_video_toggle":
-                this.handleVideoToggle(data);
+                this.handleVideoToggle(message, data as CallVideoToggleData);
                 break;
             case "call_screen_share_toggle":
-                this.handleScreenShareToggle(data);
+                this.handleScreenShareToggle(message, data as CallScreenShareToggleData);
                 break;
         }
     }
 
-    private async handleCallInvite(data: CallInvite) {
-        const { fromUserId, fromUsername } = data;
+    /**
+     * Handles incoming call invitation
+     */
+    private async handleCallInvite(message: CallSignalingMessage, data: CallInviteMessageData) {
+        const { fromUsername } = data;
+        const fromUserId = message.fromUserId;
         const state = this.getState();
         
         // First, create the peer connection in WebRTC service
@@ -74,7 +78,10 @@ export class CallSignalingHandler {
         state.receiveCall(fromUserId, fromUsername);
     }
 
-    private async handleCallAccept(data: any) {
+    /**
+     * Handles call acceptance from remote peer
+     */
+    private async handleCallAccept(data: CallAcceptData) {
         const { fromUserId } = data;
         // Initiator should create and send offer now
         try {
@@ -84,7 +91,10 @@ export class CallSignalingHandler {
         }
     }
 
-    private handleCallReject(data: any) {
+    /**
+     * Handles call rejection from remote peer
+     */
+    private handleCallReject(data: CallRejectData) {
         const state = this.getState();
         const { fromUserId } = data;
         
@@ -97,22 +107,19 @@ export class CallSignalingHandler {
         state.endCall();
     }
 
-    private async handleCallOffer(data: any) {
-        const { fromUserId, data: offer } = data;
-        await WebRTC.handleCallOffer(fromUserId, offer);
+    private async handleCallOffer(message: CallSignalingMessage, data: CallOfferData) {
+        await WebRTC.handleCallOffer(message.fromUserId, data);
     }
 
-    private async handleCallAnswer(data: any) {
-        const { fromUserId, data: answer } = data;
-        await WebRTC.handleCallAnswer(fromUserId, answer);
+    private async handleCallAnswer(message: CallSignalingMessage, data: CallAnswerData) {
+        await WebRTC.handleCallAnswer(message.fromUserId, data);
     }
 
-    private async handleIceCandidate(data: any) {
-        const { fromUserId, data: candidate } = data;
-        await WebRTC.handleIceCandidate(fromUserId, candidate);
+    private async handleIceCandidate(message: CallSignalingMessage, data: CallIceCandidateData) {
+        await WebRTC.handleIceCandidate(message.fromUserId, data);
     }
 
-    private handleCallEnd(data: any) {
+    private handleCallEnd(data: CallEndData) {
         const state = this.getState();
         const { fromUserId } = data;
         
@@ -125,43 +132,38 @@ export class CallSignalingHandler {
         state.endCall();
     }
 
-    private handleCallSessionKey({ sessionKeyHash, data, ...message }: CallSignalingMessage) {
+    private handleCallSessionKey(message: CallSignalingMessage) {
         const state = this.getState();
+        const { sessionKeyHash, data } = message;
         if (sessionKeyHash) {
             state.setCallSessionKeyHash(sessionKeyHash);
         }
-        if (data?.wrappedSessionKey && message.fromUserId) {
+        if (data && 'wrappedSessionKey' in data && data.wrappedSessionKey && message.fromUserId) {
             WebRTC.receiveWrappedSessionKey(message.fromUserId, data.wrappedSessionKey, sessionKeyHash);
         }
     }
 
-    private handleVideoToggle(data: any) {
-        console.log("handleVideoToggle called with data:", data);
+    private handleVideoToggle(message: CallSignalingMessage, data: CallVideoToggleData) {
         const state = this.getState();
-        const { fromUserId, data: toggleData } = data;
         
-        if (toggleData && typeof toggleData.enabled === "boolean" && fromUserId) {
-            console.log("Setting remote video enabled to:", toggleData.enabled);
+        if (data && typeof data.enabled === "boolean" && message.fromUserId) {
             // Update Zustand state (for UI)
-            state.setRemoteVideoEnabled(toggleData.enabled);
+            state.setRemoteVideoEnabled(data.enabled);
             // Update WebRTC internal state (for track routing)
-            WebRTC.setRemoteVideoEnabled(fromUserId, toggleData.enabled);
+            WebRTC.setRemoteVideoEnabled(message.fromUserId, data.enabled);
         } else {
             console.warn("Invalid toggle data:", data);
         }
     }
 
-    private handleScreenShareToggle(data: any) {
-        console.log("handleScreenShareToggle called with data:", data);
+    private handleScreenShareToggle(message: CallSignalingMessage, data: CallScreenShareToggleData) {
         const state = this.getState();
-        const { fromUserId, data: toggleData } = data;
         
-        if (toggleData && typeof toggleData.enabled === "boolean" && fromUserId) {
-            console.log("Setting remote screen sharing to:", toggleData.enabled);
+        if (data && typeof data.enabled === "boolean" && message.fromUserId) {
             // Update Zustand state (for UI)
-            state.setRemoteScreenSharing(toggleData.enabled);
+            state.setRemoteScreenSharing(data.enabled);
             // Update WebRTC internal state (for track routing)
-            WebRTC.setRemoteScreenSharing(fromUserId, toggleData.enabled);
+            WebRTC.setRemoteScreenSharing(message.fromUserId, data.enabled);
         } else {
             console.warn("Invalid toggle data:", data);
         }
