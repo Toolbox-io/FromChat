@@ -1,96 +1,146 @@
 /**
  * E2EE Worker for WebRTC Insertable Streams
- * Conditionally encrypts or decrypts encoded audio frames using AES-GCM
+ * Encrypts/decrypts encoded audio and video frames using AES-GCM
+ * Uses RTP timestamps for IVs to handle out-of-order and dropped frames
  */
 
+export interface FrameMetadata {
+    contributingSources?: number[];
+    mimeType?: string;
+    payloadType?: number;
+    rtpTimestamp: number;
+    synchronizationSource: number;
+    dependencies?: number[];
+    frameId?: number;
+    spatialIndex?: number;
+    temporalIndex?: number;
+}
+
 export interface EncodedFrame {
-    data: Uint8Array;
+    data: Uint8Array | ArrayBuffer;
+    timestamp?: number;
+    type?: string;
+    getMetadata?: () => FrameMetadata;
 }
 
 export interface WorkerOptions {
     key: CryptoKey;
     mode: 'encrypt' | 'decrypt';
-    sessionId?: string; // For replay protection
+    sessionId?: string;
+}
+
+/**
+ * Extract sequence number from encoded frame
+ * For RTCEncodedVideoFrame/AudioFrame, we use the frame's metadata if available,
+ * otherwise fall back to extracting from RTP header
+ */
+function makeIV(encodedFrame: EncodedFrame): ArrayBuffer {
+    // Create IV using ONLY RTP metadata - this ensures sender and receiver use identical IVs
+    // Frame data can differ between sender/receiver due to encoding differences
+    const ivBuffer = new ArrayBuffer(12);
+    const view = new DataView(ivBuffer);
+    
+    if (encodedFrame.getMetadata) {
+        try {
+            const metadata = encodedFrame.getMetadata();
+            if (metadata && typeof metadata.rtpTimestamp === 'number') {
+                // Use ONLY RTP timestamp + sync source - these are identical on both sides
+                view.setUint32(0, metadata.rtpTimestamp, false); // First 4 bytes
+                view.setUint32(4, metadata.synchronizationSource || 0, false); // Middle 4 bytes
+                view.setUint32(8, 0, false); // Last 4 bytes (padding for 12-byte IV)
+                
+                
+                return ivBuffer;
+            }
+        } catch (e) {
+            console.error("Failed to get metadata:", e);
+        }
+    }
+    
+    // Fallback: use timestamp only (no random to avoid desync)
+    view.setUint32(0, Date.now() & 0xFFFFFFFF, false);
+    view.setUint32(4, 0, false);
+    view.setUint32(8, 0, false);
+    return ivBuffer;
 }
 
 addEventListener("rtctransform", (event) => {
     const { transformer } = event;
     const { readable, writable } = transformer;
-    const { key, mode, sessionId } = transformer.options as WorkerOptions;
+    const { key, mode } = transformer.options as WorkerOptions;
     
-    // Generate a random base IV once per transform session
-    const ivBase = crypto.getRandomValues(new Uint8Array(8)); // 8 random bytes
-    let frameCounter = 0;
-    let lastFrameTime = 0;
-    const FRAME_WINDOW_MS = 5000; // 5 second window for replay protection
-
+    const isEncrypting = mode === 'encrypt';
+    
+    console.log(`E2EE Worker started in ${mode.toUpperCase()} mode`);
+    
+    let frameCount = 0;
+    
     async function transform(encodedFrame: EncodedFrame, controller: TransformStreamDefaultController<EncodedFrame>) {
         try {
-            const currentTime = Date.now();
-            
-            // Replay protection for decryption
-            if (mode === 'decrypt') {
-                // Simple time-based replay protection
-                if (currentTime - lastFrameTime > FRAME_WINDOW_MS && lastFrameTime > 0) {
-                    console.warn("Potential replay attack detected - frame outside time window");
-                    controller.error(new Error("Replay attack detected"));
-                    return;
-                }
-                lastFrameTime = currentTime;
-            }
-            
-            // Create IV: 8 random bytes + 4-byte frame counter
-            const iv = new Uint8Array(12);
-            iv.set(ivBase, 0); // Copy random base
-            const view = new DataView(iv.buffer);
-            view.setUint32(8, frameCounter++, false); // Big-endian frame counter
-            
             const data = new Uint8Array(encodedFrame.data);
             
-            // Add frame metadata for authentication
-            const frameMetadata = new TextEncoder().encode(JSON.stringify({
-                frameNumber: frameCounter - 1,
-                timestamp: currentTime,
-                sessionId: sessionId || 'default'
-            }));
+            // Increment frame counter
+            frameCount++;
             
-            // Combine frame data with metadata
-            const combinedData = new Uint8Array(data.length + frameMetadata.length);
-            combinedData.set(frameMetadata, 0);
-            combinedData.set(data, frameMetadata.length);
+            // Create IV using RTP timestamp from metadata (synchronized between peers)
+            const iv = makeIV(encodedFrame);
             
-            const params: AesGcmParams = { name: 'AES-GCM', iv };
+            // Ensure IV is properly typed
+            const ivArray = new Uint8Array(iv);
+            const params: AesGcmParams = { name: 'AES-GCM', iv: ivArray };
             
-            let result: ArrayBuffer;
-            if (mode === 'encrypt') {
-                result = await crypto.subtle.encrypt(params, key, combinedData);
+            // COMPROMISE: Encrypt most of the frame while preserving minimal codec compatibility
+            // This prevents most visual leakage while maintaining decodability
+            let headerSize = 0;
+            let payloadData: Uint8Array;
+            
+            if (data.length > 20) {
+                // For video frames, preserve first 8 bytes for better codec compatibility
+                // This includes frame type, keyframe info, and basic header structure
+                headerSize = Math.min(8, Math.floor(data.length / 10));
+                payloadData = data.slice(headerSize);
             } else {
-                result = await crypto.subtle.decrypt(params, key, combinedData);
-                
-                // Verify frame metadata on decryption
-                const decryptedData = new Uint8Array(result);
-                const metadataLength = frameMetadata.length;
-                const extractedMetadata = decryptedData.slice(0, metadataLength);
-                const extractedData = decryptedData.slice(metadataLength);
-                
+                // For small frames (likely audio), encrypt everything
+                payloadData = data;
+            }
+            
+            // Encrypt the payload data
+            const payloadBuffer = new ArrayBuffer(payloadData.byteLength);
+            new Uint8Array(payloadBuffer).set(payloadData);
+            
+            let encryptedPayload: ArrayBuffer;
+            if (isEncrypting) {
+                encryptedPayload = await crypto.subtle.encrypt(params, key, payloadBuffer);
+            } else {
                 try {
-                    const metadata = JSON.parse(new TextDecoder().decode(extractedMetadata));
-                    if (metadata.frameNumber !== frameCounter - 1) {
-                        throw new Error("Frame sequence number mismatch");
-                    }
-                    result = extractedData.buffer;
-                } catch (parseError) {
-                    console.warn("Frame authentication failed:", parseError);
-                    controller.error(new Error("Frame authentication failed"));
-                    return;
+                    encryptedPayload = await crypto.subtle.decrypt(params, key, payloadBuffer);
+                } catch (error) {
+                    console.error(`E2EE ${mode} FAILED - dropping frame #${frameCount}, size: ${data.length}`, error);
+                    return; // Drop the frame
                 }
             }
             
-            encodedFrame.data = new Uint8Array(result);
+            // Reconstruct frame: minimal headers + encrypted payload
+            const encryptedArray = new Uint8Array(encryptedPayload);
+            const result = new Uint8Array(headerSize + encryptedArray.length);
+            
+            if (headerSize > 0) {
+                result.set(data.slice(0, headerSize), 0); // Copy minimal headers
+                result.set(encryptedArray, headerSize); // Add encrypted payload
+            } else {
+                result.set(encryptedArray, 0);
+            }
+            
+            
+            // CRITICAL: Video frames need ArrayBuffer, not Uint8Array
+            encodedFrame.data = result.buffer;
             controller.enqueue(encodedFrame);
+            
         } catch (e) {
-            console.error(`E2EE ${mode} failed:`, e);
-            controller.error(new Error(`E2EE ${mode} failed`));
+            // FAIL SECURELY: Never send unencrypted frames
+            const data = new Uint8Array(encodedFrame.data);
+            console.error(`E2EE ${mode} FAILED - dropping frame #${frameCount}, size: ${data.length}`, e);
+            return; // Drop the frame completely
         }
     }
 

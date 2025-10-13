@@ -1,11 +1,11 @@
 import { useAppState } from "@/pages/chat/state";
-import useAudioCall from "@/pages/chat/hooks/useAudioCall";
+import useCall from "@/pages/chat/hooks/useCall";
 import defaultAvatar from "@/images/default-avatar.png";
 
 export function MinimizedCallBar() {
     const { chat, toggleCallMinimize } = useAppState();
     const { call } = chat;
-    const { endCall, toggleMute } = useAudioCall();
+    const { endCall, toggleMute } = useCall();
 
     function getGradientClass() {
         switch (call.status) {
