@@ -44,6 +44,8 @@ jobs:
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}
+          TURN_USERNAME=${{ vars.TURN_USERNAME }}
+          TURN_PASSWORD=${{ secrets.TURN_PASSWORD }}
           EOF
       - name: Build container
         run: |

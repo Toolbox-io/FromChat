@@ -6,7 +6,7 @@ import {
     sendDmWithFiles,
     editDmEnvelope,
     deleteDmEnvelope
-} from "../../../../../core/api/dmApi";
+} from "@/core/api/dmApi";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
 import type { UserState } from "@/pages/chat/state";
 
@@ -261,6 +261,16 @@ export class DMPanel extends MessagePanel {
     // Update auth token
     setAuthToken(authToken: string): void {
         this.currentUser.authToken = authToken;
+    }
+
+    // Get DM user ID for call functionality
+    getDMUserId(): number | null {
+        return this.dmData?.userId || null;
+    }
+
+    // Get DM username for call functionality
+    getDMUsername(): string | null {
+        return this.dmData?.username || null;
     }
 
     // Helper functions for localStorage

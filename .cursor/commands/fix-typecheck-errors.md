@@ -1,0 +1,1 @@
+Run the command "npm run frontend:typecheck" and fix all errors listed in the command if there's any.

@@ -10,12 +10,31 @@ import { API_BASE_URL } from "@/core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 
-export type ChatTabs = "chats" | "channels" | "contacts" | "dms"
+export type ChatTabs = "chats" | "channels" | "contacts" | "dms";
+
+export type CallStatus = "calling" | "connecting" | "active" | "ended";
 
 interface ActiveDM {
     userId: number; 
     username: string;
     publicKey: string | null
+}
+
+interface CallState {
+    isActive: boolean;
+    status: CallStatus;
+    startTime: number | null;
+    isMuted: boolean;
+    remoteUserId: number | null;
+    remoteUsername: string | null;
+    isInitiator: boolean;
+    isMinimized: boolean;
+    sessionKeyHash: string | null;
+    encryptionEmojis: string[];
+    isVideoEnabled: boolean;
+    isRemoteVideoEnabled: boolean;
+    isSharingScreen: boolean;
+    isRemoteScreenSharing: boolean;
 }
 
 interface ChatState {
@@ -30,6 +49,7 @@ interface ChatState {
     publicChatPanel: PublicChatPanel | null;
     dmPanel: DMPanel | null;
     pendingPanel?: MessagePanel | null;
+    call: CallState;
 }
 
 export interface UserState {
@@ -53,6 +73,21 @@ interface AppState {
     applyPendingPanel: () => void;
     switchToPublicChat: (chatName: string) => Promise<void>;
     switchToDM: (dmData: DMPanelData) => Promise<void>;
+    
+    // Call state
+    startCall: (userId: number, username: string) => void;
+    endCall: () => void;
+    setCallStatus: (status: CallStatus) => void;
+    toggleMute: () => void;
+    toggleCallMinimize: () => void;
+    receiveCall: (userId: number, username: string) => void;
+    setCallEncryption: (sessionKeyHash: string, encryptionEmojis: string[]) => void;
+    setCallSessionKeyHash: (sessionKeyHash: string) => void;
+    toggleVideo: () => void;
+    toggleScreenShare: () => void;
+    setRemoteVideoEnabled: (enabled: boolean) => void;
+    setRemoteScreenSharing: (enabled: boolean) => void;
+    toggleCallMinimized: () => void;
     
     // User state
     user: UserState;
@@ -79,7 +114,23 @@ export const useAppState = create<AppState>((set, get) => ({
         activePanel: null,
         publicChatPanel: null,
         dmPanel: null,
-        pendingPanel: null
+        pendingPanel: null,
+        call: {
+            isActive: false,
+            status: "ended",
+            startTime: null,
+            isMuted: false,
+            remoteUserId: null,
+            remoteUsername: null,
+            isInitiator: false,
+            isMinimized: false,
+            sessionKeyHash: null,
+            encryptionEmojis: [],
+            isVideoEnabled: false,
+            isRemoteVideoEnabled: false,
+            isSharingScreen: false,
+            isRemoteScreenSharing: false
+        }
     },
     addMessage: (message: Message) => set((state) => {
         // Check if message already exists to prevent duplicates
@@ -358,5 +409,173 @@ export const useAppState = create<AppState>((set, get) => ({
         
         // Let MessagePanelRenderer handle the animation timing completely
         // It will set isChatSwitching to false when the fadeInDown animation completes
-    }
+    },
+
+    // Call state management
+    startCall: (userId: number, username: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                isActive: true,
+                status: "calling",
+                startTime: null,
+                isMuted: false,
+                remoteUserId: userId,
+                remoteUsername: username,
+                isInitiator: true,
+                isMinimized: false,
+                sessionKeyHash: null,
+                encryptionEmojis: [],
+                isVideoEnabled: false,
+                isRemoteVideoEnabled: false,
+                isSharingScreen: false,
+                isRemoteScreenSharing: false
+            }
+        }
+    })),
+    
+    endCall: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                isActive: false,
+                status: "ended",
+                startTime: null,
+                isMuted: false,
+                remoteUserId: null,
+                remoteUsername: null,
+                isInitiator: false,
+                isMinimized: false,
+                sessionKeyHash: null,
+                encryptionEmojis: [],
+                isVideoEnabled: false,
+                isRemoteVideoEnabled: false,
+                isSharingScreen: false,
+                isRemoteScreenSharing: false
+            }
+        }
+    })),
+    
+    setCallStatus: (status: CallStatus) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                status,
+                startTime: status === "active" && !state.chat.call.startTime ? Date.now() : state.chat.call.startTime
+            }
+        }
+    })),
+    
+    toggleMute: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isMuted: !state.chat.call.isMuted
+            }
+        }
+    })),
+    
+    toggleCallMinimize: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isMinimized: !state.chat.call.isMinimized
+            }
+        }
+    })),
+
+    receiveCall: (userId: number, username: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                isActive: true,
+                status: "calling",
+                startTime: null,
+                isMuted: false,
+                remoteUserId: userId,
+                remoteUsername: username,
+                isInitiator: false,
+                isMinimized: false,
+                sessionKeyHash: null,
+                encryptionEmojis: [],
+                isVideoEnabled: false,
+                isRemoteVideoEnabled: false,
+                isSharingScreen: false,
+                isRemoteScreenSharing: false
+            }
+        }
+    })),
+    
+    setCallEncryption: (sessionKeyHash: string, encryptionEmojis: string[]) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                sessionKeyHash,
+                encryptionEmojis
+            }
+        }
+    })),
+    
+    setCallSessionKeyHash: (sessionKeyHash: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                sessionKeyHash
+            }
+        }
+    })),
+    
+    toggleVideo: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isVideoEnabled: !state.chat.call.isVideoEnabled
+            }
+        }
+    })),
+    
+    toggleScreenShare: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isSharingScreen: !state.chat.call.isSharingScreen
+            }
+        }
+    })),
+    
+    setRemoteVideoEnabled: (enabled: boolean) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isRemoteVideoEnabled: enabled
+            }
+        }
+    })),
+    
+    setRemoteScreenSharing: (enabled: boolean) => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isRemoteScreenSharing: enabled
+            }
+        }
+    })),
+    toggleCallMinimized: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            call: {
+                ...state.chat.call,
+                isMinimized: !state.chat.call.isMinimized
+            }
+        }
+    }))
 }));

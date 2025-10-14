@@ -911,6 +911,90 @@ class MessaggingSocketManager:
                     await websocket.send_json({"type": type, "data": response})
                 except HTTPException as e:
                     await self.send_error(websocket, type, e)
+            elif type == "call_signaling":
+                # Forward WebRTC signaling between peers
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+                    self.user_by_ws[websocket] = current_user.id
+
+                    payload = data.get("data") or {}
+                    to_user_id = int(payload.get("toUserId") or 0)
+                    if not to_user_id:
+                        raise HTTPException(status_code=400, detail="Missing toUserId")
+
+                    # Ensure sender is set by the server
+                    payload["fromUserId"] = current_user.id
+                    payload["fromUsername"] = current_user.username
+
+                    await self.send_to_user(to_user_id, {
+                        "type": "call_signaling",
+                        "data": payload
+                    })
+
+                    # Optional ack
+                    await websocket.send_json({"type": "call_signaling", "data": {"status": "ok"}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "call_video_toggle":
+                # Forward video toggle state between peers
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+                    self.user_by_ws[websocket] = current_user.id
+
+                    payload = data.get("data") or {}
+                    to_user_id = int(payload.get("toUserId") or 0)
+                    if not to_user_id:
+                        raise HTTPException(status_code=400, detail="Missing toUserId")
+
+                    # Ensure sender is set by the server
+                    payload["fromUserId"] = current_user.id
+
+                    await self.send_to_user(to_user_id, {
+                        "type": "call_signaling",
+                        "data": {
+                            "type": "call_video_toggle",
+                            "fromUserId": current_user.id,
+                            "toUserId": to_user_id,
+                            "data": {"enabled": payload.get("enabled", False)}
+                        }
+                    })
+
+                    await websocket.send_json({"type": "call_video_toggle", "data": {"status": "ok"}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "call_screen_share_toggle":
+                # Forward screen share toggle state between peers
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+                    self.user_by_ws[websocket] = current_user.id
+
+                    payload = data.get("data") or {}
+                    to_user_id = int(payload.get("toUserId") or 0)
+                    if not to_user_id:
+                        raise HTTPException(status_code=400, detail="Missing toUserId")
+
+                    # Ensure sender is set by the server
+                    payload["fromUserId"] = current_user.id
+
+                    await self.send_to_user(to_user_id, {
+                        "type": "call_signaling",
+                        "data": {
+                            "type": "call_screen_share_toggle",
+                            "fromUserId": current_user.id,
+                            "toUserId": to_user_id,
+                            "data": {"enabled": payload.get("enabled", False)}
+                        }
+                    })
+
+                    await websocket.send_json({"type": "call_screen_share_toggle", "data": {"status": "ok"}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
             else:
                 await websocket.send_json({"type": type, "error": {"code": 400, "detail": "Invalid type"}})
 

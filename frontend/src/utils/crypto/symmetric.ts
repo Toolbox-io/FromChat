@@ -26,6 +26,9 @@ export async function aesGcmDecrypt(key: CryptoKey, iv: Uint8Array | ArrayBuffer
 }
 
 export async function importAesGcmKey(rawKey: Uint8Array | ArrayBuffer): Promise<CryptoKey> {
-	const keyBuffer = rawKey instanceof Uint8Array ? rawKey.buffer as ArrayBuffer : rawKey;
+	// Normalize to a contiguous ArrayBuffer slice to avoid offset/length issues
+	const keyBuffer = rawKey instanceof Uint8Array
+		? (rawKey.buffer as ArrayBuffer).slice(rawKey.byteOffset, rawKey.byteOffset + rawKey.byteLength)
+		: (rawKey as ArrayBuffer);
 	return crypto.subtle.importKey("raw", keyBuffer, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
