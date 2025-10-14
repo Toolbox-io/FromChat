@@ -140,3 +140,7 @@ export function restoreKeys() {
 	currentPublicKey = ub64(localStorage.getItem("publicKey")!);
 	currentPrivateKey = ub64(localStorage.getItem("privateKey")!);
 }
+
+export function getAuthToken(): string | null {
+	return localStorage.getItem("authToken");
+}

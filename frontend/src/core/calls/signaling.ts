@@ -25,7 +25,6 @@ export class CallSignalingHandler {
     handleWebSocketMessage(message: CallSignalingMessage) {
         const { data } = message;
         if (!data) {
-            console.warn("Received call signaling message with no data:", message);
             return;
         }
 

@@ -18,11 +18,11 @@ export default function useCall() {
         chat, 
         startCall, 
         endCall, 
-        setCallStatus, 
+        setCallStatus,
         toggleMute, 
         toggleVideo, 
         toggleScreenShare,
-        setCallEncryption, 
+        setCallEncryption,
         setCallSessionKeyHash, 
         setRemoteVideoEnabled,
         setRemoteScreenSharing,
@@ -36,10 +36,6 @@ export default function useCall() {
     const remoteScreenShareRef = globalRemoteScreenShareRef;
 
     useEffect(() => {
-        if (user.authToken) {
-            WebRTC.setAuthToken(user.authToken);
-        }
-
         // Initialize call signaling handler
         const signalingHandler = new CallSignalingHandler(() => ({ 
             receiveCall: (userId: number, username: string) => {
@@ -55,7 +51,7 @@ export default function useCall() {
         setCallSignalingHandler(signalingHandler);
 
         // Set up call state change handler
-        WebRTC.setCallStateChangeHandler((userId: number, state: string) => {
+        WebRTC.callbacks.onCallStateChange = (userId: number, state: string) => {
             const call = chat.call;
             if (call.remoteUserId === userId) {
                 switch (state) {
@@ -72,10 +68,10 @@ export default function useCall() {
                         break;
                 }
             }
-        });
+        };
 
         // Set up remote audio stream handler
-        WebRTC.setRemoteStreamHandler((_userId: number, stream: MediaStream) => {
+        WebRTC.callbacks.onRemoteStream = (_userId: number, stream: MediaStream) => {
             if (!remoteAudioRef.current) {
                 return;
             }
@@ -97,10 +93,10 @@ export default function useCall() {
             } catch (e) {
                 console.warn("failed to attach remote stream:", e);
             }
-        });
+        };
 
         // Set up local video stream handler
-        WebRTC.setLocalVideoStreamHandler((_userId: number, stream: MediaStream | null) => {
+        WebRTC.callbacks.onLocalVideoStream = (_userId: number, stream: MediaStream | null) => {
             if (!localVideoRef.current) {
                 return;
             }
@@ -118,10 +114,10 @@ export default function useCall() {
             } catch (e) {
                 console.warn("failed to attach local video stream:", e);
             }
-        });
+        };
 
         // Set up remote video stream handler
-        WebRTC.setRemoteVideoStreamHandler((_userId: number, stream: MediaStream | null) => {
+        WebRTC.callbacks.onRemoteVideoStream = (_userId: number, stream: MediaStream | null) => {
             if (!remoteVideoRef.current) {
                 return;
             }
@@ -139,10 +135,10 @@ export default function useCall() {
             } catch (e) {
                 console.warn("failed to attach remote video stream:", e);
             }
-        });
+        };
 
         // Set up local screen share handler
-        WebRTC.setLocalScreenShareHandler((_userId: number, stream: MediaStream | null) => {
+        WebRTC.callbacks.onLocalScreenShare = (_userId: number, stream: MediaStream | null) => {
             if (!localScreenShareRef.current) {
                 return;
             }
@@ -160,10 +156,10 @@ export default function useCall() {
             } catch (e) {
                 console.warn("failed to attach local screen share stream:", e);
             }
-        });
+        };
 
         // Set up remote screen share handler
-        WebRTC.setRemoteScreenShareHandler((_userId: number, stream: MediaStream | null) => {
+        WebRTC.callbacks.onRemoteScreenShare = (_userId: number, stream: MediaStream | null) => {
             if (!remoteScreenShareRef.current) {
                 return;
             }
@@ -181,7 +177,7 @@ export default function useCall() {
             } catch (e) {
                 console.warn("failed to attach remote screen share stream:", e);
             }
-        });
+        };
 
         return () => {
             WebRTC.cleanup();
