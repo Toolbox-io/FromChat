@@ -96,6 +96,7 @@
     height: 100%;
     z-index: 1000;
     min-height: 0; // allow children to manage their own scrolling
+    position: relative; // provide positioning context for absolute children
 
     .chat-header-left {
         display: flex;
@@ -106,7 +107,6 @@
         justify-content: center;
         align-items: center;
         padding: 16px;
-        overflow: hidden;
 
         .product-name {
             flex-grow: 1;
@@ -190,6 +190,13 @@
         padding-right: 16px;
         margin-top: auto;
     }
+}
+
+// Search container
+.search-container {
+    position: relative;
+    flex-shrink: 0;
+    height: 48px + 8px;
 }
 
 // ChatHeader component styles

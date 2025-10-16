@@ -9,28 +9,14 @@ export function DMUsersList() {
     const { chat, switchToDM } = useAppState();
 
     useEffect(() => {
-        if (chat.activeTab === "dms") {
+        if (chat.activeTab === "chats") {
             loadUsers();
         }
     }, [chat.activeTab, loadUsers]);
 
     if (isLoadingUsers) {
         return (
-            <mdui-list>
-                <mdui-list-item headline="Загрузка..." description="Получение списка пользователей...">
-                    <img src={defaultAvatar} alt="" slot="icon" />
-                </mdui-list-item>
-            </mdui-list>
-        );
-    }
-
-    if (dmUsers.length === 0) {
-        return (
-            <mdui-list>
-                <mdui-list-item headline="Нет пользователей" description="Пользователи не найдены">
-                    <img src={defaultAvatar} alt="" slot="icon" />
-                </mdui-list-item>
-            </mdui-list>
+            <mdui-circular-progress />
         );
     }
 
