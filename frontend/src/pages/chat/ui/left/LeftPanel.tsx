@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { ProfileDialog } from "./profile/ProfileDialog";
 import { SettingsDialog } from "./settings/SettingsDialog";
 import { DMUsersList } from "./DMUsersList";
+import { UsernameSearch } from "./UsernameSearch";
 import type { Tabs } from "mdui";
 import type { ChatTabs } from "@/pages/chat/state";
 
@@ -54,7 +55,6 @@ function ChatTabs() {
                 <mdui-tab value="chats">Чаты</mdui-tab>
                 <mdui-tab value="channels">Каналы</mdui-tab>
                 <mdui-tab value="contacts">Контакты</mdui-tab>
-                <mdui-tab value="dms">ЛС</mdui-tab>
 
                 <mdui-tab-panel slot="panel" value="chats">
                     <mdui-list>
@@ -76,13 +76,13 @@ function ChatTabs() {
                         >
                             <img src={defaultAvatar} alt="" slot="icon" />
                         </mdui-list-item>
+                        
+                        {/* DM conversations will be loaded here */}
+                        <DMUsersList />
                     </mdui-list>
                 </mdui-tab-panel>
                 <mdui-tab-panel slot="panel" value="channels">Скоро будет...</mdui-tab-panel>
                 <mdui-tab-panel slot="panel" value="contacts">Скоро будет...</mdui-tab-panel>
-                <mdui-tab-panel slot="panel" value="dms">
-                    <DMUsersList />
-                </mdui-tab-panel>
             </mdui-tabs>
         </div>
     );
@@ -109,6 +109,9 @@ export function LeftPanel() {
     return (
         <div className="chat-list" id="chat-list">
             <ChatHeader />
+            <div className="search-container">
+                <UsernameSearch />
+            </div>
             <ChatTabs />
             <BottomAppBar />
         </div>

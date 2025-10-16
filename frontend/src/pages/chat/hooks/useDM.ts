@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { 
-    fetchUsers, 
     fetchUserPublicKey, 
     fetchDMHistory, 
     decryptDm, 
-    sendDMViaWebSocket 
+    sendDMViaWebSocket,
+    fetchDMConversations
 } from "@/core/api/dmApi";
 import type { User, Message, DmEncryptedJSON } from "@/core/types";
 import { websocket } from "@/core/websocket";
@@ -72,32 +72,28 @@ export function useDM() {
         }
     }, [user.authToken]);
 
-    // Load users when DM tab is active
+    // Load DM conversations when chats tab is active
     const loadUsers = useCallback(async () => {
         if (!user.authToken || isLoadingUsers || usersLoadedRef.current) return;
         
         usersLoadedRef.current = true;
         setIsLoadingUsers(true);
         try {
-            const users = await fetchUsers(user.authToken);
-            console.log("Fetched users:", users);
-            const dmUsersWithState: DMUser[] = users.map(user => ({
-                ...user,
-                unreadCount: 0,
-                lastMessage: undefined,
+            const conversations = await fetchDMConversations(user.authToken);
+            console.log("Fetched conversations:", conversations);
+            
+            const dmUsersWithState: DMUser[] = conversations.map((conv: any) => ({
+                ...conv.user,
+                unreadCount: conv.unreadCount,
+                lastMessage: conv.lastMessage ? "Последнее сообщение" : undefined,
                 publicKey: null
             }));
             
             setDmUsersState(dmUsersWithState);
-            setDmUsers(users);
+            setDmUsers(conversations.map((conv: any) => conv.user));
             
-            // Load last messages and unread counts for visible users
-            // Call loadUserLastMessage directly without dependency
-            for (const dmUser of dmUsersWithState) {
-                await loadUserLastMessage(dmUser);
-            }
         } catch (error) {
-            console.error("Failed to load DM users:", error);
+            console.error("Failed to load DM conversations:", error);
         } finally {
             setIsLoadingUsers(false);
         }

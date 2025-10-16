@@ -169,3 +169,23 @@ export async function deleteDmEnvelope(id: number, recipientId: number, authToke
         data: { id, recipientId }
     });
 }
+
+export async function fetchDMConversations(token: string): Promise<any[]> {
+    const res = await fetch(`${API_BASE_URL}/dm/conversations`, { 
+        headers: getAuthHeaders(token, true) 
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.conversations || [];
+}
+
+export async function searchUsers(query: string, token: string): Promise<User[]> {
+    if (query.length < 2) return [];
+    
+    const res = await fetch(`${API_BASE_URL}/users/search?q=${encodeURIComponent(query)}`, { 
+        headers: getAuthHeaders(token, true) 
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.users || [];
+}

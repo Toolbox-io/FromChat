@@ -223,3 +223,19 @@ def list_users(current_user: User = Depends(get_current_user), db: Session = Dep
 def get_public_key_of(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = db.query(CryptoPublicKey).filter(CryptoPublicKey.user_id == user_id).first()
     return {"publicKey": row.public_key_b64 if row else None}
+
+
+@router.get("/users/search")
+def search_users(q: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if len(q.strip()) < 2:
+        return {"users": []}
+    
+    # Case-insensitive partial match on username
+    users = db.query(User).filter(
+        User.username.ilike(f"%{q.strip()}%"),
+        User.id != current_user.id  # Exclude current user
+    ).order_by(User.username.asc()).limit(20).all()
+    
+    return {
+        "users": [convert_user(u) for u in users]
+    }

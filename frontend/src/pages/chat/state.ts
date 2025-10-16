@@ -10,7 +10,7 @@ import { API_BASE_URL } from "@/core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 
-export type ChatTabs = "chats" | "channels" | "contacts" | "dms";
+export type ChatTabs = "chats" | "channels" | "contacts";
 
 export type CallStatus = "calling" | "connecting" | "active" | "ended";
 
@@ -403,7 +403,7 @@ export const useAppState = create<AppState>((set, get) => ({
                     username: dmData.username,
                     publicKey: dmData.publicKey
                 },
-                activeTab: "dms"
+                activeTab: "chats"
             }
         }));
         
