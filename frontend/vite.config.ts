@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { visualizer } from 'rollup-plugin-visualizer';
 
-const outDir = process.env.VITE_ELECTRON ? "build/electron/dist" : "build/normal/dist";
+const outDir = process.env.VITE_ELECTRON ? "build/electron" : "build/normal";
 
 const plugins: PluginOption[] = [
     react(),
@@ -24,7 +24,7 @@ const plugins: PluginOption[] = [
     }),
     visualizer({
         filename: `${outDir}/stats.html`,
-        open: true,
+        open: false,
         gzipSize: true
     })
 ]
@@ -93,7 +93,7 @@ export default defineConfig({
         },
         cssMinify: true,
         assetsInlineLimit: 0,
-        outDir: outDir,
+        outDir: `${outDir}/dist`,
         chunkSizeWarningLimit: 1024
     }
 });
