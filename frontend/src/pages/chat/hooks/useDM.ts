@@ -107,7 +107,6 @@ export function useDM() {
         setIsLoadingUsers(true);
         try {
             const conversations = await fetchDMConversations(user.authToken);
-            console.log("Fetched conversations:", conversations);
             
             // Process conversations and decrypt last messages
             const dmUsersWithState: DMUser[] = await Promise.all(
@@ -315,21 +314,11 @@ export function useDM() {
                     
                     // Update conversation list (not active conversation - that's handled by DMPanel)
                     if (!user.currentUser?.id) {
-                        console.log("No current user ID available for dmNew");
                         return;
                     }
                     const otherUserId = senderId === user.currentUser.id ? recipientId : senderId;
                     
-                    // Update unread count only for messages FROM other users TO current user
-                    if (senderId !== user.currentUser.id) {
-                        setDmUsersState(prev => prev.map(u => 
-                            u.id === otherUserId 
-                                ? { ...u, unreadCount: u.unreadCount + 1 }
-                                : u
-                        ));
-                    }
-
-                    // Update last message preview
+                    // Update unread count and last message preview
                     try {
                         const publicKey = await fetchUserPublicKey(otherUserId, user.authToken!);
                         if (publicKey) {
@@ -337,10 +326,12 @@ export function useDM() {
                             const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
                             const messageContent = decryptedData.data.content;
                             const formattedMessage = formatDMMessageContent(messageContent, senderId, user.currentUser.id);
+                            
                             setDmUsersState(prev => prev.map(u => 
                                 u.id === otherUserId 
                                     ? { 
                                         ...u, 
+                                        unreadCount: senderId !== user.currentUser?.id ? u.unreadCount + 1 : u.unreadCount,
                                         lastMessage: formattedMessage,
                                         publicKey
                                     }
@@ -355,11 +346,9 @@ export function useDM() {
                     
                     // Update last message preview for conversation list
                     if (!user.currentUser?.id) {
-                        console.log("No current user ID available for dmEdited");
                         return;
                     }
                     const otherUserId = senderId === user.currentUser.id ? recipientId : senderId;
-                    console.log("dmEdited: updating conversation list for user", otherUserId);
                     try {
                         const publicKey = await fetchUserPublicKey(otherUserId, user.authToken!);
                         if (publicKey) {

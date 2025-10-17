@@ -79,7 +79,6 @@ export function UnifiedChatsList() {
             lastMessage: lastMessages[chat.id]
         }));
 
-        console.log("DM Users:", dmUsers); // Debug log
         const dmChatItems: ChatItem[] = dmUsers.map((user: DMUser) => ({
             id: user.id,
             username: user.username,
@@ -93,7 +92,6 @@ export function UnifiedChatsList() {
 
         // Combine and sort by last message timestamp (DMs first, then public chats)
         const combined = [...dmChatItems, ...publicChatItems];
-        console.log("Combined chats:", combined); // Debug log
         setAllChats(combined);
     }, [publicChats, lastMessages, dmUsers]);
 
@@ -104,13 +102,12 @@ export function UnifiedChatsList() {
         const handleWebSocketMessage = (e: MessageEvent) => {
             try {
                 const msg = JSON.parse(e.data);
+                
                 if (msg.type === "newMessage") {
                     const newMessage = msg.data as Message;
-                    
-                    // Update the last message for all public chats
+                    // Update all public chats with the new message
                     setLastMessages(prev => {
                         const updated = { ...prev };
-                        // Update all public chat entries with the new message
                         publicChats.forEach(chat => {
                             updated[chat.id] = newMessage;
                         });
@@ -118,8 +115,7 @@ export function UnifiedChatsList() {
                     });
                 } else if (msg.type === "messageEdited") {
                     const editedMessage = msg.data as Message;
-                    
-                    // Update the last message if it's the one that was edited
+                    // Update only if the edited message is the current last message
                     setLastMessages(prev => {
                         const updated = { ...prev };
                         publicChats.forEach(chat => {
@@ -131,28 +127,20 @@ export function UnifiedChatsList() {
                     });
                 } else if (msg.type === "messageDeleted") {
                     const deletedMessageId = msg.data?.message_id;
-                    console.log("messageDeleted: deletedMessageId:", deletedMessageId);
-                    
-                    // Check if the deleted message was the last message for any public chat
                     let needsReload = false;
+                    
                     setLastMessages(prev => {
                         const updated = { ...prev };
-                        
                         publicChats.forEach(chat => {
                             if (updated[chat.id]?.id === deletedMessageId) {
-                                console.log("Clearing last message for chat:", chat.id);
-                                // Clear the last message for this chat since it was deleted
                                 updated[chat.id] = undefined;
                                 needsReload = true;
                             }
                         });
-                        
                         return updated;
                     });
                     
-                    // If we cleared any last messages, reload to get the new last message
                     if (needsReload) {
-                        console.log("Reloading last messages after deletion");
                         loadLastMessages();
                     }
                 }
