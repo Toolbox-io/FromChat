@@ -9,6 +9,7 @@ import {
 } from "@/core/api/dmApi";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
 import type { UserState } from "@/pages/chat/state";
+import { formatDMUsername } from "@/pages/chat/hooks/useDM";
 
 export interface DMPanelData {
     userId: number;
@@ -48,8 +49,12 @@ export class DMPanel extends MessagePanel {
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
         const plaintext = await decryptDm(env, this.dmData!.publicKey);
-        const isAuthor = env.senderId !== this.dmData!.userId;
-        const username = isAuthor ? this.currentUser.currentUser?.username ?? "You" : this.dmData!.username;
+        const username = formatDMUsername(
+            env.senderId, 
+            env.recipientId, 
+            this.currentUser.currentUser?.id!, 
+            this.dmData!.username
+        );
 
         // Try parse JSON payload { type: "text", data: { content, files?, reply_to_id? } }
         let content = plaintext;
@@ -167,6 +172,7 @@ export class DMPanel extends MessagePanel {
             online: dmData.online
         });
     }
+
 
     // Handle incoming WebSocket DM messages
     async handleWebSocketMessage(response: DMWebSocketMessage): Promise<void> {

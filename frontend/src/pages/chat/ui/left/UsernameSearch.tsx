@@ -130,10 +130,12 @@ export function UsernameSearch() {
                         <mdui-list-item
                             key={searchUser.id}
                             headline={searchUser.username}
-                            description={searchUser.online ? "В сети" : "Не в сети"}
                             onClick={() => handleUserClick(searchUser)}
                             style={{ cursor: "pointer" }}
                         >
+                            <span slot="description" className="list-description">
+                                {searchUser.online ? "В сети" : "Не в сети"}
+                            </span>
                             <img 
                                 src={searchUser.profile_picture || defaultAvatar}
                                 alt={searchUser.username}

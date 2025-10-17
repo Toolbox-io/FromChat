@@ -16,6 +16,7 @@ When working with this project, follow these rules:
 - Use double quotes ("") for strings consistently.
 - Prefer functional components over class components in React.
 - Use TypeScript strictly - avoid `any` types unless absolutely necessary.
+- DO NOT leave placeholders - ask me when it would be better or implement it fully.
 
 ## File Operations
 - If possible, try to update files in a single edit when making multiple changes.

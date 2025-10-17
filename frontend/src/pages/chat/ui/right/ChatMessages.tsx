@@ -154,7 +154,10 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                     <Message
                         key={message.id}
                         message={message}
-                        isAuthor={message.username === user.currentUser?.username}
+                        isAuthor={isDm ? 
+                            (message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) : 
+                            (message.username === user.currentUser?.username)
+                        }
                         onProfileClick={handleProfileClick}
                         onContextMenu={handleContextMenu}
                         onReactionClick={handleReactionClick}
@@ -189,7 +192,10 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
             {contextMenu.message && (
                 <MessageContextMenu
                     message={contextMenu.message}
-                    isAuthor={contextMenu.message.username === user.currentUser?.username}
+                    isAuthor={isDm ? 
+                        (contextMenu.message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) : 
+                        (contextMenu.message.username === user.currentUser?.username)
+                    }
                     onEdit={handleEdit}
                     onReply={handleReply}
                     onDelete={handleDelete}

@@ -239,3 +239,12 @@
         }
     }
 }
+
+// Description styling for list items
+.list-description {
+    word-wrap: break-word;
+    overflow: hidden;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
