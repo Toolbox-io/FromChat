@@ -835,6 +835,8 @@ class MessaggingSocketManager:
                         "type": "dmEdited",
                         "data": {
                             "id": env.id,
+                            "senderId": env.sender_id,
+                            "recipientId": env.recipient_id,
                             "iv": env.iv_b64,
                             "ciphertext": env.ciphertext_b64,
                             "iv2": env.iv2_b64,

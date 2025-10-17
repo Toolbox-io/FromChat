@@ -305,11 +305,14 @@ export interface Attachment {
 // Utils
 export interface DMEditPayload {
     id: number;
+    senderId: number;
+    recipientId: number;
     iv: string;
     ciphertext: string;
     iv2: string;
     wrappedMk: string;
     salt: string;
+    timestamp: string;
 }
 
 // Requests

@@ -170,7 +170,13 @@ export async function deleteDmEnvelope(id: number, recipientId: number, authToke
     });
 }
 
-export async function fetchDMConversations(token: string): Promise<any[]> {
+export interface DMConversationResponse {
+    user: User;
+    lastMessage: DmEnvelope;
+    unreadCount: number;
+}
+
+export async function fetchDMConversations(token: string): Promise<DMConversationResponse[]> {
     const res = await fetch(`${API_BASE_URL}/dm/conversations`, { 
         headers: getAuthHeaders(token, true) 
     });
