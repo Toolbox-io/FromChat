@@ -3,6 +3,7 @@ import { useAppState } from "@/pages/chat/state";
 import { MessagePanel, type MessagePanelState } from "./panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
+import { ProfileDialog } from "../ProfileDialog";
 import { setGlobalMessageHandler } from "@/core/websocket";
 import type { Message, WebSocketMessage } from "@/core/types";
 import defaultAvatar from "@/images/default-avatar.png";
@@ -15,7 +16,7 @@ interface MessagePanelRendererProps {
 }
 
 export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
-    const { applyPendingPanel, chat } = useAppState();
+    const { applyPendingPanel, chat, setProfileDialog } = useAppState();
     const messagePanelRef = useRef<HTMLDivElement>(null);
     const [panelState, setPanelState] = useState<MessagePanelState | null>(null);
     const [switchIn, setSwitchIn] = useState(false);
@@ -170,6 +171,19 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
         }
     };
 
+    async function handleProfileClick() {
+        if (!panel) return;
+        
+        try {
+            const profileData = await panel.getProfile();
+            if (profileData) {
+                setProfileDialog(profileData);
+            }
+        } catch (error) {
+            console.error("Failed to get profile:", error);
+        }
+    }
+
     return (
         <div className={`chat-container ${switchIn ? "chat-switch-in" : ""} ${switchOut ? "chat-switch-out" : ""}`}>
             <div 
@@ -213,7 +227,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                         src={panelState?.profilePicture || defaultAvatar} 
                         alt="Avatar" 
                         className="chat-header-avatar"
-                        onClick={panel?.handleProfileClick}
+                        onClick={handleProfileClick}
                         style={{ cursor: panel ? "pointer" : "default" }}
                     />
                     <div className="chat-header-info">
@@ -344,6 +358,9 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     </>
                 )}
             </div>
+            
+            {/* Profile Dialog */}
+            <ProfileDialog />
         </div>
     );
 }

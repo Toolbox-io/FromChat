@@ -7,8 +7,9 @@ import {
     editDmEnvelope,
     deleteDmEnvelope
 } from "@/core/api/dmApi";
+import { fetchUserProfile } from "@/core/api/profileApi";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
-import type { UserState } from "@/pages/chat/state";
+import type { UserState, ProfileDialogData } from "@/pages/chat/state";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";
 
 export interface DMPanelData {
@@ -322,7 +323,27 @@ export class DMPanel extends MessagePanel {
         });
     }
     
-    handleProfileClick(): void {}
+    async getProfile(): Promise<ProfileDialogData | null> {
+        if (!this.dmData || !this.currentUser.authToken) return null;
+        
+        try {
+            const userProfile = await fetchUserProfile(this.currentUser.authToken, this.dmData.username);
+            if (!userProfile) return null;
+            
+            return {
+                userId: userProfile.id,
+                username: userProfile.username,
+                profilePicture: userProfile.profile_picture,
+                bio: userProfile.bio,
+                memberSince: userProfile.created_at,
+                online: userProfile.online,
+                isOwnProfile: false
+            };
+        } catch (error) {
+            console.error("Failed to fetch user profile:", error);
+            return null;
+        }
+    }
 
     updateMessageReactions(dmEnvelopeId: number, reactions: any[]): void {
         const messages = this.getMessages();

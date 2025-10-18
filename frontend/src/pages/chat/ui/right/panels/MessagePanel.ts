@@ -1,5 +1,5 @@
 import type { Message, WebSocketMessage } from "@/core/types";
-import type { UserState } from "@/pages/chat/state";
+import type { UserState, ProfileDialogData } from "@/pages/chat/state";
 
 export interface MessagePanelState {
     id: string;
@@ -47,6 +47,7 @@ export abstract class MessagePanel {
     protected abstract sendMessage(content: string, replyToId?: number, files?: File[]): Promise<void>;
     abstract isDm(): boolean;
     abstract handleWebSocketMessage(response: WebSocketMessage<any>): Promise<void>;
+    abstract getProfile(): Promise<ProfileDialogData | null>;
 
     // Common methods
     protected updateState(updates: Partial<MessagePanelState>): void {
@@ -349,5 +350,4 @@ export abstract class MessagePanel {
 
     abstract handleEditMessage(messageId: number, content: string): Promise<void>;
     abstract handleDeleteMessage(messageId: number): Promise<void>;
-    abstract handleProfileClick(): void;
 }

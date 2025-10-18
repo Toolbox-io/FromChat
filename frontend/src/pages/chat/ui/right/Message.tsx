@@ -132,10 +132,8 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
 interface MessageProps {
     message: MessageType;
     isAuthor: boolean;
-    onProfileClick: (username: string) => void;
     onContextMenu: (e: React.MouseEvent, message: MessageType) => void;
     onReactionClick?: (messageId: number, emoji: string) => void;
-    isLoadingProfile?: boolean;
     isDm?: boolean;
     dmRecipientPublicKey?: string;
 }
@@ -147,7 +145,7 @@ interface Rect {
     height: number
 }
 
-export function Message({ message, isAuthor, onProfileClick, onContextMenu, onReactionClick, isLoadingProfile = false, isDm = false, dmRecipientPublicKey }: MessageProps) {
+export function Message({ message, isAuthor, onContextMenu, onReactionClick, isDm = false, dmRecipientPublicKey }: MessageProps) {
     const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
     const [decryptedFiles, updateDecryptedFiles] = useImmer<Map<string, string>>(new Map());
     const [loadedImages, updateLoadedImages] = useImmer<Set<string>>(new Set());
@@ -408,9 +406,6 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
                             <img
                                 src={message.profile_picture || defaultAvatar}
                                 alt={message.username}
-                                onClick={() => !isLoadingProfile && onProfileClick(message.username)}
-                                style={{ cursor: isLoadingProfile ? "default" : "pointer" }}
-                                className={isLoadingProfile ? "loading" : ""}
                                 onError={(e) => {
                                     const target = e.target as HTMLImageElement;
                                     target.src = defaultAvatar;
@@ -421,9 +416,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
 
                     {!isAuthor && !isDm && (
                         <div 
-                            className={`message-username ${isLoadingProfile ? "loading" : ""}`}
-                            onClick={() => !isLoadingProfile && onProfileClick(message.username)} 
-                            style={{ cursor: isLoadingProfile ? "default" : "pointer" }}>
+                            className="message-username">
                             {message.username}
                         </div>
                     )}

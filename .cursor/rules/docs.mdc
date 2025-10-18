@@ -1,6 +1,5 @@
 ---
-description: Documentation rules
-alwaysApply: false
+alwaysApply: true
 ---
 
 When documenting this project, follow these rules:
