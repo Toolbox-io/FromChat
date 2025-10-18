@@ -14,6 +14,8 @@ export function ProfileDialog() {
     const [currentData, setCurrentData] = useState<ProfileDialogData | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+    const dialogRef = useRef<HTMLDivElement>(null);
 
     // Handle dialog open/close based on state
     useEffect(() => {
@@ -22,9 +24,34 @@ export function ProfileDialog() {
             setCurrentData(chat.profileDialog);
             setIsOpen(true);
         } else if (!chat.profileDialog && isOpen) {
-            setIsOpen(false);
+            // Start close animation
+            if (backdropRef.current && dialogRef.current) {
+                backdropRef.current.classList.remove('open');
+                dialogRef.current.classList.remove('open');
+                
+                // Wait for animation to complete before closing
+                setTimeout(() => {
+                    setIsOpen(false);
+                }, 300); // Match CSS transition duration
+            } else {
+                setIsOpen(false);
+            }
         }
     }, [chat.profileDialog, isOpen]);
+
+    // Trigger transition after component mounts
+    useEffect(() => {
+        if (isOpen) {
+            // Small delay to ensure DOM is ready for transition
+            const timer = setTimeout(() => {
+                if (backdropRef.current && dialogRef.current) {
+                    backdropRef.current.classList.add('open');
+                    dialogRef.current.classList.add('open');
+                }
+            }, 10);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen]);
 
     // Handle ESC key
     useEffect(() => {
@@ -58,10 +85,24 @@ export function ProfileDialog() {
                     confirmText: "Закрыть",
                     cancelText: "Отмена"
                 });
-                closeProfileDialog();
+                triggerCloseAnimation();
             } catch {
                 // User cancelled, do nothing
             }
+        } else {
+            triggerCloseAnimation();
+        }
+    };
+
+    const triggerCloseAnimation = () => {
+        if (backdropRef.current && dialogRef.current) {
+            backdropRef.current.classList.remove('open');
+            dialogRef.current.classList.remove('open');
+            
+            // Wait for animation to complete before closing
+            setTimeout(() => {
+                closeProfileDialog();
+            }, 300); // Match CSS transition duration
         } else {
             closeProfileDialog();
         }
@@ -135,6 +176,9 @@ export function ProfileDialog() {
 
             // Update the original data to match current data
             setOriginalData(currentData);
+            
+            // Close dialog with animation after successful save
+            triggerCloseAnimation();
         } catch (error) {
             console.error("Failed to save profile:", error);
         } finally {
@@ -153,12 +197,12 @@ export function ProfileDialog() {
     if (!isOpen || !currentData) return null;
 
     return createPortal(
-        <>
-            <div 
-                className={`profile-dialog-backdrop ${isOpen ? "open" : ""}`}
-                onClick={handleBackdropClick}
-            />
-            <div className={`profile-dialog ${isOpen ? "open" : ""}`}>
+        <div 
+            ref={backdropRef}
+            className="profile-dialog-backdrop"
+            onClick={handleBackdropClick}
+        >
+            <div ref={dialogRef} className="profile-dialog">
                 <div className="profile-dialog-content">
                     {/* Profile Picture */}
                     {currentData.profilePicture && (
@@ -254,7 +298,7 @@ export function ProfileDialog() {
                     onChange={handleFileSelect}
                 />
             </div>
-        </>,
+        </div>,
         document.getElementById("root")!
     );
 }
