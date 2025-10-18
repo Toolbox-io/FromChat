@@ -7,8 +7,10 @@ import {
     editDmEnvelope,
     deleteDmEnvelope
 } from "@/core/api/dmApi";
+import { fetchUserProfile } from "@/core/api/profileApi";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
-import type { UserState } from "@/pages/chat/state";
+import type { UserState, ProfileDialogData } from "@/pages/chat/state";
+import { formatDMUsername } from "@/pages/chat/hooks/useDM";
 
 export interface DMPanelData {
     userId: number;
@@ -48,8 +50,12 @@ export class DMPanel extends MessagePanel {
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
         const plaintext = await decryptDm(env, this.dmData!.publicKey);
-        const isAuthor = env.senderId !== this.dmData!.userId;
-        const username = isAuthor ? this.currentUser.currentUser?.username ?? "You" : this.dmData!.username;
+        const username = formatDMUsername(
+            env.senderId, 
+            env.recipientId, 
+            this.currentUser.currentUser?.id!, 
+            this.dmData!.username
+        );
 
         // Try parse JSON payload { type: "text", data: { content, files?, reply_to_id? } }
         let content = plaintext;
@@ -167,6 +173,7 @@ export class DMPanel extends MessagePanel {
             online: dmData.online
         });
     }
+
 
     // Handle incoming WebSocket DM messages
     async handleWebSocketMessage(response: DMWebSocketMessage): Promise<void> {
@@ -316,7 +323,27 @@ export class DMPanel extends MessagePanel {
         });
     }
     
-    handleProfileClick(): void {}
+    async getProfile(): Promise<ProfileDialogData | null> {
+        if (!this.dmData || !this.currentUser.authToken) return null;
+        
+        try {
+            const userProfile = await fetchUserProfile(this.currentUser.authToken, this.dmData.username);
+            if (!userProfile) return null;
+            
+            return {
+                userId: userProfile.id,
+                username: userProfile.username,
+                profilePicture: userProfile.profile_picture,
+                bio: userProfile.bio,
+                memberSince: userProfile.created_at,
+                online: userProfile.online,
+                isOwnProfile: false
+            };
+        } catch (error) {
+            console.error("Failed to fetch user profile:", error);
+            return null;
+        }
+    }
 
     updateMessageReactions(dmEnvelopeId: number, reactions: any[]): void {
         const messages = this.getMessages();

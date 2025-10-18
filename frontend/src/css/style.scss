@@ -16,6 +16,7 @@ body {
     background-color: $color-dark-surface;
     color: $color-dark-on-surface;
     line-height: 1.6;
+    overflow: hidden;
 
     #main-wrapper {
         flex: 1;

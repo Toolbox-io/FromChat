@@ -1,12 +1,8 @@
 import { Message } from "./Message";
 import { useAppState } from "@/pages/chat/state";
 import type { Message as MessageType } from "@/core/types";
-import type { UserProfile } from "@/core/types";
-import { UserProfileDialog } from "./UserProfileDialog";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
-import { fetchUserProfile } from "@/core/api/profileApi";
 import { useEffect, useState, type ReactNode } from "react";
-import { delay } from "@/utils/utils";
 import { MaterialDialog } from "@/core/components/Dialog";
 import { request } from "@/core/websocket";
 import type { AddReactionRequest, AddDmReactionRequest } from "@/core/types";
@@ -26,9 +22,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
     const { user } = useAppState();
     
     // Use prop messages (panels provide their own messages)
-    const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-    const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
-    const [isLoadingProfile, setIsLoadingProfile] = useState(false);
     
     // Context menu state
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -48,22 +41,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
         }
     }, [deleteDialogOpen]);
 
-    async function handleProfileClick(username: string) {
-        if (!user.authToken) return;
-        
-        setIsLoadingProfile(true);
-        try {
-            const profile = await fetchUserProfile(user.authToken, username);
-            if (profile) {
-                setSelectedUserProfile(profile);
-                setProfileDialogOpen(true);
-            }
-        } catch (error) {
-            console.error("Failed to fetch user profile:", error);
-        } finally {
-            setIsLoadingProfile(false);
-        }
-    };
 
     function handleContextMenu(e: React.MouseEvent, message: MessageType) {
         e.preventDefault();
@@ -154,28 +131,18 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                     <Message
                         key={message.id}
                         message={message}
-                        isAuthor={message.username === user.currentUser?.username}
-                        onProfileClick={handleProfileClick}
+                        isAuthor={isDm ? 
+                            (message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) : 
+                            (message.username === user.currentUser?.username)
+                        }
                         onContextMenu={handleContextMenu}
                         onReactionClick={handleReactionClick}
-                        isLoadingProfile={isLoadingProfile}
                         isDm={isDm}
                         dmRecipientPublicKey={dmRecipientPublicKey} />
                 ))}
                 {children}
             </div>
             
-            <UserProfileDialog
-                isOpen={profileDialogOpen}
-                onOpenChange={async (value) => {
-                    setProfileDialogOpen(value);
-                    if (!value) {
-                        await delay(1000);
-                        setSelectedUserProfile(null);
-                    }
-                }}
-                userProfile={selectedUserProfile}
-            />
 
             <MaterialDialog
                 headline="Удалить сообщение?"
@@ -189,7 +156,10 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
             {contextMenu.message && (
                 <MessageContextMenu
                     message={contextMenu.message}
-                    isAuthor={contextMenu.message.username === user.currentUser?.username}
+                    isAuthor={isDm ? 
+                        (contextMenu.message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) : 
+                        (contextMenu.message.username === user.currentUser?.username)
+                    }
                     onEdit={handleEdit}
                     onReply={handleReply}
                     onDelete={handleDelete}

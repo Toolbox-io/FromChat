@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
+from .account import convert_user
 from constants import OWNER_USERNAME
 from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile, Reaction, ReactionRequest, ReactionResponse, DMReaction, DMReactionRequest, DMReactionResponse
 from push_service import push_service
@@ -448,6 +449,48 @@ async def dm_history(other_user_id: int, current_user: User = Depends(get_curren
     )
 
 
+@router.get("/dm/conversations")
+async def get_dm_conversations(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Get all DM conversations where current user is involved
+    conversations_query = db.query(DMEnvelope).filter(
+        (DMEnvelope.sender_id == current_user.id) | (DMEnvelope.recipient_id == current_user.id)
+    ).order_by(DMEnvelope.timestamp.desc())
+    
+    # Group by the "other user" (not current user) and get latest message
+    conversations = {}
+    for envelope in conversations_query:
+        other_user_id = envelope.recipient_id if envelope.sender_id == current_user.id else envelope.sender_id
+        
+        if other_user_id not in conversations:
+            conversations[other_user_id] = envelope
+    
+    # Get user info for each conversation
+    result = []
+    for other_user_id, latest_message in conversations.items():
+        other_user = db.query(User).filter(User.id == other_user_id).first()
+        if other_user:
+            # Calculate unread count for this conversation
+            unread_count = db.query(DMEnvelope).filter(
+                DMEnvelope.sender_id == other_user_id,
+                DMEnvelope.recipient_id == current_user.id,
+                DMEnvelope.id > getattr(latest_message, 'last_read_id', 0)  # This would need to be stored somewhere
+            ).count()
+            
+            result.append({
+                "user": convert_user(other_user),
+                "lastMessage": convert_dm_envelope(latest_message),
+                "unreadCount": unread_count
+            })
+    
+    # Sort by latest message timestamp
+    result.sort(key=lambda x: x["lastMessage"]["timestamp"], reverse=True)
+    
+    return {
+        "status": "success",
+        "conversations": result
+    }
+
+
 @router.put("/edit_message/{message_id}")
 async def edit_message(
     message_id: int,
@@ -792,6 +835,8 @@ class MessaggingSocketManager:
                         "type": "dmEdited",
                         "data": {
                             "id": env.id,
+                            "senderId": env.sender_id,
+                            "recipientId": env.recipient_id,
                             "iv": env.iv_b64,
                             "ciphertext": env.ciphertext_b64,
                             "iv2": env.iv2_b64,

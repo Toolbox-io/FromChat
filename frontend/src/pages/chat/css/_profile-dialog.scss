@@ -2,250 +2,197 @@
 @use "../../../css/material" as *;
 @use "sass:color";
 
-// Profile styles
-#profile-dialog .content {
+// Profile Dialog Styles
+.profile-dialog-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(20px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    box-sizing: border-box;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    
+    &.open {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+.profile-dialog {
+    width: 100%;
+    max-width: 500px;
+    max-height: calc(100vh - 60px);
+    background: $color-dark-surface-container;
+    border-radius: 16px;
+    box-shadow: 0 24px 38px 3px rgba(0, 0, 0, 0.14),
+                0 9px 46px 8px rgba(0, 0, 0, 0.12),
+                0 11px 15px -7px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 24px;
-    min-width: 400px;
-
-    .header-top {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 16px;
-        position: relative;
-        padding-bottom: 16px;
-        border-bottom: 1px solid $color-dark-outline;
-
-        .profile-picture-container {
-            position: relative;
-            $size: 70px;
-            width: $size;
-            height: $size;
-            flex-shrink: 0;
-
-            #profile-picture {
-                width: $size;
-                height: $size;
-                border-radius: 50%;
-                object-fit: cover;
-            }
-
-            .upload-overlay {
-                position: absolute;
-                bottom: 0;
-                right: 0;
-                width: 28px;
-                height: 28px;
-                cursor: pointer;
-            }
-        }
-
-        mdui-text-field {
-            flex: 1;
-        }
+    transform: scale(0.9);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    
+    &.open {
+        transform: scale(1);
+        opacity: 1;
     }
-
-    #profile-form {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-
-        mdui-text-field {
-            width: 100%;
-        }
-
-        .dialog-actions {
-            display: flex;
-            gap: 12px;
-            padding-top: 16px;
-            border-top: 1px solid $color-dark-outline;
-
-            > * {
-                flex: 1;
-            }
-        }
-    }
-}
-
-// User profile dialog content styles
-#user-profile-dialog .content {
-    display: flex;
-    gap: 1.5rem;
-
-    .profile-picture-section {
-        flex-shrink: 0;
-
-        .profile-picture {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid $color-dark-outline;
-        }
-    }
-
-    .profile-info {
+    
+    .profile-dialog-content {
         flex: 1;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 1rem;
-
+        align-items: center;
+        
+        .profile-picture-section {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 16px;
+            
+            .profile-picture {
+                width: 120px;
+                height: 120px;
+                border-radius: 60px;
+                object-fit: cover;
+                border: 3px solid $color-dark-outline;
+            }
+            
+            .profile-picture-edit-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                border-radius: 60px;
+                background: rgba(0, 0, 0, 0.6);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                cursor: pointer;
+                
+                &:hover {
+                    opacity: 1;
+                }
+            }
+        }
+        
         .username-section {
+            text-align: center;
+            
+            .username-input {
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                font-weight: 500;
+                color: $color-dark-on-surface;
+                text-align: center;
+                outline: none;
+                padding: 8px;
+                border-radius: 4px;
+                transition: background-color 0.2s ease;
+                cursor: text;
+            }
+        }
+
+        .online-status-section {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-
-            .username {
-                margin: 0;
-                color: $color-dark-on-surface;
-                font-size: 1.1rem;
-                font-weight: 600;
-            }
-
-            .online-status {
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                font-size: 0.85rem;
-                padding: 0.25rem 0.5rem;
-                border-radius: 12px;
-                font-weight: 500;
-
-                &.online {
-                    color: $success;
-                    background-color: rgba(76, 175, 80, 0.1);
-
-                    .online-indicator {
-                        width: 8px;
-                        height: 8px;
-                        border-radius: 50%;
-                        background-color: $success;
-                    }
-                }
-
+            justify-content: center;
+            gap: 8px;
+            
+            .online-indicator {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: $color-dark-primary;
+                
                 &.offline {
-                    color: $color-dark-on-surface-variant;
-                    background-color: rgba(255, 255, 255, 0.05);
-
-                    .offline-indicator {
-                        width: 8px;
-                        height: 8px;
-                        border-radius: 50%;
-                        background-color: $color-dark-on-surface-variant;
-                    }
+                    background: $color-dark-on-surface-variant;
                 }
             }
-        }
-
-        .bio-section {
-            label {
-                display: block;
-                color: $color-dark-on-surface-variant;
-                font-size: 0.85rem;
-                font-weight: 500;
-                margin-bottom: 0.5rem;
-            }
-
-            .bio-display {
+            
+            .status-text {
+                font-size: 0.875rem;
                 color: $color-dark-on-surface;
-                font-size: 0.9rem;
-                line-height: 1.4;
-                padding: 0.75rem;
-                background-color: $color-dark-surface;
-                border-radius: 8px;
-                border: 1px solid $color-dark-outline;
-                min-height: 60px;
-            }
-
-            .bio-actions {
-                display: flex;
-                gap: 0.5rem;
-                margin-top: 0.5rem;
             }
         }
-
-        .profile-stats {
+        
+        .profile-sections {
+            margin: 16px;
+            border-radius: 24px;
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 4px;
+            overflow: hidden;
+            width: calc(100% - (16px * 2));
+            box-sizing: border-box;
 
-            .stat {
+            .section {
+                background: $color-dark-surface-container-high;
+                border-radius: 10px;
+                padding: 8px 16px;
                 display: flex;
-                justify-content: space-between;
+                flex-direction: row;
+                gap: 16px;
                 align-items: center;
-                padding: 0.5rem 0;
 
-                .stat-label {
-                    color: $color-dark-on-surface-variant;
-                    font-size: 0.85rem;
-                }
+                .content-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                    width: 100%;
 
-                .stat-value {
-                    color: $color-dark-on-surface;
-                    font-size: 0.85rem;
-                    font-weight: 500;
+                    .label {
+                        font-size: small;
+                        color: $color-dark-on-surface-variant;
+                    }
+                    
+                    .value {
+                        color: $color-dark-on-surface;
+                        font-size: medium;
+                        width: 100%;
+                        line-height: 1.4;
+                        font-family: inherit;
+                        cursor: text;
+                        outline: none;
+                        background: transparent;
+                        border: none;
+                        caret-color: $color-dark-primary;
+
+                        &::placeholder {
+                            color: $color-dark-on-surface-variant;
+                        }
+                    }
                 }
             }
         }
-
-        .profile-actions {
-            display: flex;
-            gap: 0.75rem;
-            margin-top: 0.5rem;
-
-            mdui-button {
-                flex: 1;
-            }
+    }
+    
+    .profile-dialog-fab {
+        position: absolute;
+        bottom: 24px;
+        right: 24px;
+        z-index: 1002;
+        transform: translateY(100px);
+        transition: transform 0.3s ease;
+        
+        &.visible {
+            transform: translateY(0);
         }
-    }
-}
-
-// Cropper Dialog Styles
-#cropper-dialog {
-    .cropper-dialog-content {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        min-width: 500px;
-        max-width: 600px;
-    }
-
-    .cropper-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-bottom: 16px;
-        border-bottom: 1px solid $color-dark-outline;
-
-        h3 {
-            margin: 0;
-            color: $color-dark-on-surface;
-        }
-    }
-
-    .cropper-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 400px;
-        background: $color-dark-surface-container;
-        border-radius: 8px;
-        overflow: hidden;
-
-        #cropper-area {
-            width: 100%;
-            height: 100%;
-            min-height: 400px;
-        }
-    }
-
-    .cropper-actions {
-        display: flex;
-        gap: 12px;
-        justify-content: flex-end;
-        padding-top: 16px;
-        border-top: 1px solid $color-dark-outline;
     }
 }
