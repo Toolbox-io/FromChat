@@ -24,16 +24,6 @@ export function RichTextArea({
     autoComplete = "off",
     readOnly = false
 }: RichTextAreaProps) {
-    if (readOnly) {
-        return (
-            <textarea
-                className={`rich-text-area ${className}`}
-                value={text}
-                placeholder={placeholder}
-                readOnly />
-        )
-    }
-
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const hiddenTextareaRef = useRef<HTMLTextAreaElement | null>(null);
     const heightRef = useRef<number | null>(null);
@@ -195,9 +185,9 @@ export function RichTextArea({
                 value={text}
                 placeholder={placeholder}
                 rows={rows}
-                autoComplete={autoComplete}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
+                autoComplete={readOnly ? "off" : autoComplete}
+                onChange={readOnly ? undefined : handleChange}
+                onKeyDown={readOnly ? undefined : handleKeyDown}
                 readOnly={readOnly} />
             <textarea
                 aria-hidden
