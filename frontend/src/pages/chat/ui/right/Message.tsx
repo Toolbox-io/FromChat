@@ -10,6 +10,7 @@ import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { getAuthHeaders } from "@/core/api/authApi";
 import { useAppState } from "@/pages/chat/state";
+import { fetchUserProfile } from "@/core/api/profileApi";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
@@ -132,10 +133,8 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
 interface MessageProps {
     message: MessageType;
     isAuthor: boolean;
-    onProfileClick: (username: string) => void;
     onContextMenu: (e: React.MouseEvent, message: MessageType) => void;
     onReactionClick?: (messageId: number, emoji: string) => void;
-    isLoadingProfile?: boolean;
     isDm?: boolean;
     dmRecipientPublicKey?: string;
 }
@@ -147,7 +146,7 @@ interface Rect {
     height: number
 }
 
-export function Message({ message, isAuthor, onProfileClick, onContextMenu, onReactionClick, isLoadingProfile = false, isDm = false, dmRecipientPublicKey }: MessageProps) {
+export function Message({ message, isAuthor, onContextMenu, onReactionClick, isDm = false, dmRecipientPublicKey }: MessageProps) {
     const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
     const [decryptedFiles, updateDecryptedFiles] = useImmer<Map<string, string>>(new Map());
     const [loadedImages, updateLoadedImages] = useImmer<Set<string>>(new Set());
@@ -161,7 +160,7 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
         endRect: Rect;
     } | null>(null);
     const [isAnimatingOpen, setIsAnimatingOpen] = useState(false);
-    const { user } = useAppState();
+    const { user, setProfileDialog } = useAppState();
     const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
     const dmEnvelope = message.runtimeData?.dmEnvelope;
 
@@ -389,6 +388,22 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
         }
     };
 
+    async function handleProfileClick() {
+        if (!user.authToken || !message.username) return;
+        
+        try {
+            const userProfile = await fetchUserProfile(user.authToken, message.username);
+            if (userProfile) {
+                setProfileDialog({
+                    ...userProfile,
+                    isOwnProfile: false
+                });
+            }
+        } catch (error) {
+            console.error("Failed to fetch user profile:", error);
+        }
+    }
+
     function handleContextMenu(e: React.MouseEvent) {
         e.preventDefault();
         e.stopPropagation();
@@ -402,28 +417,24 @@ export function Message({ message, isAuthor, onProfileClick, onContextMenu, onRe
                 data-id={message.id}
                 onContextMenu={handleContextMenu}
             >
+                {!isAuthor && !isDm && (
+                    <div className="message-profile-pic" onClick={handleProfileClick}>
+                        <img
+                            src={message.profile_picture || defaultAvatar}
+                            alt={message.username}
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = defaultAvatar;
+                            }}
+                        />
+                    </div>
+                )}
+
                 <div className="message-inner">
                     {!isAuthor && !isDm && (
-                        <div className="message-profile-pic">
-                            <img
-                                src={message.profile_picture || defaultAvatar}
-                                alt={message.username}
-                                onClick={() => !isLoadingProfile && onProfileClick(message.username)}
-                                style={{ cursor: isLoadingProfile ? "default" : "pointer" }}
-                                className={isLoadingProfile ? "loading" : ""}
-                                onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = defaultAvatar;
-                                }}
-                            />
-                        </div>
-                    )}
-
-                    {!isAuthor && !isDm && (
                         <div 
-                            className={`message-username ${isLoadingProfile ? "loading" : ""}`}
-                            onClick={() => !isLoadingProfile && onProfileClick(message.username)} 
-                            style={{ cursor: isLoadingProfile ? "default" : "pointer" }}>
+                            className="message-username"
+                            onClick={handleProfileClick}>
                             {message.username}
                         </div>
                     )}

@@ -14,6 +14,16 @@ export type ChatTabs = "chats" | "channels" | "contacts";
 
 export type CallStatus = "calling" | "connecting" | "active" | "ended";
 
+export interface ProfileDialogData {
+    userId?: number;
+    username?: string;
+    profilePicture?: string;
+    bio?: string;
+    memberSince?: string;
+    online?: boolean;
+    isOwnProfile: boolean;
+}
+
 interface ActiveDM {
     userId: number; 
     username: string;
@@ -50,6 +60,7 @@ interface ChatState {
     dmPanel: DMPanel | null;
     pendingPanel?: MessagePanel | null;
     call: CallState;
+    profileDialog: ProfileDialogData | null;
 }
 
 export interface UserState {
@@ -94,6 +105,10 @@ interface AppState {
     setUser: (token: string, user: User) => void;
     logout: () => void;
     restoreUserFromStorage: () => Promise<void>;
+    
+    // Profile dialog state
+    setProfileDialog: (data: ProfileDialogData | null) => void;
+    closeProfileDialog: () => void;
 }
 
 export const useAppState = create<AppState>((set, get) => ({
@@ -115,6 +130,7 @@ export const useAppState = create<AppState>((set, get) => ({
         publicChatPanel: null,
         dmPanel: null,
         pendingPanel: null,
+        profileDialog: null,
         call: {
             isActive: false,
             status: "ended",
@@ -576,6 +592,21 @@ export const useAppState = create<AppState>((set, get) => ({
                 ...state.chat.call,
                 isMinimized: !state.chat.call.isMinimized
             }
+        }
+    })),
+    
+    // Profile dialog state management
+    setProfileDialog: (data: ProfileDialogData | null) => set((state) => ({
+        chat: {
+            ...state.chat,
+            profileDialog: data
+        }
+    })),
+    
+    closeProfileDialog: () => set((state) => ({
+        chat: {
+            ...state.chat,
+            profileDialog: null
         }
     }))
 }));
