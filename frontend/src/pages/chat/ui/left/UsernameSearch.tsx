@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { searchUsers, fetchUserPublicKey } from "@/core/api/dmApi";
 import type { User } from "@/core/types";
+import { onlineStatusManager } from "@/core/onlineStatusManager";
+import { OnlineStatus } from "../right/OnlineStatus";
 import defaultAvatar from "@/images/default-avatar.png";
 import SearchBar from "@/core/components/SearchBar";
 
@@ -50,6 +52,21 @@ export function UsernameSearch() {
             }
         };
     }, [searchQuery, user.authToken]);
+
+    // Subscribe to online status for all search results
+    useEffect(() => {
+        // Subscribe to all search results
+        searchResults.forEach(searchUser => {
+            onlineStatusManager.subscribe(searchUser.id);
+        });
+
+        // Cleanup function to unsubscribe from all users
+        return () => {
+            searchResults.forEach(searchUser => {
+                onlineStatusManager.unsubscribe(searchUser.id);
+            });
+        };
+    }, [searchResults]);
 
     async function handleUserClick(searchUser: SearchUser) {
         if (!user.authToken) return;
@@ -134,9 +151,7 @@ export function UsernameSearch() {
                             onClick={() => handleUserClick(searchUser)}
                             style={{ cursor: "pointer" }}
                         >
-                            <span slot="description" className="list-description">
-                                {searchUser.online ? "В сети" : "Не в сети"}
-                            </span>
+                            <OnlineStatus userId={searchUser.id} />
                             <img 
                                 src={searchUser.profile_picture || defaultAvatar}
                                 alt={searchUser.username}

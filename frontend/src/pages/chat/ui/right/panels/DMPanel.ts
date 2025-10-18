@@ -11,6 +11,8 @@ import { fetchUserProfile } from "@/core/api/profileApi";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
 import type { UserState, ProfileDialogData } from "@/pages/chat/state";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";
+import { onlineStatusManager } from "@/core/onlineStatusManager";
+import { typingManager } from "@/core/typingManager";
 
 export interface DMPanelData {
     userId: number;
@@ -34,13 +36,25 @@ export class DMPanel extends MessagePanel {
         return true;
     }
 
+    getRecipientId(): number | null {
+        return this.dmData?.userId || null;
+    }
+
     async activate(): Promise<void> {
         // Don't load messages immediately during activation to prevent animation freeze
         // Messages will be loaded after the animation completes
+        
+        // Subscribe to recipient's online status
+        if (this.dmData?.userId) {
+            onlineStatusManager.subscribe(this.dmData.userId);
+        }
     }
 
     deactivate(): void {
-        // DM doesn't need special cleanup
+        // Unsubscribe from recipient's online status
+        if (this.dmData?.userId) {
+            onlineStatusManager.unsubscribe(this.dmData.userId);
+        }
     }
 
     clearMessages(): void {
@@ -254,6 +268,11 @@ export class DMPanel extends MessagePanel {
 
     // Reset for DM switching
     reset(): void {
+        // Unsubscribe from current recipient's status before switching
+        if (this.dmData?.userId) {
+            onlineStatusManager.unsubscribe(this.dmData.userId);
+        }
+        
         this.dmData = null;
         this.messagesLoaded = false;
         this.clearMessages();
@@ -278,6 +297,13 @@ export class DMPanel extends MessagePanel {
     // Get DM username for call functionality
     getDMUsername(): string | null {
         return this.dmData?.username || null;
+    }
+
+    // Handle typing in DM
+    handleTyping(): void {
+        if (this.dmData?.userId) {
+            typingManager.sendDmTyping(this.dmData.userId);
+        }
     }
 
     // Helper functions for localStorage

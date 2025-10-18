@@ -1,0 +1,101 @@
+@use "../../../css/colors" as *;
+@use "../../../css/material" as *;
+@use "sass:color";
+
+// Online status component styles
+.online-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: $color-dark-on-surface-variant;
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+
+        &.online {
+            background: #4caf50;
+            box-shadow: 0 0 6px rgba(76, 175, 80, 0.4);
+        }
+
+        &.offline {
+            background: $color-dark-on-surface-variant;
+            opacity: 0.6;
+        }
+    }
+
+    .status-text {
+        font-weight: 500;
+    }
+
+    .last-seen {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        margin-left: 4px;
+    }
+}
+
+// DM typing indicator styles
+.dm-typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    color: $color-dark-on-surface-variant;
+    font-size: 0.8rem;
+    font-style: italic;
+
+    .typing-dots {
+        display: flex;
+        gap: 2px;
+
+        span {
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: $color-dark-on-surface-variant;
+            animation: typing-dot 1.4s infinite ease-in-out;
+
+            &:nth-child(1) {
+                animation-delay: -0.32s;
+            }
+
+            &:nth-child(2) {
+                animation-delay: -0.16s;
+            }
+        }
+    }
+
+    .typing-text {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+}
+
+// List item status styles
+.list-description {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: $color-dark-on-surface-variant;
+
+    .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+
+        &.online {
+            background: #4caf50;
+        }
+
+        &.offline {
+            background: $color-dark-on-surface-variant;
+            opacity: 0.6;
+        }
+    }
+}

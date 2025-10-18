@@ -10,6 +10,9 @@ import defaultAvatar from "@/images/default-avatar.png";
 import AnimatedOpacity from "@/core/components/animations/AnimatedOpacity";
 import type { DMPanel } from "./panels/DMPanel";
 import useCall from "@/pages/chat/hooks/useCall";
+import { TypingIndicator } from "./TypingIndicator";
+import { DmTypingIndicator } from "./DmTypingIndicator";
+import { typingManager } from "@/core/typingManager";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
@@ -315,6 +318,12 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             </div>
                         </AnimatedOpacity>
                         
+                        {/* Typing indicators */}
+                        {!panel.isDm() && <TypingIndicator />}
+                        {panel.isDm() && (panel as DMPanel).getRecipientId() && (
+                            <DmTypingIndicator recipientId={(panel as DMPanel).getRecipientId()!} />
+                        )}
+                        
                         <ChatInputWrapper 
                             onSendMessage={(text, files) => {
                                 panel.handleSendMessage(text, replyTo?.id, files);
@@ -354,6 +363,14 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             }}
                             onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
                             messagePanelRef={messagePanelRef}
+        onTyping={() => {
+            if (panel.isDm()) {
+                const dmPanel = panel as DMPanel;
+                dmPanel.handleTyping();
+            } else {
+                typingManager.sendTyping();
+            }
+        }}
                         />
                     </>
                 )}

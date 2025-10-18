@@ -115,6 +115,54 @@
     }
 }
 
+// Typing indicator styles
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    color: $color-dark-on-surface-variant;
+    font-size: 0.85rem;
+    font-style: italic;
+
+    .typing-dots {
+        display: flex;
+        gap: 2px;
+
+        span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: $color-dark-on-surface-variant;
+            animation: typing-dot 1.4s infinite ease-in-out;
+
+            &:nth-child(1) {
+                animation-delay: -0.32s;
+            }
+
+            &:nth-child(2) {
+                animation-delay: -0.16s;
+            }
+        }
+    }
+
+    .typing-text {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+}
+
+@keyframes typing-dot {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 // Emoji Menu Styles
 .emoji-menu {
     $transition: cubic-bezier(0.4, 0, 0.2, 1);
