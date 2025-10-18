@@ -236,14 +236,15 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     <div className="chat-header-info">
                         <div className="info-chat">
                             <h4 id="chat-name">{panelState?.title || "Выбор чата"}</h4>
-                            <p>
-                                <span className={`online-status ${panelState?.online ? "online" : ""}`}></span>
-                                {panelState ? (
-                                    panelState.online ? "Online" : "Offline"
+                            <div>
+                                {!panel?.isDm() ? (
+                                    <TypingIndicator />
+                                ) : (panel as DMPanel).getRecipientId() ? (
+                                    <DmTypingIndicator recipientId={(panel as DMPanel).getRecipientId()!} />
                                 ) : (
                                     "Выберите чат, чтобы начать переписку"
                                 )}
-                            </p>
+                            </div>
                         </div>
                         {panel?.isDm() && (
                             <mdui-button-icon onClick={handleCallClick} icon="call--filled" />
@@ -318,11 +319,6 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             </div>
                         </AnimatedOpacity>
                         
-                        {/* Typing indicators */}
-                        {!panel.isDm() && <TypingIndicator />}
-                        {panel.isDm() && (panel as DMPanel).getRecipientId() && (
-                            <DmTypingIndicator recipientId={(panel as DMPanel).getRecipientId()!} />
-                        )}
                         
                         <ChatInputWrapper 
                             onSendMessage={(text, files) => {

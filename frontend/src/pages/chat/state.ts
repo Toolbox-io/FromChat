@@ -64,7 +64,7 @@ interface ChatState {
     call: CallState;
     profileDialog: ProfileDialogData | null;
     onlineStatuses: Map<number, {online: boolean, lastSeen: string}>;
-    typingUsers: Set<number>;
+    typingUsers: Map<number, string>; // userId -> username
     dmTypingUsers: Map<number, boolean>;
 }
 
@@ -117,7 +117,7 @@ interface AppState {
     
     // Online status and typing state
     updateOnlineStatus: (userId: number, online: boolean, lastSeen: string) => void;
-    addTypingUser: (userId: number) => void;
+    addTypingUser: (userId: number, username: string) => void;
     removeTypingUser: (userId: number) => void;
     setDmTypingUser: (userId: number, isTyping: boolean) => void;
 }
@@ -159,7 +159,7 @@ export const useAppState = create<AppState>((set, get) => ({
             isRemoteScreenSharing: false
         },
         onlineStatuses: new Map(),
-        typingUsers: new Set(),
+        typingUsers: new Map(),
         dmTypingUsers: new Map()
     },
     addMessage: (message: Message) => set((state) => {
@@ -646,15 +646,15 @@ export const useAppState = create<AppState>((set, get) => ({
         }
     })),
     
-    addTypingUser: (userId: number) => set((state) => ({
+    addTypingUser: (userId: number, username: string) => set((state) => ({
         chat: {
             ...state.chat,
-            typingUsers: new Set(state.chat.typingUsers).add(userId)
+            typingUsers: new Map(state.chat.typingUsers).set(userId, username)
         }
     })),
     
     removeTypingUser: (userId: number) => set((state) => {
-        const newTypingUsers = new Set(state.chat.typingUsers);
+        const newTypingUsers = new Map(state.chat.typingUsers);
         newTypingUsers.delete(userId);
         return {
             chat: {

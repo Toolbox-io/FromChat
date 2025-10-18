@@ -135,7 +135,7 @@ export class TypingManager {
         // Import here to avoid circular dependency
         import("@/pages/chat/state").then(({ useAppState }) => {
             const { addTypingUser } = useAppState.getState();
-            addTypingUser(message.data.userId);
+            addTypingUser(message.data.userId, message.data.username);
         });
     }
 

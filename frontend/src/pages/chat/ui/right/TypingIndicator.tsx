@@ -12,10 +12,14 @@ interface TypingIndicatorProps {
 }
 
 export function TypingIndicator({ className = "" }: TypingIndicatorProps) {
-    const { chat } = useAppState();
-    const typingUsers = Array.from(chat.typingUsers);
+    const { chat, user } = useAppState();
+    
+    // Filter out current user and get usernames
+    const otherTypingUsers = Array.from(chat.typingUsers.entries())
+        .filter(([userId]) => userId !== user.currentUser?.id)
+        .map(([, username]) => username);
 
-    if (typingUsers.length === 0) {
+    if (otherTypingUsers.length === 0) {
         return null;
     }
 
@@ -27,9 +31,9 @@ export function TypingIndicator({ className = "" }: TypingIndicatorProps) {
                 <span></span>
             </div>
             <span className="typing-text">
-                {typingUsers.length === 1 
-                    ? "Печатает..." 
-                    : `${typingUsers.length} пользователя печатают...`
+                {otherTypingUsers.length === 1 
+                    ? `${otherTypingUsers[0]} печатает...` 
+                    : `${otherTypingUsers.join(", ")} печатают...`
                 }
             </span>
         </div>

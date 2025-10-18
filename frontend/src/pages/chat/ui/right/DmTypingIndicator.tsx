@@ -15,19 +15,32 @@ interface DmTypingIndicatorProps {
 export function DmTypingIndicator({ recipientId, className = "" }: DmTypingIndicatorProps) {
     const { chat } = useAppState();
     const isTyping = chat.dmTypingUsers.get(recipientId);
+    const onlineStatus = chat.onlineStatuses.get(recipientId);
 
-    if (!isTyping) {
-        return null;
+    if (isTyping) {
+        return (
+            <div className={`dm-typing-indicator ${className}`}>
+                <div className="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <span className="typing-text">Печатает...</span>
+            </div>
+        );
     }
 
-    return (
-        <div className={`dm-typing-indicator ${className}`}>
-            <div className="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
+    // Show online status when not typing
+    if (onlineStatus) {
+        return (
+            <div className={`online-status-display ${className}`}>
+                <span className={`online-status-dot ${onlineStatus.online ? "online" : "offline"}`}></span>
+                <span className="online-status-text">
+                    {onlineStatus.online ? "Online" : `Last seen: ${new Date(onlineStatus.lastSeen).toLocaleString()}`}
+                </span>
             </div>
-            <span className="typing-text">Печатает...</span>
-        </div>
-    );
+        );
+    }
+
+    return null;
 }
