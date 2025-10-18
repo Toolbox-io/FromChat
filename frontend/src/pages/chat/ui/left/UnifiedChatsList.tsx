@@ -6,6 +6,8 @@ import { getAuthHeaders } from "@/core/api/authApi";
 import { fetchUserPublicKey } from "@/core/api/dmApi";
 import type { Message } from "@/core/types";
 import { websocket } from "@/core/websocket";
+import { onlineStatusManager } from "@/core/onlineStatusManager";
+import { OnlineIndicator } from "../right/OnlineIndicator";
 import defaultAvatar from "@/images/default-avatar.png";
 
 interface PublicChat {
@@ -153,6 +155,23 @@ export function UnifiedChatsList() {
         return () => websocket.removeEventListener("message", handleWebSocketMessage);
     }, [publicChats, loadLastMessages]);
 
+    // Subscribe to online status for all DM users
+    useEffect(() => {
+        const dmUsers = allChats.filter(chat => chat.type === "dm") as DMConversation[];
+        
+        // Subscribe to all DM users
+        dmUsers.forEach(dmUser => {
+            onlineStatusManager.subscribe(dmUser.id);
+        });
+
+        // Cleanup function to unsubscribe from all users
+        return () => {
+            dmUsers.forEach(dmUser => {
+                onlineStatusManager.unsubscribe(dmUser.id);
+            });
+        };
+    }, [allChats]);
+
     const formatPublicChatMessage = (chatId: string): string => {
         const lastMessage = lastMessages[chatId];
         if (!lastMessage) {
@@ -244,20 +263,23 @@ export function UnifiedChatsList() {
                             <span slot="description" className="list-description">
                                 {chat.lastMessage || "Нет сообщений"}
                             </span>
-                            <img 
-                                src={chat.profile_picture || defaultAvatar} 
-                                alt={chat.username} 
-                                slot="icon"
-                                style={{
-                                    width: "40px",
-                                    height: "40px",
-                                    borderRadius: "50%",
-                                    objectFit: "cover"
-                                }}
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = defaultAvatar;
-                                }}
-                            />
+                            <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
+                                <img 
+                                    src={chat.profile_picture || defaultAvatar} 
+                                    alt={chat.username} 
+                                    style={{
+                                        width: "40px",
+                                        height: "40px",
+                                        borderRadius: "50%",
+                                        objectFit: "cover",
+                                        display: "block"
+                                    }}
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = defaultAvatar;
+                                    }}
+                                />
+                                <OnlineIndicator userId={chat.id} />
+                            </div>
                             {chat.unreadCount > 0 && (
                                 <mdui-badge slot="end-icon">
                                     {chat.unreadCount}

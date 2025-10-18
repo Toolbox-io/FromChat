@@ -1,18 +1,47 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { MessagePanel, type MessagePanelState } from "./panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
-import { ProfileDialog } from "../ProfileDialog";
+import { ProfileDialog } from "@/pages/chat/ui/ProfileDialog";
 import { setGlobalMessageHandler } from "@/core/websocket";
 import type { Message, WebSocketMessage } from "@/core/types";
 import defaultAvatar from "@/images/default-avatar.png";
 import AnimatedOpacity from "@/core/components/animations/AnimatedOpacity";
-import type { DMPanel } from "./panels/DMPanel";
+import { DMPanel } from "./panels/DMPanel";
 import useCall from "@/pages/chat/hooks/useCall";
+import { TypingIndicator } from "./TypingIndicator";
+import { OnlineStatus } from "./OnlineStatus";
+import { typingManager } from "@/core/typingManager";
+import { PublicChatPanel } from "./panels/PublicChatPanel";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
+}
+
+function ChatHeaderText({ panel }: { panel: MessagePanel | null }) {
+    const { chat, user } = useAppState();
+    const otherTypingUsers = useMemo(() => {
+        return Array
+            .from(chat.typingUsers.entries())
+            .filter(([userId, username]) => userId !== user.currentUser?.id && username)
+            .map(([, username]) => username!);
+    }, [chat.typingUsers, user.currentUser?.id]);
+
+    let content: ReactNode;
+
+    if (panel instanceof DMPanel) {
+        const recipientId = panel.getRecipientId()!;
+        const isTyping = chat.dmTypingUsers.get(recipientId);
+        
+        content = isTyping ? <TypingIndicator typingUsers={[]} /> : <OnlineStatus userId={recipientId} />;
+    } else if (panel instanceof PublicChatPanel && otherTypingUsers.length > 0) {
+        content = <TypingIndicator typingUsers={otherTypingUsers} />;
+    } else {
+        return null;
+    }
+
+    return <div>{content}</div>;
 }
 
 export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
@@ -233,14 +262,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     <div className="chat-header-info">
                         <div className="info-chat">
                             <h4 id="chat-name">{panelState?.title || "Выбор чата"}</h4>
-                            <p>
-                                <span className={`online-status ${panelState?.online ? "online" : ""}`}></span>
-                                {panelState ? (
-                                    panelState.online ? "Online" : "Offline"
-                                ) : (
-                                    "Выберите чат, чтобы начать переписку"
-                                )}
-                            </p>
+                            <ChatHeaderText panel={panel} />
                         </div>
                         {panel?.isDm() && (
                             <mdui-button-icon onClick={handleCallClick} icon="call--filled" />
@@ -315,6 +337,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             </div>
                         </AnimatedOpacity>
                         
+                        
                         <ChatInputWrapper 
                             onSendMessage={(text, files) => {
                                 panel.handleSendMessage(text, replyTo?.id, files);
@@ -354,6 +377,14 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             }}
                             onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
                             messagePanelRef={messagePanelRef}
+        onTyping={() => {
+            if (panel.isDm()) {
+                const dmPanel = panel as DMPanel;
+                dmPanel.handleTyping();
+            } else {
+                typingManager.sendTyping();
+            }
+        }}
                         />
                     </>
                 )}

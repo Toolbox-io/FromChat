@@ -20,6 +20,7 @@ interface ChatInputWrapperProps {
     onCloseEdit?: () => void;
     onProvideFileAdder?: (adder: (files: File[]) => void) => void;
     messagePanelRef?: React.RefObject<HTMLDivElement | null>;
+    onTyping?: () => void;
 }
 
 export function ChatInputWrapper(
@@ -35,7 +36,8 @@ export function ChatInputWrapper(
         onClearEdit, 
         onCloseEdit,
         onProvideFileAdder,
-        messagePanelRef
+        messagePanelRef,
+        onTyping
     }: ChatInputWrapperProps
 ) {
     const [message, setMessage] = useState("");
@@ -89,6 +91,17 @@ export function ChatInputWrapper(
 
     function handleEmojiSelect(emoji: string) {
         setMessage(prev => prev + emoji);
+    };
+
+    function handleTyping() {
+        if (onTyping) {
+            onTyping();
+        }
+    };
+
+    function handleMessageChange(value: string) {
+        setMessage(value);
+        handleTyping();
     };
 
     async function handleSubmit(e: React.FormEvent | Event) {
@@ -196,7 +209,7 @@ export function ChatInputWrapper(
                         autoComplete="off"
                         text={message}
                         rows={1}
-                        onTextChange={(value) => setMessage(value)}
+                        onTextChange={handleMessageChange}
                         onEnter={handleSubmit} />
                     <div className="buttons">
                         <mdui-button-icon icon="attach_file" onClick={handleAttachClick} className="attach-btn"></mdui-button-icon>

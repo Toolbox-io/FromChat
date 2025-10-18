@@ -9,6 +9,8 @@ import { API_WS_BASE_URL } from "./config";
 import type { WebSocketMessage } from "./types";
 import { delay } from "@/utils/utils";
 import { CallSignalingHandler } from "./calls/signaling";
+import { onlineStatusManager } from "./onlineStatusManager";
+import { typingManager } from "./typingManager";
 
 /**
  * Creates a new WebSocket connection to the chat server
@@ -114,6 +116,19 @@ websocket.addEventListener("message", (e) => {
         // Handle call signaling messages
         if (callSignalingHandler && response.type === "call_signaling" && response.data) {
             callSignalingHandler.handleWebSocketMessage(response.data);
+        }
+        
+        // Handle status and typing messages
+        if (response.type === "statusUpdate") {
+            onlineStatusManager.handleStatusUpdate(response as any);
+        } else if (response.type === "typing") {
+            typingManager.handleTyping(response as any);
+        } else if (response.type === "stopTyping") {
+            typingManager.handleStopTyping(response as any);
+        } else if (response.type === "dmTyping") {
+            typingManager.handleDmTyping(response as any);
+        } else if (response.type === "stopDmTyping") {
+            typingManager.handleStopDmTyping(response as any);
         }
         
         // Route message to global handler if set

@@ -9,6 +9,8 @@ import { restoreKeys } from "@/core/api/authApi";
 import { API_BASE_URL } from "@/core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
+import { onlineStatusManager } from "@/core/onlineStatusManager";
+import { typingManager } from "@/core/typingManager";
 
 export type ChatTabs = "chats" | "channels" | "contacts";
 
@@ -61,6 +63,9 @@ interface ChatState {
     pendingPanel?: MessagePanel | null;
     call: CallState;
     profileDialog: ProfileDialogData | null;
+    onlineStatuses: Map<number, {online: boolean, lastSeen: string}>;
+    typingUsers: Map<number, string>; // userId -> username
+    dmTypingUsers: Map<number, boolean>;
 }
 
 export interface UserState {
@@ -109,6 +114,12 @@ interface AppState {
     // Profile dialog state
     setProfileDialog: (data: ProfileDialogData | null) => void;
     closeProfileDialog: () => void;
+    
+    // Online status and typing state
+    updateOnlineStatus: (userId: number, online: boolean, lastSeen: string) => void;
+    addTypingUser: (userId: number, username: string) => void;
+    removeTypingUser: (userId: number) => void;
+    setDmTypingUser: (userId: number, isTyping: boolean) => void;
 }
 
 export const useAppState = create<AppState>((set, get) => ({
@@ -146,7 +157,10 @@ export const useAppState = create<AppState>((set, get) => ({
             isRemoteVideoEnabled: false,
             isSharingScreen: false,
             isRemoteScreenSharing: false
-        }
+        },
+        onlineStatuses: new Map(),
+        typingUsers: new Map(),
+        dmTypingUsers: new Map()
     },
     addMessage: (message: Message) => set((state) => {
         // Check if message already exists to prevent duplicates
@@ -220,6 +234,10 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }));
 
+        // Initialize managers with auth token
+        onlineStatusManager.setAuthToken(token);
+        typingManager.setAuthToken(token);
+
         // Store credentials in localStorage
         try {
             localStorage.setItem('authToken', token);
@@ -250,6 +268,12 @@ export const useAppState = create<AppState>((set, get) => ({
             console.error('Failed to clear localStorage:', error);
         }
 
+        // Cleanup managers
+        onlineStatusManager.setAuthToken(null);
+        typingManager.setAuthToken(null);
+        onlineStatusManager.cleanup();
+        typingManager.cleanup();
+
         set(() => ({
             user: {
                 currentUser: null,
@@ -276,6 +300,10 @@ export const useAppState = create<AppState>((set, get) => ({
                             authToken: token
                         }
                     }));
+
+                    // Initialize managers with auth token
+                    onlineStatusManager.setAuthToken(token);
+                    typingManager.setAuthToken(token);
 
                     try {
                         request({
@@ -608,5 +636,46 @@ export const useAppState = create<AppState>((set, get) => ({
             ...state.chat,
             profileDialog: null
         }
-    }))
+    })),
+    
+    // Online status and typing state management
+    updateOnlineStatus: (userId: number, online: boolean, lastSeen: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            onlineStatuses: new Map(state.chat.onlineStatuses).set(userId, { online, lastSeen })
+        }
+    })),
+    
+    addTypingUser: (userId: number, username: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            typingUsers: new Map(state.chat.typingUsers).set(userId, username)
+        }
+    })),
+    
+    removeTypingUser: (userId: number) => set((state) => {
+        const newTypingUsers = new Map(state.chat.typingUsers);
+        newTypingUsers.delete(userId);
+        return {
+            chat: {
+                ...state.chat,
+                typingUsers: newTypingUsers
+            }
+        };
+    }),
+    
+    setDmTypingUser: (userId: number, isTyping: boolean) => set((state) => {
+        const newDmTypingUsers = new Map(state.chat.dmTypingUsers);
+        if (isTyping) {
+            newDmTypingUsers.set(userId, true);
+        } else {
+            newDmTypingUsers.delete(userId);
+        }
+        return {
+            chat: {
+                ...state.chat,
+                dmTypingUsers: newDmTypingUsers
+            }
+        };
+    })
 }));

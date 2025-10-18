@@ -43,15 +43,6 @@
                 }
             }
 
-            .online-status {
-                display: inline-block;
-                width: 10px;
-                height: 10px;
-                border-radius: 50%;
-                background-color: $success;
-                margin-right: 5px;
-            }
-
             a {
                 display: flex;
                 flex-direction: row;

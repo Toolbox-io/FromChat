@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { searchUsers, fetchUserPublicKey } from "@/core/api/dmApi";
 import type { User } from "@/core/types";
+import { onlineStatusManager } from "@/core/onlineStatusManager";
+import { OnlineIndicator } from "../right/OnlineIndicator";
 import defaultAvatar from "@/images/default-avatar.png";
 import SearchBar from "@/core/components/SearchBar";
 
@@ -50,6 +52,21 @@ export function UsernameSearch() {
             }
         };
     }, [searchQuery, user.authToken]);
+
+    // Subscribe to online status for all search results
+    useEffect(() => {
+        // Subscribe to all search results
+        searchResults.forEach(searchUser => {
+            onlineStatusManager.subscribe(searchUser.id);
+        });
+
+        // Cleanup function to unsubscribe from all users
+        return () => {
+            searchResults.forEach(searchUser => {
+                onlineStatusManager.unsubscribe(searchUser.id);
+            });
+        };
+    }, [searchResults]);
 
     async function handleUserClick(searchUser: SearchUser) {
         if (!user.authToken) return;
@@ -133,17 +150,23 @@ export function UsernameSearch() {
                             onClick={() => handleUserClick(searchUser)}
                             style={{ cursor: "pointer" }}
                         >
-                            <span slot="description" className="list-description">
-                                {searchUser.online ? "В сети" : "Не в сети"}
-                            </span>
-                            <img 
-                                src={searchUser.profile_picture || defaultAvatar}
-                                alt={searchUser.username}
-                                slot="icon"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = defaultAvatar;
-                                }}
-                            />
+                            <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
+                                <img 
+                                    src={searchUser.profile_picture || defaultAvatar}
+                                    alt={searchUser.username}
+                                    style={{
+                                        width: "40px",
+                                        height: "40px",
+                                        borderRadius: "50%",
+                                        objectFit: "cover",
+                                        display: "block"
+                                    }}
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = defaultAvatar;
+                                    }}
+                                />
+                                <OnlineIndicator userId={searchUser.id} />
+                            </div>
                         </mdui-list-item>
                     ))}
                 </mdui-list>
