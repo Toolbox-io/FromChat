@@ -4,7 +4,7 @@ import defaultAvatar from "@/images/default-avatar.png";
 import Quote from "@/core/components/Quote";
 import { parse } from "marked";
 import DOMPurify from "dompurify";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { getCurrentKeys } from "@/core/api/authApi";
 import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
@@ -409,11 +409,23 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         e.stopPropagation();
         onContextMenu(e, message);
     }
+    const messageText = message.content.trim();
 
+    const isEmojiMessage = useMemo(() => {
+        const emojiRegex = /^[\s\p{Emoji}]*$/u;
+        return messageText.length > 0 && emojiRegex.test(messageText);
+    }, [messageText]);
+
+    // Check if message has only one emoji
+    const isSingleEmojiMessage = useMemo(() => {
+        const emojiRegex = /^[\p{Emoji}]+$/u;
+        return messageText.length > 0 && emojiRegex.test(messageText) && messageText.length <= 4; // Most emojis are 1-4 characters
+    }, [messageText]);
+    
     return (
         <>
             <div 
-                className={`message ${isAuthor ? "sent" : "received"}`}
+                className={`message ${isAuthor ? "sent" : "received"} ${isEmojiMessage ? "emoji-message" : ""} ${isSingleEmojiMessage ? "single-emoji" : ""}`}
                 data-id={message.id}
                 onContextMenu={handleContextMenu}
             >
@@ -431,7 +443,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                 )}
 
                 <div className="message-inner">
-                    {!isAuthor && !isDm && (
+                    {!isAuthor && !isDm && !isSingleEmojiMessage && (
                         <div 
                             className="message-username"
                             onClick={handleProfileClick}>
@@ -446,7 +458,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         </Quote>
                     )}
 
-                    <div className="message-content" dangerouslySetInnerHTML={formattedMessage} />
+                    <div className={`message-content ${isEmojiMessage ? "emoji-content" : ""} ${isSingleEmojiMessage ? "single-emoji-content" : ""}`} dangerouslySetInnerHTML={formattedMessage} />
 
                     {message.files && message.files.length > 0 && (
                         <mdui-list className="message-attachments">

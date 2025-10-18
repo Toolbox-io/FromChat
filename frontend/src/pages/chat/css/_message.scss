@@ -20,6 +20,8 @@
 }
 
 .message {
+    $status-indicator-size: 16px;
+
     margin-bottom: 1rem;
     max-width: 70%;
     position: relative;
@@ -171,68 +173,54 @@
             .message-status-indicator {
                 display: flex;
                 align-items: center;
-                width: 16px;
-                height: 16px;
+                width: $status-indicator-size;
+                height: $status-indicator-size;
 
-                .error-icon {
-                    color: #f44336;
-                    font-size: 16px;
-                }
-
-                .success-icon {
-                    color: #4caf50;
-                    font-size: 16px;
+                .error-icon, .success-icon {
+                    font-size: $status-indicator-size;
+                    width: $status-indicator-size;
+                    height: $status-indicator-size;
                 }
 
                 mdui-circular-progress {
-                    width: 16px;
-                    height: 16px;
+                    width: $status-indicator-size;
+                    height: $status-indicator-size;
                 }
             }
         }
     }
 
-    &.received .message-inner {
-        background: $color-dark-surface-container;
-        color: $color-dark-on-surface;
-        border-top-left-radius: 5px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba($color-dark-outline-variant, 0.4);
-        position: relative;
-        overflow: hidden;
-        
-        &::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, rgba($color-dark-primary, 0.05), rgba($color-dark-tertiary, 0.03));
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        > * {
+    &.received {
+        .message-inner {
+            background: $color-dark-surface-container;
+            color: $color-dark-on-surface;
+            border-top-left-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba($color-dark-outline-variant, 0.4);
             position: relative;
-            z-index: 1;
-        }
-    }
-    
-    &.received .message-time {
-        color: $color-dark-on-surface-variant;
-        font-weight: 500;
-        
-        .message-status-indicator {
-            .success-icon {
-                color: $color-dark-on-surface-variant;
-                filter: brightness(1.1);
+            overflow: hidden;
+            
+            &::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, rgba($color-dark-primary, 0.05), rgba($color-dark-tertiary, 0.03));
+                pointer-events: none;
+                z-index: 0;
             }
             
-            .error-icon {
-                color: #ff6b6b;
-                filter: brightness(1.1);
+            > * {
+                position: relative;
+                z-index: 1;
             }
+        }
+        
+        .message-time {
+            color: $color-dark-on-surface-variant;
+            font-weight: 500;
         }
     }
 
@@ -267,25 +255,75 @@
             }
         }
 
-        .message-time {
-            color: $color-dark-on-primary;
-            font-weight: 500;
-            
-            .message-status-indicator {
-                .success-icon {
-                    color: $color-dark-on-primary;
-                    filter: brightness(1.2);
-                }
-                
-                .error-icon {
-                    color: #ff6b6b;
-                    filter: brightness(1.2);
+        &.emoji-message {
+            .message-inner {
+                align-items: flex-end;
+                display: flex;
+                flex-direction: column;
+
+                .message-content {
+                    &.emoji-content {
+                        text-align: right;
+                    }
                 }
             }
         }
+
+        .message-time {
+            color: $color-dark-on-primary;
+            font-weight: 500;
+        }
+    }
+
+    // Emoji message styles
+    &.emoji-message {
+        .message-inner {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            border-radius: 0;
+
+            &::before {
+                display: none;
+            }
+        }
+
+        .message-content {
+            margin: 0;
+            padding: 0;
+            text-align: right;
+
+            &.emoji-content {
+                font-size: 2rem;
+                line-height: 1.2;
+            }
+
+            &.single-emoji-content {
+                font-size: 4rem;
+                line-height: 1;
+                margin-bottom: 8px;
+            }
+        }
+
+        .message-time {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 4px 8px;
+            margin-top: 8px;
+            margin-right: 0;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            user-select: none;
+            width: fit-content;
+        }
     }
 }
-
 
 .message-username {
     &.loading {
