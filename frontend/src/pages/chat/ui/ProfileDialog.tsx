@@ -5,6 +5,7 @@ import type { ProfileDialogData } from "@/pages/chat/state";
 import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm.js";
 import { updateProfile, uploadProfilePicture } from "@/core/api/profileApi";
+import { RichTextArea } from "@/core/components/RichTextArea";
 
 export function ProfileDialog() {
     const { chat, user, closeProfileDialog } = useAppState();
@@ -118,9 +119,8 @@ export function ProfileDialog() {
         setCurrentData({ ...currentData, username: e.target.value });
     };
 
-    const handleBioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleBioChange = (newBio: string) => {
         if (!currentData) return;
-        const newBio = e.target.value;
         setCurrentData({ ...currentData, bio: newBio });
     };
 
@@ -252,16 +252,16 @@ export function ProfileDialog() {
                         {/* Bio */}
                         {currentData.bio !== undefined && (
                             <div className="section bio">
-                                <mdui-icon name="description--filled" />
+                                <mdui-icon name="info--filled" />
                                 <div className="content-container">
                                     <label className="label">О себе:</label>
-                                    <input
-                                        type="text"
-                                        className="value"
-                                        value={currentData.bio || ""}
-                                        onChange={handleBioChange}
-                                        readOnly={!currentData.isOwnProfile}
+                                    <RichTextArea
+                                        text={currentData.bio || ""}
+                                        onTextChange={handleBioChange}
                                         placeholder="Нет информации о себе"
+                                        className="value"
+                                        rows={1}
+                                        readOnly={!currentData.isOwnProfile}
                                     />
                                 </div>
                             </div>

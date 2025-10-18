@@ -10,6 +10,7 @@ interface RichTextAreaProps {
     className?: string;
     rows?: number;
     autoComplete?: string;
+    readOnly?: boolean;
 }
 
 export function RichTextArea({
@@ -21,7 +22,18 @@ export function RichTextArea({
     className,
     rows = 1,
     autoComplete = "off",
+    readOnly = false
 }: RichTextAreaProps) {
+    if (readOnly) {
+        return (
+            <textarea
+                className={`rich-text-area ${className}`}
+                value={text}
+                placeholder={placeholder}
+                readOnly />
+        )
+    }
+
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const hiddenTextareaRef = useRef<HTMLTextAreaElement | null>(null);
     const heightRef = useRef<number | null>(null);
@@ -186,7 +198,7 @@ export function RichTextArea({
                 autoComplete={autoComplete}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
-            />
+                readOnly={readOnly} />
             <textarea
                 aria-hidden
                 readOnly
