@@ -1,3 +1,5 @@
+import "./css/cropper-dialog.scss";
+
 export function CropperDialog() {
     return (
         <mdui-dialog id="cropper-dialog" close-on-overlay-click close-on-esc>

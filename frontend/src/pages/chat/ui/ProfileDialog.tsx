@@ -5,7 +5,6 @@ import type { ProfileDialogData } from "@/pages/chat/state";
 import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm.js";
 import { updateProfile, uploadProfilePicture } from "@/core/api/profileApi";
-import "@/pages/chat/css/profile-dialog.scss";
 
 export function ProfileDialog() {
     const { chat, user, closeProfileDialog } = useAppState();
@@ -119,9 +118,9 @@ export function ProfileDialog() {
         setCurrentData({ ...currentData, username: e.target.value });
     };
 
-    const handleBioChange = (e: React.FormEvent<HTMLDivElement>) => {
+    const handleBioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!currentData) return;
-        const newBio = e.currentTarget.textContent || "";
+        const newBio = e.target.value;
         setCurrentData({ ...currentData, bio: newBio });
     };
 
@@ -205,75 +204,79 @@ export function ProfileDialog() {
             <div ref={dialogRef} className="profile-dialog">
                 <div className="profile-dialog-content">
                     {/* Profile Picture */}
-                    {currentData.profilePicture && (
-                        <div className="profile-picture-section">
-                            <img 
-                                className="profile-picture"
-                                src={currentData.profilePicture}
-                                alt="Profile Picture"
-                                onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = defaultAvatar;
-                                }}
+                    <div className="profile-picture-section">
+                        <img 
+                            className="profile-picture"
+                            src={currentData.profilePicture || defaultAvatar}
+                            alt="Profile Picture"
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = defaultAvatar;
+                            }}
+                        />
+                        {currentData.isOwnProfile && (
+                            <div 
+                                className="profile-picture-edit-overlay"
+                                onClick={handleProfilePictureClick}
+                            >
+                                <mdui-icon name="camera_alt--filled" />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Username */}
+                    {currentData.username && (
+                        <div className="username-section">
+                            <input
+                                className="username-input"
+                                type="text"
+                                value={currentData.username}
+                                onChange={handleUsernameChange}
+                                readOnly={!currentData.isOwnProfile}
+                                placeholder="Имя пользователя"
                             />
-                            {currentData.isOwnProfile && (
-                                <div 
-                                    className="profile-picture-edit-overlay"
-                                    onClick={handleProfilePictureClick}
-                                >
-                                    <mdui-icon name="camera_alt--filled" />
-                                </div>
-                            )}
                         </div>
                     )}
 
-                    <div className="profile-info">
-                        {/* Username */}
-                        {currentData.username && (
-                            <div className="username-section">
-                                <input
-                                    className="username-input"
-                                    type="text"
-                                    value={currentData.username}
-                                    onChange={handleUsernameChange}
-                                    readOnly={!currentData.isOwnProfile}
-                                    placeholder="Имя пользователя"
-                                />
-                            </div>
-                        )}
+                    {/* Online Status */}
+                    {currentData.online !== undefined && (
+                        <div className="online-status-section">
+                            <span className={`online-indicator ${currentData.online ? "" : "offline"}`} />
+                            <span className="status-text">
+                                {currentData.online ? "Онлайн" : "Оффлайн"}
+                            </span>
+                        </div>
+                    )}
 
+                    <div className="profile-sections">
                         {/* Bio */}
                         {currentData.bio !== undefined && (
-                            <div className="bio-section">
-                                <label className="bio-label">О себе:</label>
-                                <div
-                                    className="bio-content"
-                                    contentEditable={currentData.isOwnProfile}
-                                    onInput={handleBioChange}
-                                    suppressContentEditableWarning={true}
-                                >
-                                    {currentData.bio}
+                            <div className="section bio">
+                                <mdui-icon name="description--filled" />
+                                <div className="content-container">
+                                    <label className="label">О себе:</label>
+                                    <input
+                                        type="text"
+                                        className="value"
+                                        value={currentData.bio || ""}
+                                        onChange={handleBioChange}
+                                        readOnly={!currentData.isOwnProfile}
+                                        placeholder="Нет информации о себе"
+                                    />
                                 </div>
                             </div>
                         )}
 
                         {/* Member Since */}
                         {currentData.memberSince && (
-                            <div className="member-since-section">
-                                <span className="member-since-label">Участник с:</span>
-                                <span className="member-since-value">
-                                    {formatDate(currentData.memberSince)}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Online Status */}
-                        {currentData.online !== undefined && (
-                            <div className="online-status-section">
-                                <span className={`online-indicator ${currentData.online ? "" : "offline"}`} />
-                                <span className="status-text">
-                                    {currentData.online ? "Онлайн" : "Оффлайн"}
-                                </span>
+                            <div className="section member-since">
+                                <mdui-icon name="calendar_month--filled" />
+                                <div className="content-container">
+                                    <span className="label">Участник с:</span>
+                                    <span className="value">
+                                        {formatDate(currentData.memberSince)}
+                                    </span>
+                                </div>
                             </div>
                         )}
                     </div>
