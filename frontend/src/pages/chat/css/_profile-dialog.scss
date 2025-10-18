@@ -188,13 +188,11 @@
         bottom: 24px;
         right: 24px;
         z-index: 1002;
-        opacity: 0;
-        transform: scale(0);
-        transition: opacity 0.2s ease, transform 0.2s ease;
+        transform: translateY(100px);
+        transition: transform 0.3s ease;
         
         &.visible {
-            opacity: 1;
-            transform: scale(1);
+            transform: translateY(0);
         }
     }
 }

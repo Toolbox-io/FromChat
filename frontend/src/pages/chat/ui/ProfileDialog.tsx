@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAppState } from "@/pages/chat/state";
 import type { ProfileDialogData } from "@/pages/chat/state";
 import defaultAvatar from "@/images/default-avatar.png";
-import { confirm } from "mdui/functions/confirm.js";
-import { updateProfile, uploadProfilePicture } from "@/core/api/profileApi";
+import { confirm } from "mdui/functions/confirm";
+import { updateProfile, uploadProfilePicture, fetchUserProfile } from "@/core/api/profileApi";
 import { RichTextArea } from "@/core/components/RichTextArea";
 
 export function ProfileDialog() {
@@ -20,9 +20,8 @@ export function ProfileDialog() {
     // Handle dialog open/close based on state
     useEffect(() => {
         if (chat.profileDialog && !isOpen) {
-            setOriginalData(chat.profileDialog);
-            setCurrentData(chat.profileDialog);
-            setIsOpen(true);
+            // Fetch fresh data when opening dialog
+            fetchFreshProfileData(chat.profileDialog);
         } else if (!chat.profileDialog && isOpen) {
             // Start close animation
             if (backdropRef.current && dialogRef.current) {
@@ -38,6 +37,40 @@ export function ProfileDialog() {
             }
         }
     }, [chat.profileDialog, isOpen]);
+
+    const fetchFreshProfileData = async (profileData: ProfileDialogData) => {
+        if (!user.authToken) return;
+
+        try {
+            let freshData = profileData;
+
+            // If it's not the public chat and has a username, fetch fresh data
+            if (profileData.username && profileData.username !== "Общий чат" && profileData.userId) {
+                const userProfile = await fetchUserProfile(user.authToken, profileData.username);
+                if (userProfile) {
+                    freshData = {
+                        userId: userProfile.id,
+                        username: userProfile.username,
+                        profilePicture: userProfile.profile_picture,
+                        bio: userProfile.bio,
+                        memberSince: userProfile.created_at,
+                        online: userProfile.online,
+                        isOwnProfile: profileData.isOwnProfile
+                    };
+                }
+            }
+
+            setOriginalData(freshData);
+            setCurrentData(freshData);
+            setIsOpen(true);
+        } catch (error) {
+            console.error("Failed to fetch fresh profile data:", error);
+            // Fallback to cached data if fetch fails
+            setOriginalData(profileData);
+            setCurrentData(profileData);
+            setIsOpen(true);
+        }
+    };
 
     // Trigger transition after component mounts
     useEffect(() => {
@@ -67,17 +100,24 @@ export function ProfileDialog() {
         }
     }, [isOpen]);
 
-    const hasChanges = () => {
+    const hasChanges = useMemo(() => {
         if (!originalData || !currentData) return false;
+        
+        // Normalize values for comparison (handle empty strings, undefined, null)
+        const normalizeValue = (value: string | undefined | null) => {
+            if (value === null || value === undefined) return "";
+            return value.trim();
+        };
+        
         return (
-            originalData.username !== currentData.username ||
-            originalData.bio !== currentData.bio ||
+            normalizeValue(originalData.username) !== normalizeValue(currentData.username) ||
+            normalizeValue(originalData.bio) !== normalizeValue(currentData.bio) ||
             originalData.profilePicture !== currentData.profilePicture
         );
-    };
+    }, [originalData, currentData]);
 
     const handleClose = async () => {
-        if (hasChanges()) {
+        if (hasChanges) {
             try {
                 await confirm({
                     headline: "Несохраненные изменения",
@@ -283,10 +323,10 @@ export function ProfileDialog() {
                 </div>
 
                 {/* Save FAB */}
-                {currentData.isOwnProfile && hasChanges() && (
+                {currentData.isOwnProfile && (
                     <mdui-fab
                         icon="check"
-                        className={`profile-dialog-fab ${hasChanges() ? "visible" : ""}`}
+                        className={`profile-dialog-fab ${hasChanges ? "visible" : ""}`}
                         onClick={handleSave}
                         disabled={isSaving}
                     />
