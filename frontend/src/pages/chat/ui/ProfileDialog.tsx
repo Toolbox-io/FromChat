@@ -123,8 +123,8 @@ export function ProfileDialog() {
         };
 
         return (
-            normalizeValue(originalData.username) !== normalizeValue(currentData.username) ||
             normalizeValue(originalData.display_name) !== normalizeValue(currentData.display_name) ||
+            normalizeValue(originalData.username) !== normalizeValue(currentData.username) ||
             normalizeValue(originalData.bio) !== normalizeValue(currentData.bio) ||
             originalData.profilePicture !== currentData.profilePicture
         );
@@ -173,6 +173,11 @@ export function ProfileDialog() {
         setCurrentData({ ...currentData, display_name: e.target.value });
     };
 
+    const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!currentData) return;
+        setCurrentData({ ...currentData, username: e.target.value });
+    };
+
     const handleBioChange = (newBio: string) => {
         if (!currentData) return;
         setCurrentData({ ...currentData, bio: newBio });
@@ -208,6 +213,9 @@ export function ProfileDialog() {
             const updateData: any = {};
             if (originalData.display_name !== currentData.display_name) {
                 updateData.display_name = currentData.display_name;
+            }
+            if (originalData.username !== currentData.username) {
+                updateData.username = currentData.username;
             }
             if (originalData.bio !== currentData.bio) {
                 updateData.description = currentData.bio;
@@ -278,18 +286,11 @@ export function ProfileDialog() {
                         )}
                     </div>
 
-                    {/* Username (Handle) */}
-                    {currentData.username && (
-                        <div className="username-section">
-                            <div className="username-label">@{currentData.username}</div>
-                        </div>
-                    )}
-
                     {/* Display Name */}
                     {currentData.display_name && (
-                        <div className="display-name-section">
+                        <div className="username-section">
                             <input
-                                className="display-name-input"
+                                className="username-input"
                                 type="text"
                                 value={currentData.display_name}
                                 onChange={handleDisplayNameChange}
@@ -307,6 +308,24 @@ export function ProfileDialog() {
                     )}
 
                     <div className="profile-sections">
+                        {/* Username (Handle) */}
+                        {currentData.username && (
+                            <div className="section username">
+                                <mdui-icon name="alternate_email--filled" />
+                                <div className="content-container">
+                                    <label className="label">Имя пользователя:</label>
+                                    <input
+                                        className="value username-input"
+                                        type="text"
+                                        value={currentData.username}
+                                        onChange={handleUsernameChange}
+                                        readOnly={!currentData.isOwnProfile}
+                                        placeholder="@username"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Bio */}
                         {currentData.bio !== undefined && (
                             <div className="section bio">
