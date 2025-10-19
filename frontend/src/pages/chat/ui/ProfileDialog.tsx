@@ -6,6 +6,8 @@ import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm";
 import { updateProfile, uploadProfilePicture, fetchUserProfile } from "@/core/api/profileApi";
 import { RichTextArea } from "@/core/components/RichTextArea";
+import { onlineStatusManager } from "@/core/onlineStatusManager";
+import { OnlineStatus } from "./right/OnlineStatus";
 
 export function ProfileDialog() {
     const { chat, user, closeProfileDialog } = useAppState();
@@ -27,7 +29,7 @@ export function ProfileDialog() {
             if (backdropRef.current && dialogRef.current) {
                 backdropRef.current.classList.remove('open');
                 dialogRef.current.classList.remove('open');
-                
+
                 // Wait for animation to complete before closing
                 setTimeout(() => {
                     setIsOpen(false);
@@ -100,15 +102,30 @@ export function ProfileDialog() {
         }
     }, [isOpen]);
 
+    // Subscribe to user's online status when dialog opens
+    useEffect(() => {
+        if (isOpen && currentData?.userId && !currentData.isOwnProfile) {
+            // Subscribe to the user's status
+            onlineStatusManager.subscribe(currentData.userId);
+
+            // Cleanup function to unsubscribe when dialog closes
+            return () => {
+                if (currentData.userId) {
+                    onlineStatusManager.unsubscribe(currentData.userId);
+                }
+            };
+        }
+    }, [isOpen, currentData?.userId, currentData?.isOwnProfile]);
+
     const hasChanges = useMemo(() => {
         if (!originalData || !currentData) return false;
-        
+
         // Normalize values for comparison (handle empty strings, undefined, null)
         const normalizeValue = (value: string | undefined | null) => {
             if (value === null || value === undefined) return "";
             return value.trim();
         };
-        
+
         return (
             normalizeValue(originalData.username) !== normalizeValue(currentData.username) ||
             normalizeValue(originalData.bio) !== normalizeValue(currentData.bio) ||
@@ -138,7 +155,7 @@ export function ProfileDialog() {
         if (backdropRef.current && dialogRef.current) {
             backdropRef.current.classList.remove('open');
             dialogRef.current.classList.remove('open');
-            
+
             // Wait for animation to complete before closing
             setTimeout(() => {
                 closeProfileDialog();
@@ -215,7 +232,7 @@ export function ProfileDialog() {
 
             // Update the original data to match current data
             setOriginalData(currentData);
-            
+
             // Close dialog with animation after successful save
             triggerCloseAnimation();
         } catch (error) {
@@ -236,7 +253,7 @@ export function ProfileDialog() {
     if (!isOpen || !currentData) return null;
 
     return createPortal(
-        <div 
+        <div
             ref={backdropRef}
             className="profile-dialog-backdrop"
             onClick={handleBackdropClick}
@@ -245,7 +262,7 @@ export function ProfileDialog() {
                 <div className="profile-dialog-content">
                     {/* Profile Picture */}
                     <div className="profile-picture-section">
-                        <img 
+                        <img
                             className="profile-picture"
                             src={currentData.profilePicture || defaultAvatar}
                             alt="Profile Picture"
@@ -255,7 +272,7 @@ export function ProfileDialog() {
                             }}
                         />
                         {currentData.isOwnProfile && (
-                            <div 
+                            <div
                                 className="profile-picture-edit-overlay"
                                 onClick={handleProfilePictureClick}
                             >
@@ -279,12 +296,9 @@ export function ProfileDialog() {
                     )}
 
                     {/* Online Status */}
-                    {currentData.online !== undefined && (
+                    {currentData?.userId && (
                         <div className="online-status-section">
-                            <span className={`online-indicator ${currentData.online ? "" : "offline"}`} />
-                            <span className="status-text">
-                                {currentData.online ? "Онлайн" : "Оффлайн"}
-                            </span>
+                            <OnlineStatus userId={currentData.userId} />
                         </div>
                     )}
 

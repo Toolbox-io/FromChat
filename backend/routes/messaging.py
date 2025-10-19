@@ -4,6 +4,8 @@ from pathlib import Path
 import os
 import re
 import uuid
+import asyncio
+import time
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials
@@ -48,7 +50,7 @@ def convert_message(msg: Message) -> dict:
                 "id": reaction.user_id,
                 "username": reaction.user.username
             })
-    
+
     return {
         "id": msg.id,
         "content": msg.content,
@@ -88,7 +90,7 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
                 "id": reaction.user_id,
                 "username": reaction.user.username
             })
-    
+
     return {
         "id": envelope.id,
         "senderId": envelope.sender_id,
@@ -455,15 +457,15 @@ async def get_dm_conversations(current_user: User = Depends(get_current_user), d
     conversations_query = db.query(DMEnvelope).filter(
         (DMEnvelope.sender_id == current_user.id) | (DMEnvelope.recipient_id == current_user.id)
     ).order_by(DMEnvelope.timestamp.desc())
-    
+
     # Group by the "other user" (not current user) and get latest message
     conversations = {}
     for envelope in conversations_query:
         other_user_id = envelope.recipient_id if envelope.sender_id == current_user.id else envelope.sender_id
-        
+
         if other_user_id not in conversations:
             conversations[other_user_id] = envelope
-    
+
     # Get user info for each conversation
     result = []
     for other_user_id, latest_message in conversations.items():
@@ -475,16 +477,16 @@ async def get_dm_conversations(current_user: User = Depends(get_current_user), d
                 DMEnvelope.recipient_id == current_user.id,
                 DMEnvelope.id > getattr(latest_message, 'last_read_id', 0)  # This would need to be stored somewhere
             ).count()
-            
+
             result.append({
                 "user": convert_user(other_user),
                 "lastMessage": convert_dm_envelope(latest_message),
                 "unreadCount": unread_count
             })
-    
+
     # Sort by latest message timestamp
     result.sort(key=lambda x: x["lastMessage"]["timestamp"], reverse=True)
-    
+
     return {
         "status": "success",
         "conversations": result
@@ -499,22 +501,19 @@ async def edit_message(
     db: Session = Depends(get_db)
 ):
     message = db.query(Message).filter(Message.id == message_id).first()
-    
+
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    
     if message.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own messages")
-    
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="Message content cannot be empty")
-    
     message.content = request.content.strip()
     message.is_edited = True
-    
+
     db.commit()
     db.refresh(message)
-    
+
     return {"status": "success", "message": convert_message(message)}
 
 
@@ -525,17 +524,17 @@ async def delete_message(
     db: Session = Depends(get_db)
 ):
     message = db.query(Message).filter(Message.id == message_id).first()
-    
+
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    
+
     # Allow owner to delete any message
     if current_user.username != OWNER_USERNAME and message.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only delete your own messages")
-    
+
     db.delete(message)
     db.commit()
-    
+
     return {"status": "success", "message_id": message_id}
 
 
@@ -549,14 +548,14 @@ async def add_reaction(
     message = db.query(Message).filter(Message.id == request.message_id).first()
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    
+
     # Check if reaction already exists
     existing_reaction = db.query(Reaction).filter(
         Reaction.message_id == request.message_id,
         Reaction.user_id == current_user.id,
         Reaction.emoji == request.emoji
     ).first()
-    
+
     if existing_reaction:
         # Remove existing reaction (toggle off)
         db.delete(existing_reaction)
@@ -570,12 +569,12 @@ async def add_reaction(
         )
         db.add(new_reaction)
         action = "added"
-    
+
     db.commit()
-    
+
     # Refresh message to get updated reactions
     db.refresh(message)
-    
+
     # Broadcast reaction update
     try:
         from .messaging import messagingManager
@@ -592,7 +591,7 @@ async def add_reaction(
         })
     except Exception:
         pass
-    
+
     return {"status": "success", "action": action, "reactions": convert_message(message)["reactions"]}
 
 
@@ -606,18 +605,18 @@ async def add_dm_reaction(
     envelope = db.query(DMEnvelope).filter(DMEnvelope.id == request.dm_envelope_id).first()
     if not envelope:
         raise HTTPException(status_code=404, detail="DM envelope not found")
-    
+
     # Check if user is part of this DM conversation
     if current_user.id not in [envelope.sender_id, envelope.recipient_id]:
         raise HTTPException(status_code=403, detail="Not authorized to react to this message")
-    
+
     # Check if reaction already exists
     existing_reaction = db.query(DMReaction).filter(
         DMReaction.dm_envelope_id == request.dm_envelope_id,
         DMReaction.user_id == current_user.id,
         DMReaction.emoji == request.emoji
     ).first()
-    
+
     if existing_reaction:
         # Remove existing reaction (toggle off)
         db.delete(existing_reaction)
@@ -631,15 +630,14 @@ async def add_dm_reaction(
         )
         db.add(new_reaction)
         action = "added"
-    
+
     db.commit()
-    
+
     # Refresh envelope to get updated reactions
     db.refresh(envelope)
-    
+
     # Broadcast reaction update to both participants
     try:
-        from .messaging import messagingManager
         await messagingManager.broadcast({
             "type": "dmReactionUpdate",
             "data": {
@@ -653,7 +651,7 @@ async def add_dm_reaction(
         })
     except Exception:
         pass
-    
+
     return {"status": "success", "action": action, "reactions": convert_dm_envelope(envelope)["reactions"]}
 
 
@@ -661,11 +659,19 @@ class MessaggingSocketManager:
     def __init__(self) -> None:
         self.connections: list[WebSocket] = []
         self.user_by_ws: dict[WebSocket, int] = {}
+        self.online_users: set[int] = set()
+        self.typing_users: dict[int, float] = {}  # user_id -> timestamp
+        self.dm_typing_users: dict[int, dict[int, float]] = {}  # user_id -> {recipient_id -> timestamp}
+        self.ws_subscriptions: dict[WebSocket, set[int]] = {}  # websocket -> set of subscribed user_ids
+        self._cleanup_task = None
 
     async def send_error(self, websocket: WebSocket, type: str, e: HTTPException):
         await websocket.send_json({"type": type, "error": {"code": e.status_code, "detail": e.detail}})
 
     async def handle_connection(self, websocket: WebSocket, db: Session):
+        # Initialize subscriptions for this connection
+        self.ws_subscriptions[websocket] = set()
+
         while True:
             data = await websocket.receive_json()
             type = data["type"]
@@ -674,9 +680,9 @@ class MessaggingSocketManager:
                 if data["credentials"]:
                     return get_current_user(
                         HTTPAuthorizationCredentials(
-                            scheme=data["credentials"]["scheme"], 
+                            scheme=data["credentials"]["scheme"],
                             credentials=data["credentials"]["credentials"]
-                        ), 
+                        ),
                         db
                     )
                 else:
@@ -687,22 +693,30 @@ class MessaggingSocketManager:
                     current_user = get_current_user_inner()
                     if current_user:
                         self.user_by_ws[websocket] = current_user.id
+                        # Set user online in DB
+                        current_user.online = True
+                        current_user.last_seen = datetime.now()
+                        db.commit()
+                        # Add to online users
+                        self.online_users.add(current_user.id)
+                        # Broadcast status change
+                        await self.broadcast_status_change(current_user.id, True, current_user.last_seen.isoformat())
                     else:
                         await websocket.send_json({
-                            "type": "ping", 
+                            "type": "ping",
                             "data": {
-                                "status": "error", 
+                                "status": "error",
                                 "error": {
-                                    "detail": "Failed to authorize", 
+                                    "detail": "Failed to authorize",
                                     "code": 401
                                 }
                             }
                         })
                 except HTTPException:
                     await websocket.send_json({
-                        "type": "ping", 
+                        "type": "ping",
                         "data": {
-                            "status": "error", 
+                            "status": "error",
                             "error": {
                                 "detail": "Failed to authorize",
                                 "code": 401
@@ -726,7 +740,7 @@ class MessaggingSocketManager:
                     if not current_user:
                         raise HTTPException(401)
                     self.user_by_ws[websocket] = current_user.id
-                    
+
                     request: SendMessageRequest = SendMessageRequest.model_validate(data["data"])
 
                     response = await send_message(request, current_user, db, None, [])
@@ -795,7 +809,7 @@ class MessaggingSocketManager:
                     current_user = get_current_user_inner()
                     if not current_user:
                         raise HTTPException(401)
-                    
+
                     message_id = data["data"]["message_id"]
                     request: EditMessageRequest = EditMessageRequest.model_validate(data["data"])
 
@@ -885,7 +899,7 @@ class MessaggingSocketManager:
                     current_user = get_current_user_inner()
                     if not current_user:
                         raise HTTPException(401)
-                    
+
                     message_id = data["data"]["message_id"]
                     response = await delete_message(message_id, current_user, db)
                     await self.broadcast({
@@ -901,15 +915,15 @@ class MessaggingSocketManager:
                     current_user = get_current_user_inner()
                     if not current_user:
                         raise HTTPException(401)
-                    
+
                     request_data = data["data"]
                     reaction_request = ReactionRequest(
                         message_id=request_data["message_id"],
                         emoji=request_data["emoji"]
                     )
-                    
+
                     response = await add_reaction(reaction_request, current_user, db)
-                    
+
                     # Broadcast reaction update
                     await self.broadcast({
                         "type": "reactionUpdate",
@@ -931,15 +945,15 @@ class MessaggingSocketManager:
                     current_user = get_current_user_inner()
                     if not current_user:
                         raise HTTPException(401)
-                    
+
                     request_data = data["data"]
                     reaction_request = DMReactionRequest(
                         dm_envelope_id=request_data["dm_envelope_id"],
                         emoji=request_data["emoji"]
                     )
-                    
+
                     response = await add_dm_reaction(reaction_request, current_user, db)
-                    
+
                     # Broadcast reaction update
                     await self.broadcast({
                         "type": "dmReactionUpdate",
@@ -1040,15 +1054,144 @@ class MessaggingSocketManager:
                     await websocket.send_json({"type": "call_screen_share_toggle", "data": {"status": "ok"}})
                 except HTTPException as e:
                     await self.send_error(websocket, type, e)
+            elif type == "subscribeStatus":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+
+                    user_id_to_subscribe = int(data["data"]["userId"])
+                    self.ws_subscriptions[websocket].add(user_id_to_subscribe)
+
+                    # Get current status of the user
+                    target_user = db.query(User).filter(User.id == user_id_to_subscribe).first()
+                    if target_user:
+                        await websocket.send_json({
+                            "type": "statusUpdate",
+                            "data": {
+                                "userId": user_id_to_subscribe,
+                                "online": target_user.online,
+                                "lastSeen": target_user.last_seen.isoformat()
+                            }
+                        })
+                    else:
+                        await websocket.send_json({
+                            "type": "subscribeStatus",
+                            "data": {"status": "error", "error": "User not found"}
+                        })
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "unsubscribeStatus":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+
+                    user_id_to_unsubscribe = int(data["data"]["userId"])
+                    self.ws_subscriptions[websocket].discard(user_id_to_unsubscribe)
+
+                    await websocket.send_json({"type": "unsubscribeStatus", "data": {"status": "ok"}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "typing":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+
+                    self.typing_users[current_user.id] = time.time()
+
+                    # Broadcast to all connected users
+                    await self.broadcast({
+                        "type": "typing",
+                        "data": {
+                            "userId": current_user.id,
+                            "username": current_user.username
+                        }
+                    })
+
+                    await websocket.send_json({"type": "typing", "data": {"status": "ok"}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "stopTyping":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+
+                    if current_user.id in self.typing_users:
+                        del self.typing_users[current_user.id]
+
+                    # Broadcast to all connected users
+                    await self.broadcast({
+                        "type": "stopTyping",
+                        "data": {
+                            "userId": current_user.id,
+                            "username": current_user.username
+                        }
+                    })
+
+                    await websocket.send_json({"type": "stopTyping", "data": {"status": "ok"}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "dmTyping":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+
+                    recipient_id = int(data["data"]["recipientId"])
+
+                    if current_user.id not in self.dm_typing_users:
+                        self.dm_typing_users[current_user.id] = {}
+                    self.dm_typing_users[current_user.id][recipient_id] = time.time()
+
+                    # Send only to recipient
+                    await self.send_to_user(recipient_id, {
+                        "type": "dmTyping",
+                        "data": {
+                            "userId": current_user.id,
+                            "username": current_user.username
+                        }
+                    })
+
+                    await websocket.send_json({"type": "dmTyping", "data": {"status": "ok"}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
+            elif type == "stopDmTyping":
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+
+                    recipient_id = int(data["data"]["recipientId"])
+
+                    if current_user.id in self.dm_typing_users and recipient_id in self.dm_typing_users[current_user.id]:
+                        del self.dm_typing_users[current_user.id][recipient_id]
+                        if not self.dm_typing_users[current_user.id]:
+                            del self.dm_typing_users[current_user.id]
+
+                    # Send only to recipient
+                    await self.send_to_user(recipient_id, {
+                        "type": "stopDmTyping",
+                        "data": {
+                            "userId": current_user.id,
+                            "username": current_user.username
+                        }
+                    })
+
+                    await websocket.send_json({"type": "stopDmTyping", "data": {"status": "ok"}})
+                except HTTPException as e:
+                    await self.send_error(websocket, type, e)
             else:
                 await websocket.send_json({"type": type, "error": {"code": 400, "detail": "Invalid type"}})
 
     async def disconnect(self, websocket: WebSocket, code: int = 1000, message: str | None = None):
         try:
             await websocket.close(code=code, reason=message)
-        finally: 
+        finally:
             self.connections.remove(websocket)
-    
+
     async def connect(self, websocket: WebSocket, db: Session):
         await websocket.accept()
         self.connections.append(websocket)
@@ -1057,9 +1200,24 @@ class MessaggingSocketManager:
         except WebSocketDisconnect as e:
             logger.info(f"WebSocket disconnected with code {e.code}: {e.reason}")
         finally:
+            # Cleanup connection
             self.connections.remove(websocket)
             if websocket in self.user_by_ws:
+                user_id = self.user_by_ws[websocket]
+                # Set user offline in DB
+                user = db.query(User).filter(User.id == user_id).first()
+                if user:
+                    user.online = False
+                    user.last_seen = datetime.now()
+                    db.commit()
+                    # Remove from online users
+                    self.online_users.discard(user_id)
+                    # Broadcast status change
+                    await self.broadcast_status_change(user_id, False, user.last_seen.isoformat())
                 del self.user_by_ws[websocket]
+            # Cleanup subscriptions
+            if websocket in self.ws_subscriptions:
+                del self.ws_subscriptions[websocket]
 
     async def broadcast(self, message: dict):
         for websocket in self.connections:
@@ -1070,7 +1228,81 @@ class MessaggingSocketManager:
             if self.user_by_ws.get(websocket) == user_id:
                 await websocket.send_json(message)
 
+    async def broadcast_status_change(self, user_id: int, online: bool, last_seen: str):
+        """Broadcast status change to all connections that are subscribed to this user"""
+        message = {
+            "type": "statusUpdate",
+            "data": {
+                "userId": user_id,
+                "online": online,
+                "lastSeen": last_seen
+            }
+        }
+
+        # Send to all connections that have this user in their subscriptions
+        for websocket in self.connections:
+            if websocket in self.ws_subscriptions and user_id in self.ws_subscriptions[websocket]:
+                await websocket.send_json(message)
+
+    async def cleanup_stale_typing_indicators(self):
+        """Periodically cleanup typing indicators that haven't been updated in 3+ seconds"""
+        while True:
+            try:
+                current_time = time.time()
+                stale_threshold = 3.0  # 3 seconds
+
+                # Cleanup public chat typing indicators
+                stale_public_typing = [
+                    user_id for user_id, timestamp in self.typing_users.items()
+                    if current_time - timestamp > stale_threshold
+                ]
+
+                for user_id in stale_public_typing:
+                    del self.typing_users[user_id]
+                    # Broadcast stop typing
+                    await self.broadcast({
+                        "type": "stopTyping",
+                        "data": {
+                            "userId": user_id,
+                            "username": "Unknown"  # We don't have username here, frontend will handle
+                        }
+                    })
+
+                # Cleanup DM typing indicators
+                stale_dm_typing = []
+                for user_id, recipients in self.dm_typing_users.items():
+                    for recipient_id, timestamp in list(recipients.items()):
+                        if current_time - timestamp > stale_threshold:
+                            stale_dm_typing.append((user_id, recipient_id))
+
+                for user_id, recipient_id in stale_dm_typing:
+                    if user_id in self.dm_typing_users and recipient_id in self.dm_typing_users[user_id]:
+                        del self.dm_typing_users[user_id][recipient_id]
+                        if not self.dm_typing_users[user_id]:
+                            del self.dm_typing_users[user_id]
+                        # Send stop typing to recipient
+                        await self.send_to_user(recipient_id, {
+                            "type": "stopDmTyping",
+                            "data": {
+                                "userId": user_id,
+                                "username": "Unknown"  # We don't have username here, frontend will handle
+                            }
+                        })
+
+                # Wait 1 second before next cleanup
+                await asyncio.sleep(1.0)
+            except Exception as e:
+                logger.error(f"Error in typing cleanup task: {e}")
+                await asyncio.sleep(1.0)
+
+    def start_cleanup_task(self):
+        """Start the cleanup task if not already running"""
+        if self._cleanup_task is None or self._cleanup_task.done():
+            self._cleanup_task = asyncio.create_task(self.cleanup_stale_typing_indicators())
+
 messagingManager = MessaggingSocketManager()
+# Start the cleanup task
+messagingManager.start_cleanup_task()
 
 @router.websocket("/chat/ws")
 async def chat_websocket(

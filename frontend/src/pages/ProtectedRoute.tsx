@@ -9,13 +9,13 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     const { user } = useAppState();
     const navigate = useNavigate();
-    
+
     useEffect(() => {
         if (!user.authToken) {
             navigate("/login");
             return;
         }
     }, [user.authToken, user.currentUser, navigate]);
-    
+
     return <>{children}</>;
 }

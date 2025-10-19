@@ -33,7 +33,7 @@ self.addEventListener("push", function(event: ExtendableEvent) {
     const pushEvent = event as PushEvent;
     if (pushEvent.data) {
         const data: NotificationPayload = pushEvent.data.json();
-        
+
         const options: NotificationOptions = {
             body: data.body,
             icon: data.icon || "/logo.png",

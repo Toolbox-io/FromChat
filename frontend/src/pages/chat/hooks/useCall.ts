@@ -14,21 +14,21 @@ let globalLocalScreenShareRef = createRef<HTMLVideoElement>();
 let globalRemoteScreenShareRef = createRef<HTMLVideoElement>();
 
 export default function useCall() {
-    const { 
-        chat, 
-        startCall, 
-        endCall, 
+    const {
+        chat,
+        startCall,
+        endCall,
         setCallStatus,
-        toggleMute, 
-        toggleVideo, 
+        toggleMute,
+        toggleVideo,
         toggleScreenShare,
         setCallEncryption,
-        setCallSessionKeyHash, 
+        setCallSessionKeyHash,
         setRemoteVideoEnabled,
         setRemoteScreenSharing,
-        user 
+        user
     } = useAppState();
-    
+
     const remoteAudioRef = globalRemoteAudioRef;
     const localVideoRef = globalLocalVideoRef;
     const remoteVideoRef = globalRemoteVideoRef;
@@ -37,12 +37,12 @@ export default function useCall() {
 
     useEffect(() => {
         // Initialize call signaling handler
-        const signalingHandler = new CallSignalingHandler(() => ({ 
+        const signalingHandler = new CallSignalingHandler(() => ({
             receiveCall: (userId: number, username: string) => {
                 // Use the receiveCall function from state
                 const state = useAppState.getState();
                 state.receiveCall(userId, username);
-            }, 
+            },
             endCall,
             setCallSessionKeyHash,
             setRemoteVideoEnabled,
@@ -195,11 +195,11 @@ export default function useCall() {
 
     async function requestAudioPermissions(): Promise<boolean> {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
+            const stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
-                video: false 
+                video: false
             });
-            
+
             // Stop the stream immediately as we just needed permission
             stream.getTracks().forEach(track => track.stop());
             return true;
@@ -211,7 +211,7 @@ export default function useCall() {
 
     async function initiateCall(userId: number, username: string) {
         const hasPermission = await requestAudioPermissions();
-        
+
         if (!hasPermission) {
             return;
         }
@@ -221,7 +221,7 @@ export default function useCall() {
             // Generate call session key and emojis
             sessionKey = await generateCallSessionKey();
             const emojis = generateCallEmojis(sessionKey.hash);
-            
+
             // Start the call in state
             startCall(userId, username);
             setCallStatus("calling");
@@ -234,11 +234,11 @@ export default function useCall() {
 
         // Initiate WebRTC call
         const success = await WebRTC.initiateCall(userId, username);
-        
+
         if (success && sessionKey) {
             // Set the session key for ourselves (initiator)
             await WebRTC.setSessionKey(userId, sessionKey.key);
-            
+
             // Send session key hash to the receiver for visual verification
             await WebRTC.sendCallSessionKey(userId, sessionKey.hash);
             // Also wrap and send the actual session key for E2EE media
@@ -255,7 +255,7 @@ export default function useCall() {
 
         setCallStatus("connecting");
         const success = await WebRTC.acceptCall(chat.call.remoteUserId);
-        
+
         if (!success) {
             endCall();
         }

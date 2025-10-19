@@ -70,7 +70,7 @@ export class PublicChatPanel extends MessagePanel {
             if (files.length === 0) {
                 const response = await request({
                     data: {
-                        content: content.trim(), 
+                        content: content.trim(),
                         reply_to_id: replyToId ?? null
                     },
                     credentials: {
@@ -86,7 +86,7 @@ export class PublicChatPanel extends MessagePanel {
                 const form = new FormData();
                 form.append("payload", JSON.stringify({
                     content: content.trim(),
-                    reply_to_id: replyToId ?? null 
+                    reply_to_id: replyToId ?? null
                 } satisfies SendMessageRequest["data"]));
                 for (const f of files) form.append("files", f, f.name);
                 const res = await fetch(`${API_BASE_URL}/send_message`, {
@@ -119,7 +119,7 @@ export class PublicChatPanel extends MessagePanel {
             case 'newMessage':
                 if (response.data) {
                     const newMsg = response.data;
-                    
+
                     // Check if this is a confirmation of a message we sent
                     const isOurMessage = newMsg.username === this.currentUser.currentUser?.username;
                     if (isOurMessage) {
@@ -132,7 +132,7 @@ export class PublicChatPanel extends MessagePanel {
                             }
                         }
                     }
-                    
+
                     this.addMessage(newMsg);
                 }
                 break;
@@ -185,18 +185,18 @@ export class PublicChatPanel extends MessagePanel {
     async handleDeleteMessage(id: number): Promise<void> {
         // Remove message immediately from UI
         this.deleteMessageImmediately(id);
-        
+
         // Fire and forget server deletion; UI already updated
         await request({
             type: "deleteMessage",
             data: { message_id: id },
-            credentials: { 
-                scheme: "Bearer", 
-                credentials: this.currentUser.authToken! 
+            credentials: {
+                scheme: "Bearer",
+                credentials: this.currentUser.authToken!
             }
         });
     }
-    
+
     async getProfile(): Promise<ProfileDialogData | null> {
         return {
             username: "Общий чат",

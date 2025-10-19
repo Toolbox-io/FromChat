@@ -26,21 +26,21 @@
     font-size: 1px;
     min-height: 28px;
     animation: reactionFadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    
+
     &.removing {
         animation: reactionFadeOut 0.2s ease forwards;
     }
-    
+
     &:hover {
         background-color: $color-dark-surface-container-high;
         transform: scale(1.05);
     }
-    
+
     &.reacted {
         background-color: $color-dark-primary-container;
         border-color: $color-dark-primary;
         color: $color-dark-on-primary-container;
-        
+
         &:hover {
             background-color: color.adjust($color-dark-primary-container, $lightness: 20%);
         }

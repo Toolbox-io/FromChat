@@ -8,11 +8,11 @@ import { id } from "@/utils/utils";
 export function CallWindow() {
     const { chat, toggleCallMinimize, user } = useAppState();
     const { call } = chat;
-    const { 
-        acceptCall, 
-        rejectCall, 
-        remoteAudioRef, 
-        endCall, 
+    const {
+        acceptCall,
+        rejectCall,
+        remoteAudioRef,
+        endCall,
         toggleMute,
         toggleVideo,
         toggleScreenShare,
@@ -42,7 +42,7 @@ export function CallWindow() {
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        
+
         if (call.status === "active" && call.startTime) {
             interval = setInterval(() => {
                 setCallDuration(Math.floor((Date.now() - call.startTime!) / 1000));
@@ -185,7 +185,7 @@ export function CallWindow() {
                     autoPlay
                     playsInline
                     controls />
-                
+
                 {shouldRender && (
                     <div
                         className={`call-window ${(call.isActive ? call.isMinimized : wasMinimized) ? "minimized" : "maximized"} ${isDragging ? "dragging" : ""} ${getGradientClass()} ${isVisible ? "visible" : "hidden"}`}
@@ -209,13 +209,13 @@ export function CallWindow() {
                     >
                         <div className="call-header">
                             <div className="window-controls">
-                                <mdui-button-icon 
-                                    onClick={toggleCallMinimize} 
-                                    icon={call.isMinimized ? "open_in_full" : "close_fullscreen"} 
-                                    className="window-control-btn" 
+                                <mdui-button-icon
+                                    onClick={toggleCallMinimize}
+                                    icon={call.isMinimized ? "open_in_full" : "close_fullscreen"}
+                                    className="window-control-btn"
                                 />
                             </div>
-                            
+
                             <div className="call-header-info">
                                 <h3 className="username">{remoteUsername}</h3>
                                 <p className="status">{getStatusText()}</p>
@@ -235,7 +235,7 @@ export function CallWindow() {
                             {/* Main screen share area - takes most space when active */}
                             <div className="screen-share-area">
                                 {/* Local screen share */}
-                                <div 
+                                <div
                                     className="video-tile screen-share-tile local-screen-share"
                                     style={{ display: call.isSharingScreen ? "flex" : "none" }}>
                                     <video
@@ -246,9 +246,9 @@ export function CallWindow() {
                                         muted />
                                     <div className="tile-label">Your Screen</div>
                                 </div>
-                                
+
                                 {/* Remote screen share */}
-                                <div 
+                                <div
                                     className="video-tile screen-share-tile remote-screen-share"
                                     style={{ display: call.isRemoteScreenSharing ? "flex" : "none" }}>
                                     <video

@@ -111,7 +111,7 @@
         .product-name {
             flex-grow: 1;
         }
-    
+
         .profile {
             font-size: 24px;
             display: flex;
@@ -125,7 +125,7 @@
                 border: solid 2px $color-dark-on-surface-variant;
                 padding: 5px;
                 border-radius: 10px;
-                
+
                 &:hover {
                     background-color: rgba(255, 255, 255, 0.241);
                 }
@@ -156,7 +156,6 @@
             height: 45px;
             border-radius: 20%;
             object-fit: cover;
-            margin-right: 1rem;
         }
 
         mdui-tabs {
@@ -210,18 +209,18 @@
         background-clip: text;
         text-shadow: 0 0 20px rgba($color-dark-primary, 0.5);
     }
-    
+
     .profile {
         a {
             display: flex;
             align-items: center;
             text-decoration: none;
             transition: transform 0.3s ease;
-            
+
             &:hover {
                 transform: scale(1.05);
             }
-            
+
             img {
                 width: 40px;
                 height: 40px;
@@ -230,7 +229,7 @@
                 border: 2px solid rgba($color-dark-primary, 0.4);
                 box-shadow: 0 0 15px rgba($color-dark-primary, 0.3);
                 transition: all 0.3s ease;
-                
+
                 &:hover {
                     box-shadow: 0 0 25px rgba($color-dark-primary, 0.5);
                     border-color: rgba($color-dark-primary, 0.6);

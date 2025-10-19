@@ -40,7 +40,7 @@
                     flex: 1;
                     overflow-y: auto;
                     position: relative;
-                    
+
                     .settings-panel {
                         display: flex;
                         flex-direction: column;
@@ -53,43 +53,43 @@
                         top: 0;
                         left: 0;
                         width: 100%;
-                        
+
                         &.active {
                             opacity: 1;
                             visibility: visible;
                             transform: translateY(0);
                             position: relative;
                         }
-                        
+
                         h3 {
                             margin: 0 0 16px 0;
                             color: $color-dark-on-surface;
                         }
-                        
+
                         mdui-text-field,
                         mdui-select,
                         mdui-switch,
                         mdui-button {
                             margin-bottom: 8px;
                         }
-                        
+
                         mdui-switch {
                             display: flex;
                             align-items: center;
                             justify-content: space-between;
                             padding: 12px 0;
                             border-bottom: 1px solid $color-dark-outline;
-                            
+
                             &:last-child {
                                 border-bottom: none;
                             }
                         }
-                        
+
                         p {
                             margin: 8px 0;
                             color: $color-dark-on-surface-variant;
                         }
-                        
+
                         mdui-linear-progress {
                             margin: 16px 0;
                         }

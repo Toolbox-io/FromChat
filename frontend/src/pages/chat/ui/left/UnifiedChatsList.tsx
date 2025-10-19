@@ -6,6 +6,8 @@ import { getAuthHeaders } from "@/core/api/authApi";
 import { fetchUserPublicKey } from "@/core/api/dmApi";
 import type { Message } from "@/core/types";
 import { websocket } from "@/core/websocket";
+import { onlineStatusManager } from "@/core/onlineStatusManager";
+import { OnlineIndicator } from "../right/OnlineIndicator";
 import defaultAvatar from "@/images/default-avatar.png";
 
 interface PublicChat {
@@ -31,7 +33,7 @@ type ChatItem = PublicChat | DMConversation;
 export function UnifiedChatsList() {
     const { user, switchToPublicChat, switchToDM, chat } = useAppState();
     const { dmUsers, isLoadingUsers, loadUsers } = useDM();
-    
+
     const [publicChats] = useState<PublicChat[]>([
         { id: "general", name: "Общий чат", type: "public" },
         { id: "general2", name: "Общий чат 2", type: "public" }
@@ -52,7 +54,7 @@ export function UnifiedChatsList() {
                 const data = await response.json();
                 if (data.messages && data.messages.length > 0) {
                     const lastMessage = data.messages[data.messages.length - 1];
-                    
+
                     setLastMessages({
                         general: lastMessage,
                         general2: lastMessage
@@ -102,7 +104,7 @@ export function UnifiedChatsList() {
         const handleWebSocketMessage = (e: MessageEvent) => {
             try {
                 const msg = JSON.parse(e.data);
-                
+
                 if (msg.type === "newMessage") {
                     const newMessage = msg.data as Message;
                     // Update all public chats with the new message
@@ -128,7 +130,7 @@ export function UnifiedChatsList() {
                 } else if (msg.type === "messageDeleted") {
                     const deletedMessageId = msg.data?.message_id;
                     let needsReload = false;
-                    
+
                     setLastMessages(prev => {
                         const updated = { ...prev };
                         publicChats.forEach(chat => {
@@ -139,7 +141,7 @@ export function UnifiedChatsList() {
                         });
                         return updated;
                     });
-                    
+
                     if (needsReload) {
                         loadLastMessages();
                     }
@@ -153,6 +155,23 @@ export function UnifiedChatsList() {
         return () => websocket.removeEventListener("message", handleWebSocketMessage);
     }, [publicChats, loadLastMessages]);
 
+    // Subscribe to online status for all DM users
+    useEffect(() => {
+        const dmUsers = allChats.filter(chat => chat.type === "dm") as DMConversation[];
+
+        // Subscribe to all DM users
+        dmUsers.forEach(dmUser => {
+            onlineStatusManager.subscribe(dmUser.id);
+        });
+
+        // Cleanup function to unsubscribe from all users
+        return () => {
+            dmUsers.forEach(dmUser => {
+                onlineStatusManager.unsubscribe(dmUser.id);
+            });
+        };
+    }, [allChats]);
+
     const formatPublicChatMessage = (chatId: string): string => {
         const lastMessage = lastMessages[chatId];
         if (!lastMessage) {
@@ -161,12 +180,12 @@ export function UnifiedChatsList() {
 
         const isCurrentUser = lastMessage.username === user.currentUser?.username;
         const prefix = isCurrentUser ? "Вы: " : `${lastMessage.username}: `;
-        
+
         const maxContentLength = 50 - prefix.length;
-        const content = lastMessage.content.length > maxContentLength 
-            ? lastMessage.content.substring(0, maxContentLength) + "..." 
+        const content = lastMessage.content.length > maxContentLength
+            ? lastMessage.content.substring(0, maxContentLength) + "..."
             : lastMessage.content;
-            
+
         return prefix + content;
     };
 
@@ -179,7 +198,7 @@ export function UnifiedChatsList() {
         if (!dmConversation.publicKey) {
             const authToken = useAppState.getState().user.authToken;
             if (!authToken) return;
-            
+
             const publicKey = await fetchUserPublicKey(dmConversation.id, authToken);
             if (publicKey) {
                 dmConversation.publicKey = publicKey;
@@ -188,7 +207,7 @@ export function UnifiedChatsList() {
                 return;
             }
         }
-        
+
         await switchToDM({
             userId: dmConversation.id,
             username: dmConversation.username,
@@ -220,9 +239,9 @@ export function UnifiedChatsList() {
                                     {formatPublicChatMessage(chat.id)}
                                 </span>
                             )}
-                            <img 
-                                src={defaultAvatar} 
-                                alt={chat.name} 
+                            <img
+                                src={defaultAvatar}
+                                alt={chat.name}
                                 slot="icon"
                                 style={{
                                     width: "40px",
@@ -244,20 +263,23 @@ export function UnifiedChatsList() {
                             <span slot="description" className="list-description">
                                 {chat.lastMessage || "Нет сообщений"}
                             </span>
-                            <img 
-                                src={chat.profile_picture || defaultAvatar} 
-                                alt={chat.username} 
-                                slot="icon"
-                                style={{
-                                    width: "40px",
-                                    height: "40px",
-                                    borderRadius: "50%",
-                                    objectFit: "cover"
-                                }}
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = defaultAvatar;
-                                }}
-                            />
+                            <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
+                                <img
+                                    src={chat.profile_picture || defaultAvatar}
+                                    alt={chat.username}
+                                    style={{
+                                        width: "40px",
+                                        height: "40px",
+                                        borderRadius: "50%",
+                                        objectFit: "cover",
+                                        display: "block"
+                                    }}
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = defaultAvatar;
+                                    }}
+                                />
+                                <OnlineIndicator userId={chat.id} />
+                            </div>
                             {chat.unreadCount > 0 && (
                                 <mdui-badge slot="end-icon">
                                     {chat.unreadCount}

@@ -89,7 +89,7 @@ export abstract class MessagePanel {
 
     protected updateMessageReactions(messageId: number, reactions: any[]): void {
         this.updateState({
-            messages: this.state.messages.map(msg => 
+            messages: this.state.messages.map(msg =>
                 msg.id === messageId ? { ...msg, reactions } : msg
             )
         });
@@ -125,7 +125,7 @@ export abstract class MessagePanel {
     }
 
     // ========== PUBLIC API ==========
-    
+
     // Event handlers
     handleSendMessage(content: string, replyToId?: number, files: File[] = []): void {
         this.sendMessageWithImmediateDisplay(content, replyToId, files);
@@ -136,10 +136,10 @@ export abstract class MessagePanel {
         if (!message?.runtimeData?.sendingState?.retryData) return;
 
         const { content, replyToId, files } = message.runtimeData.sendingState.retryData;
-        
+
         // Create new temp ID for retry
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        
+
         // Update status back to sending and create new temp message
         const retryMessage: Message = {
             ...message,
@@ -184,7 +184,7 @@ export abstract class MessagePanel {
             // Clear the timeout since we're handling the failure immediately
             clearTimeout(timeoutId);
             this.pendingMessages.delete(tempId);
-            
+
             // Update message to failed state directly
             this.updateState({
                 messages: this.state.messages.map(msg => {
@@ -211,7 +211,7 @@ export abstract class MessagePanel {
         if (pending) {
             clearTimeout(pending.timeoutId);
             this.pendingMessages.delete(tempId);
-            
+
             // Replace temporary message with confirmed one
             this.updateState({
                 messages: this.state.messages.map(msg => {
@@ -249,7 +249,7 @@ export abstract class MessagePanel {
     }
 
     // ========== PRIVATE METHODS ==========
-    
+
     // Create and display message immediately with sending state
     private async sendMessageWithImmediateDisplay(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!content.trim() && files.length === 0) return;
@@ -326,7 +326,7 @@ export abstract class MessagePanel {
         if (pending) {
             clearTimeout(pending.timeoutId);
             this.pendingMessages.delete(tempId);
-            
+
             // Update message to failed state
             this.updateState({
                 messages: this.state.messages.map(msg => {

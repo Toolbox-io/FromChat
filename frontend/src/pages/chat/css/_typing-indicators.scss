@@ -1,0 +1,109 @@
+@use "../../../css/colors" as *;
+@use "../../../css/material" as *;
+@use "sass:color";
+
+// Unified typing indicator styles (used for both public chat and DMs)
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: $color-dark-primary;
+
+    .typing-dots {
+        display: flex;
+        gap: 2px;
+
+        span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: $color-dark-primary;
+            animation: typing-dot 1.4s infinite ease-in-out;
+
+            &:nth-child(1) {
+                animation-delay: -0.32s;
+            }
+
+            &:nth-child(2) {
+                animation-delay: -0.16s;
+            }
+        }
+    }
+
+    .typing-text {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+}
+
+// Online status display (used in DMs when not typing)
+.online-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: $color-dark-on-surface-variant;
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+
+        &.online {
+            background: #4caf50;
+            box-shadow: 0 0 6px rgba(76, 175, 80, 0.4);
+        }
+
+        &.offline {
+            background: $color-dark-on-surface-variant;
+            opacity: 0.6;
+        }
+    }
+
+    .status-text {
+        font-weight: 500;
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+}
+
+// Online indicator for profile pictures (positioned at bottom right)
+.online-indicator {
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    z-index: 10;
+    pointer-events: none;
+    transform: none;
+
+    .indicator-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid $color-dark-surface;
+        box-sizing: border-box;
+        display: block;
+        background: #4caf50;
+        position: relative;
+        transform: none;
+    }
+}
+
+// Ensure the icon container allows absolute positioning
+mdui-list-item [slot="icon"] {
+    position: relative;
+    display: inline-block;
+}
+
+// Typing dot animation
+@keyframes typing-dot {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}

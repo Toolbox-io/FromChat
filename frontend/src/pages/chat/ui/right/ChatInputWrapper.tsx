@@ -20,22 +20,26 @@ interface ChatInputWrapperProps {
     onCloseEdit?: () => void;
     onProvideFileAdder?: (adder: (files: File[]) => void) => void;
     messagePanelRef?: React.RefObject<HTMLDivElement | null>;
+    onTyping?: () => void;
+    onStopTyping?: () => void;
 }
 
 export function ChatInputWrapper(
-    { 
-        onSendMessage, 
-        onSaveEdit, 
-        replyTo, 
-        replyToVisible, 
+    {
+        onSendMessage,
+        onSaveEdit,
+        replyTo,
+        replyToVisible,
         onClearReply,
-        onCloseReply, 
-        editingMessage, 
-        editVisible = false, 
-        onClearEdit, 
+        onCloseReply,
+        editingMessage,
+        editVisible = false,
+        onClearEdit,
         onCloseEdit,
         onProvideFileAdder,
-        messagePanelRef
+        messagePanelRef,
+        onTyping,
+        onStopTyping
     }: ChatInputWrapperProps
 ) {
     const [message, setMessage] = useState("");
@@ -73,7 +77,7 @@ export function ChatInputWrapper(
             if (chatInputWrapperRef.current && messagePanelRef?.current) {
                 const inputRect = chatInputWrapperRef.current.getBoundingClientRect();
                 const panelRect = messagePanelRef.current.getBoundingClientRect();
-                
+
                 // Position menu 10px from message panel edge and 10px above the chat input
                 // The animation will start 30px below this position
                 setEmojiMenuPosition({
@@ -89,6 +93,17 @@ export function ChatInputWrapper(
 
     function handleEmojiSelect(emoji: string) {
         setMessage(prev => prev + emoji);
+    };
+
+    function handleTyping() {
+        if (onTyping) {
+            onTyping();
+        }
+    };
+
+    function handleMessageChange(value: string) {
+        setMessage(value);
+        handleTyping();
     };
 
     async function handleSubmit(e: React.FormEvent | Event) {
@@ -111,6 +126,8 @@ export function ChatInputWrapper(
                 setMessage("");
                 setAttachmentsVisible(false);
                 if (onClearReply) onClearReply();
+                // Stop typing indicator when message is sent
+                if (onStopTyping) onStopTyping();
             }
         }
     };
@@ -190,13 +207,13 @@ export function ChatInputWrapper(
                             className="emoji-btn" />
                     </div>
                     <RichTextArea
-                        className="message-input" 
-                        id="message-input" 
-                        placeholder="Напишите сообщение..." 
+                        className="message-input"
+                        id="message-input"
+                        placeholder="Напишите сообщение..."
                         autoComplete="off"
                         text={message}
                         rows={1}
-                        onTextChange={(value) => setMessage(value)}
+                        onTextChange={handleMessageChange}
                         onEnter={handleSubmit} />
                     <div className="buttons">
                         <mdui-button-icon icon="attach_file" onClick={handleAttachClick} className="attach-btn"></mdui-button-icon>
@@ -211,7 +228,7 @@ export function ChatInputWrapper(
                 <div>Общий размер вложений превышает 4 ГБ.</div>
                 <mdui-button slot="action" onClick={() => setErrorOpen(false)}>Закрыть</mdui-button>
             </MaterialDialog>
-            
+
             <EmojiMenu
                 isOpen={emojiMenuOpen}
                 onClose={() => setEmojiMenuOpen(false)}

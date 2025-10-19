@@ -14,14 +14,14 @@ export default function NotFoundPage() {
                         К сожалению, запрашиваемая страница не существует или была перемещена.
                     </p>
                     <div className="not-found-actions">
-                        <mdui-button 
-                            variant="filled" 
+                        <mdui-button
+                            variant="filled"
                             onClick={() => navigate("/")}
                         >
                             На главную
                         </mdui-button>
-                        <mdui-button 
-                            variant="outlined" 
+                        <mdui-button
+                            variant="outlined"
                             onClick={() => navigate(-1)}
                         >
                             Назад

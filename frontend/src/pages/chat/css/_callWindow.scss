@@ -9,10 +9,10 @@
     display: flex;
     flex-direction: column;
     user-select: none;
-    
+
     // Base transition for all properties
     transition: all 0.4s $transition;
-    
+
     // Disable all transitions while dragging for immediate feedback
     &.dragging {
         transition: none !important;
@@ -100,7 +100,7 @@
         .call-header {
             padding: 12px;
             min-height: auto;
-            
+
             .call-header-info {
                 .username {
                     font-size: 14px;
@@ -170,7 +170,7 @@
     // Dynamic gradients based on call state
     &.gradient-calling {
         border-color: rgba(255, 193, 7, 0.5);
-        
+
         &::before {
             content: '';
             position: absolute;
@@ -178,9 +178,9 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, 
-                rgba(255, 193, 7, 0.12) 0%, 
-                rgba(255, 152, 0, 0.12) 50%, 
+            background: linear-gradient(135deg,
+                rgba(255, 193, 7, 0.12) 0%,
+                rgba(255, 152, 0, 0.12) 50%,
                 rgba(255, 193, 7, 0.12) 100%);
             border-radius: inherit;
             animation: pulse-gradient 2s ease-in-out infinite;
@@ -190,7 +190,7 @@
 
     &.gradient-connecting {
         border-color: rgba(33, 150, 243, 0.5);
-        
+
         &::before {
             content: '';
             position: absolute;
@@ -198,9 +198,9 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, 
-                rgba(33, 150, 243, 0.12) 0%, 
-                rgba(63, 81, 181, 0.12) 50%, 
+            background: linear-gradient(135deg,
+                rgba(33, 150, 243, 0.12) 0%,
+                rgba(63, 81, 181, 0.12) 50%,
                 rgba(33, 150, 243, 0.12) 100%);
             border-radius: inherit;
             animation: connecting-gradient 1.5s ease-in-out infinite;
@@ -210,7 +210,7 @@
 
     &.gradient-active {
         border-color: rgba(76, 175, 80, 0.5);
-        
+
         &::before {
             content: '';
             position: absolute;
@@ -218,9 +218,9 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, 
-                rgba(76, 175, 80, 0.12) 0%, 
-                rgba(56, 142, 60, 0.12) 50%, 
+            background: linear-gradient(135deg,
+                rgba(76, 175, 80, 0.12) 0%,
+                rgba(56, 142, 60, 0.12) 50%,
                 rgba(76, 175, 80, 0.12) 100%);
             border-radius: inherit;
             animation: active-gradient 3s ease-in-out infinite;
@@ -288,7 +288,7 @@
                 font-size: 24px;
                 display: inline-block;
                 animation: emoji-pulse 2s ease-in-out infinite;
-                
+
                 &:nth-child(1) { animation-delay: 0s; }
                 &:nth-child(2) { animation-delay: 0.2s; }
                 &:nth-child(3) { animation-delay: 0.4s; }
@@ -355,7 +355,7 @@
             overflow-y: auto;
             overflow-x: hidden;
             padding: 5px;
-            
+
             // Custom scrollbar
             &::-webkit-scrollbar {
                 width: 6px;
@@ -369,7 +369,7 @@
             &::-webkit-scrollbar-thumb {
                 background: rgba($color-dark-primary, 0.5);
                 border-radius: 3px;
-                
+
                 &:hover {
                     background: rgba($color-dark-primary, 0.7);
                 }

@@ -108,8 +108,8 @@ async function showMessageNotification(message: any): Promise<void> {
     try {
         await showNotification({
             title: `New message from ${message.username}`,
-            body: message.content.length > 100 
-                ? message.content.substring(0, 100) + "..." 
+            body: message.content.length > 100
+                ? message.content.substring(0, 100) + "..."
                 : message.content,
             icon: message.profile_picture || "/logo.png",
             tag: `message_${message.id}`,
@@ -155,7 +155,7 @@ export async function initialize(): Promise<boolean> {
             try {
                 registration = await navigator.serviceWorker.register(serviceWorker, { type: "module" });
                 console.log("Service Worker registered successfully");
-                
+
                 const permission = await Notification.requestPermission();
                 if (permission === "granted") {
                     await subscribeToWebPush();
@@ -200,7 +200,7 @@ export async function showNotification(payload: NotificationPayload): Promise<bo
             return false;
         }
     }
-    
+
     // For web browsers, notifications are handled by the service worker
     // when push messages are received from the server
     return false;
@@ -240,7 +240,7 @@ export async function startElectronReceiver(): Promise<void> {
     }
 
     isElectronReceiverRunning = true;
-    
+
     // Add our own message listener to the existing WebSocket
     messageListener = (event: MessageEvent) => {
         try {
@@ -250,7 +250,7 @@ export async function startElectronReceiver(): Promise<void> {
             console.error('Failed to parse WebSocket message:', error);
         }
     };
-    
+
     websocket.addEventListener('message', messageListener);
 }
 
@@ -260,7 +260,7 @@ export function stopElectronReceiver(): void {
     }
 
     isElectronReceiverRunning = false;
-    
+
     // Remove our message listener
     if (messageListener) {
         websocket.removeEventListener('message', messageListener);

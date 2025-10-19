@@ -29,7 +29,7 @@ export function ChatHeader() {
                 <div className="profile">
                     <a href="#" id="profile-open" onClick={handleProfileClick}>
                         <img
-                            src={profilePictureUrl} 
+                            src={profilePictureUrl}
                             alt=""
                             id="preview1"
                             onError={() => setProfilePictureUrl(defaultAvatar)} />

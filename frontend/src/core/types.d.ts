@@ -221,17 +221,17 @@ export interface DmFile {
     path: string;
 }
 
-export interface DmEditedPayload { 
-    id: number; 
-    iv: string; 
-    ciphertext: string; 
-    timestamp: string 
+export interface DmEditedPayload {
+    id: number;
+    iv: string;
+    ciphertext: string;
+    timestamp: string
 }
 
-export interface DmDeletedPayload { 
-    id: number; 
-    senderId: number; 
-    recipientId: number 
+export interface DmDeletedPayload {
+    id: number;
+    senderId: number;
+    recipientId: number
 }
 
 export interface FetchDMResponse {
@@ -461,7 +461,7 @@ export interface CallSignalingMessage extends WebSocketMessage {
     data: CallSignalingMessageData;
 }
 
-export type CallSignalingMessageData = 
+export type CallSignalingMessageData =
     | CallInviteMessageData
     | CallAcceptData
     | CallRejectData
@@ -530,4 +530,94 @@ export interface CallVideoToggleMessage extends CallSignalingMessage {
 export interface CallScreenShareToggleMessage extends CallSignalingMessage {
     type: "call_screen_share_toggle";
     data: CallScreenShareToggleData;
+}
+
+// -----------
+// Online Status & Typing WebSocket Messages
+// -----------
+
+export interface StatusUpdateWebSocketMessage extends WebSocketMessage {
+    type: "statusUpdate";
+    data: {
+        userId: number;
+        online: boolean;
+        lastSeen: string;
+    };
+}
+
+export interface SubscribeStatusWebSocketMessage extends WebSocketMessage {
+    type: "subscribeStatus";
+    credentials: WebSocketCredentials;
+    data: {
+        userId: number;
+    };
+}
+
+export interface UnsubscribeStatusWebSocketMessage extends WebSocketMessage {
+    type: "unsubscribeStatus";
+    credentials: WebSocketCredentials;
+    data: {
+        userId: number;
+    };
+}
+
+export interface TypingWebSocketMessage extends WebSocketMessage {
+    type: "typing";
+    data: {
+        userId: number;
+        username: string;
+    };
+}
+
+export interface StopTypingWebSocketMessage extends WebSocketMessage {
+    type: "stopTyping";
+    data: {
+        userId: number;
+        username: string;
+    };
+}
+
+export interface DmTypingWebSocketMessage extends WebSocketMessage {
+    type: "dmTyping";
+    data: {
+        userId: number;
+        username: string;
+    };
+}
+
+export interface StopDmTypingWebSocketMessage extends WebSocketMessage {
+    type: "stopDmTyping";
+    data: {
+        userId: number;
+        username: string;
+    };
+}
+
+// Request types for sending typing/status messages
+export interface TypingRequest extends WebSocketMessage {
+    type: "typing";
+    credentials: WebSocketCredentials;
+    data: {};
+}
+
+export interface StopTypingRequest extends WebSocketMessage {
+    type: "stopTyping";
+    credentials: WebSocketCredentials;
+    data: {};
+}
+
+export interface DmTypingRequest extends WebSocketMessage {
+    type: "dmTyping";
+    credentials: WebSocketCredentials;
+    data: {
+        recipientId: number;
+    };
+}
+
+export interface StopDmTypingRequest extends WebSocketMessage {
+    type: "stopDmTyping";
+    credentials: WebSocketCredentials;
+    data: {
+        recipientId: number;
+    };
 }

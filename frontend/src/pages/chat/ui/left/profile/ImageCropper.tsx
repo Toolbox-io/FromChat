@@ -55,13 +55,13 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
 
     function handleMouseDown(e: React.MouseEvent) {
         if (!isLoaded) return;
-        
+
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
 
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
+
         // Check if click is within crop area
         if (x >= cropArea.x && x <= cropArea.x + cropArea.width &&
             y >= cropArea.y && y <= cropArea.y + cropArea.height) {
@@ -77,16 +77,16 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
             const y = e.clientY - rect.top;
 
             const newX = Math.max(
-                0, 
+                0,
                 Math.min(
-                    x - dragStart.x, 
+                    x - dragStart.x,
                     imageRef.current.naturalWidth - cropArea.width
                 )
             );
             const newY = Math.max(
-                0, 
+                0,
                 Math.min(
-                    y - dragStart.y, 
+                    y - dragStart.y,
                     imageRef.current.naturalHeight - cropArea.height
                 )
             );
@@ -162,7 +162,7 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
                 ref={canvasRef}
                 width={400}
                 height={400}
-                style={{ 
+                style={{
                     cursor: isDragging ? 'grabbing' : 'grab',
                     border: '1px solid #ccc',
                     maxWidth: '100%',

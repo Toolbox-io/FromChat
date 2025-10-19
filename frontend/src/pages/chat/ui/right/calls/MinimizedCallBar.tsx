@@ -46,7 +46,7 @@ export function MinimizedCallBar() {
                     <span className="status">{getStatusText()}</span>
                 </div>
             </div>
-            
+
             <div className="call-actions" onClick={(e) => e.stopPropagation()}>
                 {call.status === "calling" && !call.isInitiator ? (
                     <mdui-button-icon onClick={endCall} icon="call_end" />

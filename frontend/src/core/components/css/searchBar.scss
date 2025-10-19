@@ -14,16 +14,16 @@ $font-size: 16px;
     position: absolute;
     z-index: 1001;
     overflow: hidden;
-    
+
     // All properties animate together simultaneously
-    transition: 
+    transition:
         height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         right 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         border-radius 0.4s cubic-bezier(0.4, 0, 0.2, 1),
         background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    
+
     // Initial background color for smooth transition
     background-color: $color-dark-surface-container-high;
 
@@ -143,7 +143,7 @@ $font-size: 16px;
         mdui-list-item {
             img[slot="icon"] {
                 $size: 48px;
-                
+
                 width: $size;
                 height: $size;
                 border-radius: 50%;

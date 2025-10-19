@@ -14,7 +14,7 @@
         background-color: #C6F6D5;
         color: #22543D;
     }
-    
+
     &.alert-danger {
         background-color: #FED7D7;
         color: #742A2A;
@@ -22,7 +22,7 @@
 }
 
 .link {
-    color: $color-dark-primary; 
+    color: $color-dark-primary;
     font-weight: 600;
 }
 
@@ -38,11 +38,11 @@ button, input {
         font-size: 1.2rem;
         font-weight: 600;
     }
-    
+
     mdui-text-field {
         width: 100%;
     }
-    
+
     .dialog-actions {
         display: flex;
         gap: 0.75rem;

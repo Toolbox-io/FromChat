@@ -1,18 +1,47 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { MessagePanel, type MessagePanelState } from "./panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
-import { ProfileDialog } from "../ProfileDialog";
+import { ProfileDialog } from "@/pages/chat/ui/ProfileDialog";
 import { setGlobalMessageHandler } from "@/core/websocket";
 import type { Message, WebSocketMessage } from "@/core/types";
 import defaultAvatar from "@/images/default-avatar.png";
 import AnimatedOpacity from "@/core/components/animations/AnimatedOpacity";
-import type { DMPanel } from "./panels/DMPanel";
+import { DMPanel } from "./panels/DMPanel";
 import useCall from "@/pages/chat/hooks/useCall";
+import { TypingIndicator } from "./TypingIndicator";
+import { OnlineStatus } from "./OnlineStatus";
+import { typingManager } from "@/core/typingManager";
+import { PublicChatPanel } from "./panels/PublicChatPanel";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
+}
+
+function ChatHeaderText({ panel }: { panel: MessagePanel | null }) {
+    const { chat, user } = useAppState();
+    const otherTypingUsers = useMemo(() => {
+        return Array
+            .from(chat.typingUsers.entries())
+            .filter(([userId, username]) => userId !== user.currentUser?.id && username)
+            .map(([, username]) => username!);
+    }, [chat.typingUsers, user.currentUser?.id]);
+
+    let content: ReactNode;
+
+    if (panel instanceof DMPanel) {
+        const recipientId = panel.getRecipientId()!;
+        const isTyping = chat.dmTypingUsers.get(recipientId);
+
+        content = isTyping ? <TypingIndicator typingUsers={[]} /> : <OnlineStatus userId={recipientId} />;
+    } else if (panel instanceof PublicChatPanel && otherTypingUsers.length > 0) {
+        content = <TypingIndicator typingUsers={otherTypingUsers} />;
+    } else {
+        return null;
+    }
+
+    return <div>{content}</div>;
 }
 
 export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
@@ -61,12 +90,12 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     useEffect(() => {
         if (panel) {
             setPanelState(panel.getState());
-            
+
             // Store the handler for cleanup
             panel.onStateChange = (newState: MessagePanelState) => {
                 setPanelState(newState);
             };
-            
+
             // Set up WebSocket message handler for this panel
             if (panel.handleWebSocketMessage) {
                 setGlobalMessageHandler((message: WebSocketMessage<any>) => panel.handleWebSocketMessage(message));
@@ -75,7 +104,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
             setPanelState(null);
             setGlobalMessageHandler(null);
         }
-        
+
         return () => {
             if (panel) {
                 if (panel.onStateChange) {
@@ -93,11 +122,11 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     useEffect(() => {
         if (chat.isSwitching) {
             setSwitchOut(true);
-            
+
             // Use animation event listeners instead of hardcoded delays
             function handleAnimationEnd(event: Event) {
                 const animationEvent = event as AnimationEvent;
-                
+
                 if (animationEvent.animationName === 'fadeOutUp') {
                     // Apply pending panel exactly at the boundary between animations
                     applyPendingPanel();
@@ -109,10 +138,10 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     chat.setIsSwitching(false);
                 }
             };
-            
+
             // Add event listener to document to catch all animation events
             document.addEventListener('animationend', handleAnimationEnd);
-            
+
             // Cleanup function
             return () => {
                 document.removeEventListener('animationend', handleAnimationEnd);
@@ -123,9 +152,9 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     // Load messages when panel changes and animation is not running
     useEffect(() => {
         if (!chat.activePanel || chat.isSwitching || switchOut || switchIn) return;
-        
+
         const panelState = chat.activePanel.getState();
-        
+
         if (panelState.messages.length === 0 && !panelState.isLoading) {
             chat.activePanel.loadMessages();
         }
@@ -151,7 +180,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
             const id = requestAnimationFrame(() => {
                 el.scrollIntoView({ behavior: "smooth", block: "end" });
             });
-            
+
             return () => cancelAnimationFrame(id);
         }
 
@@ -164,7 +193,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
             const dmPanel = panel as DMPanel;
             const userId = dmPanel.getDMUserId();
             const username = dmPanel.getDMUsername();
-            
+
             if (userId && username) {
                 initiateCall(userId, username);
             }
@@ -173,7 +202,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
 
     async function handleProfileClick() {
         if (!panel) return;
-        
+
         try {
             const profileData = await panel.getProfile();
             if (profileData) {
@@ -186,9 +215,9 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
 
     return (
         <div className={`chat-container ${switchIn ? "chat-switch-in" : ""} ${switchOut ? "chat-switch-out" : ""}`}>
-            <div 
+            <div
                 ref={messagePanelRef}
-                className="chat-main" 
+                className="chat-main"
                 id="chat-inner"
                 onDragEnter={panel ? (e) => {
                     if (!e.dataTransfer) return;
@@ -223,9 +252,9 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     dragCounterRef.current = 0;
                 } : undefined}>
                 <div className="chat-header">
-                    <img 
-                        src={panelState?.profilePicture || defaultAvatar} 
-                        alt="Avatar" 
+                    <img
+                        src={panelState?.profilePicture || defaultAvatar}
+                        alt="Avatar"
                         className="chat-header-avatar"
                         onClick={handleProfileClick}
                         style={{ cursor: panel ? "pointer" : "default" }}
@@ -233,14 +262,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     <div className="chat-header-info">
                         <div className="info-chat">
                             <h4 id="chat-name">{panelState?.title || "Выбор чата"}</h4>
-                            <p>
-                                <span className={`online-status ${panelState?.online ? "online" : ""}`}></span>
-                                {panelState ? (
-                                    panelState.online ? "Online" : "Offline"
-                                ) : (
-                                    "Выберите чат, чтобы начать переписку"
-                                )}
-                            </p>
+                            <ChatHeaderText panel={panel} />
                         </div>
                         {panel?.isDm() && (
                             <mdui-button-icon onClick={handleCallClick} icon="call--filled" />
@@ -250,10 +272,10 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
 
                 {panelState?.isLoading ? (
                     <div className="chat-messages" id="chat-messages">
-                        <div style={{ 
-                            display: "flex", 
-                            justifyContent: "center", 
-                            alignItems: "center", 
+                        <div style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
                             height: "100%",
                             color: "var(--mdui-color-on-surface-variant)"
                         }}>
@@ -261,9 +283,9 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                         </div>
                     </div>
                 ) : panelState && panel ? (
-                    <ChatMessages 
-                        messages={panelState.messages} 
-                        isDm={panel.isDm()} 
+                    <ChatMessages
+                        messages={panelState.messages}
+                        isDm={panel.isDm()}
                         dmRecipientPublicKey={(panel as DMPanel).dmData?.publicKey}
                         onReplySelect={(message) => {
                             if (editMessage || editVisible) {
@@ -288,10 +310,10 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     </ChatMessages>
                 ) : (
                     <div className="chat-messages" id="chat-messages">
-                        <div style={{ 
-                            display: "flex", 
-                            justifyContent: "center", 
-                            alignItems: "center", 
+                        <div style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
                             height: "100%",
                             color: "var(--mdui-color-on-surface-variant)"
                         }}>
@@ -302,10 +324,10 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
 
                 {panel && (
                     <>
-                        <AnimatedOpacity 
-                            visible={isDragging} 
-                            className="file-overlay" 
-                            onDragOver={(e) => e.preventDefault()} 
+                        <AnimatedOpacity
+                            visible={isDragging}
+                            className="file-overlay"
+                            onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => e.preventDefault()}>
                             <div className="file-overlay-wrapper">
                                 <div className="file-overlay-inner">
@@ -314,12 +336,13 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                                 </div>
                             </div>
                         </AnimatedOpacity>
-                        
-                        <ChatInputWrapper 
+
+
+                        <ChatInputWrapper
                             onSendMessage={(text, files) => {
                                 panel.handleSendMessage(text, replyTo?.id, files);
                                 setReplyTo(null);
-                            }} 
+                            }}
                             onSaveEdit={(content) => {
                                 if (editMessage) {
                                     panel.handleEditMessage(editMessage.id, content);
@@ -354,11 +377,27 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             }}
                             onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
                             messagePanelRef={messagePanelRef}
+                            onTyping={() => {
+                                if (panel.isDm()) {
+                                    const dmPanel = panel as DMPanel;
+                                    dmPanel.handleTyping();
+                                } else {
+                                    typingManager.sendTyping();
+                                }
+                            }}
+                            onStopTyping={() => {
+                                if (panel.isDm()) {
+                                    const dmPanel = panel as DMPanel;
+                                    typingManager.stopDmTypingOnMessage(dmPanel.getRecipientId()!);
+                                } else {
+                                    typingManager.stopTypingOnMessage();
+                                }
+                            }}
                         />
                     </>
                 )}
             </div>
-            
+
             {/* Profile Dialog */}
             <ProfileDialog />
         </div>

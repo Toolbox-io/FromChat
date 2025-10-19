@@ -21,12 +21,12 @@ export interface ContextMenuState {
     position: Size2D;
 }
 
-export function MessageContextMenu({ 
-    message, 
-    isAuthor, 
-    onEdit, 
-    onReply, 
-    onDelete, 
+export function MessageContextMenu({
+    message,
+    isAuthor,
+    onEdit,
+    onReply,
+    onDelete,
     onRetry,
     onReactionClick,
     position,
@@ -42,7 +42,7 @@ export function MessageContextMenu({
     const [initialDimensions, setInitialDimensions] = useState<{ width: number; height: number } | null>(null);
     const [expandUpward, setExpandUpward] = useState(false);
     const [contextMenuHeight, setContextMenuHeight] = useState<number | null>(null);
-    
+
     // Refs for measuring actual dimensions
     const wrapperRef = useRef<HTMLDivElement>(null);
     const reactionBarRef = useRef<HTMLDivElement>(null);
@@ -92,13 +92,13 @@ export function MessageContextMenu({
                         y = viewportHeight - sharedRect.height;
                         animation = 'entering-up';
                     }
-                    
+
                     setCalculatedPosition({ x, y });
                     setAnimationClass(animation);
                     setReactionBarPosition(reactionPosition);
                 }
             });
-            
+
             return () => cancelAnimationFrame(frameId);
         }
     }, [isOpen, position, isAuthor]);
@@ -146,7 +146,7 @@ export function MessageContextMenu({
         // Set appropriate closing animation based on opening animation
         const closingAnimation = animationClass.replace('entering', 'closing');
         setAnimationClass(closingAnimation);
-        
+
         // Wait for animation to complete before calling onOpenChange
         setTimeout(() => {
             onOpenChange(false);
@@ -229,7 +229,7 @@ export function MessageContextMenu({
         // Measure the actual dimensions of the reaction bar content
         const reactionBarRect = reactionBarRef.current.getBoundingClientRect();
         const wrapperRect = wrapperRef.current.getBoundingClientRect();
-        
+
         setInitialDimensions({ width: reactionBarRect.width, height: reactionBarRect.height });
         setContextMenuHeight(wrapperRect.height);
 
@@ -257,7 +257,7 @@ export function MessageContextMenu({
     }
 
     return isOpen && (
-        <div 
+        <div
             ref={wrapperRef}
             className={`context-menu-wrapper ${animationClass}`}
             style={{
@@ -267,7 +267,7 @@ export function MessageContextMenu({
                 zIndex: 1000
             }}
             onClick={(e) => e.stopPropagation()}>
-            
+
             {/* Reaction Bar */}
             <div
                 ref={reactionBarRef}
@@ -303,8 +303,8 @@ export function MessageContextMenu({
                         </button>
                     </div>
                        ) : (
-                           <div 
-                               ref={emojiMenuRef} 
+                           <div
+                               ref={emojiMenuRef}
                                className="emoji-menu-wrapper">
                                <EmojiMenu
                                    isOpen={true}
@@ -317,12 +317,12 @@ export function MessageContextMenu({
             </div>
 
             {/* Context Menu */}
-            <div 
+            <div
                 ref={contextMenuRef}
                 className={`context-menu ${isEmojiMenuExpanded ? "faded" : ""}`}>
                 {actions.map((action, i) => (
                     action.show && (
-                        <div 
+                        <div
                             className="context-menu-item"
                             onClick={action.onClick}
                             key={i}

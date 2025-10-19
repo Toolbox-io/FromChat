@@ -9,6 +9,8 @@ import { restoreKeys } from "@/core/api/authApi";
 import { API_BASE_URL } from "@/core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
+import { onlineStatusManager } from "@/core/onlineStatusManager";
+import { typingManager } from "@/core/typingManager";
 
 export type ChatTabs = "chats" | "channels" | "contacts";
 
@@ -25,7 +27,7 @@ export interface ProfileDialogData {
 }
 
 interface ActiveDM {
-    userId: number; 
+    userId: number;
     username: string;
     publicKey: string | null
 }
@@ -61,6 +63,9 @@ interface ChatState {
     pendingPanel?: MessagePanel | null;
     call: CallState;
     profileDialog: ProfileDialogData | null;
+    onlineStatuses: Map<number, {online: boolean, lastSeen: string}>;
+    typingUsers: Map<number, string>; // userId -> username
+    dmTypingUsers: Map<number, boolean>;
 }
 
 export interface UserState {
@@ -84,7 +89,7 @@ interface AppState {
     applyPendingPanel: () => void;
     switchToPublicChat: (chatName: string) => Promise<void>;
     switchToDM: (dmData: DMPanelData) => Promise<void>;
-    
+
     // Call state
     startCall: (userId: number, username: string) => void;
     endCall: () => void;
@@ -99,16 +104,22 @@ interface AppState {
     setRemoteVideoEnabled: (enabled: boolean) => void;
     setRemoteScreenSharing: (enabled: boolean) => void;
     toggleCallMinimized: () => void;
-    
+
     // User state
     user: UserState;
     setUser: (token: string, user: User) => void;
     logout: () => void;
     restoreUserFromStorage: () => Promise<void>;
-    
+
     // Profile dialog state
     setProfileDialog: (data: ProfileDialogData | null) => void;
     closeProfileDialog: () => void;
+
+    // Online status and typing state
+    updateOnlineStatus: (userId: number, online: boolean, lastSeen: string) => void;
+    addTypingUser: (userId: number, username: string) => void;
+    removeTypingUser: (userId: number) => void;
+    setDmTypingUser: (userId: number, isTyping: boolean) => void;
 }
 
 export const useAppState = create<AppState>((set, get) => ({
@@ -146,7 +157,10 @@ export const useAppState = create<AppState>((set, get) => ({
             isRemoteVideoEnabled: false,
             isSharingScreen: false,
             isRemoteScreenSharing: false
-        }
+        },
+        onlineStatuses: new Map(),
+        typingUsers: new Map(),
+        dmTypingUsers: new Map()
     },
     addMessage: (message: Message) => set((state) => {
         // Check if message already exists to prevent duplicates
@@ -154,7 +168,7 @@ export const useAppState = create<AppState>((set, get) => ({
         if (messageExists) {
             return state; // Return unchanged state if message already exists
         }
-        
+
         return {
             chat: {
                 ...state.chat,
@@ -165,7 +179,7 @@ export const useAppState = create<AppState>((set, get) => ({
     updateMessage: (messageId: number, updatedMessage: Partial<Message>) => set((state) => ({
         chat: {
             ...state.chat,
-            messages: state.chat.messages.map(msg => 
+            messages: state.chat.messages.map(msg =>
                 msg.id === messageId ? { ...msg, ...updatedMessage } : msg
             )
         }
@@ -206,7 +220,7 @@ export const useAppState = create<AppState>((set, get) => ({
             activeDm: dm
         }
     })),
-    
+
     // User state
     user: {
         currentUser: null,
@@ -219,6 +233,10 @@ export const useAppState = create<AppState>((set, get) => ({
                 authToken: token
             }
         }));
+
+        // Initialize managers with auth token
+        onlineStatusManager.setAuthToken(token);
+        typingManager.setAuthToken(token);
 
         // Store credentials in localStorage
         try {
@@ -250,6 +268,12 @@ export const useAppState = create<AppState>((set, get) => ({
             console.error('Failed to clear localStorage:', error);
         }
 
+        // Cleanup managers
+        onlineStatusManager.setAuthToken(null);
+        typingManager.setAuthToken(null);
+        onlineStatusManager.cleanup();
+        typingManager.cleanup();
+
         set(() => ({
             user: {
                 currentUser: null,
@@ -260,7 +284,7 @@ export const useAppState = create<AppState>((set, get) => ({
     restoreUserFromStorage: async () => {
         try {
             const token = localStorage.getItem('authToken');
-            
+
             if (token) {
                 const response = await fetch(`${API_BASE_URL}/user/profile`, {
                     headers: getAuthHeaders(token)
@@ -276,6 +300,10 @@ export const useAppState = create<AppState>((set, get) => ({
                             authToken: token
                         }
                     }));
+
+                    // Initialize managers with auth token
+                    onlineStatusManager.setAuthToken(token);
+                    typingManager.setAuthToken(token);
 
                     try {
                         request({
@@ -296,7 +324,7 @@ export const useAppState = create<AppState>((set, get) => ({
                             const initialized = await initialize();
                             if (initialized) {
                                 await subscribe(token);
-                                
+
                                 // For Electron, start the notification receiver
                                 if (isElectron) {
                                     await startElectronReceiver();
@@ -317,7 +345,7 @@ export const useAppState = create<AppState>((set, get) => ({
             localStorage.removeItem('currentUser');
         }
     },
-    
+
     // Panel management
     setActivePanel: (panel: MessagePanel | null) => set((state) => ({
         chat: {
@@ -349,15 +377,15 @@ export const useAppState = create<AppState>((set, get) => ({
             pendingPanel: null
         }
     })),
-    
+
     switchToPublicChat: async (chatName: string) => {
         const { user, chat } = get();
-        
+
         if (!user.authToken) return;
-        
+
         // Start chat switching animation
         chat.setIsSwitching(true);
-        
+
         // Create or get public chat panel
         let publicChatPanel = chat.publicChatPanel;
         if (!publicChatPanel) {
@@ -368,10 +396,10 @@ export const useAppState = create<AppState>((set, get) => ({
             // Reset messages for the new chat
             publicChatPanel.clearMessages();
         }
-        
+
         // Activate panel
         await publicChatPanel.activate();
-        
+
         // Defer panel swap until animation switch-out completes
         set((state) => ({
             chat: {
@@ -380,19 +408,19 @@ export const useAppState = create<AppState>((set, get) => ({
                 activeTab: "chats"
             }
         }));
-        
+
         // Let MessagePanelRenderer handle the animation timing completely
         // It will set isChatSwitching to false when the fadeInDown animation completes
     },
-    
+
     switchToDM: async (dmData: DMPanelData) => {
         const { user, chat } = get();
-        
+
         if (!user.authToken) return;
-        
+
         // Start chat switching animation
         chat.setIsSwitching(true);
-        
+
         // Create or get DM panel
         let dmPanel = chat.dmPanel;
         if (!dmPanel) {
@@ -402,13 +430,13 @@ export const useAppState = create<AppState>((set, get) => ({
             // Reset messages for the new DM
             dmPanel.clearMessages();
         }
-        
+
         // Set DM data
         dmPanel.setDMData(dmData);
-        
+
         // Activate panel
         await dmPanel.activate();
-        
+
         // Defer panel swap until animation switch-out completes
         set((state) => ({
             chat: {
@@ -422,7 +450,7 @@ export const useAppState = create<AppState>((set, get) => ({
                 activeTab: "chats"
             }
         }));
-        
+
         // Let MessagePanelRenderer handle the animation timing completely
         // It will set isChatSwitching to false when the fadeInDown animation completes
     },
@@ -449,7 +477,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     endCall: () => set((state) => ({
         chat: {
             ...state.chat,
@@ -471,7 +499,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     setCallStatus: (status: CallStatus) => set((state) => ({
         chat: {
             ...state.chat,
@@ -482,7 +510,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     toggleMute: () => set((state) => ({
         chat: {
             ...state.chat,
@@ -492,7 +520,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     toggleCallMinimize: () => set((state) => ({
         chat: {
             ...state.chat,
@@ -524,7 +552,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     setCallEncryption: (sessionKeyHash: string, encryptionEmojis: string[]) => set((state) => ({
         chat: {
             ...state.chat,
@@ -535,7 +563,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     setCallSessionKeyHash: (sessionKeyHash: string) => set((state) => ({
         chat: {
             ...state.chat,
@@ -545,7 +573,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     toggleVideo: () => set((state) => ({
         chat: {
             ...state.chat,
@@ -555,7 +583,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     toggleScreenShare: () => set((state) => ({
         chat: {
             ...state.chat,
@@ -565,7 +593,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     setRemoteVideoEnabled: (enabled: boolean) => set((state) => ({
         chat: {
             ...state.chat,
@@ -575,7 +603,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     setRemoteScreenSharing: (enabled: boolean) => set((state) => ({
         chat: {
             ...state.chat,
@@ -594,7 +622,7 @@ export const useAppState = create<AppState>((set, get) => ({
             }
         }
     })),
-    
+
     // Profile dialog state management
     setProfileDialog: (data: ProfileDialogData | null) => set((state) => ({
         chat: {
@@ -602,11 +630,52 @@ export const useAppState = create<AppState>((set, get) => ({
             profileDialog: data
         }
     })),
-    
+
     closeProfileDialog: () => set((state) => ({
         chat: {
             ...state.chat,
             profileDialog: null
         }
-    }))
+    })),
+
+    // Online status and typing state management
+    updateOnlineStatus: (userId: number, online: boolean, lastSeen: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            onlineStatuses: new Map(state.chat.onlineStatuses).set(userId, { online, lastSeen })
+        }
+    })),
+
+    addTypingUser: (userId: number, username: string) => set((state) => ({
+        chat: {
+            ...state.chat,
+            typingUsers: new Map(state.chat.typingUsers).set(userId, username)
+        }
+    })),
+
+    removeTypingUser: (userId: number) => set((state) => {
+        const newTypingUsers = new Map(state.chat.typingUsers);
+        newTypingUsers.delete(userId);
+        return {
+            chat: {
+                ...state.chat,
+                typingUsers: newTypingUsers
+            }
+        };
+    }),
+
+    setDmTypingUser: (userId: number, isTyping: boolean) => set((state) => {
+        const newDmTypingUsers = new Map(state.chat.dmTypingUsers);
+        if (isTyping) {
+            newDmTypingUsers.set(userId, true);
+        } else {
+            newDmTypingUsers.delete(userId);
+        }
+        return {
+            chat: {
+                ...state.chat,
+                dmTypingUsers: newDmTypingUsers
+            }
+        };
+    })
 }));

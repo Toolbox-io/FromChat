@@ -20,9 +20,9 @@ interface ChatMessagesProps {
 
 export function ChatMessages({ messages = [], children, isDm = false, onReplySelect, onEditSelect, onDelete, onRetryMessage, dmRecipientPublicKey }: ChatMessagesProps) {
     const { user } = useAppState();
-    
+
     // Use prop messages (panels provide their own messages)
-    
+
     // Context menu state
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({
         isOpen: false,
@@ -89,13 +89,13 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
 
     async function handleReactionClick(messageId: number, emoji: string) {
         if (!user.authToken) return;
-        
+
         try {
             if (isDm) {
                 // For DM messages, we need to find the dm_envelope_id from the message
                 const message = messages.find(m => m.id === messageId);
                 const dmEnvelopeId = message?.runtimeData?.dmEnvelope?.id;
-                
+
                 if (dmEnvelopeId) {
                     await request<AddDmReactionRequest["data"]>({
                         type: "addDmReaction",
@@ -131,8 +131,8 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                     <Message
                         key={message.id}
                         message={message}
-                        isAuthor={isDm ? 
-                            (message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) : 
+                        isAuthor={isDm ?
+                            (message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) :
                             (message.username === user.currentUser?.username)
                         }
                         onContextMenu={handleContextMenu}
@@ -142,7 +142,7 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                 ))}
                 {children}
             </div>
-            
+
 
             <MaterialDialog
                 headline="Удалить сообщение?"
@@ -151,13 +151,13 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                 <mdui-button slot="action" variant="tonal" onClick={() => setDeleteDialogOpen(false)}>Отменить</mdui-button>
                 <mdui-button slot="action" variant="filled" onClick={confirmDelete}>Удалить</mdui-button>
             </MaterialDialog>
-            
+
             {/* Context Menu */}
             {contextMenu.message && (
                 <MessageContextMenu
                     message={contextMenu.message}
-                    isAuthor={isDm ? 
-                        (contextMenu.message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) : 
+                    isAuthor={isDm ?
+                        (contextMenu.message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) :
                         (contextMenu.message.username === user.currentUser?.username)
                     }
                     onEdit={handleEdit}

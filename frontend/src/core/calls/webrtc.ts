@@ -69,7 +69,7 @@ export class WebRTCCall {
     private set sessionKey(value: Uint8Array | null) {
         this._sessionKey = value;
     }
-    
+
 
     // -------------------
     // Core initialization
@@ -85,12 +85,12 @@ export class WebRTCCall {
      */
     async initialize(): Promise<void> {
         const iceServers = await this.getIceServers();
-        
+
         // Create peer connection with proper ICE servers
         this.peerConnection = new RTCPeerConnection({
             iceServers
         });
-        
+
         this.setupEventListeners();
     }
 
@@ -102,7 +102,7 @@ export class WebRTCCall {
             const response = await fetch("/api/webrtc/ice", {
                 headers: getAuthHeaders(getAuthToken()!)
             });
-        
+
             if (response.ok) {
                 const data = await response.json() as IceServersResponse;
                 return data.iceServers || [];
@@ -112,7 +112,7 @@ export class WebRTCCall {
         } catch (error) {
             console.warn("Failed to fetch ICE servers:", error);
         }
-        
+
         // Fallback to STUN only if backend fails
         return DEFAULT_ICE_SERVERS;
     }
@@ -161,7 +161,7 @@ export class WebRTCCall {
                 }
 
                 this.isNegotiating = true;
-                
+
                 const offer = await this.peerConnection.createOffer();
                 await this.peerConnection.setLocalDescription(offer);
 
@@ -184,7 +184,7 @@ export class WebRTCCall {
             const [remoteStream] = event.streams;
             if (remoteStream) {
                 const track = event.track;
-                
+
                 // Apply E2EE transform to all tracks - video now uses header-preserving encryption
                 if (this.sessionKey && window.RTCRtpScriptTransform) {
                     try {
@@ -198,12 +198,12 @@ export class WebRTCCall {
                         console.error("Failed to apply E2EE to received track:", error);
                     }
                 }
-                
+
                 // Determine stream type based on track kind and signaling state
                 if (track.kind === "video") {
                     let isScreenShare = false;
                     let isVideo = false;
-                    
+
                     if (this.isRemoteScreenSharing && this.isRemoteVideoEnabled) {
                         // Both active - route based on which one we haven't received yet
                         // Simple logic: if we haven't received video yet, this is video
@@ -225,7 +225,7 @@ export class WebRTCCall {
                         isVideo = true;
                         this.receivedVideoTrackCount++;
                     }
-                    
+
                     if (isScreenShare) {
                         if (callbacks.onRemoteScreenShare) {
                             callbacks.onRemoteScreenShare(this.remoteUserId, remoteStream);
@@ -253,7 +253,7 @@ export class WebRTCCall {
 
             // Clean up only on permanent failures
             // Don't end on "disconnected" - ICE can recover from temporary disconnections
-            if (this.peerConnection.connectionState === "failed" || 
+            if (this.peerConnection.connectionState === "failed" ||
                 this.peerConnection.connectionState === "closed") {
                 // Only send end call message if we're not already cleaning up
                 if (!this.isEnding) {
@@ -284,32 +284,32 @@ export class WebRTCCall {
                 audioTrack.stop();
                 this.localStream.removeTrack(audioTrack);
             }
-            
+
             // Create a silent audio track using Web Audio API
             const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
             const audioContext = new AudioContextClass();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
-            
+
             // Set gain to 0 (silent)
             gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            
+
             // Connect nodes
             oscillator.connect(gainNode);
-            
+
             // Create a MediaStreamDestination to get a MediaStream
             const destination = audioContext.createMediaStreamDestination();
             gainNode.connect(destination);
-            
+
             // Start the oscillator (but it's silent due to gain = 0)
             oscillator.start();
-            
+
             // Add the silent track to maintain WebRTC connection
             const silentTrack = destination.stream.getAudioTracks()[0];
             if (silentTrack) {
                 this.localStream.addTrack(silentTrack);
             }
-            
+
             this.isMuted = true;
             return true; // Muted
         } else {
@@ -318,15 +318,15 @@ export class WebRTCCall {
                 .then(newStream => {
                     // Remove any existing audio tracks from the stream
                     this.localStream!.getAudioTracks().forEach(track => track.stop());
-                    
+
                     // Get the new active track
                     const newAudioTrack = newStream.getAudioTracks()[0];
-                    
+
                     // Replace the track in the peer connection
-                    const sender = this.peerConnection.getSenders().find(s => 
+                    const sender = this.peerConnection.getSenders().find(s =>
                         s.track && s.track.kind === 'audio'
                     );
-                    
+
                     if (sender) {
                         // Replace the track in the existing sender
                         sender.replaceTrack(newAudioTrack);
@@ -334,10 +334,10 @@ export class WebRTCCall {
                         // Add the track to the peer connection if no sender exists
                         this.peerConnection.addTrack(newAudioTrack, this.localStream!);
                     }
-                    
+
                     // Add the track to the local stream
                     this.localStream!.addTrack(newAudioTrack);
-                    
+
                     this.isMuted = false;
                 })
                 .catch(error => {
@@ -471,10 +471,10 @@ export class WebRTCCall {
 
                 // Add screen share track to peer connection
                 const videoTrack = screenStream.getVideoTracks()[0];
-                
+
                 // Handle when user stops sharing via browser UI
                 videoTrack.addEventListener("ended", async () => {
-                    
+
                     // Clean up screen share state
                     if (this.screenShareStream) {
                         this.screenShareStream.getTracks().forEach(t => t.stop());
@@ -484,12 +484,12 @@ export class WebRTCCall {
 
                     // Remove screen share track from peer connection
                     const senders = this.peerConnection.getSenders();
-                    const screenSender = senders.find(sender => 
-                        sender.track && sender.track.kind === 'video' && 
+                    const screenSender = senders.find(sender =>
+                        sender.track && sender.track.kind === 'video' &&
                         sender.track.readyState === 'ended' &&
                         this.transformedSenders.has(sender)
                     );
-                    
+
                     if (screenSender) {
                         await this.peerConnection.removeTrack(screenSender);
                         this.transformedSenders.delete(screenSender);
@@ -534,7 +534,7 @@ export class WebRTCCall {
                     try {
                         const key = await importAesGcmKey(this.sessionKey);
                         const sender = this.peerConnection.getSenders().find(s => s.track === videoTrack);
-                        
+
                         if (sender && !this.transformedSenders.has(sender)) {
                             sender.transform = new RTCRtpScriptTransform(new E2EEWorker(), { key, mode: "encrypt", sessionId: this.sessionId });
                             this.transformedSenders.add(sender);
@@ -604,14 +604,14 @@ export class WebRTCCall {
      */
     async setSessionKey(keyBytes: Uint8Array): Promise<void> {
         this.sessionKey = keyBytes;
-        
+
         await this.applyE2EETransforms();
-        
+
         // Start key rotation timer (rotate every 10 minutes for long calls)
         if (this.keyRotationTimer) {
             clearInterval(this.keyRotationTimer);
         }
-        
+
         this.keyRotationTimer = setInterval(async () => {
             await this.rotateSessionKey();
         }, KEY_ROTATION_INTERVAL);
@@ -622,14 +622,14 @@ export class WebRTCCall {
      */
     private async rotateSessionKey(): Promise<void> {
         if (!this.sessionKey) return;
-        
+
         try {
             // Generate new session key
             const newSessionKey = await rotateCallSessionKey();
-            
+
             // Update the call with new session key
             this.sessionKey = newSessionKey.key;
-            
+
             // Reapply E2EE transforms with new key
             await this.applyE2EETransforms();
         } catch (error) {
@@ -645,9 +645,9 @@ export class WebRTCCall {
             if (!this.sessionKey || !window.RTCRtpScriptTransform) {
                 return;
             }
-            
+
             const key = await importAesGcmKey(this.sessionKey);
-            
+
             // Apply to receivers that don't already have transforms
             const receivers = this.peerConnection.getReceivers();
             for (const receiver of receivers) {
@@ -656,7 +656,7 @@ export class WebRTCCall {
                     this.transformedReceivers.add(receiver);
                 }
             }
-            
+
             // Apply to senders that don't already have transforms
             const senders = this.peerConnection.getSenders();
             for (const sender of senders) {
@@ -678,9 +678,9 @@ export class WebRTCCall {
             if (!sessionKey || !window.RTCRtpScriptTransform) {
                 return;
             }
-            
+
             const key = await importAesGcmKey(sessionKey);
-            
+
             // Apply to receivers that don't already have transforms
             const receivers = this.peerConnection.getReceivers();
             for (const receiver of receivers) {
@@ -689,7 +689,7 @@ export class WebRTCCall {
                     this.transformedReceivers.add(receiver);
                 }
             }
-            
+
             // Apply to senders that don't already have transforms
             const senders = this.peerConnection.getSenders();
             for (const sender of senders) {
@@ -735,7 +735,7 @@ export class WebRTCCall {
         if (this.keyRotationTimer) {
             clearInterval(this.keyRotationTimer);
         }
-        
+
         // Close peer connection
         if (this.peerConnection) {
             this.peerConnection.close();
@@ -833,8 +833,8 @@ export async function initiateCall(userId: number, username: string): Promise<bo
             type: "call_invite",
             fromUserId: 0, // Will be set by server
             toUserId: userId,
-            data: { 
-                fromUsername: username 
+            data: {
+                fromUsername: username
             }
         });
 
@@ -886,14 +886,14 @@ export async function setSessionKey(userId: number, keyBytes: Uint8Array): Promi
         console.error("setSessionKey: No call found for user", userId);
         return;
     }
-    
+
     await call.setSessionKey(keyBytes);
 }
 
 
 export async function receiveWrappedSessionKey(
-    fromUserId: number, 
-    wrappedPayload: WrappedSessionKeyPayload, 
+    fromUserId: number,
+    wrappedPayload: WrappedSessionKeyPayload,
     sessionKeyHash?: string
 ): Promise<void> {
     try {
@@ -906,14 +906,14 @@ export async function receiveWrappedSessionKey(
             console.error("Missing wrapped payload or session key hash");
             return;
         }
-        
+
         // Unwrap the session key from the encrypted payload
         const unwrappedSessionKey = await unwrapCallSessionKeyFromSender(senderPublicKey, {
             salt: wrappedPayload.salt,
             iv2: wrappedPayload.iv2,
             wrapped: wrappedPayload.wrapped
         });
-        
+
         // Use the unwrapped session key directly (both sides should have the same key)
         await setSessionKey(fromUserId, unwrappedSessionKey);
     } catch (e) {
@@ -973,7 +973,7 @@ export async function endCall(userId: number): Promise<void> {
     const call = calls.get(userId);
     if (call && !call.isEnding) {
         call.isEnding = true;
-        
+
         // Send call end message
         await sendSignalingMessage({
             type: "call_end",
@@ -1009,7 +1009,7 @@ export async function onRemoteAccepted(userId: number): Promise<void> {
         // Small delay to ensure remote peer finishes processing the accept
         // This prevents race conditions where our offer arrives before they're ready
         await delay(NEGOTIATION_DELAY);
-        
+
         // Create offer
         const offer = await call.peerConnection.createOffer();
         await call.peerConnection.setLocalDescription(offer);
@@ -1029,7 +1029,7 @@ export async function onRemoteAccepted(userId: number): Promise<void> {
 
 export async function handleCallOffer(userId: number, offer: RTCSessionDescriptionInit): Promise<void> {
     let call = calls.get(userId);
-    
+
     // Handle race condition - offer might arrive before peer connection is created
     if (!call) {
         call = await createPeerConnection(userId);
@@ -1085,23 +1085,23 @@ export async function handleCallAnswer(userId: number, answer: RTCSessionDescrip
 
     try {
         await call.peerConnection.setRemoteDescription(answer);
-        
+
         // Reset negotiating flag
         call.isNegotiating = false;
-        
+
         // Attach transforms on initiator side if session key is available
         // If not available yet, setSessionKey will apply them when it arrives
         if (call.sessionKey) {
             await call.createE2EETransform(call.sessionKey, call.sessionId);
         }
-        
+
         // Check if there are new receivers with tracks that haven't been notified yet
         // This handles the case where tracks exist but the track event hasn't fired yet
         const receivers = call.peerConnection.getReceivers();
         for (const receiver of receivers) {
             if (receiver.track) {
                 const track = receiver.track;
-                
+
                 // Find the stream for this track
                 const transceiver = call.peerConnection.getTransceivers().find(t => t.receiver === receiver);
                 if (transceiver && transceiver.receiver.track) {
