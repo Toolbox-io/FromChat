@@ -7,7 +7,7 @@ import {
     editDmEnvelope,
     deleteDmEnvelope
 } from "@/core/api/dmApi";
-import { fetchUserProfile } from "@/core/api/profileApi";
+import { fetchUserProfileById } from "@/core/api/profileApi";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
 import type { UserState, ProfileDialogData } from "@/pages/chat/state";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";
@@ -84,6 +84,7 @@ export class DMPanel extends MessagePanel {
 
         const dmMsg: Message = {
             id: env.id,
+            user_id: env.senderId,
             content: content,
             username: username,
             timestamp: env.timestamp,
@@ -353,12 +354,13 @@ export class DMPanel extends MessagePanel {
         if (!this.dmData || !this.currentUser.authToken) return null;
 
         try {
-            const userProfile = await fetchUserProfile(this.currentUser.authToken, this.dmData.username);
+            const userProfile = await fetchUserProfileById(this.currentUser.authToken, this.dmData.userId);
             if (!userProfile) return null;
 
             return {
                 userId: userProfile.id,
                 username: userProfile.username,
+                display_name: userProfile.display_name,
                 profilePicture: userProfile.profile_picture,
                 bio: userProfile.bio,
                 memberSince: userProfile.created_at,

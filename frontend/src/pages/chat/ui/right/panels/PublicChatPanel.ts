@@ -121,7 +121,7 @@ export class PublicChatPanel extends MessagePanel {
                     const newMsg = response.data;
 
                     // Check if this is a confirmation of a message we sent
-                    const isOurMessage = newMsg.username === this.currentUser.currentUser?.username;
+                    const isOurMessage = newMsg.user_id === this.currentUser.currentUser?.id;
                     if (isOurMessage) {
                         // This is our message being confirmed, find the temp message and replace it
                         const tempMessages = this.getMessages().filter(m => m.id === -1 && m.runtimeData?.sendingState?.tempId);
@@ -199,7 +199,8 @@ export class PublicChatPanel extends MessagePanel {
 
     async getProfile(): Promise<ProfileDialogData | null> {
         return {
-            username: "Общий чат",
+            username: "general",
+            display_name: "Общий чат",
             bio: "Общаемся со всеми пользователями FromChat!",
             isOwnProfile: false
         };

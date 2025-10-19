@@ -133,7 +133,7 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                         message={message}
                         isAuthor={isDm ?
                             (message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) :
-                            (message.username === user.currentUser?.username)
+                            (message.user_id === user.currentUser?.id)
                         }
                         onContextMenu={handleContextMenu}
                         onReactionClick={handleReactionClick}
@@ -158,7 +158,7 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                     message={contextMenu.message}
                     isAuthor={isDm ?
                         (contextMenu.message.runtimeData?.dmEnvelope?.senderId === user.currentUser?.id) :
-                        (contextMenu.message.username === user.currentUser?.username)
+                        (contextMenu.message.user_id === user.currentUser?.id)
                     }
                     onEdit={handleEdit}
                     onReply={handleReply}

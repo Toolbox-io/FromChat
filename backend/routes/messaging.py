@@ -48,16 +48,17 @@ def convert_message(msg: Message) -> dict:
             reactions_dict[emoji]["count"] += 1
             reactions_dict[emoji]["users"].append({
                 "id": reaction.user_id,
-                "username": reaction.user.username
+                "username": reaction.user.display_name
             })
 
     return {
         "id": msg.id,
+        "user_id": msg.author.id,
         "content": msg.content,
         "timestamp": msg.timestamp.isoformat(),
         "is_read": msg.is_read,
         "is_edited": msg.is_edited,
-        "username": msg.author.username,
+        "username": msg.author.display_name,
         "profile_picture": msg.author.profile_picture,
         "reply_to": convert_message(msg.reply_to) if msg.reply_to else None,
         "reactions": list(reactions_dict.values()),
@@ -88,7 +89,7 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
             reactions_dict[emoji]["count"] += 1
             reactions_dict[emoji]["users"].append({
                 "id": reaction.user_id,
-                "username": reaction.user.username
+                "username": reaction.user.display_name
             })
 
     return {

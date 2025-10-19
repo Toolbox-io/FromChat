@@ -174,6 +174,7 @@ export function useDM() {
 
                     decryptedMessages.push({
                         id: env.id,
+                        user_id: env.senderId,
                         content: text,
                         username: username,
                         timestamp: env.timestamp,

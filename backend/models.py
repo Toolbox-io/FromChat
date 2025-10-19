@@ -13,6 +13,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
+    display_name = Column(String(64), nullable=False)
     password_hash = Column(String(200), nullable=False)
     profile_picture = Column(String(255), nullable=True)
     bio = Column(Text, nullable=True)
@@ -149,6 +150,7 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     username: str
+    display_name: str
     password: str
     confirm_password: str
 
@@ -178,6 +180,7 @@ class PushSubscriptionRequest(BaseModel):
 class UserProfileResponse(BaseModel):
     id: int
     username: str
+    display_name: str
     profile_picture: str | None
     bio: str | None
     online: bool

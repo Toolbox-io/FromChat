@@ -11,12 +11,14 @@ import io
 from dependencies import get_db, get_current_user
 from models import User, UpdateBioRequest, UserProfileResponse
 from pydantic import BaseModel
+from validation import is_valid_username, is_valid_display_name
 
 router = APIRouter()
 
 # Request models
 class UpdateProfileRequest(BaseModel):
-    nickname: str | None = None
+    username: str | None = None
+    display_name: str | None = None
     description: str | None = None
 
 # Create uploads directory if it doesn't exist
@@ -102,6 +104,7 @@ async def get_user_profile(
     return {
         "id": current_user.id,
         "username": current_user.username,
+        "display_name": current_user.display_name,
         "profile_picture": current_user.profile_picture,
         "bio": current_user.bio,
         "online": current_user.online,
@@ -121,19 +124,32 @@ async def update_user_profile(
     updated = False
     
     # Update username if provided
-    if request.nickname is not None:
-        nickname = request.nickname.strip()
-        if len(nickname) < 3:
-            raise HTTPException(status_code=400, detail="Username must be at least 3 characters long")
-        if len(nickname) > 50:
-            raise HTTPException(status_code=400, detail="Username must be 50 characters or less")
+    if request.username is not None:
+        username = request.username.strip()
+        if not is_valid_username(username):
+            raise HTTPException(
+                status_code=400, 
+                detail="Имя пользователя должно быть от 3 до 20 символов и содержать только английские буквы, цифры, дефисы и подчеркивания"
+            )
         
         # Check if username is already taken by another user
-        existing_user = db.query(User).filter(User.username == nickname, User.id != current_user.id).first()
+        existing_user = db.query(User).filter(User.username == username, User.id != current_user.id).first()
         if existing_user:
-            raise HTTPException(status_code=400, detail="Username already taken")
+            raise HTTPException(status_code=400, detail="Это имя пользователя уже занято")
         
-        current_user.username = nickname
+        current_user.username = username
+        updated = True
+    
+    # Update display name if provided
+    if request.display_name is not None:
+        display_name = request.display_name.strip()
+        if not is_valid_display_name(display_name):
+            raise HTTPException(
+                status_code=400, 
+                detail="Отображаемое имя должно быть от 1 до 64 символов и не может быть пустым"
+            )
+        
+        current_user.display_name = display_name
         updated = True
     
     # Update bio if provided
@@ -150,12 +166,14 @@ async def update_user_profile(
         return {
             "message": "Profile updated successfully",
             "username": current_user.username,
+            "display_name": current_user.display_name,
             "bio": current_user.bio
         }
     else:
         return {
             "message": "No changes made",
             "username": current_user.username,
+            "display_name": current_user.display_name,
             "bio": current_user.bio
         }
 
@@ -197,6 +215,31 @@ async def get_user_by_username(
     return UserProfileResponse(
         id=user.id,
         username=user.username,
+        display_name=user.display_name,
+        profile_picture=user.profile_picture,
+        bio=user.bio,
+        online=user.online,
+        last_seen=user.last_seen,
+        created_at=user.created_at
+    )
+
+@router.get("/user/id/{user_id}")
+async def get_user_by_id(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get user profile by user ID
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return UserProfileResponse(
+        id=user.id,
+        username=user.username,
+        display_name=user.display_name,
         profile_picture=user.profile_picture,
         bio=user.bio,
         online=user.online,

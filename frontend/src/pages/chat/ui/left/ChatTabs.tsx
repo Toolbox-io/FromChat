@@ -1,21 +1,16 @@
 import { useAppState, type ChatTabs } from "@/pages/chat/state";
 import { UnifiedChatsList } from "./UnifiedChatsList";
-import type { FormEvent } from "react";
 import type { Tabs } from "mdui/components/tabs";
 
 export function ChatTabs() {
     const { chat, setActiveTab } = useAppState();
-
-    function handleChange(e: FormEvent<Tabs> & CustomEvent<{ value: string }>) {
-        setActiveTab(e.detail.value as ChatTabs);
-    }
 
     return (
         <div className="chat-tabs">
             <mdui-tabs
                 value={chat.activeTab}
                 full-width
-                onChange={handleChange}>
+                onChange={(e) => setActiveTab((e.target as Tabs).value as ChatTabs)}>
                 <mdui-tab value="chats">
                     Чаты
                 </mdui-tab>
