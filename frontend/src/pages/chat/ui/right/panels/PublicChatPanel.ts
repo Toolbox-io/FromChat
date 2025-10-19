@@ -199,7 +199,8 @@ export class PublicChatPanel extends MessagePanel {
 
     async getProfile(): Promise<ProfileDialogData | null> {
         return {
-            username: "Общий чат",
+            username: "general",
+            display_name: "Общий чат",
             bio: "Общаемся со всеми пользователями FromChat!",
             isOwnProfile: false
         };

@@ -19,6 +19,7 @@ export type CallStatus = "calling" | "connecting" | "active" | "ended";
 export interface ProfileDialogData {
     userId?: number;
     username?: string;
+    display_name?: string;
     profilePicture?: string;
     bio?: string;
     memberSince?: string;

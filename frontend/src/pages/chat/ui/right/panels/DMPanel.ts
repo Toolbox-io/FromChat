@@ -359,6 +359,7 @@ export class DMPanel extends MessagePanel {
             return {
                 userId: userProfile.id,
                 username: userProfile.username,
+                display_name: userProfile.display_name,
                 profilePicture: userProfile.profile_picture,
                 bio: userProfile.bio,
                 memberSince: userProfile.created_at,

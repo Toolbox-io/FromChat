@@ -111,6 +111,7 @@ export interface User {
     last_seen: string;
     online: boolean;
     username: string;
+    display_name: string;
     admin?: boolean;
     bio?: string;
     profile_picture: string;
@@ -130,6 +131,7 @@ export interface User {
 export interface UserProfile {
     id: number;
     username: string;
+    display_name: string;
     profile_picture?: string;
     bio?: string;
     online: boolean;
@@ -163,6 +165,7 @@ export interface LoginRequest {
  */
 export interface RegisterRequest {
     username: string;
+    display_name: string;
     password: string;
     confirm_password: string;
 }

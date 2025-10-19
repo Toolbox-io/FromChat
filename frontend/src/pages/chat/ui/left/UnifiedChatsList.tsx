@@ -20,6 +20,7 @@ interface PublicChat {
 interface DMConversation {
     id: number;
     username: string;
+    display_name: string;
     profile_picture?: string;
     online?: boolean;
     type: "dm";
@@ -84,6 +85,7 @@ export function UnifiedChatsList() {
         const dmChatItems: ChatItem[] = dmUsers.map((user: DMUser) => ({
             id: user.id,
             username: user.username,
+            display_name: user.display_name,
             profile_picture: user.profile_picture,
             online: user.online,
             type: "dm" as const,
@@ -178,7 +180,7 @@ export function UnifiedChatsList() {
             return "";
         }
 
-        const isCurrentUser = lastMessage.username === user.currentUser?.username;
+        const isCurrentUser = lastMessage.username === user.currentUser?.display_name;
         const prefix = isCurrentUser ? "Вы: " : `${lastMessage.username}: `;
 
         const maxContentLength = 50 - prefix.length;
@@ -256,7 +258,7 @@ export function UnifiedChatsList() {
                     return (
                         <mdui-list-item
                             key={`dm-${chat.id}`}
-                            headline={chat.username}
+                            headline={chat.display_name}
                             onClick={() => handleDMClick(chat)}
                             style={{ cursor: "pointer" }}
                         >
@@ -266,7 +268,7 @@ export function UnifiedChatsList() {
                             <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
                                 <img
                                     src={chat.profile_picture || defaultAvatar}
-                                    alt={chat.username}
+                                    alt={chat.display_name}
                                     style={{
                                         width: "40px",
                                         height: "40px",

@@ -51,12 +51,8 @@ export function ProfileDialog() {
                 const userProfile = await fetchUserProfile(user.authToken, profileData.username);
                 if (userProfile) {
                     freshData = {
-                        userId: userProfile.id,
-                        username: userProfile.username,
-                        profilePicture: userProfile.profile_picture,
-                        bio: userProfile.bio,
+                        ...userProfile,
                         memberSince: userProfile.created_at,
-                        online: userProfile.online,
                         isOwnProfile: profileData.isOwnProfile
                     };
                 }
@@ -128,6 +124,7 @@ export function ProfileDialog() {
 
         return (
             normalizeValue(originalData.username) !== normalizeValue(currentData.username) ||
+            normalizeValue(originalData.display_name) !== normalizeValue(currentData.display_name) ||
             normalizeValue(originalData.bio) !== normalizeValue(currentData.bio) ||
             originalData.profilePicture !== currentData.profilePicture
         );
@@ -171,9 +168,9 @@ export function ProfileDialog() {
         }
     };
 
-    const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleDisplayNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!currentData) return;
-        setCurrentData({ ...currentData, username: e.target.value });
+        setCurrentData({ ...currentData, display_name: e.target.value });
     };
 
     const handleBioChange = (newBio: string) => {
@@ -209,8 +206,8 @@ export function ProfileDialog() {
         try {
             // Update profile data
             const updateData: any = {};
-            if (originalData.username !== currentData.username) {
-                updateData.nickname = currentData.username;
+            if (originalData.display_name !== currentData.display_name) {
+                updateData.display_name = currentData.display_name;
             }
             if (originalData.bio !== currentData.bio) {
                 updateData.description = currentData.bio;
@@ -281,16 +278,23 @@ export function ProfileDialog() {
                         )}
                     </div>
 
-                    {/* Username */}
+                    {/* Username (Handle) */}
                     {currentData.username && (
                         <div className="username-section">
+                            <div className="username-label">@{currentData.username}</div>
+                        </div>
+                    )}
+
+                    {/* Display Name */}
+                    {currentData.display_name && (
+                        <div className="display-name-section">
                             <input
-                                className="username-input"
+                                className="display-name-input"
                                 type="text"
-                                value={currentData.username}
-                                onChange={handleUsernameChange}
+                                value={currentData.display_name}
+                                onChange={handleDisplayNameChange}
                                 readOnly={!currentData.isOwnProfile}
-                                placeholder="Имя пользователя"
+                                placeholder="Отображаемое имя"
                             />
                         </div>
                     )}

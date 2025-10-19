@@ -4,7 +4,8 @@ import type { UserProfile } from "@/core/types";
 
 export interface ProfileData {
     profile_picture?: string;
-    nickname?: string;
+    username?: string;
+    display_name?: string;
     description?: string;
 }
 
@@ -26,7 +27,8 @@ export async function loadProfile(token: string): Promise<ProfileData | null> {
             // Map backend fields to frontend fields
             return {
                 profile_picture: data.profile_picture,
-                nickname: data.username,
+                username: data.username,
+                display_name: data.display_name,
                 description: data.bio
             };
         }
@@ -69,7 +71,8 @@ export async function updateProfile(token: string, data: Partial<ProfileData>): 
     try {
         // Map frontend fields to backend fields
         const backendData = {
-            nickname: data.nickname,
+            username: data.username,
+            display_name: data.display_name,
             description: data.description
         };
 

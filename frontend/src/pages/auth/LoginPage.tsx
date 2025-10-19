@@ -105,7 +105,7 @@ export default function LoginPage() {
                         }
                     }}>
                     <MaterialTextField
-                        label="Имя пользователя"
+                        label="@Имя пользователя"
                         id="login-username"
                         name="username"
                         variant="outlined"
