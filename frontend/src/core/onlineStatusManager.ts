@@ -6,10 +6,10 @@
  */
 
 import { request } from "./websocket";
-import type { 
-    StatusUpdateWebSocketMessage, 
-    SubscribeStatusWebSocketMessage, 
-    UnsubscribeStatusWebSocketMessage 
+import type {
+    StatusUpdateWebSocketMessage,
+    SubscribeStatusWebSocketMessage,
+    UnsubscribeStatusWebSocketMessage
 } from "./types";
 import { useAppState } from "@/pages/chat/state";
 
@@ -94,7 +94,7 @@ export class OnlineStatusManager {
     handleStatusUpdate(message: StatusUpdateWebSocketMessage): void {
         const { userId, online, lastSeen } = message.data;
         this.statusCache.set(userId, { online, lastSeen });
-        
+
         // Update the global state
         const { updateOnlineStatus } = useAppState.getState();
         updateOnlineStatus(userId, online, lastSeen);
@@ -132,7 +132,7 @@ export class OnlineStatusManager {
      * Unsubscribe from all users and clear cache
      */
     async unsubscribeAll(): Promise<void> {
-        const unsubscribePromises = Array.from(this.subscribedUsers).map(userId => 
+        const unsubscribePromises = Array.from(this.subscribedUsers).map(userId =>
             this.unsubscribe(userId)
         );
         await Promise.all(unsubscribePromises);

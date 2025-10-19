@@ -6,7 +6,7 @@
  */
 
 import { request } from "./websocket";
-import type { 
+import type {
     TypingWebSocketMessage,
     StopTypingWebSocketMessage,
     DmTypingWebSocketMessage,
@@ -166,14 +166,14 @@ export class TypingManager {
      */
     private scheduleStopTyping(context: string): void {
         this.clearStopTypingTimeout(context);
-        
+
         const timeout = setTimeout(async () => {
             if (context === "public") {
                 await this.sendStopTyping();
             }
             this.typingTimeouts.delete(context);
         }, this.TYPING_TIMEOUT);
-        
+
         this.typingTimeouts.set(context, timeout);
     }
 
@@ -183,12 +183,12 @@ export class TypingManager {
     private scheduleStopDmTyping(recipientId: number): void {
         const context = `dm_${recipientId}`;
         this.clearStopTypingTimeout(context);
-        
+
         const timeout = setTimeout(async () => {
             await this.sendStopDmTyping(recipientId);
             this.typingTimeouts.delete(context);
         }, this.TYPING_TIMEOUT);
-        
+
         this.typingTimeouts.set(context, timeout);
     }
 

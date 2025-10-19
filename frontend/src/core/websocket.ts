@@ -87,7 +87,7 @@ export function request<Request, Response = any>(payload: WebSocketMessage<Reque
  * This function will wait 3 seconds and them attempts to reconnect the WebSocket.
  * If it fails, tries again in an endless loop until the connection is established
  * again.
- * 
+ *
  * @private
  */
 async function onError() {
@@ -112,12 +112,12 @@ async function onError() {
 websocket.addEventListener("message", (e) => {
     try {
         const response: WebSocketMessage<any> = JSON.parse(e.data);
-        
+
         // Handle call signaling messages
         if (callSignalingHandler && response.type === "call_signaling" && response.data) {
             callSignalingHandler.handleWebSocketMessage(response.data);
         }
-        
+
         // Handle status and typing messages
         if (response.type === "statusUpdate") {
             onlineStatusManager.handleStatusUpdate(response as any);
@@ -130,7 +130,7 @@ websocket.addEventListener("message", (e) => {
         } else if (response.type === "stopDmTyping") {
             typingManager.handleStopDmTyping(response as any);
         }
-        
+
         // Route message to global handler if set
         if (globalMessageHandler) {
             globalMessageHandler(response);

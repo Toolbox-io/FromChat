@@ -20,7 +20,7 @@
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
-    
+
     &.open {
         opacity: 1;
         visibility: visible;
@@ -42,26 +42,26 @@
     transform: scale(0.9);
     opacity: 0;
     transition: transform 0.3s ease, opacity 0.3s ease;
-    
+
     &.open {
         transform: scale(1);
         opacity: 1;
     }
-    
+
     .profile-dialog-content {
         flex: 1;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
         align-items: center;
-        
+
         .profile-picture-section {
             position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
             margin: 16px;
-            
+
             .profile-picture {
                 width: 120px;
                 height: 120px;
@@ -69,7 +69,7 @@
                 object-fit: cover;
                 border: 3px solid $color-dark-outline;
             }
-            
+
             .profile-picture-edit-overlay {
                 position: absolute;
                 top: 0;
@@ -84,16 +84,16 @@
                 opacity: 0;
                 transition: opacity 0.2s ease;
                 cursor: pointer;
-                
+
                 &:hover {
                     opacity: 1;
                 }
             }
         }
-        
+
         .username-section {
             text-align: center;
-            
+
             .username-input {
                 background: none;
                 border: none;
@@ -114,24 +114,24 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            
+
             .online-indicator {
                 width: 8px;
                 height: 8px;
                 border-radius: 50%;
                 background: $color-dark-primary;
-                
+
                 &.offline {
                     background: $color-dark-on-surface-variant;
                 }
             }
-            
+
             .status-text {
                 font-size: 0.875rem;
                 color: $color-dark-on-surface;
             }
         }
-        
+
         .profile-sections {
             margin: 16px;
             border-radius: 24px;
@@ -161,7 +161,7 @@
                         font-size: small;
                         color: $color-dark-on-surface-variant;
                     }
-                    
+
                     .value {
                         color: $color-dark-on-surface;
                         font-size: medium;
@@ -182,7 +182,7 @@
             }
         }
     }
-    
+
     .profile-dialog-fab {
         position: absolute;
         bottom: 24px;
@@ -190,7 +190,7 @@
         z-index: 1002;
         transform: translateY(100px);
         transition: transform 0.3s ease;
-        
+
         &.visible {
             transform: translateY(0);
         }

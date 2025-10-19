@@ -33,9 +33,9 @@ function showNotification(message: string, type: NotificationType): void {
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         transition: opacity 0.3s ease;
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Fade out and remove
     setTimeout(() => {
         notification.style.opacity = '0';

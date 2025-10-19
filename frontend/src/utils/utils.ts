@@ -47,7 +47,7 @@ export function id<T extends Element = HTMLElement>(id: string): T {
 
 /**
  * Runs the specified callback after `click` or `touchstart` event is triggered.
- * 
+ *
  * @param action The action to perform after interaction
  * @returns A function to clean up the event listeners.
  */

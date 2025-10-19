@@ -84,7 +84,7 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
         // Update existing reactions and add new ones
         setVisibleReactions(prev => {
             const updated = [...prev];
-            
+
             // Update existing reactions
             uniqueReactions.forEach(reaction => {
                 const existingIndex = updated.findIndex(r => r.emoji === reaction.emoji);
@@ -97,7 +97,7 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
                     }
                 }
             });
-            
+
             return updated;
         });
     }, [reactions]);
@@ -112,7 +112,7 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
             {visibleReactions.map((reaction, index) => {
                 const hasUserReacted = reaction.users.some(u => u.id === user.currentUser?.id);
                 const isAnimating = animatingReactions.has(reaction.emoji);
-                
+
                 return (
                     <button
                         key={`${messageId || 'unknown'}-${reaction.emoji}-${reaction.count}-${index}`}
@@ -140,9 +140,9 @@ interface MessageProps {
 }
 
 interface Rect {
-    left: number; 
-    top: number; 
-    width: number; 
+    left: number;
+    top: number;
+    width: number;
     height: number
 }
 
@@ -200,12 +200,12 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
             console.warn("Conditions not met")
             return null;
         }
-        
+
         // Check if already decrypted
         if (decryptedFiles.has(file.path)) {
             return decryptedFiles.get(file.path) || null;
         }
-        
+
         try {
             // no-op decrypt indicator removed from UI
             // Fetch encrypted file
@@ -213,32 +213,32 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                 headers: getAuthHeaders(user.authToken!)
             });
             if (!response.ok) throw new Error("Failed to fetch file");
-            
+
             const encryptedData = await response.arrayBuffer();
-            
+
             // Get current user's keys
             const keys = getCurrentKeys();
             if (!keys) throw new Error("Keys not initialized");
-            
+
             // Derive shared secret with the recipient's public key
             const shared = await ecdhSharedSecret(keys.privateKey, ub64(dmRecipientPublicKey));
-            
+
             // Derive wrapping key using the salt from the DM envelope
             const wkRaw = await deriveWrappingKey(shared, ub64(dmEnvelope.salt), new Uint8Array([1]));
             const wk = await importAesGcmKey(wkRaw);
-            
+
             // Unwrap the message key
             const mk = await aesGcmDecrypt(wk, ub64(dmEnvelope.iv2), ub64(dmEnvelope.wrappedMk));
-            
+
             // Decrypt the file using the message key
             const iv = new Uint8Array(encryptedData, 0, 12);
             const ciphertext = new Uint8Array(encryptedData, 12);
             const decrypted = await aesGcmDecrypt(await importAesGcmKey(mk), iv, ciphertext);
-            
+
             // Create blob URL for download
             const blob = new Blob([decrypted.buffer as ArrayBuffer]);
             const url = URL.createObjectURL(blob);
-            
+
             updateDecryptedFiles(draft => {
                 draft.set(file.path, url);
             });
@@ -390,7 +390,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
     async function handleProfileClick() {
         if (!user.authToken || !message.username) return;
-        
+
         try {
             const userProfile = await fetchUserProfile(user.authToken, message.username);
             if (userProfile) {
@@ -421,10 +421,10 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         const emojiRegex = /^[\p{Emoji}]+$/u;
         return messageText.length > 0 && emojiRegex.test(messageText) && messageText.length <= 4; // Most emojis are 1-4 characters
     }, [messageText]);
-    
+
     return (
         <>
-            <div 
+            <div
                 className={`message ${isAuthor ? "sent" : "received"} ${isEmojiMessage ? "emoji-message" : ""} ${isSingleEmojiMessage ? "single-emoji" : ""}`}
                 data-id={message.id}
                 onContextMenu={handleContextMenu}
@@ -444,7 +444,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
                 <div className="message-inner">
                     {!isAuthor && !isDm && !isSingleEmojiMessage && (
-                        <div 
+                        <div
                             className="message-username"
                             onClick={handleProfileClick}>
                             {message.username}
@@ -474,11 +474,11 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                                     <div className="attachment" key={idx}>
                                         {isImage ? (
                                             <div className="image-wrapper">
-                                                <img 
+                                                <img
                                                     ref={(el) => {
                                                         if (el) imageRefs.current.set(file.path, el);
                                                     }}
-                                                    src={imageSrc} 
+                                                    src={imageSrc}
                                                     alt={file.name || "image"}
                                                     onClick={(e) => handleImageClick(file, e.currentTarget)}
                                                     onLoad={() => updateLoadedImages(draft => { draft.add(file.path); })}
@@ -491,8 +491,8 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                                                 )}
                                             </div>
                                         ) : (
-                                            <a 
-                                                href="#" 
+                                            <a
+                                                href="#"
                                                 onClick={async (e) => {
                                                     e.preventDefault();
                                                     await downloadFile(file);
@@ -512,7 +512,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         </mdui-list>
                     )}
 
-                    <Reactions 
+                    <Reactions
                         reactions={message.reactions}
                         onReactionClick={(emoji) => onReactionClick?.(message.id, emoji)}
                         messageId={message.id}
@@ -521,11 +521,11 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                     <div className="message-time">
                         {formatTime(message.timestamp)}
                         {message.is_edited ? " (edited)" : undefined}
-                        
+
                         {isAuthor && message.is_read && (
                             <span className="material-symbols outlined"></span>
                         )}
-                        
+
                         {isAuthor && message.runtimeData?.sendingState && (
                             <span className="message-status-indicator">
                                 {message.runtimeData.sendingState.status === 'sending' && (
@@ -545,7 +545,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
             {/* Fullscreen Image Viewer with shared-element like transition */}
             {fullscreenImage && createPortal(
-                <div 
+                <div
                     className={`fullscreen-image-overlay ${isAnimatingOpen ? "open" : "closing"}`}
                     onClick={closeFullscreen}>
                     <img

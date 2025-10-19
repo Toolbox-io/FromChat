@@ -30,7 +30,7 @@ export function AuthHeader({ title, icon, subtitle }: AuthHeaderProps) {
     return (
         <div className="auth-header">
             <h2>
-                <span className={`material-symbols ${iconType} large`}>{iconName}</span> 
+                <span className={`material-symbols ${iconType} large`}>{iconName}</span>
                 {title}
             </h2>
             <p>{subtitle}</p>

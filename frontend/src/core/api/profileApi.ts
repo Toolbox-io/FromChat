@@ -30,7 +30,7 @@ export async function loadProfile(token: string): Promise<ProfileData | null> {
                 description: data.bio
             };
         }
-        
+
         return null;
     } catch (error) {
         console.error('Error loading profile:', error);
@@ -119,7 +119,7 @@ export async function fetchUserProfile(token: string, username: string): Promise
         if (response.ok) {
             return await response.json();
         }
-        
+
         return null;
     } catch (error) {
         console.error('Error fetching user profile:', error);

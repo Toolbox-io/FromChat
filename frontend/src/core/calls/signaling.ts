@@ -69,10 +69,10 @@ export class CallSignalingHandler {
         const { fromUsername } = data;
         const fromUserId = message.fromUserId;
         const state = this.getState();
-        
+
         // First, create the peer connection in WebRTC service
         await WebRTC.handleIncomingCall(fromUserId, fromUsername);
-        
+
         // Then show incoming call UI
         state.receiveCall(fromUserId, fromUsername);
     }
@@ -96,12 +96,12 @@ export class CallSignalingHandler {
     private handleCallReject(data: CallRejectData) {
         const state = this.getState();
         const { fromUserId } = data;
-        
+
         // Clean up WebRTC connection first
         if (fromUserId) {
             WebRTC.cleanupCall(fromUserId);
         }
-        
+
         // End the call
         state.endCall();
     }
@@ -121,12 +121,12 @@ export class CallSignalingHandler {
     private handleCallEnd(data: CallEndData) {
         const state = this.getState();
         const { fromUserId } = data;
-        
+
         // Clean up WebRTC connection first
         if (fromUserId) {
             WebRTC.cleanupCall(fromUserId);
         }
-        
+
         // End the call
         state.endCall();
     }
@@ -144,7 +144,7 @@ export class CallSignalingHandler {
 
     private handleVideoToggle(message: CallSignalingMessage, data: CallVideoToggleData) {
         const state = this.getState();
-        
+
         if (data && typeof data.enabled === "boolean" && message.fromUserId) {
             // Update Zustand state (for UI)
             state.setRemoteVideoEnabled(data.enabled);
@@ -157,7 +157,7 @@ export class CallSignalingHandler {
 
     private handleScreenShareToggle(message: CallSignalingMessage, data: CallScreenShareToggleData) {
         const state = this.getState();
-        
+
         if (data && typeof data.enabled === "boolean" && message.fromUserId) {
             // Update Zustand state (for UI)
             state.setRemoteScreenSharing(data.enabled);

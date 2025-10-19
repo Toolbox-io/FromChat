@@ -35,8 +35,8 @@ async function fetchPublicKey(token: string): Promise<Uint8Array | null> {
 }
 
 async function uploadPublicKey(publicKey: Uint8Array, token: string): Promise<void> {
-	const payload: UploadPublicKeyRequest = { 
-		publicKey: b64(publicKey) 
+	const payload: UploadPublicKeyRequest = {
+		publicKey: b64(publicKey)
 	}
 
 	const headers = getAuthHeaders(token, true);
@@ -49,9 +49,9 @@ async function uploadPublicKey(publicKey: Uint8Array, token: string): Promise<vo
 
 async function fetchBackupBlob(token: string): Promise<string | null> {
 	const headers = getAuthHeaders(token, true);
-	const res = await fetch(`${API_BASE_URL}/crypto/backup`, { 
+	const res = await fetch(`${API_BASE_URL}/crypto/backup`, {
 		method: "GET",
-		headers 
+		headers
 	});
 	if (res.ok) {
 		const response: BackupBlob = await res.json();
@@ -83,7 +83,7 @@ export function getCurrentKeys(): UserKeyPairMemory | null {
 }
 
 function saveKeys(
-	publicKey: Uint8Array<ArrayBufferLike>, 
+	publicKey: Uint8Array<ArrayBufferLike>,
 	privateKey: Uint8Array<ArrayBufferLike>
 ) {
 	const encodedPublicKey = b64(publicKey);
@@ -117,9 +117,9 @@ export async function ensureKeysOnLogin(password: string, token: string): Promis
 
 		saveKeys(currentPublicKey!, currentPrivateKey!);
 
-		return { 
-			publicKey: currentPublicKey!, 
-			privateKey: currentPrivateKey! 
+		return {
+			publicKey: currentPublicKey!,
+			privateKey: currentPrivateKey!
 		};
 	}
 

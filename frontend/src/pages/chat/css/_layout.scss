@@ -6,7 +6,7 @@
     height: 100%;
     background: linear-gradient(135deg, $color-dark-background 0%, $color-dark-surface-container 70%, rgba($color-dark-primary-container, 0.3) 100%);
     position: relative;
-    
+
     &::before {
         content: '';
         position: fixed;
@@ -14,7 +14,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: 
+        background:
             radial-gradient(circle at 20% 80%, rgba($color-dark-primary, 0.15) 0%, transparent 50%),
             radial-gradient(circle at 80% 20%, rgba($color-dark-tertiary, 0.15) 0%, transparent 50%),
             radial-gradient(circle at 40% 40%, rgba($color-dark-secondary, 0.1) 0%, transparent 50%);

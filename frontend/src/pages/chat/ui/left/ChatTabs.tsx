@@ -12,8 +12,8 @@ export function ChatTabs() {
 
     return (
         <div className="chat-tabs">
-            <mdui-tabs 
-                value={chat.activeTab} 
+            <mdui-tabs
+                value={chat.activeTab}
                 full-width
                 onChange={handleChange}>
                 <mdui-tab value="chats">

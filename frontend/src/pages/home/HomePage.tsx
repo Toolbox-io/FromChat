@@ -68,13 +68,13 @@ export default function HomePage() {
                                 Безопасный мессенджер с открытым исходным кодом
                             </h2>
                             <p className="hero-description">
-                                FromChat — это полностью открытый мессенджер с end-to-end шифрованием, 
+                                FromChat — это полностью открытый мессенджер с end-to-end шифрованием,
                                 поддержкой файлов и уведомлений. Создан для тех, кто ценит приватность и свободу.
                             </p>
                             <div className="hero-actions">
                                 {openBtn}
                                 {!isMobile && <mdui-button
-                                    variant="outlined" 
+                                    variant="outlined"
                                     onClick={() => navigate("/register")}
                                 >
                                     Зарегистрироваться
@@ -126,22 +126,22 @@ export default function HomePage() {
                                 </div>
                                 <h4>End-to-End Шифрование</h4>
                                 <p>
-                                    Ваши личные сообщения защищены современным шифрованием X25519 + AES-GCM. 
+                                    Ваши личные сообщения защищены современным шифрованием X25519 + AES-GCM.
                                     Только вы и получатель можете прочитать сообщения.
                                 </p>
                             </div>
-                            
+
                             <div className="feature-card">
                                 <div className="feature-icon">
                                     <mdui-icon name="code" />
                                 </div>
                                 <h4>100% открытый код</h4>
                                 <p>
-                                    Весь исходный код доступен на <GitHubLink>GitHub</GitHubLink>. Вы можете проверить безопасность, 
+                                    Весь исходный код доступен на <GitHubLink>GitHub</GitHubLink>. Вы можете проверить безопасность,
                                     внести изменения или развернуть свой сервер.
                                 </p>
                             </div>
-                            
+
                             <div className="feature-card">
                                 <div className="feature-icon">
                                     <mdui-icon name="attach_file" />
@@ -152,36 +152,36 @@ export default function HomePage() {
                                     В общем чате шифрования нет, так как ваши сообщения могут читать все пользователи FromChat.
                                 </p>
                             </div>
-                            
+
                             <div className="feature-card">
                                 <div className="feature-icon">
                                     <mdui-icon name="notifications" />
                                 </div>
                                 <h4>Уведомления</h4>
                                 <p>
-                                    Получайте push-уведомления в браузере и настольном приложении. 
+                                    Получайте push-уведомления в браузере и настольном приложении.
                                     Никогда не пропустите важное сообщение.
                                 </p>
                             </div>
-                            
+
                             <div className="feature-card">
                                 <div className="feature-icon">
                                     <mdui-icon name="edit" />
                                 </div>
                                 <h4>Редактирование</h4>
                                 <p>
-                                    Редактируйте и удаляйте свои сообщения. Отвечайте на сообщения 
+                                    Редактируйте и удаляйте свои сообщения. Отвечайте на сообщения
                                     для лучшего контекста общения.
                                 </p>
                             </div>
-                            
+
                             <div className="feature-card">
                                 <div className="feature-icon">
                                     <mdui-icon name="computer" />
                                 </div>
                                 <h4>Кроссплатформенность</h4>
                                 <p>
-                                    Работает в браузере и как настольное приложение для Windows, 
+                                    Работает в браузере и как настольное приложение для Windows,
                                     macOS и Linux. Единый интерфейс везде.
                                 </p>
                             </div>
@@ -194,15 +194,15 @@ export default function HomePage() {
                         <div className="download-content">
                             <h3>Скачайте приложение</h3>
                             <p>
-                                Для лучшего опыта используйте настольное приложение с поддержкой 
+                                Для лучшего опыта используйте настольное приложение с поддержкой
                                 уведомлений и автономной работы.
                             </p>
                             <div className="download-buttons">
                                 {!isMobile ? (
                                     <>
-                                        <a 
-                                            href="https://github.com/Toolbox-io/FromChat/actions/workflows/build.yml" 
-                                            target="_blank" 
+                                        <a
+                                            href="https://github.com/Toolbox-io/FromChat/actions/workflows/build.yml"
+                                            target="_blank"
                                             rel="noopener noreferrer"
                                         >
                                             <mdui-button variant="filled">
@@ -239,13 +239,13 @@ export default function HomePage() {
                                     </mdui-button>
                                 ) : (
                                     <>
-                                        <mdui-button 
-                                            variant="filled" 
+                                        <mdui-button
+                                            variant="filled"
                                             onClick={() => navigate("/register")}>
                                             Создать аккаунт
                                         </mdui-button>
-                                        <mdui-button 
-                                            variant="outlined" 
+                                        <mdui-button
+                                            variant="outlined"
                                             onClick={() => navigate("/login")}>
                                             Войти
                                         </mdui-button>

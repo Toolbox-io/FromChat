@@ -33,19 +33,19 @@ export default function LoginPage() {
             <AuthHeader icon="login" title="Добро пожаловать!" subtitle="Войдите в свой аккаунт" />
             <div className="auth-body">
                 <AlertsContainer alerts={alerts} />
-                
+
                 <form
                     onSubmit={async (e) => {
                         e.preventDefault();
-                        
+
                         const username = usernameElement.current!.value.trim();
                         const password = passwordElement.current!.value.trim();
-                        
+
                         if (!username || !password) {
                             showAlert("danger", "Пожалуйста, заполните все поля");
                             return;
                         }
-                        
+
                         try {
                             const request: LoginRequest = {
                                 username: username,
@@ -59,12 +59,12 @@ export default function LoginPage() {
                                 },
                                 body: JSON.stringify(request)
                             });
-                            
+
                             if (response.ok) {
                                 const data: LoginResponse = await response.json();
                                 // Store the JWT token first
                                 setUser(data.token, data.user);
-                                
+
                                 // Setup keys with the token we just received
                                 try {
                                     await ensureKeysOnLogin(password, data.token);
@@ -73,19 +73,19 @@ export default function LoginPage() {
                                 }
 
                                 navigate("/chat");
-                                
+
                                 // Initialize notifications
                                 try {
                                     if (isSupported()) {
                                         const initialized = await initialize();
                                         if (initialized) {
                                             await subscribe(data.token);
-                                            
+
                                             // For Electron, start the notification receiver
                                             if (isElectron) {
                                                 await startElectronReceiver();
                                             }
-                                            
+
                                             console.log("Notifications enabled");
                                         } else {
                                             console.log("Notification permission denied");
@@ -113,7 +113,7 @@ export default function LoginPage() {
                         autocomplete="username"
                         required
                         ref={usernameElement} />
-                    
+
                     <MaterialTextField
                         label="Пароль"
                         id="login-password"
@@ -128,13 +128,13 @@ export default function LoginPage() {
 
                     <mdui-button type="submit">Войти</mdui-button>
                 </form>
-                
+
                 <div className="text-center">
                     <p>
-                        Ещё нет аккаунта? 
+                        Ещё нет аккаунта?
                         <a
                             href="#"
-                            className="link" 
+                            className="link"
                             onClick={() => navigate("/register")}>
                             Зарегистрируйтесь
                         </a>

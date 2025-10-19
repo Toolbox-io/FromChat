@@ -221,17 +221,17 @@ export interface DmFile {
     path: string;
 }
 
-export interface DmEditedPayload { 
-    id: number; 
-    iv: string; 
-    ciphertext: string; 
-    timestamp: string 
+export interface DmEditedPayload {
+    id: number;
+    iv: string;
+    ciphertext: string;
+    timestamp: string
 }
 
-export interface DmDeletedPayload { 
-    id: number; 
-    senderId: number; 
-    recipientId: number 
+export interface DmDeletedPayload {
+    id: number;
+    senderId: number;
+    recipientId: number
 }
 
 export interface FetchDMResponse {
@@ -461,7 +461,7 @@ export interface CallSignalingMessage extends WebSocketMessage {
     data: CallSignalingMessageData;
 }
 
-export type CallSignalingMessageData = 
+export type CallSignalingMessageData =
     | CallInviteMessageData
     | CallAcceptData
     | CallRejectData

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAppState } from "@/pages/chat/state";
-import { 
-    fetchUserPublicKey, 
-    fetchDMHistory, 
-    decryptDm, 
+import {
+    fetchUserPublicKey,
+    fetchDMHistory,
+    decryptDm,
     sendDMViaWebSocket,
     fetchDMConversations,
     type DMConversationResponse
@@ -19,9 +19,9 @@ export interface DMUser extends User {
 
 // Utility function for consistent username formatting in DM messages
 export function formatDMUsername(
-    senderId: number, 
-    _recipientId: number, 
-    currentUserId: number, 
+    senderId: number,
+    _recipientId: number,
+    currentUserId: number,
     otherUsername: string
 ): string {
     const isFromCurrentUser = senderId === currentUserId;
@@ -30,15 +30,15 @@ export function formatDMUsername(
 
 // Utility function for consistent message content formatting
 export function formatDMMessageContent(
-    content: string, 
-    senderId: number, 
+    content: string,
+    senderId: number,
     currentUserId: number
 ): string {
     const isFromCurrentUser = senderId === currentUserId;
     const prefix = isFromCurrentUser ? "Вы: " : "";
     const maxContentLength = 50 - prefix.length;
-    const truncatedContent = content.length > maxContentLength 
-        ? content.substring(0, maxContentLength) + "..." 
+    const truncatedContent = content.length > maxContentLength
+        ? content.substring(0, maxContentLength) + "..."
         : content;
     return prefix + truncatedContent;
 }
@@ -66,7 +66,7 @@ export function useDM() {
             // Find last message
             const lastMessage = messages[messages.length - 1];
             let lastPlaintext: string | null = null;
-            
+
             try {
                 lastPlaintext = (JSON.parse(await decryptDm(lastMessage, publicKey)) as DmEncryptedJSON).data.content;
                 console.log(lastPlaintext);
@@ -84,10 +84,10 @@ export function useDM() {
             }
 
             // Update user state
-            setDmUsersState(prev => prev.map(u => 
-                u.id === dmUser.id 
-                    ? { 
-                        ...u, 
+            setDmUsersState(prev => prev.map(u =>
+                u.id === dmUser.id
+                    ? {
+                        ...u,
                         lastMessage: lastPlaintext ? lastPlaintext.split(/\r?\n/).slice(0, 2).join("\n") : undefined,
                         unreadCount,
                         publicKey
@@ -102,24 +102,24 @@ export function useDM() {
     // Load DM conversations when chats tab is active
     const loadUsers = useCallback(async () => {
         if (!user.authToken || isLoadingUsers || usersLoadedRef.current) return;
-        
+
         usersLoadedRef.current = true;
         setIsLoadingUsers(true);
         try {
             const conversations = await fetchDMConversations(user.authToken);
-            
+
             // Process conversations and decrypt last messages
             const dmUsersWithState: DMUser[] = await Promise.all(
                 conversations.map(async (conv: DMConversationResponse) => {
                     let lastMessageContent: string | undefined = undefined;
-                    
+
                     if (conv.lastMessage) {
                         try {
                             // Get the public key for the other user
-                            const otherUserId = conv.lastMessage.senderId === user.currentUser?.id 
-                                ? conv.lastMessage.recipientId 
+                            const otherUserId = conv.lastMessage.senderId === user.currentUser?.id
+                                ? conv.lastMessage.recipientId
                                 : conv.lastMessage.senderId;
-                            
+
                             const publicKey = await fetchUserPublicKey(otherUserId, user.authToken!);
                             if (publicKey) {
                                 // Decrypt the last message
@@ -131,7 +131,7 @@ export function useDM() {
                             console.error("Failed to decrypt last message for user", conv.user.id, error);
                         }
                     }
-                    
+
                     return {
                         ...conv.user,
                         unreadCount: conv.unreadCount,
@@ -140,10 +140,10 @@ export function useDM() {
                     };
                 })
             );
-            
+
             setDmUsersState(dmUsersWithState);
             setDmUsers(conversations.map((conv: DMConversationResponse) => conv.user));
-            
+
         } catch (error) {
             console.error("Failed to load DM conversations:", error);
         } finally {
@@ -159,7 +159,7 @@ export function useDM() {
     // Load DM history for active conversation
     const loadDMHistory = useCallback(async (userId: number, publicKey: string) => {
         if (!user.authToken || isLoadingHistory) return;
-        
+
         setIsLoadingHistory(true);
         try {
             const messages = await fetchDMHistory(userId, user.authToken, 50);
@@ -171,7 +171,7 @@ export function useDM() {
                     const text = await decryptDm(env, publicKey);
                     const isAuthor = env.senderId !== userId;
                     const username = isAuthor ? (user.currentUser?.username || "Unknown") : "Other User";
-                    
+
                     decryptedMessages.push({
                         id: env.id,
                         content: text,
@@ -196,7 +196,7 @@ export function useDM() {
             if (maxIncomingId > 0) {
                 setLastReadId(userId, maxIncomingId);
                 // Clear unread count
-                setDmUsersState(prev => prev.map(u => 
+                setDmUsersState(prev => prev.map(u =>
                     u.id === userId ? { ...u, unreadCount: 0 } : u
                 ));
             }
@@ -257,17 +257,17 @@ export function useDM() {
         try {
             const conversations = await fetchDMConversations(user.authToken);
             const userConversation = conversations.find(conv => conv.user.id === userId);
-            
+
             if (userConversation) {
                 let lastMessageContent: string | undefined = undefined;
-                
+
                 if (userConversation.lastMessage) {
                     try {
                         // Get the public key for the other user
-                        const otherUserId = userConversation.lastMessage.senderId === user.currentUser?.id 
-                            ? userConversation.lastMessage.recipientId 
+                        const otherUserId = userConversation.lastMessage.senderId === user.currentUser?.id
+                            ? userConversation.lastMessage.recipientId
                             : userConversation.lastMessage.senderId;
-                        
+
                         const publicKey = await fetchUserPublicKey(otherUserId, user.authToken!);
                         if (publicKey) {
                             // Decrypt the last message
@@ -279,7 +279,7 @@ export function useDM() {
                         console.error("Failed to decrypt last message for user", userId, error);
                     }
                 }
-                
+
                 // Update the specific user in the state
                 setDmUsersState(prev => prev.map(u => {
                     if (u.id === userId) {
@@ -311,13 +311,13 @@ export function useDM() {
                 const msg = JSON.parse(e.data);
                 if (msg.type === "dmNew") {
                     const { senderId, recipientId, ...envelope } = msg.data;
-                    
+
                     // Update conversation list (not active conversation - that's handled by DMPanel)
                     if (!user.currentUser?.id) {
                         return;
                     }
                     const otherUserId = senderId === user.currentUser.id ? recipientId : senderId;
-                    
+
                     // Update unread count and last message preview
                     try {
                         const publicKey = await fetchUserPublicKey(otherUserId, user.authToken!);
@@ -326,11 +326,11 @@ export function useDM() {
                             const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
                             const messageContent = decryptedData.data.content;
                             const formattedMessage = formatDMMessageContent(messageContent, senderId, user.currentUser.id);
-                            
-                            setDmUsersState(prev => prev.map(u => 
-                                u.id === otherUserId 
-                                    ? { 
-                                        ...u, 
+
+                            setDmUsersState(prev => prev.map(u =>
+                                u.id === otherUserId
+                                    ? {
+                                        ...u,
                                         unreadCount: senderId !== user.currentUser?.id ? u.unreadCount + 1 : u.unreadCount,
                                         lastMessage: formattedMessage,
                                         publicKey
@@ -343,7 +343,7 @@ export function useDM() {
                     }
                 } else if (msg.type === "dmEdited") {
                     const { id, senderId, recipientId, ...envelope } = msg.data;
-                    
+
                     // Update last message preview for conversation list
                     if (!user.currentUser?.id) {
                         return;
@@ -356,10 +356,10 @@ export function useDM() {
                             const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
                             const messageContent = decryptedData.data.content;
                             const formattedMessage = formatDMMessageContent(messageContent, senderId, user.currentUser.id);
-                            setDmUsersState(prev => prev.map(u => 
-                                u.id === otherUserId 
-                                    ? { 
-                                        ...u, 
+                            setDmUsersState(prev => prev.map(u =>
+                                u.id === otherUserId
+                                    ? {
+                                        ...u,
                                         lastMessage: formattedMessage,
                                         publicKey
                                     }
@@ -371,7 +371,7 @@ export function useDM() {
                     }
                 } else if (msg.type === "dmDeleted") {
                     const { senderId, recipientId } = msg.data;
-                    
+
                     // Reload only the specific user's conversation
                     if (!user.currentUser?.id) return;
                     const otherUserId = senderId === user.currentUser.id ? recipientId : senderId;

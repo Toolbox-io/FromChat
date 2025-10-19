@@ -37,11 +37,11 @@
             flex-shrink: 0;
             cursor: pointer;
             transition: transform 0.2s ease;
-            
+
             &:hover {
                 transform: scale(1.05);
             }
-            
+
             img {
                 width: 100%;
                 height: 100%;
@@ -69,7 +69,7 @@
             margin: 10px;
             cursor: pointer;
             transition: transform 0.2s ease;
-            
+
             &:hover {
                 transform: scale(1.05);
             }
@@ -102,7 +102,7 @@
                 a {
                     text-decoration: none;
                 }
-                
+
                 .attachement-image {
                     max-width: 200px;
                     border-radius: 8px;
@@ -199,7 +199,7 @@
             border: 1px solid rgba($color-dark-outline-variant, 0.4);
             position: relative;
             overflow: hidden;
-            
+
             &::before {
                 content: '';
                 position: absolute;
@@ -211,13 +211,13 @@
                 pointer-events: none;
                 z-index: 0;
             }
-            
+
             > * {
                 position: relative;
                 z-index: 1;
             }
         }
-        
+
         .message-time {
             color: $color-dark-on-surface-variant;
             font-weight: 500;
@@ -236,7 +236,7 @@
             border: 1px solid rgba($color-dark-primary, 0.5);
             position: relative;
             overflow: hidden;
-            
+
             &::before {
                 content: '';
                 position: absolute;
@@ -248,7 +248,7 @@
                 pointer-events: none;
                 z-index: 0;
             }
-            
+
             > * {
                 position: relative;
                 z-index: 1;

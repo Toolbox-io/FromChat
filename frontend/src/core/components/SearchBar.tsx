@@ -12,7 +12,7 @@ interface SearchBarProps {
     rightIcon?: string | React.ReactNode;
 }
 
-export default function SearchBar({ 
+export default function SearchBar({
     placeholder,
     children,
     searchQuery,
@@ -66,11 +66,11 @@ export default function SearchBar({
     };
 
     return (
-        <div 
+        <div
             ref={parentContainerRef}
             className="search-parent"
         >
-            <div 
+            <div
                 ref={searchContainerRef}
                 className={`search-bar-container ${isExpanded ? "expanded" : "collapsed"}`}
                 style={{ height: dynamicHeight }}

@@ -38,13 +38,13 @@ export function EmojiMenu(props: EmojiMenuProps) {
 
     const handleScroll = useCallback(() => {
         if (!scrollRef.current) return;
-        
+
         // Find which category is currently visible
         for (const [categoryName, element] of categoryRefs.current) {
             if (element) {
                 const rect = element.getBoundingClientRect();
                 const containerRect = scrollRef.current.getBoundingClientRect();
-                
+
                 // Check if category header is in view
                 if (rect.top <= containerRect.top + 50 && rect.bottom > containerRect.top + 50) {
                     if (activeCategory !== categoryName) {
@@ -60,9 +60,9 @@ export function EmojiMenu(props: EmojiMenuProps) {
     function scrollToCategory(categoryName: string) {
         const element = categoryRefs.current.get(categoryName);
         if (element && scrollRef.current) {
-            element.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
+            element.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
             });
         }
     }
@@ -72,7 +72,7 @@ export function EmojiMenu(props: EmojiMenuProps) {
         if (tabElement && tabsRef.current) {
             const tabsRect = tabsRef.current.getBoundingClientRect();
             const tabRect = tabElement.getBoundingClientRect();
-            
+
             // Check if tab is outside the visible area
             if (tabRect.left < tabsRect.left || tabRect.right > tabsRect.right) {
                 tabElement.scrollIntoView({
@@ -116,7 +116,7 @@ export function EmojiMenu(props: EmojiMenuProps) {
 
 
     return (
-        <div 
+        <div
             ref={menuRef}
             className={`emoji-menu ${isOpen ? "open" : ""} ${mode}`}
             style={mode === "standalone" && position ? {
@@ -146,17 +146,17 @@ export function EmojiMenu(props: EmojiMenuProps) {
                 ))}
             </div>
             </div>
-            
-            <div 
+
+            <div
                 ref={scrollRef}
                 className="emoji-grid"
                 onScroll={handleScroll}
             >
                 {EMOJI_CATEGORIES.map((category) => {
                     const emojis = category.name === "recent" ? recentEmojis : category.emojis;
-                    
+
                     return (
-                        <div 
+                        <div
                             key={category.name}
                             ref={(el) => {
                                 if (el) categoryRefs.current.set(category.name, el);

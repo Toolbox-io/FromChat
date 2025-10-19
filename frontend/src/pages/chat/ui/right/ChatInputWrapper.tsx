@@ -25,16 +25,16 @@ interface ChatInputWrapperProps {
 }
 
 export function ChatInputWrapper(
-    { 
-        onSendMessage, 
-        onSaveEdit, 
-        replyTo, 
-        replyToVisible, 
+    {
+        onSendMessage,
+        onSaveEdit,
+        replyTo,
+        replyToVisible,
         onClearReply,
-        onCloseReply, 
-        editingMessage, 
-        editVisible = false, 
-        onClearEdit, 
+        onCloseReply,
+        editingMessage,
+        editVisible = false,
+        onClearEdit,
         onCloseEdit,
         onProvideFileAdder,
         messagePanelRef,
@@ -77,7 +77,7 @@ export function ChatInputWrapper(
             if (chatInputWrapperRef.current && messagePanelRef?.current) {
                 const inputRect = chatInputWrapperRef.current.getBoundingClientRect();
                 const panelRect = messagePanelRef.current.getBoundingClientRect();
-                
+
                 // Position menu 10px from message panel edge and 10px above the chat input
                 // The animation will start 30px below this position
                 setEmojiMenuPosition({
@@ -207,9 +207,9 @@ export function ChatInputWrapper(
                             className="emoji-btn" />
                     </div>
                     <RichTextArea
-                        className="message-input" 
-                        id="message-input" 
-                        placeholder="Напишите сообщение..." 
+                        className="message-input"
+                        id="message-input"
+                        placeholder="Напишите сообщение..."
                         autoComplete="off"
                         text={message}
                         rows={1}
@@ -228,7 +228,7 @@ export function ChatInputWrapper(
                 <div>Общий размер вложений превышает 4 ГБ.</div>
                 <mdui-button slot="action" onClick={() => setErrorOpen(false)}>Закрыть</mdui-button>
             </MaterialDialog>
-            
+
             <EmojiMenu
                 isOpen={emojiMenuOpen}
                 onClose={() => setEmojiMenuOpen(false)}

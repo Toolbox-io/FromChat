@@ -9,19 +9,14 @@ import { useAppState } from "@/pages/chat/state";
 
 interface OnlineStatusProps {
     userId: number;
-    className?: string;
     showLastSeen?: boolean;
 }
 
-export function OnlineStatus({ userId, className = "", showLastSeen = false }: OnlineStatusProps) {
-    const { chat } = useAppState();
-    const status = chat.onlineStatuses.get(userId);
+export function OnlineStatus({ userId, showLastSeen = false }: OnlineStatusProps) {
+    const { chat, user } = useAppState();
+    const status = userId === user.currentUser?.id ? { online: true, lastSeen: new Date().toISOString() } : chat.onlineStatuses.get(userId);
 
-    if (!status) {
-        return null;
-    }
-
-    const formatLastSeen = (lastSeen: string): string => {
+    function formatLastSeen(lastSeen: string): string {
         const date = new Date(lastSeen);
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
@@ -40,15 +35,15 @@ export function OnlineStatus({ userId, className = "", showLastSeen = false }: O
         } else {
             return date.toLocaleDateString();
         }
-    };
+    }
 
     return (
-        <div className={`online-status ${className}`}>
-            <div className={`status-dot ${status.online ? "online" : "offline"}`}></div>
+        <div className="online-status">
+            <div className={`status-dot ${status?.online ? "online" : "offline"}`}></div>
             <span className="status-text">
-                {status.online ? "В сети" : "Не в сети"}
+                {!status ? "Загрузка..." : status?.online ? "В сети" : "Не в сети"}
             </span>
-            {showLastSeen && !status.online && (
+            {showLastSeen && status && !status.online && (
                 <span className="last-seen">
                     {formatLastSeen(status.lastSeen)}
                 </span>

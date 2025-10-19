@@ -1,7 +1,7 @@
 import { MessagePanel } from "./MessagePanel";
-import { 
-    fetchDMHistory, 
-    decryptDm, 
+import {
+    fetchDMHistory,
+    decryptDm,
     sendDMViaWebSocket,
     sendDmWithFiles,
     editDmEnvelope,
@@ -43,7 +43,7 @@ export class DMPanel extends MessagePanel {
     async activate(): Promise<void> {
         // Don't load messages immediately during activation to prevent animation freeze
         // Messages will be loaded after the animation completes
-        
+
         // Subscribe to recipient's online status
         if (this.dmData?.userId) {
             onlineStatusManager.subscribe(this.dmData.userId);
@@ -65,9 +65,9 @@ export class DMPanel extends MessagePanel {
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
         const plaintext = await decryptDm(env, this.dmData!.publicKey);
         const username = formatDMUsername(
-            env.senderId, 
-            env.recipientId, 
-            this.currentUser.currentUser?.id!, 
+            env.senderId,
+            env.recipientId,
+            this.currentUser.currentUser?.id!,
             this.dmData!.username
         );
 
@@ -146,10 +146,10 @@ export class DMPanel extends MessagePanel {
         if (!this.currentUser.authToken || !this.dmData || !content.trim()) return;
 
         try {
-            const payload: DmEncryptedJSON = { 
-                type: "text", 
-                data: { 
-                    content: content.trim(), 
+            const payload: DmEncryptedJSON = {
+                type: "text",
+                data: {
+                    content: content.trim(),
                     reply_to_id: replyToId ?? undefined
                 }
             }
@@ -193,12 +193,12 @@ export class DMPanel extends MessagePanel {
     async handleWebSocketMessage(response: DMWebSocketMessage): Promise<void> {
         if (response.type === "dmNew" && this.dmData) {
             const envelope = response.data;
-            
+
             // If this is for the active DM conversation
             if (envelope.senderId === this.dmData.userId || envelope.recipientId === this.dmData.userId) {
                 try {
                     const dmMsg = await this.parseTextPayload(envelope, this.getMessages());
-                    
+
                     // Check if this is a confirmation of a message we sent
                     const isOurMessage = envelope.senderId !== this.dmData.userId;
                     if (isOurMessage) {
@@ -211,7 +211,7 @@ export class DMPanel extends MessagePanel {
                             }
                         }
                     }
-                    
+
                     this.addMessage(dmMsg);
 
                     // Update last read if it's from the other user
@@ -228,17 +228,17 @@ export class DMPanel extends MessagePanel {
             try {
                 // Decrypt new content in-place
                 const plaintext = await decryptDm(
-                    { 
-                        id, 
-                        senderId: 0, 
-                        recipientId: 0, 
-                        iv, 
-                        ciphertext, 
-                        salt, 
-                        iv2, 
-                        wrappedMk, 
-                        timestamp: new Date().toISOString() 
-                    }, 
+                    {
+                        id,
+                        senderId: 0,
+                        recipientId: 0,
+                        iv,
+                        ciphertext,
+                        salt,
+                        iv2,
+                        wrappedMk,
+                        timestamp: new Date().toISOString()
+                    },
                     this.dmData.publicKey
                 );
                 let content = plaintext;
@@ -272,7 +272,7 @@ export class DMPanel extends MessagePanel {
         if (this.dmData?.userId) {
             onlineStatusManager.unsubscribe(this.dmData.userId);
         }
-        
+
         this.dmData = null;
         this.messagesLoaded = false;
         this.clearMessages();
@@ -324,10 +324,10 @@ export class DMPanel extends MessagePanel {
 
     async handleDeleteMessage(messageId: number): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData) return;
-        
+
         // Remove message immediately from UI
         this.deleteMessageImmediately(messageId);
-        
+
         // Fire and forget server deletion; UI already updated
         await deleteDmEnvelope(messageId, this.dmData.userId, this.currentUser.authToken);
     }
@@ -348,14 +348,14 @@ export class DMPanel extends MessagePanel {
             console.error("Failed to edit DM:", e);
         });
     }
-    
+
     async getProfile(): Promise<ProfileDialogData | null> {
         if (!this.dmData || !this.currentUser.authToken) return null;
-        
+
         try {
             const userProfile = await fetchUserProfile(this.currentUser.authToken, this.dmData.username);
             if (!userProfile) return null;
-            
+
             return {
                 userId: userProfile.id,
                 username: userProfile.username,
@@ -373,10 +373,10 @@ export class DMPanel extends MessagePanel {
 
     updateMessageReactions(dmEnvelopeId: number, reactions: any[]): void {
         const messages = this.getMessages();
-        const messageIndex = messages.findIndex(msg => 
+        const messageIndex = messages.findIndex(msg =>
             msg.runtimeData?.dmEnvelope?.id === dmEnvelopeId
         );
-        
+
         if (messageIndex !== -1) {
             const updatedMessage = { ...messages[messageIndex] };
             updatedMessage.reactions = reactions;

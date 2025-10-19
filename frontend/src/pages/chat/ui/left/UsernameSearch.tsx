@@ -151,7 +151,7 @@ export function UsernameSearch() {
                             style={{ cursor: "pointer" }}
                         >
                             <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
-                                <img 
+                                <img
                                     src={searchUser.profile_picture || defaultAvatar}
                                     alt={searchUser.username}
                                     style={{

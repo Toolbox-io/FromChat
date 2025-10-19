@@ -19,9 +19,9 @@ function BottomAppBar() {
                 <mdui-button-icon icon="settings--filled" id="settings-open" onClick={() => onSettingsOpenChange(true)}></mdui-button-icon>
                 <mdui-button-icon icon="group_add--filled"></mdui-button-icon>
                 <div style={{ flexGrow: 1 }}></div>
-                <mdui-button-icon 
-                    icon="logout--filled" 
-                    id="logout-btn" 
+                <mdui-button-icon
+                    icon="logout--filled"
+                    id="logout-btn"
                     onClick={handleLogout}
                     title="Выйти"
                 ></mdui-button-icon>

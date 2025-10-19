@@ -31,11 +31,11 @@ export interface EncryptedCallMessage {
 export async function generateCallSessionKey(): Promise<CallSessionKey> {
     // Generate session key material
     const sessionKeyMaterial = randomBytes(32);
-    
+
     // Generate hash for emoji display (first 4 bytes of SHA-256 hash)
     const hashBuffer = await crypto.subtle.digest("SHA-256", sessionKeyMaterial.buffer as ArrayBuffer);
     const hash = b64(new Uint8Array(hashBuffer.slice(0, 4)));
-    
+
     return {
         key: sessionKeyMaterial,
         hash
@@ -49,11 +49,11 @@ export async function generateCallSessionKey(): Promise<CallSessionKey> {
 export async function rotateCallSessionKey(): Promise<CallSessionKey> {
     // Generate new session key material (completely independent of current key)
     const newSessionKeyMaterial = randomBytes(32);
-    
+
     // Generate new hash for emoji display
     const hashBuffer = await crypto.subtle.digest("SHA-256", newSessionKeyMaterial.buffer as ArrayBuffer);
     const newHash = b64(new Uint8Array(hashBuffer.slice(0, 4)));
-    
+
     return {
         key: newSessionKeyMaterial,
         hash: newHash
@@ -68,12 +68,12 @@ export async function createCallSessionKeyFromHash(hash: string): Promise<CallSe
     // For backward compatibility, generate a deterministic key from the hash
     const hashBytes = ub64(hash);
     const sessionKey = new Uint8Array(32);
-    
+
     // Repeat the hash bytes to fill 32 bytes
     for (let i = 0; i < 32; i++) {
         sessionKey[i] = hashBytes[i % hashBytes.length];
     }
-    
+
     return {
         key: sessionKey,
         hash
@@ -85,7 +85,7 @@ export async function createCallSessionKeyFromHash(hash: string): Promise<CallSe
  * This creates a deterministic but cryptographically secure key
  */
 export async function deriveCallSessionKeyFromSharedSecret(
-    sharedSecret: Uint8Array, 
+    sharedSecret: Uint8Array,
     sessionKeyHash: string,
     isInitiator: boolean
 ): Promise<CallSessionKey> {
@@ -93,7 +93,7 @@ export async function deriveCallSessionKeyFromSharedSecret(
     // Include the session key hash and role to ensure uniqueness
     const info = new TextEncoder().encode(`call-session-${sessionKeyHash}-${isInitiator ? 'initiator' : 'receiver'}`);
     const salt = new Uint8Array(32); // Zero salt for deterministic derivation
-    
+
     // Import the shared secret as a raw key for HKDF
     const sharedKey = await crypto.subtle.importKey(
         'raw',
@@ -102,7 +102,7 @@ export async function deriveCallSessionKeyFromSharedSecret(
         false,
         ['deriveKey']
     );
-    
+
     // Derive the session key using HKDF
     const sessionKey = await crypto.subtle.deriveKey(
         {
@@ -116,10 +116,10 @@ export async function deriveCallSessionKeyFromSharedSecret(
         true, // Make the key extractable so we can export it
         ['encrypt', 'decrypt']
     );
-    
+
     // Export the raw key material
     const sessionKeyMaterial = await crypto.subtle.exportKey('raw', sessionKey);
-    
+
     return {
         key: new Uint8Array(sessionKeyMaterial),
         hash: sessionKeyHash
@@ -132,7 +132,7 @@ export async function deriveCallSessionKeyFromSharedSecret(
 export async function encryptCallMessage(message: Record<string, unknown>, sessionKey: Uint8Array): Promise<EncryptedCallMessage> {
     const messageKey = await importAesGcmKey(sessionKey);
     const encrypted = await aesGcmEncrypt(messageKey, new TextEncoder().encode(JSON.stringify(message)));
-    
+
     return {
         iv: b64(encrypted.iv),
         ciphertext: b64(encrypted.ciphertext),
@@ -158,7 +158,7 @@ export function generateCallEmojis(sessionKeyHash: string): string[] {
     // Convert hash to numbers and map to emoji ranges
     const hashBytes = new Uint8Array(ub64(sessionKeyHash));
     const emojis: string[] = [];
-    
+
     // Different emoji categories for variety
     const emojiSets = [
         ["🎵", "🎶", "🎤", "🎧", "🎼", "🎹", "🥁", "🎺", "🎸", "🎻"], // Music
@@ -166,13 +166,13 @@ export function generateCallEmojis(sessionKeyHash: string): string[] {
         ["🚀", "🛸", "🛰️", "🌌", "🔭", "⚙️", "🔧", "⚡", "💡", "🔬"], // Tech/Space
         ["🎭", "🎪", "🎨", "🎬", "📷", "🎥", "📺", "🎮", "🕹️", "🎯"]  // Entertainment
     ];
-    
+
     for (let i = 0; i < 4; i++) {
         const set = emojiSets[i % emojiSets.length];
         const index = hashBytes[i % hashBytes.length] % set.length;
         emojis.push(set[index]);
     }
-    
+
     return emojis;
 }
 
@@ -214,7 +214,7 @@ export async function createSharedSecretAndDeriveSessionKey(
 
     // Create shared secret using ECDH
     const sharedSecret = ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
-    
+
     // Derive the session key from the shared secret
     return await deriveCallSessionKeyFromSharedSecret(sharedSecret, sessionKeyHash, isInitiator);
 }

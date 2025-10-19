@@ -13,7 +13,7 @@ export default function DownloadAppPage() {
                 <a href="https://github.com/denis0001-dev/FromChat-android/releases/latest">
                     <mdui-button>Скачать на GitHub</mdui-button>
                 </a>
-                
+
                 <p>
                     Если возникнут сложности или есть вопросы, нажмите кнопку!
                 </p>

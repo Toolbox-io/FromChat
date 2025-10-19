@@ -18,7 +18,7 @@ export async function hkdfExtractAndExpand(inputKeyMaterial: Uint8Array | ArrayB
 	const inputBuffer = inputKeyMaterial instanceof Uint8Array ? inputKeyMaterial.buffer as ArrayBuffer : inputKeyMaterial;
 	const saltBuffer = salt instanceof Uint8Array ? salt.buffer as ArrayBuffer : salt;
 	const infoBuffer = info instanceof Uint8Array ? info.buffer as ArrayBuffer : info;
-	
+
 	const ikmKey = await crypto.subtle.importKey("raw", inputBuffer, { name: "HKDF" }, false, ["deriveBits"]);
 	const bits = await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt: saltBuffer, info: infoBuffer }, ikmKey, length * 8);
 	return new Uint8Array(bits);

@@ -32,41 +32,41 @@ export default function RegisterPage() {
             <AuthHeader icon="person_add" title="Регистрация" subtitle="Создайте новый аккаунт" />
             <div className="auth-body">
                 <AlertsContainer alerts={alerts} />
-                
+
                 <form onSubmit={async (e) => {
                     e.preventDefault();
-                    
+
                     const username = usernameElement.current!.value.trim();
                     const password = passwordElement.current!.value.trim();
                     const confirmPassword = confirmPasswordElement.current!.value.trim();
-                    
+
                     if (!username || !password || !confirmPassword) {
                         showAlert("danger", "Пожалуйста, заполните все поля");
                         return;
                     }
-                    
+
                     if (password !== confirmPassword) {
                         showAlert("danger", "Пароли не совпадают");
                         return;
                     }
-                    
+
                     if (username.length < 3 || username.length > 20) {
                         showAlert("danger", "Имя пользователя должно быть от 3 до 20 символов");
                         return;
                     }
-                    
+
                     if (password.length < 5 || password.length > 50) {
                         showAlert("danger", "Пароль должен быть от 5 до 50 символов");
                         return;
                     }
-                    
+
                     try {
                         const request: RegisterRequest = {
                             username: username,
                             password: password,
                             confirm_password: confirmPassword
                         }
-                
+
                         const response = await fetch(`${API_BASE_URL}/register`, {
                             method: 'POST',
                             headers: {
@@ -74,12 +74,12 @@ export default function RegisterPage() {
                             },
                             body: JSON.stringify(request)
                         });
-                        
+
                         if (response.ok) {
                             const data: LoginResponse = await response.json();
                             // Store the JWT token first
                             setUser(data.token, data.user);
-                            
+
                             // Setup keys with the token we just received
                             try {
                                 await ensureKeysOnLogin(password, data.token);
@@ -97,9 +97,9 @@ export default function RegisterPage() {
                     }
                 }}>
                     <MaterialTextField
-                        label="Имя пользователя" 
-                        id="register-username" 
-                        name="username" 
+                        label="Имя пользователя"
+                        id="register-username"
+                        name="username"
                         variant="outlined"
                         icon="person--filled"
                         autocomplete="username"
@@ -108,22 +108,22 @@ export default function RegisterPage() {
                         required
                         ref={usernameElement} />
                     <MaterialTextField
-                        label="Пароль" 
-                        id="register-password" 
-                        name="password" 
-                        variant="outlined" 
-                        type="password" 
+                        label="Пароль"
+                        id="register-password"
+                        name="password"
+                        variant="outlined"
+                        type="password"
                         toggle-password
                         icon="password--filled"
                         autocomplete="new-password"
                         required
                         ref={passwordElement} />
                     <MaterialTextField
-                        label="Подтвердите пароль" 
-                        id="register-confirm-password" 
-                        name="confirm_password" 
-                        variant="outlined" 
-                        type="password" 
+                        label="Подтвердите пароль"
+                        id="register-confirm-password"
+                        name="confirm_password"
+                        variant="outlined"
+                        type="password"
                         toggle-password
                         icon="password--filled"
                         autocomplete="new-password"
@@ -132,14 +132,14 @@ export default function RegisterPage() {
 
                     <mdui-button type="submit">Зарегистрироваться</mdui-button>
                 </form>
-                
+
                 <div className="text-center">
                     <p>
-                        Уже есть аккаунт? 
-                        <a 
-                            href="#" 
-                            id="login-link" 
-                            className="link" 
+                        Уже есть аккаунт?
+                        <a
+                            href="#"
+                            id="login-link"
+                            className="link"
                             onClick={() => navigate("/login")}>
                             Войдите
                         </a>
