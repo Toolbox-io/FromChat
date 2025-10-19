@@ -377,14 +377,22 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             }}
                             onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
                             messagePanelRef={messagePanelRef}
-        onTyping={() => {
-            if (panel.isDm()) {
-                const dmPanel = panel as DMPanel;
-                dmPanel.handleTyping();
-            } else {
-                typingManager.sendTyping();
-            }
-        }}
+                            onTyping={() => {
+                                if (panel.isDm()) {
+                                    const dmPanel = panel as DMPanel;
+                                    dmPanel.handleTyping();
+                                } else {
+                                    typingManager.sendTyping();
+                                }
+                            }}
+                            onStopTyping={() => {
+                                if (panel.isDm()) {
+                                    const dmPanel = panel as DMPanel;
+                                    typingManager.stopDmTypingOnMessage(dmPanel.getRecipientId()!);
+                                } else {
+                                    typingManager.stopTypingOnMessage();
+                                }
+                            }}
                         />
                     </>
                 )}

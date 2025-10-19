@@ -21,6 +21,7 @@ interface ChatInputWrapperProps {
     onProvideFileAdder?: (adder: (files: File[]) => void) => void;
     messagePanelRef?: React.RefObject<HTMLDivElement | null>;
     onTyping?: () => void;
+    onStopTyping?: () => void;
 }
 
 export function ChatInputWrapper(
@@ -37,7 +38,8 @@ export function ChatInputWrapper(
         onCloseEdit,
         onProvideFileAdder,
         messagePanelRef,
-        onTyping
+        onTyping,
+        onStopTyping
     }: ChatInputWrapperProps
 ) {
     const [message, setMessage] = useState("");
@@ -124,6 +126,8 @@ export function ChatInputWrapper(
                 setMessage("");
                 setAttachmentsVisible(false);
                 if (onClearReply) onClearReply();
+                // Stop typing indicator when message is sent
+                if (onStopTyping) onStopTyping();
             }
         }
     };

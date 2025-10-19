@@ -204,6 +204,22 @@ export class TypingManager {
     }
 
     /**
+     * Immediately stop typing for public chat (called when message is sent)
+     */
+    async stopTypingOnMessage(): Promise<void> {
+        this.clearStopTypingTimeout("public");
+        await this.sendStopTyping();
+    }
+
+    /**
+     * Immediately stop DM typing (called when message is sent)
+     */
+    async stopDmTypingOnMessage(recipientId: number): Promise<void> {
+        this.clearStopTypingTimeout(`dm_${recipientId}`);
+        await this.sendStopDmTyping(recipientId);
+    }
+
+    /**
      * Cleanup all timeouts
      */
     cleanup(): void {
