@@ -396,6 +396,8 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
             if (userProfile) {
                 setProfileDialog({
                     ...userProfile,
+                    userId: userProfile.id,
+                    memberSince: userProfile.created_at,
                     isOwnProfile: false
                 });
             }
