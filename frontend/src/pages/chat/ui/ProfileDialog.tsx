@@ -377,12 +377,11 @@ export function ProfileDialog() {
 
     const fabVisible = useMemo(() => {
         let hasErrors = false;
-        for (const error of Object.values(errors)) {
+        Object.values(errors).forEach(error => {
             if (error) {
                 hasErrors = true;
-                break;
             }
-        }
+        });
 
         return hasChanges && currentData?.isOwnProfile && !isSaving && !hasErrors;
     }, [hasChanges, currentData?.isOwnProfile, isSaving, errors]);
