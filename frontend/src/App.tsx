@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate, matchRoutes, useLocation, type RouteObject } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, matchRoutes, type RouteObject } from "react-router-dom";
 import { ElectronTitleBar } from "./Electron";
 import { useAppState } from "./pages/chat/state";
 import { lazy, useEffect, useState } from "react";
@@ -65,27 +65,6 @@ function SmartCatchAll() {
     }
 }
 
-function BodyClassManager() {
-    const location = useLocation();
-
-    useEffect(() => {
-        const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
-        
-        if (isAuthPage) {
-            document.body.classList.add('auth-page');
-        } else {
-            document.body.classList.remove('auth-page');
-        }
-
-        // Cleanup on unmount
-        return () => {
-            document.body.classList.remove('auth-page');
-        };
-    }, [location.pathname]);
-
-    return null;
-}
-
 export default function App() {
     const { restoreUserFromStorage } = useAppState();
     const [authReady, setAuthReady] = useState(false);
@@ -98,7 +77,6 @@ export default function App() {
 
     return authReady && (
         <BrowserRouter>
-            <BodyClassManager />
             <ElectronTitleBar />
             <div id="main-wrapper">
                 <Routes>

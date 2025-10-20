@@ -89,7 +89,7 @@ export interface OnboardingTipProps {
 export function OnboardingTip({ icon = "lightbulb--filled", children }: OnboardingTipProps) {
     return (
         <div className="onboarding-tip">
-            <span className={`material-symbols filled tip-icon`}>{icon}</span>
+            <mdui-icon className="tip-icon" name={icon} />
             <p className="tip-text">{children}</p>
         </div>
     );
