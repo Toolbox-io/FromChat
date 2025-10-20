@@ -10,10 +10,11 @@ import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { getAuthHeaders } from "@/core/api/authApi";
 import { useAppState } from "@/pages/chat/state";
-import { fetchUserProfileById } from "@/core/api/profileApi";
+import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
+import { parseProfileLink } from "@/core/profileLinks";
 
 interface MessageReactionsProps {
     reactions?: Reaction[];
@@ -406,6 +407,44 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         }
     }
 
+    async function handleLinkClick(e: React.MouseEvent<HTMLDivElement>) {
+        const target = e.target as HTMLElement;
+        
+        if (target.tagName === 'A') {
+            const profileLink = parseProfileLink((target as HTMLAnchorElement).href);
+            
+            if (profileLink) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (!user.authToken) return;
+                
+                try {
+                    let userProfile;
+                    
+                    if (profileLink.userId) {
+                        userProfile = await fetchUserProfileById(user.authToken, profileLink.userId);
+                    } else if (profileLink.username) {
+                        userProfile = await fetchUserProfile(user.authToken, profileLink.username);
+                    }
+                    
+                    if (userProfile) {
+                        setProfileDialog({
+                            ...userProfile,
+                            userId: userProfile.id,
+                            memberSince: userProfile.created_at,
+                            isOwnProfile: userProfile.id === user.currentUser?.id
+                        });
+                    } else {
+                        throw new Error("Invalid link: " + (target as HTMLAnchorElement).href);
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch user profile from link:", error);
+                }
+            }
+        }
+    }
+
     function handleContextMenu(e: React.MouseEvent) {
         e.preventDefault();
         e.stopPropagation();
@@ -460,7 +499,11 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         </Quote>
                     )}
 
-                    <div className={`message-content ${isEmojiMessage ? "emoji-content" : ""} ${isSingleEmojiMessage ? "single-emoji-content" : ""}`} dangerouslySetInnerHTML={formattedMessage} />
+                    <div 
+                        className={`message-content ${isEmojiMessage ? "emoji-content" : ""} ${isSingleEmojiMessage ? "single-emoji-content" : ""}`} 
+                        dangerouslySetInnerHTML={formattedMessage}
+                        onClick={handleLinkClick}
+                    />
 
                     {message.files && message.files.length > 0 && (
                         <mdui-list className="message-attachments">
