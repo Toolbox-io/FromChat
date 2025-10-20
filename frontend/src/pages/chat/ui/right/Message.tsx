@@ -10,7 +10,7 @@ import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { getAuthHeaders } from "@/core/api/authApi";
 import { useAppState } from "@/pages/chat/state";
-import { fetchUserProfile } from "@/core/api/profileApi";
+import { fetchUserProfileById } from "@/core/api/profileApi";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
@@ -389,10 +389,10 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     };
 
     async function handleProfileClick() {
-        if (!user.authToken || !message.username) return;
+        if (!user.authToken || !message.user_id) return;
 
         try {
-            const userProfile = await fetchUserProfile(user.authToken, message.username);
+            const userProfile = await fetchUserProfileById(user.authToken, message.user_id);
             if (userProfile) {
                 setProfileDialog({
                     ...userProfile,

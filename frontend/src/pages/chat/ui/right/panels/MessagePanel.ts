@@ -258,6 +258,7 @@ export abstract class MessagePanel {
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const tempMessage: Message = {
             id: -1, // Temporary negative ID
+            user_id: this.currentUser.currentUser?.id ?? -1,
             username: this.currentUser.currentUser?.username ?? "You",
             content: content.trim(),
             is_read: false,

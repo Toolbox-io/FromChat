@@ -222,3 +222,27 @@ async def get_user_by_username(
         last_seen=user.last_seen,
         created_at=user.created_at
     )
+
+@router.get("/user/id/{user_id}")
+async def get_user_by_id(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get user profile by user ID
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return UserProfileResponse(
+        id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        profile_picture=user.profile_picture,
+        bio=user.bio,
+        online=user.online,
+        last_seen=user.last_seen,
+        created_at=user.created_at
+    )

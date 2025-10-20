@@ -129,3 +129,23 @@ export async function fetchUserProfile(token: string, username: string): Promise
         return null;
     }
 }
+
+/**
+ * Fetches user profile data by user ID
+ */
+export async function fetchUserProfileById(token: string, userId: number): Promise<UserProfile | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/id/${userId}`, {
+            headers: getAuthHeaders(token)
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error fetching user profile by ID:', error);
+        return null;
+    }
+}

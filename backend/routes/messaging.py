@@ -53,6 +53,7 @@ def convert_message(msg: Message) -> dict:
 
     return {
         "id": msg.id,
+        "user_id": msg.author.id,
         "content": msg.content,
         "timestamp": msg.timestamp.isoformat(),
         "is_read": msg.is_read,

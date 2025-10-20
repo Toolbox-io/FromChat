@@ -62,6 +62,7 @@ export interface Reaction {
 
 export interface Message {
     id: number;
+    user_id: number;
     username: string;
     content: string;
     is_read: boolean;

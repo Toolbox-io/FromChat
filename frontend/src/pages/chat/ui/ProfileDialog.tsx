@@ -4,7 +4,7 @@ import { useAppState } from "@/pages/chat/state";
 import type { ProfileDialogData } from "@/pages/chat/state";
 import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm";
-import { updateProfile, uploadProfilePicture, fetchUserProfile } from "@/core/api/profileApi";
+import { updateProfile, uploadProfilePicture, fetchUserProfileById } from "@/core/api/profileApi";
 import { RichTextArea } from "@/core/components/RichTextArea";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineStatus } from "./right/OnlineStatus";
@@ -67,7 +67,7 @@ function Section({ type, icon, label, error, value, onChange, readOnly, placehol
 }
 
 export function ProfileDialog() {
-    const { chat, user, closeProfileDialog } = useAppState();
+    const { chat, user, closeProfileDialog, setUser } = useAppState();
     const [isOpen, setIsOpen] = useState(false);
     const [originalData, setOriginalData] = useState<ProfileDialogData | null>(null);
     const [currentData, setCurrentData] = useState<ProfileDialogData | null>(null);
@@ -104,9 +104,9 @@ export function ProfileDialog() {
         try {
             let freshData = profileData;
 
-            // If it's not the public chat and has a username, fetch fresh data
-            if (profileData.username && profileData.username !== "Общий чат" && profileData.userId) {
-                const userProfile = await fetchUserProfile(user.authToken, profileData.username);
+            // If it's not the public chat and has a user ID, fetch fresh data
+            if (profileData.userId && profileData.username !== "Общий чат") {
+                const userProfile = await fetchUserProfileById(user.authToken, profileData.userId);
                 if (userProfile) {
                     freshData = {
                         ...userProfile,
@@ -351,6 +351,18 @@ export function ProfileDialog() {
 
             // Update the original data to match current data
             setOriginalData(currentData);
+
+            // If this is the current user's profile and username was changed, update the current user data
+            if (currentData.isOwnProfile && user.currentUser && user.authToken) {
+                const updatedUser = {
+                    ...user.currentUser,
+                    username: currentData.username || user.currentUser.username,
+                    display_name: currentData.display_name || user.currentUser.display_name,
+                    bio: currentData.bio || user.currentUser.bio,
+                    profile_picture: currentData.profilePicture || user.currentUser.profile_picture
+                };
+                setUser(user.authToken, updatedUser);
+            }
 
             // Close dialog with animation after successful save
             triggerCloseAnimation();
