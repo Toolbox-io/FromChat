@@ -55,6 +55,11 @@
         flex-direction: column;
         align-items: center;
 
+        .error-message {
+            color: $color-dark-error;
+            font-size: small;
+        }
+
         .profile-picture-section {
             position: relative;
             display: flex;
@@ -198,8 +203,6 @@
                     outline: 1px solid $color-dark-error;
 
                     .error-message {
-                        color: $color-dark-error;
-                        font-size: small;
                         margin-top: 4px;
                     }
                 }
