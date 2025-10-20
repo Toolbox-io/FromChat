@@ -375,6 +375,18 @@ export function ProfileDialog() {
         });
     }
 
+    const fabVisible = useMemo(() => {
+        let hasErrors = false;
+        for (const error of Object.values(errors)) {
+            if (error) {
+                hasErrors = true;
+                break;
+            }
+        }
+
+        return hasChanges && currentData?.isOwnProfile && !isSaving && !hasErrors;
+    }, [hasChanges, currentData?.isOwnProfile, isSaving, errors]);
+
     if (!isOpen || !currentData) return null;
 
     return createPortal(
@@ -422,9 +434,9 @@ export function ProfileDialog() {
                     </div>
 
                     {/* Online Status */}
-                    {currentData?.userId && (
+                    {(currentData?.userId || currentData?.isOwnProfile) && (
                         <div className="online-status-section">
-                            <OnlineStatus userId={currentData.userId} />
+                            <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
                         </div>
                     )}
 
@@ -472,7 +484,7 @@ export function ProfileDialog() {
                 {currentData.isOwnProfile && (
                     <mdui-fab
                         icon="check"
-                        className={`profile-dialog-fab ${hasChanges ? "visible" : ""}`}
+                        className={`profile-dialog-fab ${fabVisible ? "visible" : ""}`}
                         onClick={handleSave}
                         disabled={isSaving}
                     />
