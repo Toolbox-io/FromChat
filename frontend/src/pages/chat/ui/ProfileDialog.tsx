@@ -287,18 +287,16 @@ export function ProfileDialog() {
                     </div>
 
                     {/* Display Name */}
-                    {currentData.display_name && (
-                        <div className="username-section">
-                            <input
-                                className="username-input"
-                                type="text"
-                                value={currentData.display_name}
-                                onChange={handleDisplayNameChange}
-                                readOnly={!currentData.isOwnProfile}
-                                placeholder="Отображаемое имя"
-                            />
-                        </div>
-                    )}
+                    <div className="username-section">
+                        <input
+                            className="username-input"
+                            type="text"
+                            value={currentData.display_name}
+                            onChange={handleDisplayNameChange}
+                            readOnly={!currentData.isOwnProfile}
+                            placeholder="Имя"
+                        />
+                    </div>
 
                     {/* Online Status */}
                     {currentData?.userId && (
@@ -308,23 +306,20 @@ export function ProfileDialog() {
                     )}
 
                     <div className="profile-sections">
-                        {/* Username (Handle) */}
-                        {currentData.username && (
-                            <div className="section username">
-                                <mdui-icon name="alternate_email--filled" />
-                                <div className="content-container">
-                                    <label className="label">Имя пользователя:</label>
-                                    <input
-                                        className="value username-input"
-                                        type="text"
-                                        value={currentData.username}
-                                        onChange={handleUsernameChange}
-                                        readOnly={!currentData.isOwnProfile}
-                                        placeholder="@username"
-                                    />
-                                </div>
+                        <div className="section username">
+                            <mdui-icon name="alternate_email--filled" />
+                            <div className="content-container">
+                                <label className="label">Имя пользователя:</label>
+                                <input
+                                    className="value username-input"
+                                    type="text"
+                                    value={currentData.username}
+                                    onChange={handleUsernameChange}
+                                    readOnly={!currentData.isOwnProfile}
+                                    placeholder="username"
+                                />
                             </div>
-                        )}
+                        </div>
 
                         {/* Bio */}
                         {currentData.bio !== undefined && (
