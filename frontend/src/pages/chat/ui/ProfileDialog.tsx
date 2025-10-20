@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useAppState } from "@/pages/chat/state";
 import type { ProfileDialogData } from "@/pages/chat/state";
@@ -9,12 +9,70 @@ import { RichTextArea } from "@/core/components/RichTextArea";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineStatus } from "./right/OnlineStatus";
 
+interface SectionProps {
+    type: string;
+    icon: string;
+    label: string;
+    error?: string;
+    value?: string;
+    onChange?: (value: string) => void;
+    readOnly: boolean;
+    placeholder: string;
+    textArea?: boolean;
+}
+
+function Section({ type, icon, label, error, value, onChange, readOnly, placeholder, textArea = false }: SectionProps) {
+    let valueComponent: ReactNode = null;
+
+    if (onChange) {
+        if (textArea) {
+            valueComponent = (
+                <RichTextArea
+                    text={value || ""}
+                    onTextChange={onChange}
+                    placeholder={placeholder}
+                    className="value"
+                    rows={1}
+                    readOnly={readOnly}
+                />
+            );
+        } else {
+            valueComponent = (
+                <input
+                className="value"
+                type="text"
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                readOnly={readOnly} />
+            );
+        }
+    } else {
+        valueComponent = (
+            <span className="value">{value}</span>
+        );
+    }
+
+    return (
+        <div className={`section ${type} ${error ? 'error' : ''}`}>
+            <mdui-icon name={icon} />
+            <div className="content-container">
+                <label className="label">{label}</label>
+                {valueComponent}
+                {error && (
+                    <div className="error-message">{error}</div>
+                )}
+            </div>
+        </div>
+    )
+}
+
 export function ProfileDialog() {
     const { chat, user, closeProfileDialog } = useAppState();
     const [isOpen, setIsOpen] = useState(false);
     const [originalData, setOriginalData] = useState<ProfileDialogData | null>(null);
     const [currentData, setCurrentData] = useState<ProfileDialogData | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [errors, setErrors] = useState<{[key: string]: string}>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
     const dialogRef = useRef<HTMLDivElement>(null);
@@ -168,28 +226,36 @@ export function ProfileDialog() {
         }
     };
 
-    const handleDisplayNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    function handleDisplayNameChange(e: React.ChangeEvent<HTMLInputElement>) {
         if (!currentData) return;
         setCurrentData({ ...currentData, display_name: e.target.value });
+        // Clear error when user starts typing
+        if (errors.display_name) {
+            setErrors(prev => ({ ...prev, display_name: "" }));
+        }
     };
 
-    const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    function handleUsernameChange(value: string) {
         if (!currentData) return;
-        setCurrentData({ ...currentData, username: e.target.value });
+        setCurrentData({ ...currentData, username: value });
+        // Clear error when user starts typing
+        if (errors.username) {
+            setErrors(prev => ({ ...prev, username: "" }));
+        }
     };
 
-    const handleBioChange = (newBio: string) => {
+    function handleBioChange(newBio: string) {
         if (!currentData) return;
         setCurrentData({ ...currentData, bio: newBio });
     };
 
-    const handleProfilePictureClick = () => {
+    function handleProfilePictureClick() {
         if (currentData?.isOwnProfile) {
             fileInputRef.current?.click();
         }
     };
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (file && file.type.startsWith("image/")) {
             // Open cropper dialog here - for now just update the image
@@ -204,8 +270,38 @@ export function ProfileDialog() {
         }
     };
 
+    const validateFields = () => {
+        const newErrors: {[key: string]: string} = {};
+
+        // Validate display name
+        if (!currentData?.display_name || currentData.display_name.trim().length === 0) {
+            newErrors.display_name = "Отображаемое имя не может быть пустым";
+        } else if (currentData.display_name.length > 64) {
+            newErrors.display_name = "Отображаемое имя не может быть длиннее 64 символов";
+        }
+
+        // Validate username
+        if (!currentData?.username || currentData.username.trim().length === 0) {
+            newErrors.username = "Имя пользователя не может быть пустым";
+        } else if (currentData.username.length < 3) {
+            newErrors.username = "Имя пользователя должно быть не менее 3 символов";
+        } else if (currentData.username.length > 20) {
+            newErrors.username = "Имя пользователя не может быть длиннее 20 символов";
+        } else if (!/^[a-zA-Z0-9_-]+$/.test(currentData.username)) {
+            newErrors.username = "Имя пользователя может содержать только английские буквы, цифры, дефисы и подчеркивания";
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSave = async () => {
         if (!currentData || !user.authToken || !originalData) return;
+
+        // Validate fields first
+        if (!validateFields()) {
+            return;
+        }
 
         setIsSaving(true);
         try {
@@ -242,6 +338,12 @@ export function ProfileDialog() {
             triggerCloseAnimation();
         } catch (error) {
             console.error("Failed to save profile:", error);
+            // Handle API errors
+            if (error instanceof Error && error.message.includes("уже занято")) {
+                setErrors({ username: "Это имя пользователя уже занято" });
+            } else {
+                setErrors({ general: "Ошибка при сохранении профиля" });
+            }
         } finally {
             setIsSaving(false);
         }
@@ -287,7 +389,7 @@ export function ProfileDialog() {
                     </div>
 
                     {/* Display Name */}
-                    <div className="username-section">
+                    <div className={`username-section ${errors.display_name ? 'error' : ''}`}>
                         <input
                             className="username-input"
                             type="text"
@@ -296,6 +398,9 @@ export function ProfileDialog() {
                             readOnly={!currentData.isOwnProfile}
                             placeholder="Имя"
                         />
+                        {errors.display_name && (
+                            <div className="error-message">{errors.display_name}</div>
+                        )}
                     </div>
 
                     {/* Online Status */}
@@ -306,50 +411,41 @@ export function ProfileDialog() {
                     )}
 
                     <div className="profile-sections">
-                        <div className="section username">
-                            <mdui-icon name="alternate_email--filled" />
-                            <div className="content-container">
-                                <label className="label">Имя пользователя:</label>
-                                <input
-                                    className="value username-input"
-                                    type="text"
-                                    value={currentData.username}
-                                    onChange={handleUsernameChange}
-                                    readOnly={!currentData.isOwnProfile}
-                                    placeholder="username"
-                                />
-                            </div>
-                        </div>
+                        <Section
+                            type="username"
+                            error={errors.username}
+                            icon="alternate_email--filled"
+                            label="Имя пользователя:"
+                            value={currentData.username}
+                            onChange={handleUsernameChange}
+                            readOnly={!currentData.isOwnProfile}
+                            placeholder="username" />
+
 
                         {/* Bio */}
                         {currentData.bio !== undefined && (
-                            <div className="section bio">
-                                <mdui-icon name="info--filled" />
-                                <div className="content-container">
-                                    <label className="label">О себе:</label>
-                                    <RichTextArea
-                                        text={currentData.bio || ""}
-                                        onTextChange={handleBioChange}
-                                        placeholder="Нет информации о себе"
-                                        className="value"
-                                        rows={1}
-                                        readOnly={!currentData.isOwnProfile}
-                                    />
-                                </div>
-                            </div>
+                            <Section
+                                type="bio"
+                                icon="info--filled"
+                                label="О себе:"
+                                value={currentData.bio}
+                                onChange={handleBioChange}
+                                readOnly={!currentData.isOwnProfile}
+                                placeholder="Нет информации о себе"
+                                textArea
+                            />
                         )}
 
                         {/* Member Since */}
                         {currentData.memberSince && (
-                            <div className="section member-since">
-                                <mdui-icon name="calendar_month--filled" />
-                                <div className="content-container">
-                                    <span className="label">Участник с:</span>
-                                    <span className="value">
-                                        {formatDate(currentData.memberSince)}
-                                    </span>
-                                </div>
-                            </div>
+                            <Section
+                                type="member-since"
+                                icon="calendar_month--filled"
+                                label="Участник с:"
+                                value={formatDate(currentData.memberSince)}
+                                readOnly={true}
+                                placeholder="Участник с:"
+                            />
                         )}
                     </div>
                 </div>
