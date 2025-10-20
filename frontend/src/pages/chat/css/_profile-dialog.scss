@@ -134,15 +134,15 @@
 
         .profile-sections {
             margin: 16px;
-            border-radius: 24px;
             display: flex;
             flex-direction: column;
             gap: 4px;
-            overflow: hidden;
             width: calc(100% - (16px * 2));
             box-sizing: border-box;
 
             .section {
+                $edge-radius: 24px;
+
                 background: $color-dark-surface-container-high;
                 border-radius: 10px;
                 padding: 8px 16px;
@@ -150,6 +150,9 @@
                 flex-direction: row;
                 gap: 16px;
                 align-items: center;
+                transition: outline 0.1s ease;
+                outline: 0px solid transparent;
+                outline-offset: -1px;
 
                 .content-container {
                     display: flex;
@@ -177,6 +180,27 @@
                         &::placeholder {
                             color: $color-dark-on-surface-variant;
                         }
+                    }
+                }
+
+                // First and last section
+                &:first-child {
+                    border-top-left-radius: $edge-radius;
+                    border-top-right-radius: $edge-radius;
+                }
+
+                &:last-child {
+                    border-bottom-left-radius: $edge-radius;
+                    border-bottom-right-radius: $edge-radius;
+                }
+
+                &.error {
+                    outline: 1px solid $color-dark-error;
+
+                    .error-message {
+                        color: $color-dark-error;
+                        font-size: small;
+                        margin-top: 4px;
                     }
                 }
             }

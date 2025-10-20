@@ -98,7 +98,7 @@ export function ProfileDialog() {
         }
     }, [chat.profileDialog, isOpen]);
 
-    const fetchFreshProfileData = async (profileData: ProfileDialogData) => {
+    async function fetchFreshProfileData(profileData: ProfileDialogData) {
         if (!user.authToken) return;
 
         try {
@@ -126,7 +126,7 @@ export function ProfileDialog() {
             setCurrentData(profileData);
             setIsOpen(true);
         }
-    };
+    }
 
     // Trigger transition after component mounts
     useEffect(() => {
@@ -144,13 +144,13 @@ export function ProfileDialog() {
 
     // Handle ESC key
     useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && isOpen) {
-                handleClose();
-            }
-        };
-
         if (isOpen) {
+            function handleEsc(e: KeyboardEvent) {
+                if (e.key === "Escape") {
+                    handleClose();
+                }
+            }
+
             document.addEventListener("keydown", handleEsc);
             return () => document.removeEventListener("keydown", handleEsc);
         }
@@ -171,6 +171,13 @@ export function ProfileDialog() {
         }
     }, [isOpen, currentData?.userId, currentData?.isOwnProfile]);
 
+    // Validate fields when data changes
+    useEffect(() => {
+        if (currentData && isOpen) {
+            validateFields();
+        }
+    }, [currentData, isOpen]);
+
     const hasChanges = useMemo(() => {
         if (!originalData || !currentData) return false;
 
@@ -188,7 +195,7 @@ export function ProfileDialog() {
         );
     }, [originalData, currentData]);
 
-    const handleClose = async () => {
+    async function handleClose() {
         if (hasChanges) {
             try {
                 await confirm({
@@ -206,7 +213,7 @@ export function ProfileDialog() {
         }
     };
 
-    const triggerCloseAnimation = () => {
+    function triggerCloseAnimation() {
         if (backdropRef.current && dialogRef.current) {
             backdropRef.current.classList.remove('open');
             dialogRef.current.classList.remove('open');
@@ -220,7 +227,7 @@ export function ProfileDialog() {
         }
     };
 
-    const handleBackdropClick = (e: React.MouseEvent) => {
+    function handleBackdropClick(e: React.MouseEvent) {
         if (e.target === e.currentTarget) {
             handleClose();
         }
@@ -228,20 +235,19 @@ export function ProfileDialog() {
 
     function handleDisplayNameChange(e: React.ChangeEvent<HTMLInputElement>) {
         if (!currentData) return;
-        setCurrentData({ ...currentData, display_name: e.target.value });
-        // Clear error when user starts typing
-        if (errors.display_name) {
-            setErrors(prev => ({ ...prev, display_name: "" }));
-        }
+        const newValue = e.target.value;
+        setCurrentData({ ...currentData, display_name: newValue });
+        
+        // Validate display name in real-time
+        validateDisplayName(newValue);
     };
 
     function handleUsernameChange(value: string) {
         if (!currentData) return;
         setCurrentData({ ...currentData, username: value });
-        // Clear error when user starts typing
-        if (errors.username) {
-            setErrors(prev => ({ ...prev, username: "" }));
-        }
+        
+        // Validate username in real-time
+        validateUsername(value);
     };
 
     function handleBioChange(newBio: string) {
@@ -270,32 +276,44 @@ export function ProfileDialog() {
         }
     };
 
-    const validateFields = () => {
-        const newErrors: {[key: string]: string} = {};
-
-        // Validate display name
-        if (!currentData?.display_name || currentData.display_name.trim().length === 0) {
-            newErrors.display_name = "Отображаемое имя не может быть пустым";
-        } else if (currentData.display_name.length > 64) {
-            newErrors.display_name = "Отображаемое имя не может быть длиннее 64 символов";
+    function validateDisplayName(value: string) {
+        let error = "";
+        
+        if (!value || value.trim().length === 0) {
+            error = "Отображаемое имя не может быть пустым";
+        } else if (value.length > 64) {
+            error = "Отображаемое имя не может быть длиннее 64 символов";
         }
-
-        // Validate username
-        if (!currentData?.username || currentData.username.trim().length === 0) {
-            newErrors.username = "Имя пользователя не может быть пустым";
-        } else if (currentData.username.length < 3) {
-            newErrors.username = "Имя пользователя должно быть не менее 3 символов";
-        } else if (currentData.username.length > 20) {
-            newErrors.username = "Имя пользователя не может быть длиннее 20 символов";
-        } else if (!/^[a-zA-Z0-9_-]+$/.test(currentData.username)) {
-            newErrors.username = "Имя пользователя может содержать только английские буквы, цифры, дефисы и подчеркивания";
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        
+        setErrors(prev => ({ ...prev, display_name: error }));
     };
 
-    const handleSave = async () => {
+    function validateUsername(value: string) {
+        let error = "";
+        
+        if (!value || value.trim().length === 0) {
+            error = "Имя пользователя не может быть пустым";
+        } else if (value.length < 3) {
+            error = "Имя пользователя должно быть не менее 3 символов";
+        } else if (value.length > 20) {
+            error = "Имя пользователя не может быть длиннее 20 символов";
+        } else if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
+            error = "Имя пользователя может содержать только английские буквы, цифры, дефисы и подчеркивания";
+        }
+        
+        setErrors(prev => ({ ...prev, username: error }));
+    };
+
+    function validateFields() {
+        if (currentData) {
+            validateDisplayName(currentData.display_name || "");
+            validateUsername(currentData.username || "");
+        }
+        
+        return !errors.display_name && !errors.username;
+    };
+
+    async function handleSave() {
         if (!currentData || !user.authToken || !originalData) return;
 
         // Validate fields first
@@ -347,15 +365,15 @@ export function ProfileDialog() {
         } finally {
             setIsSaving(false);
         }
-    };
+    }
 
-    const formatDate = (dateString: string) => {
+    function formatDate(dateString: string) {
         return new Date(dateString).toLocaleDateString("ru-RU", {
             year: "numeric",
             month: "long",
             day: "numeric"
         });
-    };
+    }
 
     if (!isOpen || !currentData) return null;
 
