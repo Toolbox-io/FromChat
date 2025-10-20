@@ -27,8 +27,8 @@ export default function ChatPage() {
             const profileInfo = location.state.profileInfo;
             
             // Create a unique key for this profile
-            const profileKey = profileInfo.userId 
-                ? `user_${profileInfo.userId}` 
+            const profileKey = profileInfo.userId
+                ? `user_${profileInfo.userId}`
                 : `username_${profileInfo.username}`;
             
             // Skip if we've already processed this exact profile

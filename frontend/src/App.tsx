@@ -2,10 +2,10 @@ import { BrowserRouter, Routes, Route, useNavigate, matchRoutes, type RouteObjec
 import { ElectronTitleBar } from "./Electron";
 import { useAppState } from "./pages/chat/state";
 import { lazy, useEffect, useState } from "react";
-import { parseProfileLink } from "./core/profileLinks.ts";
-import NotFoundPage from "./pages/not-found/NotFoundPage.tsx";
-import ProtectedRoute from "./pages/ProtectedRoute.tsx";
-import DownloadAppPage from "./pages/download-app/DownloadAppPage.tsx";
+import { parseProfileLink } from "./core/profileLinks";
+import NotFoundPage from "./pages/not-found/NotFoundPage";
+import ProtectedRoute from "./pages/ProtectedRoute";
+import DownloadAppPage from "./pages/download-app/DownloadAppPage";
 
 // Lazy load route components
 const HomePage = lazy(() => import("./pages/home/HomePage"));
@@ -19,12 +19,12 @@ const routeConfig: RouteObject[] = [
     { path: "/register", element: <RegisterPage /> },
     { path: "/download-app", element: <DownloadAppPage /> },
     {
-        path: "/chat", 
+        path: "/chat",
         element: (
             <ProtectedRoute>
                 <ChatPage />
             </ProtectedRoute>
-        ) 
+        )
     },
     { path: "*", element: <SmartCatchAll /> }
 ];
@@ -46,8 +46,7 @@ function SmartCatchAll() {
             return;
         }
         
-        // Check if it's a profile link
-        const profileInfo = parseProfileLink(); // no url specified intentionally to let it use the current url
+        const profileInfo = parseProfileLink(); // No URL specified intentionally to let it use the current URL
         
         if (profileInfo) {
             setShowNotFound(false);

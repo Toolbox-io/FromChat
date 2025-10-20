@@ -74,8 +74,7 @@ export function ProfileDialog() {
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState<{[key: string]: string}>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const backdropRef = useRef<HTMLDivElement>(null);
-    const dialogRef = useRef<HTMLDivElement>(null);
+    const [openClass, setOpenClass] = useState(false);
 
     // Handle dialog open/close based on state
     useEffect(() => {
@@ -84,17 +83,12 @@ export function ProfileDialog() {
             fetchFreshProfileData(chat.profileDialog);
         } else if (!chat.profileDialog && isOpen) {
             // Start close animation
-            if (backdropRef.current && dialogRef.current) {
-                backdropRef.current.classList.remove('open');
-                dialogRef.current.classList.remove('open');
+                setOpenClass(false);
 
                 // Wait for animation to complete before closing
                 setTimeout(() => {
                     setIsOpen(false);
-                }, 300); // Match CSS transition duration
-            } else {
-                setIsOpen(false);
-            }
+            }, 300);
         }
     }, [chat.profileDialog, isOpen]);
 
@@ -132,13 +126,10 @@ export function ProfileDialog() {
     useEffect(() => {
         if (isOpen) {
             // Small delay to ensure DOM is ready for transition
-            const timer = setTimeout(() => {
-                if (backdropRef.current && dialogRef.current) {
-                    backdropRef.current.classList.add('open');
-                    dialogRef.current.classList.add('open');
-                }
-            }, 10);
-            return () => clearTimeout(timer);
+            const timer = requestAnimationFrame(() => {
+                setOpenClass(true);
+            });
+            return () => cancelAnimationFrame(timer);
         }
     }, [isOpen]);
 
@@ -214,17 +205,12 @@ export function ProfileDialog() {
     };
 
     function triggerCloseAnimation() {
-        if (backdropRef.current && dialogRef.current) {
-            backdropRef.current.classList.remove('open');
-            dialogRef.current.classList.remove('open');
+        setOpenClass(false);
 
-            // Wait for animation to complete before closing
-            setTimeout(() => {
-                closeProfileDialog();
-            }, 300); // Match CSS transition duration
-        } else {
+        // Wait for animation to complete before closing
+        setTimeout(() => {
             closeProfileDialog();
-        }
+        }, 300); // Match CSS transition duration
     };
 
     function handleBackdropClick(e: React.MouseEvent) {
@@ -402,13 +388,10 @@ export function ProfileDialog() {
 
     return createPortal(
         <div
-            ref={backdropRef}
-            className="profile-dialog-backdrop"
-            onClick={handleBackdropClick}
-        >
-            <div ref={dialogRef} className="profile-dialog">
+            className={`profile-dialog-backdrop ${openClass ? "open" : ""}`}
+            onClick={handleBackdropClick}>
+            <div className={`profile-dialog ${openClass ? "open" : ""}`}>
                 <div className="profile-dialog-content">
-                    {/* Profile Picture */}
                     <div className="profile-picture-section">
                         <img
                             className="profile-picture"
@@ -429,7 +412,6 @@ export function ProfileDialog() {
                         )}
                     </div>
 
-                    {/* Display Name */}
                     <div className={`username-section ${errors.display_name ? 'error' : ''}`}>
                         <input
                             className="username-input"
@@ -444,7 +426,6 @@ export function ProfileDialog() {
                         )}
                     </div>
 
-                    {/* Online Status */}
                     {(currentData?.userId || currentData?.isOwnProfile) && (
                         <div className="online-status-section">
                             <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
@@ -462,8 +443,6 @@ export function ProfileDialog() {
                             readOnly={!currentData.isOwnProfile}
                             placeholder="username" />
 
-
-                        {/* Bio */}
                         {currentData.bio !== undefined && (
                             <Section
                                 type="bio"
@@ -477,7 +456,6 @@ export function ProfileDialog() {
                             />
                         )}
 
-                        {/* Member Since */}
                         {currentData.memberSince && (
                             <Section
                                 type="member-since"
@@ -491,7 +469,6 @@ export function ProfileDialog() {
                     </div>
                 </div>
 
-                {/* Save FAB */}
                 {currentData.isOwnProfile && (
                     <mdui-fab
                         icon="check"
@@ -501,7 +478,6 @@ export function ProfileDialog() {
                     />
                 )}
 
-                {/* Hidden file input */}
                 <input
                     ref={fileInputRef}
                     type="file"

@@ -512,11 +512,10 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         </Quote>
                     )}
 
-                    <div 
-                        className={`message-content ${isEmojiMessage ? "emoji-content" : ""} ${isSingleEmojiMessage ? "single-emoji-content" : ""}`} 
+                    <div
+                        className={`message-content ${isEmojiMessage ? "emoji-content" : ""} ${isSingleEmojiMessage ? "single-emoji-content" : ""}`}
                         dangerouslySetInnerHTML={formattedMessage}
-                        onClick={handleLinkClick}
-                    />
+                        onClick={handleLinkClick} />
 
                     {message.files && message.files.length > 0 && (
                         <mdui-list className="message-attachments">

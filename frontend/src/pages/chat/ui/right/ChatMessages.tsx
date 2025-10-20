@@ -143,7 +143,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                 {children}
             </div>
 
-
             <MaterialDialog
                 headline="Удалить сообщение?"
                 open={deleteDialogOpen}
