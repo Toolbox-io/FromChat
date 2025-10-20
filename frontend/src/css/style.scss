@@ -18,6 +18,11 @@ body {
     line-height: 1.6;
     overflow: hidden;
 
+    // Transparent background for auth pages to show animated background
+    &.auth-page {
+        background-color: transparent;
+    }
+
     #main-wrapper {
         flex: 1;
         position: relative;

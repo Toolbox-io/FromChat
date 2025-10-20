@@ -5,25 +5,77 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    min-height: 100vh;
     height: 100%;
     padding: 2rem;
-    background-color: $color-dark-surface;
+    position: relative;
+    overflow: hidden;
+
+    // Subtle moving gradient background
+    &::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, 
+            rgba(99, 102, 241, 0.1) 0%,
+            rgba(168, 85, 247, 0.1) 25%,
+            rgba(236, 72, 153, 0.1) 50%,
+            rgba(251, 146, 60, 0.1) 75%,
+            rgba(34, 197, 94, 0.1) 100%);
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease-in-out infinite;
+        z-index: -10;
+    }
+
 
     .auth-card {
-        background-color: $color-dark-surface-container;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         color: $color-dark-on-surface;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        border-radius: 20px;
+        box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
         width: 100%;
         max-width: 450px;
         overflow: hidden;
+        position: relative;
+        z-index: 1;
+        transition: all 0.3s ease;
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        // Subtle gradient overlay
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.02) 0%,
+                rgba(255, 255, 255, 0.05) 100%);
+            pointer-events: none;
+        }
     }
 
     .auth-header {
         margin: 0;
-        padding: 16px;
-        padding-bottom: 0;
+        padding: 24px;
+        padding-bottom: 8px;
         text-align: center;
+        position: relative;
+        z-index: 1;
 
         h2 {
             font-size: 1.8rem;
@@ -32,19 +84,478 @@
             align-items: center;
             display: flex;
             flex-direction: row;
-            gap: 10px;
+            gap: 12px;
             justify-content: center;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
+            margin: 0;
         }
     }
 
     .auth-body {
-        padding: 25px;
-        padding-bottom: 16px;
+        padding: 24px;
+        padding-bottom: 20px;
+        position: relative;
+        z-index: 1;
 
         form {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 16px;
+        }
+
+        .form-field-enter {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.4s ease forwards;
+        }
+
+        .form-field-enter:nth-child(1) { animation-delay: 0.1s; }
+        .form-field-enter:nth-child(2) { animation-delay: 0.2s; }
+        .form-field-enter:nth-child(3) { animation-delay: 0.3s; }
+        .form-field-enter:nth-child(4) { animation-delay: 0.4s; }
+        .form-field-enter:nth-child(5) { animation-delay: 0.5s; }
+    }
+
+    // Enhanced button styles
+    mdui-button {
+        margin-top: 8px;
+        transition: all 0.3s ease;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        &:hover::before {
+            left: 100%;
+        }
+
+        &:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        &:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+
+    // Enhanced link styles
+    .link {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        position: relative;
+
+        &::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        &:hover::after {
+            width: 100%;
+        }
+
+        &:hover {
+            color: #764ba2;
+        }
+    }
+
+    // Step indicator styles
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+        padding: 0 24px;
+
+        .step {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+
+            &.active {
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                transform: scale(1.2);
+                box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+            }
+
+            &.completed {
+                background: linear-gradient(135deg, #10b981, #059669);
+                transform: scale(1.1);
+            }
+
+            &::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 4px;
+                height: 4px;
+                border-radius: 50%;
+                background: white;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+
+            &.completed::after {
+                opacity: 1;
+            }
+        }
+
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 1px;
+            position: relative;
+            overflow: hidden;
+
+            &::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, #667eea, #764ba2);
+                transition: left 0.5s ease;
+            }
+
+            &.active::after {
+                left: 0;
+            }
+        }
+    }
+
+    // Onboarding tip styles
+    .onboarding-tip {
+        background: rgba(102, 126, 234, 0.1);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #667eea, #764ba2);
+        }
+
+        .tip-icon {
+            color: #667eea;
+            margin-right: 8px;
+        }
+
+        .tip-text {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin: 0;
+        }
+    }
+
+    // Enhanced alert styles
+    .alert {
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        border: 1px solid;
+        backdrop-filter: blur(10px);
+        animation: slideInDown 0.3s ease;
+
+        &.alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+            color: #10b981;
+        }
+
+        &.alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+    }
+
+    // Loading state
+    .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    // Text center utility
+    .text-center {
+        text-align: center;
+        margin-top: 20px;
+
+        p {
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0;
+            font-size: 0.9rem;
+        }
+    }
+
+    // Password strength indicator
+    .password-strength-indicator {
+        margin-top: 12px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+
+        .strength-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+
+            .strength-bar {
+                flex: 1;
+                height: 6px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 3px;
+                overflow: hidden;
+                position: relative;
+
+                .strength-fill {
+                    height: 100%;
+                    border-radius: 3px;
+                    transition: all 0.3s ease;
+                    position: relative;
+
+                    &::after {
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+                        animation: shimmer 2s infinite;
+                    }
+                }
+            }
+
+            .strength-label {
+                font-size: 0.85rem;
+                font-weight: 600;
+                min-width: 60px;
+                text-align: right;
+            }
+        }
+
+        .requirements-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+
+            .requirement {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.8rem;
+                transition: all 0.3s ease;
+
+                .requirement-icon {
+                    font-size: 16px;
+                    transition: all 0.3s ease;
+                }
+
+                .requirement-text {
+                    color: rgba(255, 255, 255, 0.7);
+                }
+
+                &.met {
+                    .requirement-icon {
+                        color: #10b981;
+                    }
+                    .requirement-text {
+                        color: rgba(255, 255, 255, 0.9);
+                    }
+                }
+
+                &.unmet {
+                    .requirement-icon {
+                        color: rgba(255, 255, 255, 0.3);
+                    }
+                }
+            }
+        }
+
+        .password-match {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+
+            &.match {
+                background: rgba(16, 185, 129, 0.1);
+                color: #10b981;
+                border: 1px solid rgba(16, 185, 129, 0.2);
+            }
+
+            &.no-match {
+                background: rgba(239, 68, 68, 0.1);
+                color: #ef4444;
+                border: 1px solid rgba(239, 68, 68, 0.2);
+            }
+        }
+    }
+
+    // Username validation feedback
+    .username-validation {
+        margin-top: 8px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+
+        &.idle {
+            display: none;
+        }
+
+        &.checking {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+
+            .validation-icon {
+                animation: spin 1s linear infinite;
+            }
+        }
+
+        &.available {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        &.unavailable, &.invalid {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .validation-icon {
+            font-size: 16px;
+        }
+    }
+
+    // Responsive design
+    @media (max-width: 480px) {
+        padding: 1rem;
+
+        .auth-card {
+            max-width: 100%;
+            border-radius: 16px;
+        }
+
+        .auth-header {
+            padding: 20px;
+            padding-bottom: 8px;
+
+            h2 {
+                font-size: 1.5rem;
+                gap: 8px;
+            }
+        }
+
+        .auth-body {
+            padding: 20px;
+            padding-bottom: 16px;
+
+            form {
+                gap: 12px;
+            }
+        }
+
+        .step-indicator {
+            margin-bottom: 20px;
+            padding: 0 20px;
+        }
+
+        .onboarding-tip {
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .password-strength-indicator {
+            padding: 12px;
+        }
+
+    }
+
+    // Performance optimization for reduced motion
+    @media (prefers-reduced-motion: reduce) {
+        &::before {
+            animation: none;
         }
     }
 }

@@ -1,10 +1,10 @@
 import { useImmer } from "use-immer";
-import { AlertsContainer, type Alert, type AlertType } from "./Auth";
+import { AlertsContainer, type Alert, type AlertType, LoadingSpinner } from "./Auth";
 import { AuthContainer, AuthHeader } from "./Auth";
 import type { ErrorResponse, LoginRequest, LoginResponse } from "@/core/types";
 import { ensureKeysOnLogin } from "@/core/api/authApi";
 import { API_BASE_URL } from "@/core/config";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "@/pages/chat/state";
 import { MaterialTextField } from "@/core/components/TextField";
@@ -16,10 +16,19 @@ import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 
 export default function LoginPage() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
     const setUser = useAppState(state => state.setUser);
     const navigate = useNavigate();
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();
     if (navigateDownloadApp) return navigateDownloadApp;
+
+    useEffect(() => {  
+        document.body.classList.add('auth-page');
+        
+        return () => {
+            document.body.classList.remove('auth-page');
+        };
+    }, []);
 
     function showAlert(type: AlertType, message: string) {
         updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
@@ -38,6 +47,8 @@ export default function LoginPage() {
                     onSubmit={async (e) => {
                         e.preventDefault();
 
+                        if (isLoading) return;
+
                         const username = usernameElement.current!.value.trim();
                         const password = passwordElement.current!.value.trim();
 
@@ -45,6 +56,8 @@ export default function LoginPage() {
                             showAlert("danger", "Пожалуйста, заполните все поля");
                             return;
                         }
+
+                        setIsLoading(true);
 
                         try {
                             const request: LoginRequest = {
@@ -102,31 +115,43 @@ export default function LoginPage() {
                             }
                         } catch (error) {
                             showAlert("danger", "Ошибка соединения с сервером");
+                        } finally {
+                            setIsLoading(false);
                         }
                     }}>
-                    <MaterialTextField
-                        label="@Имя пользователя"
-                        id="login-username"
-                        name="username"
-                        variant="outlined"
-                        icon="person--filled"
-                        autocomplete="username"
-                        required
-                        ref={usernameElement} />
+                    <div className="form-field-enter">
+                        <MaterialTextField
+                            label="@Имя пользователя"
+                            id="login-username"
+                            name="username"
+                            variant="outlined"
+                            icon="person--filled"
+                            autocomplete="username"
+                            required
+                            disabled={isLoading}
+                            ref={usernameElement} />
+                    </div>
 
-                    <MaterialTextField
-                        label="Пароль"
-                        id="login-password"
-                        name="password"
-                        variant="outlined"
-                        type="password"
-                        toggle-password
-                        icon="password--filled"
-                        autocomplete="current-password"
-                        required
-                        ref={passwordElement} />
+                    <div className="form-field-enter">
+                        <MaterialTextField
+                            label="Пароль"
+                            id="login-password"
+                            name="password"
+                            variant="outlined"
+                            type="password"
+                            toggle-password
+                            icon="password--filled"
+                            autocomplete="current-password"
+                            required
+                            disabled={isLoading}
+                            ref={passwordElement} />
+                    </div>
 
-                    <mdui-button type="submit">Войти</mdui-button>
+                    <div className="form-field-enter">
+                        <mdui-button type="submit" disabled={isLoading}>
+                            {isLoading ? <LoadingSpinner text="Вход..." /> : "Войти"}
+                        </mdui-button>
+                    </div>
                 </form>
 
                 <div className="text-center">

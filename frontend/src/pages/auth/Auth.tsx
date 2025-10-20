@@ -1,9 +1,9 @@
-import type React from "react";
+import React from "react";
 
 export function AuthContainer({ children }: { children?: React.ReactNode }) {
     return (
         <div className="auth-container">
-            <div className="auth-card fade-in">
+            <div className="auth-card scale-in">
                 {children}
             </div>
         </div>
@@ -53,4 +53,57 @@ export function AlertsContainer({ alerts }: { alerts: Alert[]}) {
             })}
         </div>
     )
+}
+
+export interface StepIndicatorProps {
+    currentStep: number;
+    totalSteps: number;
+}
+
+export function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
+    return (
+        <div className="step-indicator">
+            {Array.from({ length: totalSteps }, (_, index) => {
+                const stepNumber = index + 1;
+                const isActive = stepNumber === currentStep;
+                const isCompleted = stepNumber < currentStep;
+                
+                return (
+                    <React.Fragment key={stepNumber}>
+                        <div className={`step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`} />
+                        {index < totalSteps - 1 && (
+                            <div className={`step-line ${isCompleted ? 'active' : ''}`} />
+                        )}
+                    </React.Fragment>
+                );
+            })}
+        </div>
+    );
+}
+
+export interface OnboardingTipProps {
+    icon?: string;
+    children: React.ReactNode;
+}
+
+export function OnboardingTip({ icon = "lightbulb--filled", children }: OnboardingTipProps) {
+    return (
+        <div className="onboarding-tip">
+            <span className={`material-symbols filled tip-icon`}>{icon}</span>
+            <p className="tip-text">{children}</p>
+        </div>
+    );
+}
+
+export interface LoadingSpinnerProps {
+    text?: string;
+}
+
+export function LoadingSpinner({ text = "Загрузка..." }: LoadingSpinnerProps) {
+    return (
+        <div className="loading">
+            <div className="spinner"></div>
+            <span>{text}</span>
+        </div>
+    );
 }
