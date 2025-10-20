@@ -148,7 +148,6 @@ interface Rect {
 }
 
 export function Message({ message, isAuthor, onContextMenu, onReactionClick, isDm = false, dmRecipientPublicKey }: MessageProps) {
-    const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
     const [decryptedFiles, updateDecryptedFiles] = useImmer<Map<string, string>>(new Map());
     const [loadedImages, updateLoadedImages] = useImmer<Set<string>>(new Set());
     const [downloadingPaths, updateDownloadingPaths] = useImmer<Set<string>>(new Set());
@@ -165,15 +164,29 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
     const dmEnvelope = message.runtimeData?.dmEnvelope;
 
-    useEffect(() => {
-        (async () => {
-            setFormattedMessage({
-                __html: DOMPurify.sanitize(
-                    await parse(message.content)
-                ).trim()
-            });
-        })();
-    }, [message]);
+    const formattedMessage = useMemo(() => {
+        // First, temporarily replace existing fromchat.ru links to avoid conflicts
+        const linkPlaceholders: string[] = [];
+        let content = message.content.replace(/https?:\/\/fromchat\.ru\/@[a-zA-Z0-9_.-]+/g, (match) => {
+            const placeholder = `__LINK_PLACEHOLDER_${linkPlaceholders.length}__`;
+            linkPlaceholders.push(match);
+            return placeholder;
+        });
+
+        // Now process @mentions that aren't in existing links
+        content = content.replace(/@([a-zA-Z0-9_.-]+)/g, (match, username) => {
+            return `<a href="https://fromchat.ru/@${username}" class="mention-link">${match}</a>`;
+        });
+
+        // Restore the original links
+        linkPlaceholders.forEach((link, index) => {
+            content = content.replace(`__LINK_PLACEHOLDER_${index}__`, link);
+        });
+
+        return {
+            __html: DOMPurify.sanitize(parse(content, { async: false })).trim()
+        };
+    }, [message.content]);
 
     // Auto-decrypt images in DMs
     useEffect(() => {
