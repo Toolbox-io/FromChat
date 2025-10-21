@@ -7,7 +7,7 @@ import { API_BASE_URL } from "@/core/config";
 import { useAppState } from "@/pages/chat/state";
 import { MaterialTextField } from "@/core/components/TextField";
 import { ensureKeysOnLogin } from "@/core/api/authApi";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./auth.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 import { PasswordStrengthIndicator } from "./PasswordStrengthIndicator";
@@ -323,12 +323,9 @@ export default function RegisterPage() {
                 <div className="text-center">
                     <p>
                         Уже есть аккаунт?
-                        <a
-                            href="#"
-                            className="link"
-                            onClick={() => navigate("/login")}>
+                        <Link to="/login" className="link">
                             Войдите
-                        </a>
+                        </Link>
                     </p>
                 </div>
             </div>

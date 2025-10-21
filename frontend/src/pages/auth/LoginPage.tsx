@@ -10,7 +10,7 @@ import { useAppState } from "@/pages/chat/state";
 import { MaterialTextField } from "@/core/components/TextField";
 import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./auth.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 
@@ -157,12 +157,9 @@ export default function LoginPage() {
                 <div className="text-center">
                     <p>
                         Ещё нет аккаунта?
-                        <a
-                            href="#"
-                            className="link"
-                            onClick={() => navigate("/register")}>
+                        <Link to="/register" className="link">
                             Зарегистрируйтесь
-                        </a>
+                        </Link>
                     </p>
                 </div>
             </div>
