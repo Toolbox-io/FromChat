@@ -7,7 +7,7 @@ import { API_BASE_URL } from "@/core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialTextField } from "@/core/components/TextField";
+import { MaterialTextField } from "@/core/components/MaterialTextField";
 import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { useNavigate } from "react-router-dom";

@@ -82,3 +82,101 @@ button, input {
         padding: 0.5rem;
     }
 }
+
+// Verified badge styles
+.verified-badge {
+    display: inline-flex;
+    align-items: center;
+    color: $color-dark-primary;
+    vertical-align: middle;
+    user-select: none;
+
+    &.small {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
+
+    &.medium {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+
+    &.large {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+    }
+}
+
+// Status badge styles (unified for verified and warning)
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    user-select: none;
+    
+    &.verified {
+        color: $color-dark-primary;
+    }
+    
+    &.warning {
+        color: #ff9800; // Orange color for warnings
+    }
+    
+    &.small mdui-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
+    
+    &.medium mdui-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+    
+    &.large mdui-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+    }
+}
+
+// Profile dialog specific styles
+.username-with-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.similarity-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background-color: $color-dark-error-container;
+    color: $color-dark-on-error-container;
+    border-radius: 8px;
+    margin: 12px 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.verify-section {
+    margin: 16px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.search-result-headline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dm-list-headline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}

@@ -4,6 +4,7 @@ import { useDM, type DMUser } from "@/pages/chat/hooks/useDM";
 import { API_BASE_URL } from "@/core/config";
 import { getAuthHeaders } from "@/core/api/authApi";
 import { fetchUserPublicKey } from "@/core/api/dmApi";
+import { StatusBadge } from "@/core/components/StatusBadge";
 import type { Message } from "@/core/types";
 import { websocket } from "@/core/websocket";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
@@ -19,6 +20,7 @@ interface PublicChat {
 
 interface DMConversation {
     id: number;
+    userId: number;
     username: string;
     display_name: string;
     profile_picture?: string;
@@ -27,6 +29,7 @@ interface DMConversation {
     lastMessage?: string;
     unreadCount: number;
     publicKey?: string | null;
+    verified?: boolean;
 }
 
 type ChatItem = PublicChat | DMConversation;
@@ -84,6 +87,7 @@ export function UnifiedChatsList() {
 
         const dmChatItems: ChatItem[] = dmUsers.map((user: DMUser) => ({
             id: user.id,
+            userId: user.id, // Add userId field
             username: user.username,
             display_name: user.display_name,
             profile_picture: user.profile_picture,
@@ -261,6 +265,14 @@ export function UnifiedChatsList() {
                             onClick={() => handleDMClick(chat)}
                             style={{ cursor: "pointer" }}
                         >
+                            <div slot="headline" className="dm-list-headline">
+                                {chat.display_name}
+                                <StatusBadge 
+                                    verified={chat.verified || false}
+                                    userId={chat.userId}
+                                    size="small"
+                                />
+                            </div>
                             <span slot="description" className="list-description">
                                 {chat.lastMessage || "Нет сообщений"}
                             </span>

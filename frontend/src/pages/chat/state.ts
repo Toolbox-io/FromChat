@@ -25,6 +25,7 @@ export interface ProfileDialogData {
     memberSince?: string;
     online?: boolean;
     isOwnProfile: boolean;
+    verified?: boolean;
 }
 
 interface ActiveDM {

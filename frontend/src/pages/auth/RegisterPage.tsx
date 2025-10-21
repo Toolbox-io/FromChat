@@ -6,7 +6,7 @@ import { TextField } from "mdui/components/text-field";
 import type { ErrorResponse, RegisterRequest, LoginResponse } from "@/core/types";
 import { API_BASE_URL } from "@/core/config";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialTextField } from "@/core/components/TextField";
+import { MaterialTextField } from "@/core/components/MaterialTextField";
 import { ensureKeysOnLogin } from "@/core/api/authApi";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";

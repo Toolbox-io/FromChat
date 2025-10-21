@@ -69,6 +69,9 @@
             margin: 10px;
             cursor: pointer;
             transition: transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
 
             &:hover {
                 transform: scale(1.05);

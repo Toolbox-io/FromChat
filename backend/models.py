@@ -20,6 +20,7 @@ class User(Base):
     online = Column(Boolean, default=False)
     last_seen = Column(DateTime, default=datetime.now)
     created_at = Column(DateTime, default=datetime.now)
+    verified = Column(Boolean, default=False)
     messages = relationship("Message", back_populates="author", lazy="select")
 
 
@@ -186,6 +187,7 @@ class UserProfileResponse(BaseModel):
     online: bool
     last_seen: datetime
     created_at: datetime
+    verified: bool
 
     class Config:
         from_attributes = True

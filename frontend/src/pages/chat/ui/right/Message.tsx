@@ -11,6 +11,7 @@ import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { getAuthHeaders } from "@/core/api/authApi";
 import { useAppState } from "@/pages/chat/state";
 import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
+import { StatusBadge } from "@/core/components/StatusBadge";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
@@ -502,6 +503,11 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                             className="message-username"
                             onClick={handleProfileClick}>
                             {message.username}
+                            <StatusBadge 
+                                verified={message.verified || false}
+                                userId={message.user_id}
+                                size="small"
+                            />
                         </div>
                     )}
 

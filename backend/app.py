@@ -4,8 +4,15 @@ from contextlib import asynccontextmanager
 import subprocess
 import sys
 import os
-
+from constants import DATABASE_URL
 from routes import account, messaging, profile, push, webrtc
+import logging
+from models import User
+from constants import OWNER_USERNAME
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+logger = logging.getLogger("uvicorn.error")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,12 +27,29 @@ async def lifespan(app: FastAPI):
                 "import sys; sys.path.append('.'); from migration import run_migrations; run_migrations()"
             ], 
             cwd=os.path.dirname(os.path.abspath(__file__))
-            # No capture_output - let it stream to terminal in real-time
-            # No text=True - let it use the terminal's encoding
         )
     except Exception as e:
         print(f"Failed to run database migrations: {e}")
         raise
+    
+    try:
+        engine = create_engine(DATABASE_URL)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        
+        with SessionLocal() as db:
+            # Find the owner user
+            owner = db.query(User).filter(User.username == OWNER_USERNAME).first()
+            if owner and not owner.verified:
+                owner.verified = True
+                db.commit()
+                logger.info(f"Owner user '{OWNER_USERNAME}' has been verified")
+            elif owner and owner.verified:
+                logger.info(f"Owner user '{OWNER_USERNAME}' is already verified")
+            else:
+                logger.warning(f"Owner user '{OWNER_USERNAME}' not found")
+                
+    except Exception as e:
+        logger.error(f"Failed to ensure owner verification: {e}")
     
     yield
     

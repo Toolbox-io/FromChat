@@ -149,3 +149,44 @@ export async function fetchUserProfileById(token: string, userId: number): Promi
         return null;
     }
 }
+
+/**
+ * Toggles verification status for a user (owner only)
+ */
+export async function verifyUser(userId: number, token: string): Promise<{verified: boolean} | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/${userId}/verify`, {
+            method: 'POST',
+            headers: getAuthHeaders(token)
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error verifying user:', error);
+        return null;
+    }
+}
+
+/**
+ * Checks if a user is similar to any verified user
+ */
+export async function checkUserSimilarity(userId: number, token: string): Promise<{isSimilar: boolean, similarTo?: string} | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/check-similarity/${userId}`, {
+            headers: getAuthHeaders(token)
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error checking user similarity:', error);
+        return null;
+    }
+}

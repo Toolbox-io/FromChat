@@ -60,6 +60,7 @@ def convert_message(msg: Message) -> dict:
         "is_edited": msg.is_edited,
         "username": msg.author.display_name,
         "profile_picture": msg.author.profile_picture,
+        "verified": msg.author.verified,
         "reply_to": convert_message(msg.reply_to) if msg.reply_to else None,
         "reactions": list(reactions_dict.values()),
         "files": [
@@ -92,6 +93,13 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
                 "username": reaction.user.display_name
             })
 
+    # Get sender info for verified status
+    from models import User
+    from dependencies import get_db
+    db = next(get_db())
+    sender = db.query(User).filter(User.id == envelope.sender_id).first()
+    sender_verified = sender.verified if sender else False
+
     return {
         "id": envelope.id,
         "senderId": envelope.sender_id,
@@ -102,6 +110,7 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
         "iv2": envelope.iv2_b64,
         "wrappedMk": envelope.wrapped_mk_b64,
         "timestamp": envelope.timestamp.isoformat(),
+        "verified": sender_verified,
         "reactions": list(reactions_dict.values()),
         "files": [
             {

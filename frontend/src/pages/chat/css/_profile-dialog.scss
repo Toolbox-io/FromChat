@@ -99,18 +99,22 @@
         .username-section {
             text-align: center;
 
-            .username-input {
-                background: none;
-                border: none;
-                font-size: 1.5rem;
-                font-weight: 500;
-                color: $color-dark-on-surface;
-                text-align: center;
-                outline: none;
-                padding: 8px;
-                border-radius: 4px;
-                transition: background-color 0.2s ease;
-                cursor: text;
+            .username-with-badge {
+                gap: 0;
+
+                .username-input {
+                    background: none;
+                    border: none;
+                    font-size: 1.5rem;
+                    font-weight: 500;
+                    color: $color-dark-on-surface;
+                    text-align: center;
+                    outline: none;
+                    padding: 8px;
+                    border-radius: 4px;
+                    transition: background-color 0.2s ease;
+                    cursor: text;
+                }
             }
         }
 
@@ -168,6 +172,7 @@
                     .label {
                         font-size: small;
                         color: $color-dark-on-surface-variant;
+                        user-select: none;
                     }
 
                     .value {

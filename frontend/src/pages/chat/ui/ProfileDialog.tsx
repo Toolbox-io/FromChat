@@ -6,8 +6,11 @@ import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm";
 import { updateProfile, uploadProfilePicture, fetchUserProfileById } from "@/core/api/profileApi";
 import { RichTextArea } from "@/core/components/RichTextArea";
+import { StatusBadge } from "@/core/components/StatusBadge";
+import { VerifyButton } from "@/core/components/VerifyButton";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineStatus } from "./right/OnlineStatus";
+import { Input } from "@/core/components/Input";
 
 interface SectionProps {
     type: string;
@@ -17,7 +20,7 @@ interface SectionProps {
     value?: string;
     onChange?: (value: string) => void;
     readOnly: boolean;
-    placeholder: string;
+    placeholder?: string;
     textArea?: boolean;
 }
 
@@ -33,23 +36,20 @@ function Section({ type, icon, label, error, value, onChange, readOnly, placehol
                     placeholder={placeholder}
                     className="value"
                     rows={1}
-                    readOnly={readOnly}
-                />
+                    readOnly={readOnly} />
             );
         } else {
             valueComponent = (
                 <input
-                className="value"
-                type="text"
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                readOnly={readOnly} />
+                    className="value"
+                    type="text"
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    readOnly={readOnly} />
             );
         }
     } else {
-        valueComponent = (
-            <span className="value">{value}</span>
-        );
+        valueComponent = <span className="value">{value}</span>
     }
 
     return (
@@ -104,6 +104,7 @@ export function ProfileDialog() {
                 if (userProfile) {
                     freshData = {
                         ...userProfile,
+                        userId: userProfile.id, // Preserve the userId field
                         memberSince: userProfile.created_at,
                         isOwnProfile: profileData.isOwnProfile
                     };
@@ -161,6 +162,7 @@ export function ProfileDialog() {
             };
         }
     }, [isOpen, currentData?.userId, currentData?.isOwnProfile]);
+
 
     // Validate fields when data changes
     useEffect(() => {
@@ -373,6 +375,7 @@ export function ProfileDialog() {
         });
     }
 
+
     const fabVisible = useMemo(() => {
         let hasErrors = false;
         Object.values(errors).forEach(error => {
@@ -413,14 +416,20 @@ export function ProfileDialog() {
                     </div>
 
                     <div className={`username-section ${errors.display_name ? 'error' : ''}`}>
-                        <input
-                            className="username-input"
-                            type="text"
-                            value={currentData.display_name}
-                            onChange={handleDisplayNameChange}
-                            readOnly={!currentData.isOwnProfile}
-                            placeholder="Имя"
-                        />
+                        <div className="username-with-badge">
+                            <Input
+                                autoresizing={true}
+                                className="username-input"
+                                type="text"
+                                value={currentData.display_name}
+                                onChange={handleDisplayNameChange}
+                                readOnly={!currentData.isOwnProfile}
+                                placeholder="Имя" />
+                            <StatusBadge 
+                                verified={currentData.verified || false}
+                                userId={currentData.userId}
+                                size="large" />
+                        </div>
                         {errors.display_name && (
                             <div className="error-message">{errors.display_name}</div>
                         )}
@@ -429,6 +438,19 @@ export function ProfileDialog() {
                     {(currentData?.userId || currentData?.isOwnProfile) && (
                         <div className="online-status-section">
                             <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
+                        </div>
+                    )}
+
+                    {/* Verify button for owner */}
+                    {!currentData.isOwnProfile && currentData.userId && (
+                        <div className="verify-section">
+                            <VerifyButton 
+                                userId={currentData.userId}
+                                verified={currentData.verified || false}
+                                onVerificationChange={(verified) => {
+                                    setCurrentData({ ...currentData, verified });
+                                }}
+                            />
                         </div>
                     )}
 
@@ -452,8 +474,7 @@ export function ProfileDialog() {
                                 onChange={handleBioChange}
                                 readOnly={!currentData.isOwnProfile}
                                 placeholder="Нет информации о себе"
-                                textArea
-                            />
+                                textArea />
                         )}
 
                         {currentData.memberSince && (
@@ -462,8 +483,16 @@ export function ProfileDialog() {
                                 icon="calendar_month--filled"
                                 label="Участник с:"
                                 value={formatDate(currentData.memberSince)}
+                                readOnly={true} />
+                        )}
+
+                        {currentData.verified && (
+                            <Section
+                                type="verified"
+                                icon="verified--filled"
+                                label="Верификация:"
+                                value="Этот аккаунт - официальное лицо FromChat."
                                 readOnly={true}
-                                placeholder="Участник с:"
                             />
                         )}
                     </div>

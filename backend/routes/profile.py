@@ -12,6 +12,7 @@ from dependencies import get_db, get_current_user
 from models import User, UpdateBioRequest, UserProfileResponse
 from pydantic import BaseModel
 from validation import is_valid_username, is_valid_display_name
+from similarity import is_user_similar_to_verified
 
 router = APIRouter()
 
@@ -244,5 +245,66 @@ async def get_user_by_id(
         bio=user.bio,
         online=user.online,
         last_seen=user.last_seen,
-        created_at=user.created_at
+        created_at=user.created_at,
+        verified=user.verified
     )
+
+
+@router.post("/user/{user_id}/verify")
+async def verify_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Toggle verification status for a user (owner only)
+    """
+    # Only user with ID 1 (owner) can verify users
+    if current_user.id != 1:
+        raise HTTPException(status_code=403, detail="Only owner can verify users")
+    
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Toggle verification status
+    target_user.verified = not target_user.verified
+    db.commit()
+    
+    return {
+        "verified": target_user.verified,
+        "message": f"User verification {'enabled' if target_user.verified else 'disabled'}"
+    }
+
+
+@router.get("/user/check-similarity/{user_id}")
+async def check_user_similarity(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check if a user is similar to any verified user
+    """
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get all verified users
+    verified_users = db.query(User).filter(User.verified == True).all()
+    verified_users_data = [
+        {"username": user.username, "display_name": user.display_name}
+        for user in verified_users
+    ]
+    
+    # Check similarity
+    is_similar, similar_to = is_user_similar_to_verified(
+        target_user.username,
+        target_user.display_name,
+        verified_users_data
+    )
+    
+    return {
+        "isSimilar": is_similar,
+        "similarTo": similar_to if is_similar else None
+    }
