@@ -102,6 +102,21 @@ def run_migrations():
                 logger.info(f"No new migrations needed or error creating migration: {e}")
                 pass
         
+        # Check if database is in an inconsistent state (has alembic_version but no tables)
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as connection:
+            from sqlalchemy import text, inspect
+            inspector = inspect(connection)
+            existing_tables = inspector.get_table_names()
+            
+            # Check if we have alembic_version but no actual tables
+            if 'alembic_version' in existing_tables and len(existing_tables) == 1:
+                logger.info("Database has alembic_version but no actual tables - resetting migration state...")
+                # Clear alembic_version and start fresh
+                connection.execute(text("DELETE FROM alembic_version"))
+                connection.commit()
+                logger.info("Reset migration state - will create fresh migration")
+        
         # Run the upgrade command
         logger.info("Running database migrations...")
         try:
@@ -116,6 +131,40 @@ def run_migrations():
                     from sqlalchemy import text
                     connection.execute(text("DELETE FROM alembic_version"))
                     connection.commit()
+                
+                # Set the correct revision in alembic_version table
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                versions_dir = os.path.join(current_dir, "alembic", "versions")
+                migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
+                
+                if migration_files:
+                    # Get the latest migration file and extract its revision ID
+                    latest_migration = max(migration_files)
+                    migration_path = os.path.join(versions_dir, latest_migration)
+                    
+                    with open(migration_path, 'r') as f:
+                        content = f.read()
+                        # Extract revision ID from the file
+                        import re
+                        revision_match = re.search(r"revision: str = '([^']+)'", content)
+                        if revision_match:
+                            revision_id = revision_match.group(1)
+                            logger.info(f"Setting alembic_version to {revision_id}")
+                            connection.execute(text(f"INSERT INTO alembic_version (version_num) VALUES ('{revision_id}')"))
+                            connection.commit()
+                
+                # Try upgrade again
+                command.upgrade(alembic_cfg, "head")
+                logger.info("Database migrations completed successfully after reset.")
+            elif "no such table" in str(upgrade_error).lower():
+                logger.info("Database tables missing - resetting migration state...")
+                # Clear the alembic_version table and start fresh
+                engine = create_engine(DATABASE_URL)
+                with engine.connect() as connection:
+                    from sqlalchemy import text
+                    connection.execute(text("DELETE FROM alembic_version"))
+                    connection.commit()
+                
                 # Try upgrade again
                 command.upgrade(alembic_cfg, "head")
                 logger.info("Database migrations completed successfully after reset.")
@@ -134,19 +183,37 @@ def run_migrations():
                 connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
                 connection.commit()
             
-            # Remove any existing migration files to start fresh
+            # Check if we have existing migration files
             versions_dir = os.path.join(current_dir, "alembic", "versions")
-            for file in os.listdir(versions_dir):
-                if file.endswith('.py') and not file.startswith('__'):
-                    os.remove(os.path.join(versions_dir, file))
+            migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
             
-            # Create a completely fresh migration with full schema
-            logger.info("Creating fresh migration with complete schema...")
-            _create_complete_migration(alembic_cfg)
-            
-            # Run the migration
-            command.upgrade(alembic_cfg, "head")
-            logger.info("Automated recovery completed successfully.")
+            if migration_files:
+                # We have migration files, just fix the alembic_version table
+                logger.info("Found existing migration files, fixing alembic_version table...")
+                latest_migration = max(migration_files)
+                migration_path = os.path.join(versions_dir, latest_migration)
+                
+                with open(migration_path, 'r') as f:
+                    content = f.read()
+                    import re
+                    revision_match = re.search(r"revision: str = '([^']+)'", content)
+                    if revision_match:
+                        revision_id = revision_match.group(1)
+                        logger.info(f"Setting alembic_version to {revision_id}")
+                        connection.execute(text(f"INSERT INTO alembic_version (version_num) VALUES ('{revision_id}')"))
+                        connection.commit()
+                
+                # Try upgrade again
+                command.upgrade(alembic_cfg, "head")
+                logger.info("Automated recovery completed successfully.")
+            else:
+                # No migration files, create fresh ones
+                logger.info("No migration files found, creating fresh migration...")
+                _create_complete_migration(alembic_cfg)
+                
+                # Run the migration
+                command.upgrade(alembic_cfg, "head")
+                logger.info("Automated recovery completed successfully.")
             
         except Exception as recovery_error:
             logger.error(f"Automated recovery failed: {recovery_error}")
@@ -458,7 +525,28 @@ def _create_database_directly():
                 CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
             )
         """))
-        connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
+        
+        # Get the correct revision ID from existing migration files
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        versions_dir = os.path.join(current_dir, "alembic", "versions")
+        migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
+        
+        if migration_files:
+            latest_migration = max(migration_files)
+            migration_path = os.path.join(versions_dir, latest_migration)
+            
+            with open(migration_path, 'r') as f:
+                content = f.read()
+                import re
+                revision_match = re.search(r"revision: str = '([^']+)'", content)
+                if revision_match:
+                    revision_id = revision_match.group(1)
+                    connection.execute(text(f"INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('{revision_id}')"))
+                else:
+                    connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
+        else:
+            connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
+        
         connection.commit()
 
 
