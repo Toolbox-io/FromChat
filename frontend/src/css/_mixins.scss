@@ -1,0 +1,9 @@
+@use "sass:color";
+
+/**
+ * Mixin to create CSS custom properties from SCSS color variables
+ * Uses modern color.channel() functions to avoid deprecation warnings
+ */
+@mixin mdui-color($var-name, $color) {
+    --mdui-color-#{$var-name}: #{color.channel($color, "red", $space: rgb)} #{color.channel($color, "green", $space: rgb)} #{color.channel($color, "blue", $space: rgb)};
+}
