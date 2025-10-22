@@ -51,6 +51,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to ensure owner verification: {e}")
     
+    # Start the messaging cleanup task
+    try:
+        from routes.messaging import messagingManager
+        messagingManager.start_cleanup_task()
+        logger.info("Messaging cleanup task started")
+    except Exception as e:
+        logger.error(f"Failed to start messaging cleanup task: {e}")
+    
     yield
     
     # Shutdown (if needed in the future)

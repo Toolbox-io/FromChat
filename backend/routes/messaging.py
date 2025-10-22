@@ -1344,8 +1344,6 @@ class MessaggingSocketManager:
             self._cleanup_task = asyncio.create_task(self.cleanup_stale_typing_indicators())
 
 messagingManager = MessaggingSocketManager()
-# Start the cleanup task
-messagingManager.start_cleanup_task()
 
 @router.websocket("/chat/ws")
 async def chat_websocket(
