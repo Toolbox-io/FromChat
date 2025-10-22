@@ -207,11 +207,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     }, [message.files, isDm, decryptedFiles]);
 
     async function decryptFile(file: Attachment): Promise<string | null> {
-        if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) {
-            debugger;
-            console.warn("Conditions not met")
-            return null;
-        }
+        if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) return null;
 
         // Check if already decrypted
         if (decryptedFiles.has(file.path)) {
@@ -420,25 +416,25 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
     async function handleLinkClick(e: React.MouseEvent<HTMLDivElement>) {
         const target = e.target as HTMLElement;
-        
+
         if (target.tagName === 'A') {
             const profileLink = parseProfileLink((target as HTMLAnchorElement).href);
-            
+
             if (profileLink) {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 if (!user.authToken) return;
-                
+
                 try {
                     let userProfile;
-                    
+
                     if (profileLink.userId) {
                         userProfile = await fetchUserProfileById(user.authToken, profileLink.userId);
                     } else if (profileLink.username) {
                         userProfile = await fetchUserProfile(user.authToken, profileLink.username);
                     }
-                    
+
                     if (userProfile) {
                         setProfileDialog({
                             ...userProfile,
@@ -500,7 +496,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                             className="message-username"
                             onClick={handleProfileClick}>
                             {message.username}
-                            <StatusBadge 
+                            <StatusBadge
                                 verified={message.verified || false}
                                 userId={message.user_id}
                                 size="small"

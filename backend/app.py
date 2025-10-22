@@ -54,7 +54,6 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown (if needed in the future)
-    # logger.info("Application shutdown")
 
 # Инициализация FastAPI
 app = FastAPI(title="FromChat", lifespan=lifespan)
