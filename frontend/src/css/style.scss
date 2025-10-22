@@ -2,6 +2,7 @@
 @use "components";
 @use "colors" as *;
 @use "material" as *;
+@use "../core/components/css/styled-dialog";
 
 @use "fonts/montserrat";
 @use "fonts/material-symbols";
@@ -41,4 +42,8 @@ mdui-dialog {
     > *:last-child {
         margin-block-end: 0;
     }
+}
+
+mdui-icon {
+    user-select: none;
 }

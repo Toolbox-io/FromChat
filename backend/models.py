@@ -20,6 +20,10 @@ class User(Base):
     online = Column(Boolean, default=False)
     last_seen = Column(DateTime, default=datetime.now)
     created_at = Column(DateTime, default=datetime.now)
+    verified = Column(Boolean, default=False)
+    suspended = Column(Boolean, default=False)
+    suspension_reason = Column(Text, nullable=True)
+    deleted = Column(Boolean, default=False)
     messages = relationship("Message", back_populates="author", lazy="select")
 
 
@@ -184,8 +188,12 @@ class UserProfileResponse(BaseModel):
     profile_picture: str | None
     bio: str | None
     online: bool
-    last_seen: datetime
-    created_at: datetime
+    last_seen: datetime | None
+    created_at: datetime | None
+    verified: bool
+    suspended: bool
+    suspension_reason: str | None
+    deleted: bool
 
     class Config:
         from_attributes = True

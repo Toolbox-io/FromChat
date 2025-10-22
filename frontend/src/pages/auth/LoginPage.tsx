@@ -7,7 +7,7 @@ import { API_BASE_URL } from "@/core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialTextField } from "@/core/components/TextField";
+import { MaterialTextField } from "@/core/components/MaterialTextField";
 import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { useNavigate } from "react-router-dom";
@@ -98,6 +98,15 @@ export default function LoginPage() {
                                 }
                             } else {
                                 const data: ErrorResponse = await response.json();
+                                
+                                // Check for suspension
+                                if (response.status === 403 && response.headers.get("suspension_reason")) {
+                                    const suspensionReason = response.headers.get("suspension_reason");
+                                    const setSuspended = useAppState.getState().setSuspended;
+                                    setSuspended(suspensionReason || "No reason provided");
+                                    return; // Don't show alert, SuspensionDialog will be shown
+                                }
+                                
                                 showAlert("danger", data.message || "Неверное имя пользователя или пароль");
                             }
                         } catch (error) {

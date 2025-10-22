@@ -20,7 +20,11 @@ def convert_user(user: User) -> dict:
         "display_name": user.display_name,
         "profile_picture": user.profile_picture,
         "bio": user.bio,
-        "admin": user.username == OWNER_USERNAME
+        "admin": user.username == OWNER_USERNAME,
+        "verified": user.verified,
+        "suspended": user.suspended or False,
+        "suspension_reason": user.suspension_reason,
+        "deleted": user.deleted or False
     }
 
 @router.get("/check_auth")
@@ -113,12 +117,17 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         )
 
     hashed_password = get_password_hash(password)
+    
+    # Set verified=True for the owner (first user to register)
+    is_owner = not owner_exists and username == OWNER_USERNAME
+    
     new_user = User(
         username=username,
         display_name=display_name,
         password_hash=hashed_password,
         online=True,
-        last_seen=datetime.now()
+        last_seen=datetime.now(),
+        verified=is_owner
     )
 
     db.add(new_user)

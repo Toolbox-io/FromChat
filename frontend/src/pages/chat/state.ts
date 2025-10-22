@@ -25,6 +25,10 @@ export interface ProfileDialogData {
     memberSince?: string;
     online?: boolean;
     isOwnProfile: boolean;
+    verified?: boolean;
+    suspended?: boolean;
+    suspension_reason?: string | null;
+    deleted?: boolean;
 }
 
 interface ActiveDM {
@@ -72,6 +76,8 @@ interface ChatState {
 export interface UserState {
     currentUser: User | null;
     authToken: string | null;
+    isSuspended: boolean;
+    suspensionReason: string | null;
 }
 
 interface AppState {
@@ -111,6 +117,7 @@ interface AppState {
     setUser: (token: string, user: User) => void;
     logout: () => void;
     restoreUserFromStorage: () => Promise<void>;
+    setSuspended: (reason: string) => void;
 
     // Profile dialog state
     setProfileDialog: (data: ProfileDialogData | null) => void;
@@ -225,13 +232,17 @@ export const useAppState = create<AppState>((set, get) => ({
     // User state
     user: {
         currentUser: null,
-        authToken: null
+        authToken: null,
+        isSuspended: false,
+        suspensionReason: null
     },
     setUser: (token: string, user: User) => {
         set(() => ({
             user: {
                 currentUser: user,
-                authToken: token
+                authToken: token,
+                isSuspended: user.suspended || false,
+                suspensionReason: user.suspension_reason || null
             }
         }));
 
@@ -255,8 +266,6 @@ export const useAppState = create<AppState>((set, get) => ({
                     credentials: token
                 },
                 data: {}
-            }).then(() => {
-                console.log("Ping succeeded")
             })
         } catch {}
     },
@@ -278,7 +287,9 @@ export const useAppState = create<AppState>((set, get) => ({
         set(() => ({
             user: {
                 currentUser: null,
-                authToken: null
+                authToken: null,
+                isSuspended: false,
+                suspensionReason: null
             }
         }));
     },
@@ -295,10 +306,25 @@ export const useAppState = create<AppState>((set, get) => ({
                     const user: User = await response.json();
                     restoreKeys();
 
+                    // Check if user is suspended
+                    if (user.suspended) {
+                        set(() => ({
+                            user: {
+                                currentUser: user,
+                                authToken: token,
+                                isSuspended: true,
+                                suspensionReason: user.suspension_reason || null
+                            }
+                        }));
+                        return; // Don't initialize managers or notifications for suspended users
+                    }
+
                     set(() => ({
                         user: {
                             currentUser: user,
-                            authToken: token
+                            authToken: token,
+                            isSuspended: false,
+                            suspensionReason: null
                         }
                     }));
 
@@ -314,8 +340,6 @@ export const useAppState = create<AppState>((set, get) => ({
                                 credentials: token
                             },
                             data: {}
-                        }).then(() => {
-                            console.log("Ping succeeded")
                         })
                     } catch {}
 
@@ -678,5 +702,13 @@ export const useAppState = create<AppState>((set, get) => ({
                 dmTypingUsers: newDmTypingUsers
             }
         };
-    })
+    }),
+
+    setSuspended: (reason: string) => set((state) => ({
+        user: {
+            ...state.user,
+            isSuspended: true,
+            suspensionReason: reason
+        }
+    }))
 }));

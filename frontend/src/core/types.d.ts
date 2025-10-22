@@ -69,6 +69,7 @@ export interface Message {
     is_edited: boolean;
     timestamp: string;
     profile_picture?: string;
+    verified?: boolean;
     reply_to?: Message;
     files?: Attachment[];
     reactions?: Reaction[];
@@ -116,6 +117,10 @@ export interface User {
     admin?: boolean;
     bio?: string;
     profile_picture: string;
+    verified?: boolean;
+    suspended?: boolean;
+    suspension_reason?: string | null;
+    deleted?: boolean;
 }
 
 /**
@@ -138,6 +143,7 @@ export interface UserProfile {
     online: boolean;
     last_seen: string;
     created_at: string;
+    verified?: boolean;
 }
 
 // ----------

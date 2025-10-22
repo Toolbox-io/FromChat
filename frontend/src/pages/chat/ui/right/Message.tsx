@@ -11,6 +11,7 @@ import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { getAuthHeaders } from "@/core/api/authApi";
 import { useAppState } from "@/pages/chat/state";
 import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
+import { StatusBadge } from "@/core/components/StatusBadge";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
@@ -192,12 +193,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     useEffect(() => {
         if (isDm && message.files) {
             message.files.forEach(async (file) => {
-                console.log(file);
                 const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
                 if (isImage && file.encrypted && !decryptedFiles.has(file.path)) {
-                    console.log("Decrypting...");
                     const decryptedUrl = await decryptFile(file);
-                    console.log(decryptedUrl);
                     if (decryptedUrl) {
                         updateDecryptedFiles(draft => {
                             draft.set(file.path, decryptedUrl);
@@ -486,7 +484,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                 {!isAuthor && !isDm && (
                     <div className="message-profile-pic" onClick={handleProfileClick}>
                         <img
-                            src={message.profile_picture || defaultAvatar}
+                            src={message.username?.startsWith("Deleted User #") ? defaultAvatar : (message.profile_picture || defaultAvatar)}
                             alt={message.username}
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
@@ -502,6 +500,11 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                             className="message-username"
                             onClick={handleProfileClick}>
                             {message.username}
+                            <StatusBadge 
+                                verified={message.verified || false}
+                                userId={message.user_id}
+                                size="small"
+                            />
                         </div>
                     )}
 
