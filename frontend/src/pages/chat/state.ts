@@ -266,8 +266,6 @@ export const useAppState = create<AppState>((set, get) => ({
                     credentials: token
                 },
                 data: {}
-            }).then(() => {
-                console.log("Ping succeeded")
             })
         } catch {}
     },
@@ -342,8 +340,6 @@ export const useAppState = create<AppState>((set, get) => ({
                                 credentials: token
                             },
                             data: {}
-                        }).then(() => {
-                            console.log("Ping succeeded")
                         })
                     } catch {}
 

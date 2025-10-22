@@ -18,7 +18,7 @@ logger = logging.getLogger("uvicorn.error")
 async def lifespan(app: FastAPI):
     # Startup - run migration in separate process to avoid logging interference
     try:
-        print("Starting database migration check...")
+        logger.info("Starting database migration check...")
         # Run migration in a separate process
         subprocess.run(
             [
@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
             cwd=os.path.dirname(os.path.abspath(__file__))
         )
     except Exception as e:
-        print(f"Failed to run database migrations: {e}")
+        logger.error(f"Failed to run database migrations: {e}")
         raise
     
     try:

@@ -3,6 +3,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 from PIL import Image
 import os
 import uuid
@@ -13,6 +14,7 @@ from models import User, UpdateBioRequest, UserProfileResponse
 from pydantic import BaseModel
 from validation import is_valid_username, is_valid_display_name
 from similarity import is_user_similar_to_verified
+from messaging import messagingManager
 
 router = APIRouter()
 
@@ -363,11 +365,10 @@ async def suspend_user(
     
     # Send WebSocket suspension message
     try:
-        from .messaging import messagingManager
         await messagingManager.send_suspension_to_user(user_id, request.reason)
     except Exception as e:
         # Log error but don't fail the request
-        print(f"Failed to send suspension WebSocket message: {e}")
+        pass
     
     return {
         "status": "success",
@@ -444,13 +445,13 @@ async def delete_user(
             if os.path.exists(filepath):
                 os.remove(filepath)
         except Exception as e:
-            print(f"Failed to delete profile picture: {e}")
+            # Log error but don't fail the request
+            pass
     
     # Dynamic deletion of all non-whitelist data
     WHITELIST_TABLES = {"message", "dm_envelope", "reaction", "dm_reaction", "message_file", "dm_file"}
     
     try:
-        from sqlalchemy import inspect, text
         inspector = inspect(db.bind)
         all_tables = inspector.get_table_names()
         
@@ -468,17 +469,16 @@ async def delete_user(
         
         db.commit()
     except Exception as e:
-        print(f"Failed to delete user data: {e}")
+        # Log error and rollback
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to delete user data")
     
     # Send WebSocket deletion message
     try:
-        from .messaging import messagingManager
         await messagingManager.send_deletion_to_user(user_id)
     except Exception as e:
         # Log error but don't fail the request
-        print(f"Failed to send deletion WebSocket message: {e}")
+        pass
     
     return {
         "status": "success",

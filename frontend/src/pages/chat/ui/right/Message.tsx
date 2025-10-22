@@ -193,12 +193,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     useEffect(() => {
         if (isDm && message.files) {
             message.files.forEach(async (file) => {
-                console.log(file);
                 const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
                 if (isImage && file.encrypted && !decryptedFiles.has(file.path)) {
-                    console.log("Decrypting...");
                     const decryptedUrl = await decryptFile(file);
-                    console.log(decryptedUrl);
                     if (decryptedUrl) {
                         updateDecryptedFiles(draft => {
                             draft.set(file.path, decryptedUrl);
