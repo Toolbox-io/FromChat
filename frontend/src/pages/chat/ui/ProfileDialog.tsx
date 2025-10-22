@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { useAppState } from "@/pages/chat/state";
 import type { ProfileDialogData } from "@/pages/chat/state";
 import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm";
+import { prompt } from "mdui/functions/prompt";
 import { updateProfile, uploadProfilePicture, fetchUserProfileById } from "@/core/api/profileApi";
 import { RichTextArea } from "@/core/components/RichTextArea";
 import { StatusBadge } from "@/core/components/StatusBadge";
@@ -11,6 +11,7 @@ import { VerifyButton } from "@/core/components/VerifyButton";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineStatus } from "./right/OnlineStatus";
 import { Input } from "@/core/components/Input";
+import { StyledDialog } from "@/core/components/StyledDialog";
 
 interface SectionProps {
     type: string;
@@ -74,7 +75,6 @@ export function ProfileDialog() {
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState<{[key: string]: string}>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [openClass, setOpenClass] = useState(false);
 
     // Handle dialog open/close based on state
     useEffect(() => {
@@ -82,13 +82,7 @@ export function ProfileDialog() {
             // Fetch fresh data when opening dialog
             fetchFreshProfileData(chat.profileDialog);
         } else if (!chat.profileDialog && isOpen) {
-            // Start close animation
-                setOpenClass(false);
-
-                // Wait for animation to complete before closing
-                setTimeout(() => {
-                    setIsOpen(false);
-            }, 300);
+            setIsOpen(false);
         }
     }, [chat.profileDialog, isOpen]);
 
@@ -123,30 +117,7 @@ export function ProfileDialog() {
         }
     }
 
-    // Trigger transition after component mounts
-    useEffect(() => {
-        if (isOpen) {
-            // Small delay to ensure DOM is ready for transition
-            const timer = requestAnimationFrame(() => {
-                setOpenClass(true);
-            });
-            return () => cancelAnimationFrame(timer);
-        }
-    }, [isOpen]);
 
-    // Handle ESC key
-    useEffect(() => {
-        if (isOpen) {
-            function handleEsc(e: KeyboardEvent) {
-                if (e.key === "Escape") {
-                    handleClose();
-                }
-            }
-
-            document.addEventListener("keydown", handleEsc);
-            return () => document.removeEventListener("keydown", handleEsc);
-        }
-    }, [isOpen]);
 
     // Subscribe to user's online status when dialog opens
     useEffect(() => {
@@ -197,35 +168,21 @@ export function ProfileDialog() {
                     confirmText: "Закрыть",
                     cancelText: "Отмена"
                 });
-                triggerCloseAnimation();
+                closeProfileDialog();
             } catch {
                 // User cancelled, do nothing
             }
         } else {
-            triggerCloseAnimation();
-        }
-    };
-
-    function triggerCloseAnimation() {
-        setOpenClass(false);
-
-        // Wait for animation to complete before closing
-        setTimeout(() => {
             closeProfileDialog();
-        }, 300); // Match CSS transition duration
-    };
-
-    function handleBackdropClick(e: React.MouseEvent) {
-        if (e.target === e.currentTarget) {
-            handleClose();
         }
     };
+
 
     function handleDisplayNameChange(e: React.ChangeEvent<HTMLInputElement>) {
         if (!currentData) return;
         const newValue = e.target.value;
         setCurrentData({ ...currentData, display_name: newValue });
-        
+
         // Validate display name in real-time
         validateDisplayName(newValue);
     };
@@ -233,7 +190,7 @@ export function ProfileDialog() {
     function handleUsernameChange(value: string) {
         if (!currentData) return;
         setCurrentData({ ...currentData, username: value });
-        
+
         // Validate username in real-time
         validateUsername(value);
     };
@@ -266,19 +223,19 @@ export function ProfileDialog() {
 
     function validateDisplayName(value: string) {
         let error = "";
-        
+
         if (!value || value.trim().length === 0) {
             error = "Отображаемое имя не может быть пустым";
         } else if (value.length > 64) {
             error = "Отображаемое имя не может быть длиннее 64 символов";
         }
-        
+
         setErrors(prev => ({ ...prev, display_name: error }));
     };
 
     function validateUsername(value: string) {
         let error = "";
-        
+
         if (!value || value.trim().length === 0) {
             error = "Имя пользователя не может быть пустым";
         } else if (value.length < 3) {
@@ -288,7 +245,7 @@ export function ProfileDialog() {
         } else if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
             error = "Имя пользователя может содержать только английские буквы, цифры, дефисы и подчеркивания";
         }
-        
+
         setErrors(prev => ({ ...prev, username: error }));
     };
 
@@ -297,7 +254,7 @@ export function ProfileDialog() {
             validateDisplayName(currentData.display_name || "");
             validateUsername(currentData.username || "");
         }
-        
+
         return !errors.display_name && !errors.username;
     };
 
@@ -352,8 +309,8 @@ export function ProfileDialog() {
                 setUser(user.authToken, updatedUser);
             }
 
-            // Close dialog with animation after successful save
-            triggerCloseAnimation();
+            // Close dialog after successful save
+            closeProfileDialog();
         } catch (error) {
             console.error("Failed to save profile:", error);
             // Handle API errors
@@ -375,6 +332,90 @@ export function ProfileDialog() {
         });
     }
 
+    async function handleSuspend() {
+        if (!currentData?.userId || !user.authToken) return;
+
+        const isSuspending = !currentData.suspended;
+
+        try {
+            if (isSuspending) {
+                const reason = await prompt({
+                    headline: "Suspend Account",
+                    description: "Enter the reason for suspending this account:",
+                    confirmText: "Suspend",
+                    cancelText: "Cancel"
+                });
+
+                if (reason) {
+                    const response = await fetch(`/api/user/${currentData.userId}/suspend`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${user.authToken}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ reason })
+                    });
+
+                    if (response.ok) {
+                        closeProfileDialog();
+                    } else {
+                        const error = await response.json();
+                        console.error("Failed to suspend user:", error);
+                    }
+                }
+            } else {
+                // Unsuspend user
+                const response = await fetch(`/api/user/${currentData.userId}/unsuspend`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${user.authToken}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    closeProfileDialog();
+                } else {
+                    const error = await response.json();
+                    console.error("Failed to unsuspend user:", error);
+                }
+            }
+        } catch (error) {
+            console.error(`Failed to ${isSuspending ? 'suspend' : 'unsuspend'} user:`, error);
+        }
+    }
+
+    async function handleDelete() {
+        if (!currentData?.userId || !user.authToken) return;
+
+        try {
+            await confirm({
+                headline: "Delete Account",
+                description: "This will permanently delete user data but preserve messages and conversations. If the user is online, they will be immediately logged out. This action cannot be undone.",
+                confirmText: "Delete",
+                cancelText: "Cancel"
+            });
+
+            const response = await fetch(`/api/user/${currentData.userId}/delete`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${user.authToken}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                closeProfileDialog();
+            } else {
+                const error = await response.json();
+                console.error("Failed to delete user:", error);
+            }
+        } catch (error) {
+            // User cancelled or error occurred
+            console.error("Failed to delete user:", error);
+        }
+    }
+
 
     const fabVisible = useMemo(() => {
         let hasErrors = false;
@@ -387,15 +428,19 @@ export function ProfileDialog() {
         return hasChanges && currentData?.isOwnProfile && !isSaving && !hasErrors;
     }, [hasChanges, currentData?.isOwnProfile, isSaving, errors]);
 
-    if (!isOpen || !currentData) return null;
+    if (!currentData) return null;
 
-    return createPortal(
-        <div
-            className={`profile-dialog-backdrop ${openClass ? "open" : ""}`}
-            onClick={handleBackdropClick}>
-            <div className={`profile-dialog ${openClass ? "open" : ""}`}>
-                <div className="profile-dialog-content">
-                    <div className="profile-picture-section">
+    return (
+        <StyledDialog
+            open={isOpen}
+            onOpenChange={(open) => {
+                if (!open) {
+                    handleClose();
+                }
+            }}
+            onBackdropClick={handleClose}
+        >
+            <div className="profile-picture-section">
                         <img
                             className="profile-picture"
                             src={currentData.profilePicture || defaultAvatar}
@@ -435,14 +480,46 @@ export function ProfileDialog() {
                         )}
                     </div>
 
-                    {(currentData?.userId || currentData?.isOwnProfile) && (
+                    {(currentData?.userId || currentData?.isOwnProfile) && !currentData.deleted && (
                         <div className="online-status-section">
                             <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
                         </div>
                     )}
 
-                    {/* Verify button for owner */}
-                    {!currentData.isOwnProfile && currentData.userId && (
+                    {/* Admin Actions Section - Hide for deleted users */}
+                    {!currentData.isOwnProfile && user.currentUser?.id === 1 && !currentData.deleted && (
+                        <div className="admin-actions-section">
+                            <h3 className="admin-actions-header">Admin Actions</h3>
+                            <div className="admin-buttons">
+                                <mdui-button 
+                                    variant="filled" 
+                                    color="error"
+                                    icon={currentData.suspended ? "check_circle--filled" : "block--filled"}
+                                    onClick={handleSuspend}
+                                >
+                                    {currentData.suspended ? "Unsuspend Account" : "Suspend Account"}
+                                </mdui-button>
+                                <mdui-button 
+                                    variant="filled" 
+                                    color="error"
+                                    icon="delete_forever--filled"
+                                    onClick={handleDelete}
+                                >
+                                    Delete Account
+                                </mdui-button>
+                                <VerifyButton 
+                                    userId={currentData.userId!}
+                                    verified={currentData.verified || false}
+                                    onVerificationChange={(verified) => {
+                                        setCurrentData({ ...currentData, verified });
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Verify button for non-admin owner */}
+                    {!currentData.isOwnProfile && currentData.userId && user.currentUser?.id !== 1 && (
                         <div className="verify-section">
                             <VerifyButton 
                                 userId={currentData.userId}
@@ -454,49 +531,51 @@ export function ProfileDialog() {
                         </div>
                     )}
 
-                    <div className="profile-sections">
-                        <Section
-                            type="username"
-                            error={errors.username}
-                            icon="alternate_email--filled"
-                            label="Имя пользователя:"
-                            value={currentData.username}
-                            onChange={handleUsernameChange}
-                            readOnly={!currentData.isOwnProfile}
-                            placeholder="username" />
-
-                        {currentData.bio !== undefined && (
+                    {/* Hide profile sections for deleted users */}
+                    {!currentData.deleted && (
+                        <div className="profile-sections">
                             <Section
-                                type="bio"
-                                icon="info--filled"
-                                label="О себе:"
-                                value={currentData.bio}
-                                onChange={handleBioChange}
+                                type="username"
+                                error={errors.username}
+                                icon="alternate_email--filled"
+                                label="Имя пользователя:"
+                                value={currentData.username}
+                                onChange={handleUsernameChange}
                                 readOnly={!currentData.isOwnProfile}
-                                placeholder="Нет информации о себе"
-                                textArea />
-                        )}
+                                placeholder="username" />
 
-                        {currentData.memberSince && (
-                            <Section
-                                type="member-since"
-                                icon="calendar_month--filled"
-                                label="Участник с:"
-                                value={formatDate(currentData.memberSince)}
-                                readOnly={true} />
-                        )}
+                            {currentData.bio !== undefined && (
+                                <Section
+                                    type="bio"
+                                    icon="info--filled"
+                                    label="О себе:"
+                                    value={currentData.bio}
+                                    onChange={handleBioChange}
+                                    readOnly={!currentData.isOwnProfile}
+                                    placeholder="Нет информации о себе"
+                                    textArea />
+                            )}
 
-                        {currentData.verified && (
-                            <Section
-                                type="verified"
-                                icon="verified--filled"
-                                label="Верификация:"
-                                value="Этот аккаунт - официальное лицо FromChat."
-                                readOnly={true}
-                            />
-                        )}
-                    </div>
-                </div>
+                            {currentData.memberSince && (
+                                <Section
+                                    type="member-since"
+                                    icon="calendar_month--filled"
+                                    label="Участник с:"
+                                    value={formatDate(currentData.memberSince)}
+                                    readOnly={true} />
+                            )}
+
+                            {currentData.verified && (
+                                <Section
+                                    type="verified"
+                                    icon="verified--filled"
+                                    label="Верификация:"
+                                    value="Этот аккаунт - официальное лицо FromChat."
+                                    readOnly={true}
+                                />
+                            )}
+                        </div>
+                    )}
 
                 {currentData.isOwnProfile && (
                     <mdui-fab
@@ -514,8 +593,6 @@ export function ProfileDialog() {
                     style={{ display: "none" }}
                     onChange={handleFileSelect}
                 />
-            </div>
-        </div>,
-        document.getElementById("root")!
+        </StyledDialog>
     );
 }

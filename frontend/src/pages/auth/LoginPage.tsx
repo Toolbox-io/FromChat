@@ -98,6 +98,15 @@ export default function LoginPage() {
                                 }
                             } else {
                                 const data: ErrorResponse = await response.json();
+                                
+                                // Check for suspension
+                                if (response.status === 403 && response.headers.get("suspension_reason")) {
+                                    const suspensionReason = response.headers.get("suspension_reason");
+                                    const setSuspended = useAppState.getState().setSuspended;
+                                    setSuspended(suspensionReason || "No reason provided");
+                                    return; // Don't show alert, SuspensionDialog will be shown
+                                }
+                                
                                 showAlert("danger", data.message || "Неверное имя пользователя или пароль");
                             }
                         } catch (error) {

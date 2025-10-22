@@ -35,4 +35,20 @@ def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Check if user is suspended
+    if user.suspended:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account suspended",
+            headers={"suspension_reason": user.suspension_reason or "No reason provided"},
+        )
+
+    # Check if user is deleted
+    if user.deleted:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account deleted",
+        )
+
     return user

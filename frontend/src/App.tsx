@@ -6,6 +6,7 @@ import { parseProfileLink } from "./core/profileLinks";
 import NotFoundPage from "./pages/not-found/NotFoundPage";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import DownloadAppPage from "./pages/download-app/DownloadAppPage";
+import { SuspensionDialog } from "./pages/chat/ui/SuspensionDialog";
 
 // Lazy load route components
 const HomePage = lazy(() => import("./pages/home/HomePage"));
@@ -66,7 +67,7 @@ function SmartCatchAll() {
 }
 
 export default function App() {
-    const { restoreUserFromStorage } = useAppState();
+    const { restoreUserFromStorage, user } = useAppState();
     const [authReady, setAuthReady] = useState(false);
 
     useEffect(() => {
@@ -74,7 +75,7 @@ export default function App() {
             setAuthReady(true);
         });
     }, [restoreUserFromStorage]);
-
+    
     return authReady && (
         <BrowserRouter>
             <ElectronTitleBar />
@@ -85,6 +86,13 @@ export default function App() {
                     ))}
                 </Routes>
             </div>
+            {user.isSuspended && (
+                <SuspensionDialog 
+                    reason={user.suspensionReason || "No reason provided"} 
+                    open={true}
+                    onOpenChange={() => {}} // Suspended users can't close the dialog
+                />
+            )}
         </BrowserRouter>
     )
 }

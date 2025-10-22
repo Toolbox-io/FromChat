@@ -21,7 +21,10 @@ def convert_user(user: User) -> dict:
         "profile_picture": user.profile_picture,
         "bio": user.bio,
         "admin": user.username == OWNER_USERNAME,
-        "verified": user.verified
+        "verified": user.verified,
+        "suspended": user.suspended or False,
+        "suspension_reason": user.suspension_reason,
+        "deleted": user.deleted or False
     }
 
 @router.get("/check_auth")

@@ -51,6 +51,16 @@ def convert_message(msg: Message) -> dict:
                 "username": reaction.user.display_name
             })
 
+    # Handle deleted users
+    if msg.author.deleted:
+        username = f"Deleted User #{msg.author.id}"
+        profile_picture = None
+        verified = False
+    else:
+        username = msg.author.display_name
+        profile_picture = msg.author.profile_picture
+        verified = msg.author.verified
+
     return {
         "id": msg.id,
         "user_id": msg.author.id,
@@ -58,9 +68,9 @@ def convert_message(msg: Message) -> dict:
         "timestamp": msg.timestamp.isoformat(),
         "is_read": msg.is_read,
         "is_edited": msg.is_edited,
-        "username": msg.author.display_name,
-        "profile_picture": msg.author.profile_picture,
-        "verified": msg.author.verified,
+        "username": username,
+        "profile_picture": profile_picture,
+        "verified": verified,
         "reply_to": convert_message(msg.reply_to) if msg.reply_to else None,
         "reactions": list(reactions_dict.values()),
         "files": [
@@ -98,7 +108,12 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
     from dependencies import get_db
     db = next(get_db())
     sender = db.query(User).filter(User.id == envelope.sender_id).first()
-    sender_verified = sender.verified if sender else False
+
+    # Handle deleted users
+    if sender and sender.deleted:
+        sender_verified = False
+    else:
+        sender_verified = sender.verified if sender else False
 
     return {
         "id": envelope.id,
@@ -1237,6 +1252,24 @@ class MessaggingSocketManager:
         for websocket in self.connections:
             if self.user_by_ws.get(websocket) == user_id:
                 await websocket.send_json(message)
+
+    async def send_suspension_to_user(self, user_id: int, reason: str):
+        """Send suspension message to user's WebSocket connections"""
+        message = {
+            "type": "suspended",
+            "data": {
+                "reason": reason
+            }
+        }
+        await self.send_to_user(user_id, message)
+
+    async def send_deletion_to_user(self, user_id: int):
+        """Send account deletion message to user's WebSocket connections"""
+        message = {
+            "type": "account_deleted",
+            "data": {}
+        }
+        await self.send_to_user(user_id, message)
 
     async def broadcast_status_change(self, user_id: int, online: bool, last_seen: str):
         """Broadcast status change to all connections that are subscribed to this user"""

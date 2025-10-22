@@ -237,6 +237,23 @@ async def get_user_by_id(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Handle deleted users
+    if user.deleted:
+        return UserProfileResponse(
+            id=user.id,
+            username="deleted",
+            display_name="Deleted User",
+            profile_picture=None,
+            bio=None,
+            online=False,
+            last_seen=None,  # Clear last seen timestamp
+            created_at=None,  # Clear member since timestamp
+            verified=False,
+            suspended=False,
+            suspension_reason=None,
+            deleted=True
+        )
+    
     return UserProfileResponse(
         id=user.id,
         username=user.username,
@@ -246,7 +263,10 @@ async def get_user_by_id(
         online=user.online,
         last_seen=user.last_seen,
         created_at=user.created_at,
-        verified=user.verified
+        verified=user.verified,
+        suspended=user.suspended or False,
+        suspension_reason=user.suspension_reason,
+        deleted=user.deleted or False
     )
 
 
@@ -307,4 +327,160 @@ async def check_user_similarity(
     return {
         "isSimilar": is_similar,
         "similarTo": similar_to if is_similar else None
+    }
+
+
+# Admin endpoints for user management
+class SuspendUserRequest(BaseModel):
+    reason: str
+
+@router.post("/user/{user_id}/suspend")
+async def suspend_user(
+    user_id: int,
+    request: SuspendUserRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Suspend a user account (admin only)
+    """
+    # Only user with ID 1 (admin) can suspend users
+    if current_user.id != 1:
+        raise HTTPException(status_code=403, detail="Only admin can suspend users")
+    
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Cannot suspend admin
+    if target_user.id == 1:
+        raise HTTPException(status_code=400, detail="Cannot suspend admin account")
+    
+    # Suspend the user
+    target_user.suspended = True
+    target_user.suspension_reason = request.reason
+    db.commit()
+    
+    # Send WebSocket suspension message
+    try:
+        from .messaging import messagingManager
+        await messagingManager.send_suspension_to_user(user_id, request.reason)
+    except Exception as e:
+        # Log error but don't fail the request
+        print(f"Failed to send suspension WebSocket message: {e}")
+    
+    return {
+        "status": "success",
+        "message": f"User {target_user.username} has been suspended",
+        "reason": request.reason
+    }
+
+
+@router.post("/user/{user_id}/unsuspend")
+async def unsuspend_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Unsuspend a user account (admin only)
+    """
+    # Only user with ID 1 (admin) can unsuspend users
+    if current_user.id != 1:
+        raise HTTPException(status_code=403, detail="Only admin can unsuspend users")
+    
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Unsuspend the user
+    target_user.suspended = False
+    target_user.suspension_reason = None
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": f"User {target_user.username} has been unsuspended"
+    }
+
+
+@router.post("/user/{user_id}/delete")
+async def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a user account (admin only) - preserves messages/DMs/reactions/files
+    """
+    # Only user with ID 1 (admin) can delete users
+    if current_user.id != 1:
+        raise HTTPException(status_code=403, detail="Only admin can delete users")
+    
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Cannot delete admin
+    if target_user.id == 1:
+        raise HTTPException(status_code=400, detail="Cannot delete admin account")
+    
+    # Mark user as deleted and clear sensitive data
+    target_user.deleted = True
+    target_user.display_name = f"Deleted User #{user_id}"
+    target_user.bio = None
+    target_user.password_hash = ""
+    target_user.username = f"deleted_{user_id}"
+    target_user.profile_picture = None
+    target_user.last_seen = None  # Clear last seen timestamp
+    target_user.created_at = None  # Clear member since timestamp
+    
+    # Delete profile picture file if exists
+    if target_user.profile_picture and target_user.profile_picture.startswith("/api/profile-picture/"):
+        try:
+            import os
+            filename = target_user.profile_picture.split("/")[-1]
+            filepath = os.path.join("data/uploads/pfp", filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except Exception as e:
+            print(f"Failed to delete profile picture: {e}")
+    
+    # Dynamic deletion of all non-whitelist data
+    WHITELIST_TABLES = {"message", "dm_envelope", "reaction", "dm_reaction", "message_file", "dm_file"}
+    
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.bind)
+        all_tables = inspector.get_table_names()
+        
+        for table_name in all_tables:
+            if table_name in WHITELIST_TABLES or table_name == "user":
+                continue
+            
+            # Check if table has user_id column
+            columns = inspector.get_columns(table_name)
+            has_user_id = any(col['name'] == 'user_id' for col in columns)
+            
+            if has_user_id:
+                # Delete all records for this user
+                db.execute(text(f"DELETE FROM {table_name} WHERE user_id = :uid"), {"uid": user_id})
+        
+        db.commit()
+    except Exception as e:
+        print(f"Failed to delete user data: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete user data")
+    
+    # Send WebSocket deletion message
+    try:
+        from .messaging import messagingManager
+        await messagingManager.send_deletion_to_user(user_id)
+    except Exception as e:
+        # Log error but don't fail the request
+        print(f"Failed to send deletion WebSocket message: {e}")
+    
+    return {
+        "status": "success",
+        "message": f"User {target_user.username} has been deleted"
     }

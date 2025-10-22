@@ -118,6 +118,9 @@ export interface User {
     bio?: string;
     profile_picture: string;
     verified?: boolean;
+    suspended?: boolean;
+    suspension_reason?: string | null;
+    deleted?: boolean;
 }
 
 /**

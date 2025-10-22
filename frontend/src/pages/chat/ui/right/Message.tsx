@@ -487,7 +487,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                 {!isAuthor && !isDm && (
                     <div className="message-profile-pic" onClick={handleProfileClick}>
                         <img
-                            src={message.profile_picture || defaultAvatar}
+                            src={message.username?.startsWith("Deleted User #") ? defaultAvatar : (message.profile_picture || defaultAvatar)}
                             alt={message.username}
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
