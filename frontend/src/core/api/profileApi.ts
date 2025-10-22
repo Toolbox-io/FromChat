@@ -4,7 +4,8 @@ import type { UserProfile } from "@/core/types";
 
 export interface ProfileData {
     profile_picture?: string;
-    nickname?: string;
+    username?: string;
+    display_name?: string;
     description?: string;
 }
 
@@ -26,7 +27,8 @@ export async function loadProfile(token: string): Promise<ProfileData | null> {
             // Map backend fields to frontend fields
             return {
                 profile_picture: data.profile_picture,
-                nickname: data.username,
+                username: data.username,
+                display_name: data.display_name,
                 description: data.bio
             };
         }
@@ -69,7 +71,8 @@ export async function updateProfile(token: string, data: Partial<ProfileData>): 
     try {
         // Map frontend fields to backend fields
         const backendData = {
-            nickname: data.nickname,
+            username: data.username,
+            display_name: data.display_name,
             description: data.description
         };
 
@@ -123,6 +126,67 @@ export async function fetchUserProfile(token: string, username: string): Promise
         return null;
     } catch (error) {
         console.error('Error fetching user profile:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetches user profile data by user ID
+ */
+export async function fetchUserProfileById(token: string, userId: number): Promise<UserProfile | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/id/${userId}`, {
+            headers: getAuthHeaders(token)
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error fetching user profile by ID:', error);
+        return null;
+    }
+}
+
+/**
+ * Toggles verification status for a user (owner only)
+ */
+export async function verifyUser(userId: number, token: string): Promise<{verified: boolean} | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/${userId}/verify`, {
+            method: 'POST',
+            headers: getAuthHeaders(token)
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error verifying user:', error);
+        return null;
+    }
+}
+
+/**
+ * Checks if a user is similar to any verified user
+ */
+export async function checkUserSimilarity(userId: number, token: string): Promise<{isSimilar: boolean, similarTo?: string} | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/check-similarity/${userId}`, {
+            headers: getAuthHeaders(token)
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error checking user similarity:', error);
         return null;
     }
 }

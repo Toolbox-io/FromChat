@@ -13,7 +13,8 @@ export function ChatHeader() {
     const handleProfileClick = () => {
         setProfileDialog({
             userId: user.currentUser?.id,
-            username: profileData?.nickname || "Пользователь",
+            username: profileData?.username || "Пользователь",
+            display_name: profileData?.display_name || "Пользователь",
             profilePicture: profileData?.profile_picture,
             bio: profileData?.description,
             memberSince: user.currentUser?.created_at,

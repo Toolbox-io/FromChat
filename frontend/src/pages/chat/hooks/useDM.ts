@@ -69,7 +69,6 @@ export function useDM() {
 
             try {
                 lastPlaintext = (JSON.parse(await decryptDm(lastMessage, publicKey)) as DmEncryptedJSON).data.content;
-                console.log(lastPlaintext);
             } catch (error) {
                 console.error("Failed to decrypt last message:", error);
             }
@@ -174,6 +173,7 @@ export function useDM() {
 
                     decryptedMessages.push({
                         id: env.id,
+                        user_id: env.senderId,
                         content: text,
                         username: username,
                         timestamp: env.timestamp,

@@ -10,10 +10,12 @@ import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { getAuthHeaders } from "@/core/api/authApi";
 import { useAppState } from "@/pages/chat/state";
-import { fetchUserProfile } from "@/core/api/profileApi";
+import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
+import { StatusBadge } from "@/core/components/StatusBadge";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
+import { parseProfileLink } from "@/core/profileLinks";
 
 interface MessageReactionsProps {
     reactions?: Reaction[];
@@ -147,7 +149,6 @@ interface Rect {
 }
 
 export function Message({ message, isAuthor, onContextMenu, onReactionClick, isDm = false, dmRecipientPublicKey }: MessageProps) {
-    const [formattedMessage, setFormattedMessage] = useState({ __html: "" });
     const [decryptedFiles, updateDecryptedFiles] = useImmer<Map<string, string>>(new Map());
     const [loadedImages, updateLoadedImages] = useImmer<Set<string>>(new Set());
     const [downloadingPaths, updateDownloadingPaths] = useImmer<Set<string>>(new Set());
@@ -164,26 +165,37 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
     const dmEnvelope = message.runtimeData?.dmEnvelope;
 
-    useEffect(() => {
-        (async () => {
-            setFormattedMessage({
-                __html: DOMPurify.sanitize(
-                    await parse(message.content)
-                ).trim()
-            });
-        })();
-    }, [message]);
+    const formattedMessage = useMemo(() => {
+        // First, temporarily replace existing fromchat.ru links to avoid conflicts
+        const linkPlaceholders: string[] = [];
+        let content = message.content.replace(/https?:\/\/fromchat\.ru\/@[a-zA-Z0-9_.-]+/g, (match) => {
+            const placeholder = `__LINK_PLACEHOLDER_${linkPlaceholders.length}__`;
+            linkPlaceholders.push(match);
+            return placeholder;
+        });
+
+        // Now process @mentions that aren't in existing links
+        content = content.replace(/@([a-zA-Z0-9_.-]+)/g, (match, username) => {
+            return `<a href="https://fromchat.ru/@${username}" class="mention-link">${match}</a>`;
+        });
+
+        // Restore the original links
+        linkPlaceholders.forEach((link, index) => {
+            content = content.replace(`__LINK_PLACEHOLDER_${index}__`, link);
+        });
+
+        return {
+            __html: DOMPurify.sanitize(parse(content, { async: false })).trim()
+        };
+    }, [message.content]);
 
     // Auto-decrypt images in DMs
     useEffect(() => {
         if (isDm && message.files) {
             message.files.forEach(async (file) => {
-                console.log(file);
                 const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
                 if (isImage && file.encrypted && !decryptedFiles.has(file.path)) {
-                    console.log("Decrypting...");
                     const decryptedUrl = await decryptFile(file);
-                    console.log(decryptedUrl);
                     if (decryptedUrl) {
                         updateDecryptedFiles(draft => {
                             draft.set(file.path, decryptedUrl);
@@ -195,11 +207,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     }, [message.files, isDm, decryptedFiles]);
 
     async function decryptFile(file: Attachment): Promise<string | null> {
-        if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) {
-            debugger;
-            console.warn("Conditions not met")
-            return null;
-        }
+        if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) return null;
 
         // Check if already decrypted
         if (decryptedFiles.has(file.path)) {
@@ -389,10 +397,10 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     };
 
     async function handleProfileClick() {
-        if (!user.authToken || !message.username) return;
+        if (!user.authToken || !message.user_id) return;
 
         try {
-            const userProfile = await fetchUserProfile(user.authToken, message.username);
+            const userProfile = await fetchUserProfileById(user.authToken, message.user_id);
             if (userProfile) {
                 setProfileDialog({
                     ...userProfile,
@@ -403,6 +411,44 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
             }
         } catch (error) {
             console.error("Failed to fetch user profile:", error);
+        }
+    }
+
+    async function handleLinkClick(e: React.MouseEvent<HTMLDivElement>) {
+        const target = e.target as HTMLElement;
+
+        if (target.tagName === 'A') {
+            const profileLink = parseProfileLink((target as HTMLAnchorElement).href);
+
+            if (profileLink) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (!user.authToken) return;
+
+                try {
+                    let userProfile;
+
+                    if (profileLink.userId) {
+                        userProfile = await fetchUserProfileById(user.authToken, profileLink.userId);
+                    } else if (profileLink.username) {
+                        userProfile = await fetchUserProfile(user.authToken, profileLink.username);
+                    }
+
+                    if (userProfile) {
+                        setProfileDialog({
+                            ...userProfile,
+                            userId: userProfile.id,
+                            memberSince: userProfile.created_at,
+                            isOwnProfile: userProfile.id === user.currentUser?.id
+                        });
+                    } else {
+                        throw new Error("Invalid link: " + (target as HTMLAnchorElement).href);
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch user profile from link:", error);
+                }
+            }
         }
     }
 
@@ -434,7 +480,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                 {!isAuthor && !isDm && (
                     <div className="message-profile-pic" onClick={handleProfileClick}>
                         <img
-                            src={message.profile_picture || defaultAvatar}
+                            src={message.username?.startsWith("Deleted User #") ? defaultAvatar : (message.profile_picture || defaultAvatar)}
                             alt={message.username}
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
@@ -450,6 +496,11 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                             className="message-username"
                             onClick={handleProfileClick}>
                             {message.username}
+                            <StatusBadge
+                                verified={message.verified || false}
+                                userId={message.user_id}
+                                size="small"
+                            />
                         </div>
                     )}
 
@@ -460,7 +511,10 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         </Quote>
                     )}
 
-                    <div className={`message-content ${isEmojiMessage ? "emoji-content" : ""} ${isSingleEmojiMessage ? "single-emoji-content" : ""}`} dangerouslySetInnerHTML={formattedMessage} />
+                    <div
+                        className={`message-content ${isEmojiMessage ? "emoji-content" : ""} ${isSingleEmojiMessage ? "single-emoji-content" : ""}`}
+                        dangerouslySetInnerHTML={formattedMessage}
+                        onClick={handleLinkClick} />
 
                     {message.files && message.files.length > 0 && (
                         <mdui-list className="message-attachments">

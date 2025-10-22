@@ -1,0 +1,72 @@
+@use "../../../css/colors" as *;
+@use "../../../css/material" as *;
+@use "sass:color";
+
+// Suspension Dialog Content Styles
+.suspension-dialog-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    padding: 24px;
+
+    .suspension-icon-section {
+        margin-bottom: 24px;
+
+        .suspension-icon {
+            font-size: 80px;
+            color: #f44336;
+            display: block;
+        }
+    }
+    
+    .suspension-text {
+        max-width: 400px;
+
+        .suspension-headline {
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+            color: #f44336;
+            line-height: 1.2;
+        }
+        
+        .suspension-body {
+            font-size: 16px;
+            margin: 0 0 20px 0;
+            color: $color-dark-on-surface;
+            line-height: 1.5;
+        }
+
+        .suspension-reason {
+            text-align: left;
+
+            strong {
+                color: $color-dark-on-surface;
+                font-weight: 600;
+            }
+
+            .suspension-reason-text {
+                background: $color-dark-surface-container-high;
+                border-radius: 12px;
+                padding: 16px;
+                margin-top: 5px;
+                font-size: 14px;
+                color: $color-dark-on-surface;
+                text-align: left;
+            }
+        }
+        
+        .suspension-secondary {
+            font-size: 14px;
+            margin: 20px 0 0 0;
+            color: $color-dark-on-surface-variant;
+            line-height: 1.4;
+
+            a {
+                margin-left: 4px;
+            }
+        }
+    }
+}

@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { searchUsers, fetchUserPublicKey } from "@/core/api/dmApi";
+import { StatusBadge } from "@/core/components/StatusBadge";
 import type { User } from "@/core/types";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
-import { OnlineIndicator } from "../right/OnlineIndicator";
+import { OnlineIndicator } from "@/pages/chat/ui/right/OnlineIndicator";
 import defaultAvatar from "@/images/default-avatar.png";
 import SearchBar from "@/core/components/SearchBar";
 
 interface SearchUser extends User {
     publicKey?: string | null;
+    verified?: boolean;
 }
 
 export function UsernameSearch() {
@@ -68,10 +70,12 @@ export function UsernameSearch() {
         };
     }, [searchResults]);
 
+
     async function handleUserClick(searchUser: SearchUser) {
         if (!user.authToken) return;
 
         try {
+
             let publicKey = searchUser.publicKey;
             if (!publicKey) {
                 const fetchedPublicKey = await fetchUserPublicKey(searchUser.id, user.authToken);
@@ -150,6 +154,14 @@ export function UsernameSearch() {
                             onClick={() => handleUserClick(searchUser)}
                             style={{ cursor: "pointer" }}
                         >
+                            <div slot="headline" className="search-result-headline">
+                                {searchUser.username}
+                                <StatusBadge 
+                                    verified={searchUser.verified || false}
+                                    userId={searchUser.id}
+                                    size="small"
+                                />
+                            </div>
                             <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
                                 <img
                                     src={searchUser.profile_picture || defaultAvatar}

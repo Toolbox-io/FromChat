@@ -48,17 +48,29 @@ def convert_message(msg: Message) -> dict:
             reactions_dict[emoji]["count"] += 1
             reactions_dict[emoji]["users"].append({
                 "id": reaction.user_id,
-                "username": reaction.user.username
+                "username": reaction.user.display_name
             })
+
+    # Handle deleted users
+    if msg.author.deleted:
+        username = f"Deleted User #{msg.author.id}"
+        profile_picture = None
+        verified = False
+    else:
+        username = msg.author.display_name
+        profile_picture = msg.author.profile_picture
+        verified = msg.author.verified
 
     return {
         "id": msg.id,
+        "user_id": msg.author.id,
         "content": msg.content,
         "timestamp": msg.timestamp.isoformat(),
         "is_read": msg.is_read,
         "is_edited": msg.is_edited,
-        "username": msg.author.username,
-        "profile_picture": msg.author.profile_picture,
+        "username": username,
+        "profile_picture": profile_picture,
+        "verified": verified,
         "reply_to": convert_message(msg.reply_to) if msg.reply_to else None,
         "reactions": list(reactions_dict.values()),
         "files": [
@@ -88,8 +100,20 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
             reactions_dict[emoji]["count"] += 1
             reactions_dict[emoji]["users"].append({
                 "id": reaction.user_id,
-                "username": reaction.user.username
+                "username": reaction.user.display_name
             })
+
+    # Get sender info for verified status
+    from models import User
+    from dependencies import get_db
+    db = next(get_db())
+    sender = db.query(User).filter(User.id == envelope.sender_id).first()
+
+    # Handle deleted users
+    if sender and sender.deleted:
+        sender_verified = False
+    else:
+        sender_verified = sender.verified if sender else False
 
     return {
         "id": envelope.id,
@@ -101,6 +125,7 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
         "iv2": envelope.iv2_b64,
         "wrappedMk": envelope.wrapped_mk_b64,
         "timestamp": envelope.timestamp.isoformat(),
+        "verified": sender_verified,
         "reactions": list(reactions_dict.values()),
         "files": [
             {
@@ -1227,6 +1252,24 @@ class MessaggingSocketManager:
         for websocket in self.connections:
             if self.user_by_ws.get(websocket) == user_id:
                 await websocket.send_json(message)
+
+    async def send_suspension_to_user(self, user_id: int, reason: str):
+        """Send suspension message to user's WebSocket connections"""
+        message = {
+            "type": "suspended",
+            "data": {
+                "reason": reason
+            }
+        }
+        await self.send_to_user(user_id, message)
+
+    async def send_deletion_to_user(self, user_id: int):
+        """Send account deletion message to user's WebSocket connections"""
+        message = {
+            "type": "account_deleted",
+            "data": {}
+        }
+        await self.send_to_user(user_id, message)
 
     async def broadcast_status_change(self, user_id: int, online: bool, last_seen: str):
         """Broadcast status change to all connections that are subscribed to this user"""

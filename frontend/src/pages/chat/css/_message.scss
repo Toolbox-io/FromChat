@@ -69,6 +69,9 @@
             margin: 10px;
             cursor: pointer;
             transition: transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
 
             &:hover {
                 transform: scale(1.05);
@@ -373,5 +376,27 @@
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+}
+
+// Mention link styling
+.message-content {
+    .mention-link {
+        color: $color-dark-primary;
+        text-decoration: none;
+        font-weight: 500;
+        border-radius: 4px;
+        padding: 2px 4px;
+        transition: all 0.2s ease;
+        background-color: rgba(145, 206, 244, 0.1); // TODO adjust
+        
+        &:hover {
+            background-color: rgba(145, 206, 244, 0.2); // TODO adjust
+            transform: translateY(-1px);
+        }
+        
+        &:active {
+            transform: translateY(0);
+        }
     }
 }

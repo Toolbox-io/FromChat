@@ -6,7 +6,7 @@ import { TextField } from "mdui/components/text-field";
 import type { ErrorResponse, RegisterRequest, LoginResponse } from "@/core/types";
 import { API_BASE_URL } from "@/core/config";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialTextField } from "@/core/components/TextField";
+import { MaterialTextField } from "@/core/components/MaterialTextField";
 import { ensureKeysOnLogin } from "@/core/api/authApi";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
@@ -23,6 +23,7 @@ export default function RegisterPage() {
         updateAlerts((alerts) => { alerts.push({type: type, message: message}) });
     }
 
+    const displayNameElement = useRef<TextField>(null);
     const usernameElement = useRef<TextField>(null);
     const passwordElement = useRef<TextField>(null);
     const confirmPasswordElement = useRef<TextField>(null);
@@ -36,11 +37,12 @@ export default function RegisterPage() {
                 <form onSubmit={async (e) => {
                     e.preventDefault();
 
+                    const displayName = displayNameElement.current!.value.trim();
                     const username = usernameElement.current!.value.trim();
                     const password = passwordElement.current!.value.trim();
                     const confirmPassword = confirmPasswordElement.current!.value.trim();
 
-                    if (!username || !password || !confirmPassword) {
+                    if (!displayName || !username || !password || !confirmPassword) {
                         showAlert("danger", "Пожалуйста, заполните все поля");
                         return;
                     }
@@ -50,8 +52,19 @@ export default function RegisterPage() {
                         return;
                     }
 
+                    if (displayName.length < 1 || displayName.length > 64) {
+                        showAlert("danger", "Отображаемое имя должно быть от 1 до 64 символов");
+                        return;
+                    }
+
                     if (username.length < 3 || username.length > 20) {
                         showAlert("danger", "Имя пользователя должно быть от 3 до 20 символов");
+                        return;
+                    }
+
+                    // Validate username format (only English letters, numbers, dashes, underscores)
+                    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+                        showAlert("danger", "Имя пользователя может содержать только английские буквы, цифры, дефисы и подчеркивания");
                         return;
                     }
 
@@ -62,6 +75,7 @@ export default function RegisterPage() {
 
                     try {
                         const request: RegisterRequest = {
+                            display_name: displayName,
                             username: username,
                             password: password,
                             confirm_password: confirmPassword
@@ -97,7 +111,18 @@ export default function RegisterPage() {
                     }
                 }}>
                     <MaterialTextField
-                        label="Имя пользователя"
+                        label="Отображаемое имя"
+                        id="register-display-name"
+                        name="display_name"
+                        variant="outlined"
+                        icon="badge--filled"
+                        autocomplete="name"
+                        maxlength={64}
+                        counter
+                        required
+                        ref={displayNameElement} />
+                    <MaterialTextField
+                        label="@Имя пользователя"
                         id="register-username"
                         name="username"
                         variant="outlined"

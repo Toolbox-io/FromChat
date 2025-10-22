@@ -2,97 +2,58 @@
 @use "../../../css/material" as *;
 @use "sass:color";
 
-// Profile Dialog Styles
-.profile-dialog-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(20px);
-    z-index: 1000;
-    display: flex;
+// Profile Dialog Specific Styles
+// Base dialog styles are now in _styled-dialog.scss
+
+.styled-dialog-content {
     align-items: center;
-    justify-content: center;
-    padding: 30px;
-    box-sizing: border-box;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
 
-    &.open {
-        opacity: 1;
-        visibility: visible;
-    }
-}
-
-.profile-dialog {
-    width: 100%;
-    max-width: 500px;
-    max-height: calc(100vh - 60px);
-    background: $color-dark-surface-container;
-    border-radius: 16px;
-    box-shadow: 0 24px 38px 3px rgba(0, 0, 0, 0.14),
-                0 9px 46px 8px rgba(0, 0, 0, 0.12),
-                0 11px 15px -7px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    transform: scale(0.9);
-    opacity: 0;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-
-    &.open {
-        transform: scale(1);
-        opacity: 1;
+    .error-message {
+        color: $color-dark-error;
+        font-size: small;
     }
 
-    .profile-dialog-content {
-        flex: 1;
-        overflow-y: auto;
+    .profile-picture-section {
+        position: relative;
         display: flex;
-        flex-direction: column;
+        justify-content: center;
         align-items: center;
+        margin: 16px;
 
-        .profile-picture-section {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 16px;
-
-            .profile-picture {
-                width: 120px;
-                height: 120px;
-                border-radius: 60px;
-                object-fit: cover;
-                border: 3px solid $color-dark-outline;
-            }
-
-            .profile-picture-edit-overlay {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                border-radius: 60px;
-                background: rgba(0, 0, 0, 0.6);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                opacity: 0;
-                transition: opacity 0.2s ease;
-                cursor: pointer;
-
-                &:hover {
-                    opacity: 1;
-                }
-            }
+        .profile-picture {
+            width: 120px;
+            height: 120px;
+            border-radius: 60px;
+            object-fit: cover;
+            border: 3px solid $color-dark-outline;
         }
 
-        .username-section {
-            text-align: center;
+        .profile-picture-edit-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 60px;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            cursor: pointer;
+
+            &:hover {
+                opacity: 1;
+            }
+        }
+    }
+
+    .username-section {
+        text-align: center;
+
+        .username-with-badge {
+            gap: 0;
 
             .username-input {
                 background: none;
@@ -108,81 +69,106 @@
                 cursor: text;
             }
         }
+    }
 
-        .online-status-section {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+    .online-status-section {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
 
-            .online-indicator {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                background: $color-dark-primary;
+        .online-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: $color-dark-primary;
 
-                &.offline {
-                    background: $color-dark-on-surface-variant;
-                }
-            }
-
-            .status-text {
-                font-size: 0.875rem;
-                color: $color-dark-on-surface;
+            &.offline {
+                background: $color-dark-on-surface-variant;
             }
         }
 
-        .profile-sections {
-            margin: 16px;
-            border-radius: 24px;
+        .status-text {
+            font-size: 0.875rem;
+            color: $color-dark-on-surface;
+        }
+    }
+
+    .profile-sections {
+        margin: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: calc(100% - (16px * 2));
+        box-sizing: border-box;
+
+        .section {
+            $edge-radius: 24px;
+
+            background: $color-dark-surface-container-high;
+            border-radius: 10px;
+            padding: 8px 16px;
             display: flex;
-            flex-direction: column;
-            gap: 4px;
-            overflow: hidden;
-            width: calc(100% - (16px * 2));
-            box-sizing: border-box;
+            flex-direction: row;
+            gap: 16px;
+            align-items: center;
+            transition: outline 0.1s ease;
+            outline: 0px solid transparent;
+            outline-offset: -1px;
 
-            .section {
-                background: $color-dark-surface-container-high;
-                border-radius: 10px;
-                padding: 8px 16px;
+            .content-container {
                 display: flex;
-                flex-direction: row;
-                gap: 16px;
-                align-items: center;
+                flex-direction: column;
+                gap: 4px;
+                width: 100%;
 
-                .content-container {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
+                .label {
+                    font-size: small;
+                    color: $color-dark-on-surface-variant;
+                    user-select: none;
+                }
+
+                .value {
+                    color: $color-dark-on-surface;
+                    font-size: medium;
                     width: 100%;
+                    line-height: 1.4;
+                    font-family: inherit;
+                    cursor: text;
+                    outline: none;
+                    background: transparent;
+                    border: none;
+                    caret-color: $color-dark-primary;
 
-                    .label {
-                        font-size: small;
+                    &::placeholder {
                         color: $color-dark-on-surface-variant;
                     }
+                }
+            }
 
-                    .value {
-                        color: $color-dark-on-surface;
-                        font-size: medium;
-                        width: 100%;
-                        line-height: 1.4;
-                        font-family: inherit;
-                        cursor: text;
-                        outline: none;
-                        background: transparent;
-                        border: none;
-                        caret-color: $color-dark-primary;
+            // First and last section
+            &:first-child {
+                border-top-left-radius: $edge-radius;
+                border-top-right-radius: $edge-radius;
+            }
 
-                        &::placeholder {
-                            color: $color-dark-on-surface-variant;
-                        }
-                    }
+            &:last-child {
+                border-bottom-left-radius: $edge-radius;
+                border-bottom-right-radius: $edge-radius;
+            }
+
+            &.error {
+                outline: 1px solid $color-dark-error;
+
+                .error-message {
+                    margin-top: 4px;
                 }
             }
         }
     }
+}
 
+.styled-dialog {
     .profile-dialog-fab {
         position: absolute;
         bottom: 24px;
@@ -194,5 +180,29 @@
         &.visible {
             transform: translateY(0);
         }
+    }
+
+    // Admin Actions Section
+    .admin-actions-section {
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .admin-actions-header {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 16px 0;
+        color: #f44336;
+    }
+
+    .admin-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .admin-buttons mdui-button {
+        width: 100%;
     }
 }

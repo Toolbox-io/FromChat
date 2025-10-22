@@ -13,12 +13,17 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
+    display_name = Column(String(64), nullable=False)
     password_hash = Column(String(200), nullable=False)
     profile_picture = Column(String(255), nullable=True)
     bio = Column(Text, nullable=True)
     online = Column(Boolean, default=False)
     last_seen = Column(DateTime, default=datetime.now)
     created_at = Column(DateTime, default=datetime.now)
+    verified = Column(Boolean, default=False)
+    suspended = Column(Boolean, default=False)
+    suspension_reason = Column(Text, nullable=True)
+    deleted = Column(Boolean, default=False)
     messages = relationship("Message", back_populates="author", lazy="select")
 
 
@@ -149,6 +154,7 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     username: str
+    display_name: str
     password: str
     confirm_password: str
 
@@ -178,11 +184,16 @@ class PushSubscriptionRequest(BaseModel):
 class UserProfileResponse(BaseModel):
     id: int
     username: str
+    display_name: str
     profile_picture: str | None
     bio: str | None
     online: bool
-    last_seen: datetime
-    created_at: datetime
+    last_seen: datetime | None
+    created_at: datetime | None
+    verified: bool
+    suspended: bool
+    suspension_reason: str | None
+    deleted: bool
 
     class Config:
         from_attributes = True

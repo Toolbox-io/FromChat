@@ -6,7 +6,7 @@ from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
 from models import LoginRequest, RegisterRequest, User, CryptoPublicKey, CryptoBackup
 from utils import create_token, get_password_hash, verify_password
-from validation import is_valid_password, is_valid_username
+from validation import is_valid_password, is_valid_username, is_valid_display_name
 
 router = APIRouter()
 
@@ -17,9 +17,14 @@ def convert_user(user: User) -> dict:
         "last_seen": user.last_seen.isoformat(),
         "online": user.online,
         "username": user.username,
+        "display_name": user.display_name,
         "profile_picture": user.profile_picture,
         "bio": user.bio,
-        "admin": user.username == OWNER_USERNAME
+        "admin": user.username == OWNER_USERNAME,
+        "verified": user.verified,
+        "suspended": user.suspended or False,
+        "suspension_reason": user.suspension_reason,
+        "deleted": user.deleted or False
     }
 
 @router.get("/check_auth")
@@ -58,6 +63,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/register")
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
     username = request.username.strip()
+    display_name = request.display_name.strip()
     password = request.password.strip()
     confirm_password = request.confirm_password.strip()
 
@@ -75,7 +81,13 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     if not is_valid_username(username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Имя пользователя должно быть от 3 до 20 символов и не содержать пробелов"
+            detail="Имя пользователя должно быть от 3 до 20 символов и содержать только английские буквы, цифры, дефисы и подчеркивания"
+        )
+
+    if not is_valid_display_name(display_name):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Отображаемое имя должно быть от 1 до 64 символов и не может быть пустым"
         )
 
     if not is_valid_password(password):
@@ -105,11 +117,17 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         )
 
     hashed_password = get_password_hash(password)
+    
+    # Set verified=True for the owner (first user to register)
+    is_owner = not owner_exists and username == OWNER_USERNAME
+    
     new_user = User(
         username=username,
+        display_name=display_name,
         password_hash=hashed_password,
         online=True,
-        last_seen=datetime.now()
+        last_seen=datetime.now(),
+        verified=is_owner
     )
 
     db.add(new_user)

@@ -4,10 +4,11 @@ import { useDM, type DMUser } from "@/pages/chat/hooks/useDM";
 import { API_BASE_URL } from "@/core/config";
 import { getAuthHeaders } from "@/core/api/authApi";
 import { fetchUserPublicKey } from "@/core/api/dmApi";
+import { StatusBadge } from "@/core/components/StatusBadge";
 import type { Message } from "@/core/types";
 import { websocket } from "@/core/websocket";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
-import { OnlineIndicator } from "../right/OnlineIndicator";
+import { OnlineIndicator } from "@/pages/chat/ui/right/OnlineIndicator";
 import defaultAvatar from "@/images/default-avatar.png";
 
 interface PublicChat {
@@ -19,13 +20,16 @@ interface PublicChat {
 
 interface DMConversation {
     id: number;
+    userId: number;
     username: string;
+    display_name: string;
     profile_picture?: string;
     online?: boolean;
     type: "dm";
     lastMessage?: string;
     unreadCount: number;
     publicKey?: string | null;
+    verified?: boolean;
 }
 
 type ChatItem = PublicChat | DMConversation;
@@ -83,7 +87,9 @@ export function UnifiedChatsList() {
 
         const dmChatItems: ChatItem[] = dmUsers.map((user: DMUser) => ({
             id: user.id,
+            userId: user.id, // Add userId field
             username: user.username,
+            display_name: user.display_name,
             profile_picture: user.profile_picture,
             online: user.online,
             type: "dm" as const,
@@ -172,13 +178,13 @@ export function UnifiedChatsList() {
         };
     }, [allChats]);
 
-    const formatPublicChatMessage = (chatId: string): string => {
+    function formatPublicChatMessage(chatId: string): string {
         const lastMessage = lastMessages[chatId];
         if (!lastMessage) {
             return "";
         }
 
-        const isCurrentUser = lastMessage.username === user.currentUser?.username;
+        const isCurrentUser = lastMessage.user_id === user.currentUser?.id;
         const prefix = isCurrentUser ? "Вы: " : `${lastMessage.username}: `;
 
         const maxContentLength = 50 - prefix.length;
@@ -187,14 +193,13 @@ export function UnifiedChatsList() {
             : lastMessage.content;
 
         return prefix + content;
-    };
+    }
 
-
-    const handlePublicChatClick = async (chatName: string) => {
+    async function handlePublicChatClick(chatName: string) {
         await switchToPublicChat(chatName);
-    };
+    }
 
-    const handleDMClick = async (dmConversation: DMConversation) => {
+    async function handleDMClick(dmConversation: DMConversation) {
         if (!dmConversation.publicKey) {
             const authToken = useAppState.getState().user.authToken;
             if (!authToken) return;
@@ -215,7 +220,7 @@ export function UnifiedChatsList() {
             profilePicture: dmConversation.profile_picture,
             online: dmConversation.online || false
         });
-    };
+    }
 
     if (isLoadingUsers) {
         return (
@@ -256,17 +261,25 @@ export function UnifiedChatsList() {
                     return (
                         <mdui-list-item
                             key={`dm-${chat.id}`}
-                            headline={chat.username}
+                            headline={chat.display_name}
                             onClick={() => handleDMClick(chat)}
                             style={{ cursor: "pointer" }}
                         >
+                            <div slot="headline" className="dm-list-headline">
+                                {chat.display_name}
+                                <StatusBadge 
+                                    verified={chat.verified || false}
+                                    userId={chat.userId}
+                                    size="small"
+                                />
+                            </div>
                             <span slot="description" className="list-description">
                                 {chat.lastMessage || "Нет сообщений"}
                             </span>
                             <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
                                 <img
                                     src={chat.profile_picture || defaultAvatar}
-                                    alt={chat.username}
+                                    alt={chat.display_name}
                                     style={{
                                         width: "40px",
                                         height: "40px",

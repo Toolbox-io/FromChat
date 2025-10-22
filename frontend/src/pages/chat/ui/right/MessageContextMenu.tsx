@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Message, Size2D } from "@/core/types";
 import { EmojiMenu } from "./EmojiMenu";
+import { useAppState } from "@/pages/chat/state";
 
 interface MessageContextMenuProps {
     message: Message;
@@ -33,6 +34,7 @@ export function MessageContextMenu({
     isOpen,
     onOpenChange
 }: MessageContextMenuProps) {
+    const { user } = useAppState();
     // Internal state for closing animation
     const [isClosing, setIsClosing] = useState(false);
     const [calculatedPosition, setCalculatedPosition] = useState(position);
@@ -209,7 +211,7 @@ export function MessageContextMenu({
                 onDelete(message);
                 handleClose();
             },
-            show: isAuthor
+            show: isAuthor || user.currentUser?.id === 1
         },
     ];
 

@@ -62,12 +62,14 @@ export interface Reaction {
 
 export interface Message {
     id: number;
+    user_id: number;
     username: string;
     content: string;
     is_read: boolean;
     is_edited: boolean;
     timestamp: string;
     profile_picture?: string;
+    verified?: boolean;
     reply_to?: Message;
     files?: Attachment[];
     reactions?: Reaction[];
@@ -111,9 +113,14 @@ export interface User {
     last_seen: string;
     online: boolean;
     username: string;
+    display_name: string;
     admin?: boolean;
     bio?: string;
     profile_picture: string;
+    verified?: boolean;
+    suspended?: boolean;
+    suspension_reason?: string | null;
+    deleted?: boolean;
 }
 
 /**
@@ -130,11 +137,13 @@ export interface User {
 export interface UserProfile {
     id: number;
     username: string;
+    display_name: string;
     profile_picture?: string;
     bio?: string;
     online: boolean;
     last_seen: string;
     created_at: string;
+    verified?: boolean;
 }
 
 // ----------
@@ -163,6 +172,7 @@ export interface LoginRequest {
  */
 export interface RegisterRequest {
     username: string;
+    display_name: string;
     password: string;
     confirm_password: string;
 }
