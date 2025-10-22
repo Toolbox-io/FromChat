@@ -14,7 +14,7 @@ from models import User, UpdateBioRequest, UserProfileResponse
 from pydantic import BaseModel
 from validation import is_valid_username, is_valid_display_name
 from similarity import is_user_similar_to_verified
-from messaging import messagingManager
+from .messaging import messagingManager
 
 router = APIRouter()
 
