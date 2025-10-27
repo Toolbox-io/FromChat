@@ -10,8 +10,7 @@ export function SuspensionDialog({ reason, open, onOpenChange }: SuspensionDialo
     return (
         <StyledDialog
             open={open}
-            onOpenChange={onOpenChange}
-        >
+            onOpenChange={onOpenChange}>
             <div className="suspension-dialog-content">
                 <div className="suspension-icon-section">
                     <mdui-icon name="block--filled" className="suspension-icon" />
