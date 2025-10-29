@@ -37,16 +37,16 @@ export function MessageContextMenu({
     const { user } = useAppState();
     // Internal state for closing animation
     const [isClosing, setIsClosing] = useState(false);
-    const [calculatedPosition, setCalculatedPosition] = useState(position);
+    const [reactionBarPosition, setReactionBarPosition] = useState<Size2D>({ x: 0, y: 0 });
+    const [contextMenuPosition, setContextMenuPosition] = useState<Size2D>(position);
     const [animationClass, setAnimationClass] = useState('entering');
-    const [reactionBarPosition, setReactionBarPosition] = useState<'left' | 'right'>('left');
+    const [reactionBarAnimationClass, setReactionBarAnimationClass] = useState('entering');
+    const [reactionBarSide, setReactionBarSide] = useState<'left' | 'right'>('left');
     const [isEmojiMenuExpanded, setIsEmojiMenuExpanded] = useState(false);
     const [initialDimensions, setInitialDimensions] = useState<{ width: number; height: number } | null>(null);
     const [expandUpward, setExpandUpward] = useState(false);
-    const [contextMenuHeight, setContextMenuHeight] = useState<number | null>(null);
 
     // Refs for measuring actual dimensions
-    const wrapperRef = useRef<HTMLDivElement>(null);
     const reactionBarRef = useRef<HTMLDivElement>(null);
     const contextMenuRef = useRef<HTMLDivElement>(null);
     const emojiMenuRef = useRef<HTMLDivElement>(null);
@@ -56,7 +56,7 @@ export function MessageContextMenu({
         if (isOpen) {
             // Use a small delay to ensure elements are rendered before measuring
             const frameId = requestAnimationFrame(() => {
-                if (wrapperRef.current && reactionBarRef.current && contextMenuRef.current) {
+                if (reactionBarRef.current && contextMenuRef.current) {
                     // Get actual dimensions from DOM elements
                     const reactionBarRect = reactionBarRef.current.getBoundingClientRect();
                     const contextMenuRect = contextMenuRef.current.getBoundingClientRect();
@@ -67,37 +67,73 @@ export function MessageContextMenu({
                     // Calculate shared/combined rect dimensions
                     const sharedRect = {
                         width: Math.max(reactionBarRect.width, contextMenuRect.width),
-                        height: reactionBarRect.height + contextMenuRect.height
+                        height: reactionBarRect.height + contextMenuRect.height + 10 // 10px margin
                     };
 
-                    let x = position.x;
-                    let y = position.y;
+                    let menuX = position.x;
+                    let menuY = position.y;
+                    let reactionX = position.x;
+                    let reactionY = position.y - reactionBarRect.height - 10; // Position above menu
                     let animation = 'entering';
-                    let reactionPosition: 'left' | 'right' = 'left';
+                    let reactionSide: 'left' | 'right' = 'left';
+                    let reactionPositionedRight = false;
 
-                    // Check if shared rect would overflow and adjust position
-                    if (x + sharedRect.width > viewportWidth) {
-                        x = position.x - contextMenuRect.width - 25;
-                        animation = 'entering-left';
-                        reactionPosition = 'right';
+                    // Check if reaction bar would overflow at the top
+                    if (reactionY < 0) {
+                        // Position reaction bar to the right side of the context menu instead
+                        reactionX = menuX + contextMenuRect.width + 10;
+                        reactionY = menuY; // Align with menu top
+                        reactionSide = 'right';
+                        reactionPositionedRight = true;
+                        animation = 'entering-right'; // Use right-side animation
                     } else {
-                        reactionPosition = 'left';
+                        // Try positioning above menu first
+                        reactionSide = 'left';
+                        
+                        // Check if shared rect would overflow horizontally
+                        if (menuX + sharedRect.width > viewportWidth) {
+                            menuX = position.x - contextMenuRect.width;
+                            reactionX = menuX;
+                            animation = 'entering-left';
+                            reactionSide = 'right';
+                        }
                     }
 
                     // Ensure menu doesn't go off the left edge
-                    if (x < 0) {
-                        x = 0;
+                    if (menuX < 0) {
+                        menuX = 0;
+                        if (!reactionPositionedRight) {
+                            reactionX = menuX;
+                        }
                     }
 
-                    // Check if shared rect would overflow bottom edge
-                    if (y + sharedRect.height > viewportHeight) {
-                        y = viewportHeight - sharedRect.height;
+                    // Check if reaction bar positioned to the right would overflow
+                    if (reactionPositionedRight && reactionX + reactionBarRect.width > viewportWidth) {
+                        // Position to the left side instead
+                        reactionX = menuX - reactionBarRect.width - 10;
+                        reactionSide = 'left';
+                    }
+
+                    // Check if shared rect would overflow bottom edge (only if reaction bar is above)
+                    if (!reactionPositionedRight && menuY + sharedRect.height > viewportHeight) {
+                        menuY = viewportHeight - sharedRect.height;
+                        reactionY = menuY - reactionBarRect.height - 10;
                         animation = 'entering-up';
                     }
 
-                    setCalculatedPosition({ x, y });
+                    // Ensure menu doesn't go off the right edge
+                    if (menuX + contextMenuRect.width > viewportWidth) {
+                        menuX = viewportWidth - contextMenuRect.width;
+                        if (!reactionPositionedRight) {
+                            reactionX = menuX;
+                        }
+                    }
+
+                    setContextMenuPosition({ x: menuX, y: menuY });
+                    setReactionBarPosition({ x: reactionX, y: reactionY });
                     setAnimationClass(animation);
-                    setReactionBarPosition(reactionPosition);
+                    setReactionBarAnimationClass(animation);
+                    setReactionBarSide(reactionSide);
                 }
             });
 
@@ -148,17 +184,18 @@ export function MessageContextMenu({
         // Set appropriate closing animation based on opening animation
         const closingAnimation = animationClass.replace('entering', 'closing');
         setAnimationClass(closingAnimation);
+        setReactionBarAnimationClass(closingAnimation);
 
         // Wait for animation to complete before calling onOpenChange
         setTimeout(() => {
             onOpenChange(false);
             setIsClosing(false);
             setAnimationClass('entering'); // Reset for next opening
+            setReactionBarAnimationClass('entering'); // Reset for next opening
             // Reset emoji menu state after context menu animation completes
             setIsEmojiMenuExpanded(false);
             setInitialDimensions(null);
             setExpandUpward(false);
-            setContextMenuHeight(null);
         }, 200); // Match the animation duration from _animations.scss
     }
 
@@ -226,14 +263,12 @@ export function MessageContextMenu({
     }
 
     function handleExpandClick() {
-        if (!reactionBarRef.current || !wrapperRef.current) return;
+        if (!reactionBarRef.current || !contextMenuRef.current) return;
 
         // Measure the actual dimensions of the reaction bar content
         const reactionBarRect = reactionBarRef.current.getBoundingClientRect();
-        const wrapperRect = wrapperRef.current.getBoundingClientRect();
 
         setInitialDimensions({ width: reactionBarRect.width, height: reactionBarRect.height });
-        setContextMenuHeight(wrapperRect.height);
 
         // Check if expanding downward would cause overflow
         // Calculate space from the reaction bar's bottom edge downward
@@ -259,31 +294,28 @@ export function MessageContextMenu({
     }
 
     return isOpen && (
-        <div
-            ref={wrapperRef}
-            className={`context-menu-wrapper ${animationClass}`}
-            style={{
-                position: "fixed",
-                top: calculatedPosition.y,
-                left: calculatedPosition.x,
-                zIndex: 1000
-            }}
-            onClick={(e) => e.stopPropagation()}>
-
+        <>
             {/* Reaction Bar */}
             <div
                 ref={reactionBarRef}
-                className={`context-menu-reaction-bar ${reactionBarPosition} ${isEmojiMenuExpanded ? "expanded" : ""} ${expandUpward ? "expand-upward" : ""}`}
-                style={isEmojiMenuExpanded && !expandUpward ? {
+                className={`context-menu-reaction-bar ${reactionBarSide} ${reactionBarAnimationClass} ${isEmojiMenuExpanded ? "expanded" : ""} ${expandUpward ? "expand-upward" : ""}`}
+                style={{
                     position: 'fixed',
-                    top: `${(-(contextMenuHeight || 0) + 50)}px`,
-                    width: '320px',
-                    height: '400px',
+                    ...(isEmojiMenuExpanded && expandUpward
+                        ? {
+                            bottom: `${window.innerHeight - reactionBarPosition.y - (initialDimensions?.height || 0)}px`,
+                            left: `${reactionBarPosition.x}px`,
+                        }
+                        : {
+                            top: `${reactionBarPosition.y}px`,
+                            left: `${reactionBarPosition.x}px`,
+                        }
+                    ),
+                    width: isEmojiMenuExpanded ? '320px' : initialDimensions?.width || 'auto',
+                    height: isEmojiMenuExpanded ? '400px' : initialDimensions?.height || 'auto',
                     zIndex: 1001
-                } : initialDimensions && !isEmojiMenuExpanded ? {
-                    width: `${initialDimensions.width}px`,
-                    height: `${initialDimensions.height}px`
-                } : {}}>
+                }}
+                onClick={(e) => e.stopPropagation()}>
                 {!isEmojiMenuExpanded ? (
                     <div className="reaction-bar-content">
                         {QUICK_REACTIONS.map((emoji, index) => (
@@ -321,21 +353,26 @@ export function MessageContextMenu({
             {/* Context Menu */}
             <div
                 ref={contextMenuRef}
-                className={`context-menu ${isEmojiMenuExpanded ? "faded" : ""}`}>
+                className={`context-menu ${animationClass} ${isEmojiMenuExpanded ? "faded" : ""}`}
+                style={{
+                    position: 'fixed',
+                    top: `${contextMenuPosition.y}px`,
+                    left: `${contextMenuPosition.x}px`,
+                    zIndex: 1000
+                }}
+                onClick={(e) => e.stopPropagation()}>
                 {actions.map((action, i) => (
                     action.show && (
                         <div
                             className="context-menu-item"
                             onClick={action.onClick}
-                            key={i}
-                        >
+                            key={i}>
                             <span className="material-symbols">{action.icon}</span>
                             {action.label}
                         </div>
                     )
                 ))}
             </div>
-
-        </div>
+        </>
     )
 }
