@@ -8,6 +8,7 @@ interface StyledDialogProps {
     children: ReactNode;
     onBackdropClick?: () => void;
     className?: string;
+    afterChildren?: ReactNode;
 }
 
 export function StyledDialog({ 
@@ -15,7 +16,8 @@ export function StyledDialog({
     onOpenChange, 
     children, 
     onBackdropClick,
-    className = ""
+    className = "",
+    afterChildren
 }: StyledDialogProps) {
     const transition: Transition = { duration: 0.3, type: "tween", ease: "easeInOut" };
 
@@ -60,6 +62,7 @@ export function StyledDialog({
                         <div className="styled-dialog-content">
                             {children}
                         </div>
+                        {afterChildren}
                     </motion.div>
                 </motion.div>
             )}

@@ -439,160 +439,164 @@ export function ProfileDialog() {
                 }
             }}
             onBackdropClick={handleClose}
-        >
-            <div className="profile-picture-section">
-                        <img
-                            className="profile-picture"
-                            src={currentData.profilePicture || defaultAvatar}
-                            alt="Profile Picture"
-                            onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = defaultAvatar;
-                            }}
-                        />
-                        {currentData.isOwnProfile && (
-                            <div
-                                className="profile-picture-edit-overlay"
-                                onClick={handleProfilePictureClick}
-                            >
-                                <mdui-icon name="camera_alt--filled" />
-                            </div>
-                        )}
-                    </div>
-
-                    <div className={`username-section ${errors.display_name ? 'error' : ''}`}>
-                        <div className="username-with-badge">
-                            <Input
-                                autoresizing={true}
-                                className="username-input"
-                                type="text"
-                                value={currentData.display_name}
-                                onChange={handleDisplayNameChange}
-                                readOnly={!currentData.isOwnProfile}
-                                placeholder="Имя" />
-                            <StatusBadge 
-                                verified={currentData.verified || false}
-                                userId={currentData.userId}
-                                size="large" />
-                        </div>
-                        {errors.display_name && (
-                            <div className="error-message">{errors.display_name}</div>
-                        )}
-                    </div>
-
-                    {(currentData?.userId || currentData?.isOwnProfile) && !currentData.deleted && (
-                        <div className="online-status-section">
-                            <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
-                        </div>
-                    )}
-
-                    {/* Admin Actions Section - Hide for deleted users */}
-                    {!currentData.isOwnProfile && user.currentUser?.id === 1 && !currentData.deleted && (
-                        <div className="admin-actions-section">
-                            <h3 className="admin-actions-header">Admin Actions</h3>
-                            <div className="admin-buttons">
-                                <mdui-button 
-                                    variant="filled" 
-                                    color="error"
-                                    icon={currentData.suspended ? "check_circle--filled" : "block--filled"}
-                                    onClick={handleSuspend}
-                                >
-                                    {currentData.suspended ? "Unsuspend Account" : "Suspend Account"}
-                                </mdui-button>
-                                <mdui-button 
-                                    variant="filled" 
-                                    color="error"
-                                    icon="delete_forever--filled"
-                                    onClick={handleDelete}
-                                >
-                                    Delete Account
-                                </mdui-button>
-                                <VerifyButton 
-                                    userId={currentData.userId!}
-                                    verified={currentData.verified || false}
-                                    onVerificationChange={(verified) => {
-                                        setCurrentData({ ...currentData, verified });
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Verify button for non-admin owner */}
-                    {!currentData.isOwnProfile && currentData.userId && user.currentUser?.id !== 1 && (
-                        <div className="verify-section">
-                            <VerifyButton 
-                                userId={currentData.userId}
-                                verified={currentData.verified || false}
-                                onVerificationChange={(verified) => {
-                                    setCurrentData({ ...currentData, verified });
-                                }}
-                            />
-                        </div>
-                    )}
-
-                    {/* Hide profile sections for deleted users */}
-                    {!currentData.deleted && (
-                        <div className="profile-sections">
-                            <Section
-                                type="username"
-                                error={errors.username}
-                                icon="alternate_email--filled"
-                                label="Имя пользователя:"
-                                value={currentData.username}
-                                onChange={handleUsernameChange}
-                                readOnly={!currentData.isOwnProfile}
-                                placeholder="username" />
-
-                            {currentData.bio !== undefined && (
-                                <Section
-                                    type="bio"
-                                    icon="info--filled"
-                                    label="О себе:"
-                                    value={currentData.bio}
-                                    onChange={handleBioChange}
-                                    readOnly={!currentData.isOwnProfile}
-                                    placeholder="Нет информации о себе"
-                                    textArea />
-                            )}
-
-                            {currentData.memberSince && (
-                                <Section
-                                    type="member-since"
-                                    icon="calendar_month--filled"
-                                    label="Участник с:"
-                                    value={formatDate(currentData.memberSince)}
-                                    readOnly={true} />
-                            )}
-
-                            {currentData.verified && (
-                                <Section
-                                    type="verified"
-                                    icon="verified--filled"
-                                    label="Верификация:"
-                                    value="Этот аккаунт - официальное лицо FromChat."
-                                    readOnly={true}
-                                />
-                            )}
-                        </div>
-                    )}
-
-                {currentData.isOwnProfile && (
+            className="profile-dialog"
+            afterChildren={
+                currentData.isOwnProfile && (
                     <mdui-fab
                         icon="check"
                         className={`profile-dialog-fab ${fabVisible ? "visible" : ""}`}
                         onClick={handleSave}
                         disabled={isSaving}
                     />
-                )}
-
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={handleFileSelect}
+                )
+            }
+        >
+            <div className="profile-picture-section">
+                <img
+                    className="profile-picture"
+                    src={currentData.profilePicture || defaultAvatar}
+                    alt="Profile Picture"
+                    onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = defaultAvatar;
+                    }}
                 />
+                {currentData.isOwnProfile && (
+                    <div
+                        className="profile-picture-edit-overlay"
+                        onClick={handleProfilePictureClick}
+                    >
+                        <mdui-icon name="camera_alt--filled" />
+                    </div>
+                )}
+            </div>
+
+            <div className={`username-section ${errors.display_name ? 'error' : ''}`}>
+                <div className="username-with-badge">
+                    <Input
+                        autoresizing={true}
+                        className="username-input"
+                        type="text"
+                        value={currentData.display_name}
+                        onChange={handleDisplayNameChange}
+                        readOnly={!currentData.isOwnProfile}
+                        placeholder="Имя" />
+                    <StatusBadge 
+                        verified={currentData.verified || false}
+                        userId={currentData.userId}
+                        size="large" />
+                </div>
+                {errors.display_name && (
+                    <div className="error-message">{errors.display_name}</div>
+                )}
+            </div>
+
+            {(currentData?.userId || currentData?.isOwnProfile) && !currentData.deleted && (
+                <div className="online-status-section">
+                    <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
+                </div>
+            )}
+
+            {/* Admin Actions Section - Hide for deleted users */}
+            {!currentData.isOwnProfile && user.currentUser?.id === 1 && !currentData.deleted && (
+                <div className="admin-actions-section">
+                    <h3 className="admin-actions-header">Admin Actions</h3>
+                    <div className="admin-buttons">
+                        <mdui-button 
+                            variant="filled" 
+                            color="error"
+                            icon={currentData.suspended ? "check_circle--filled" : "block--filled"}
+                            onClick={handleSuspend}
+                        >
+                            {currentData.suspended ? "Unsuspend Account" : "Suspend Account"}
+                        </mdui-button>
+                        <mdui-button 
+                            variant="filled" 
+                            color="error"
+                            icon="delete_forever--filled"
+                            onClick={handleDelete}
+                        >
+                            Delete Account
+                        </mdui-button>
+                        <VerifyButton 
+                            userId={currentData.userId!}
+                            verified={currentData.verified || false}
+                            onVerificationChange={(verified) => {
+                                setCurrentData({ ...currentData, verified });
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Verify button for non-admin owner */}
+            {!currentData.isOwnProfile && currentData.userId && user.currentUser?.id !== 1 && (
+                <div className="verify-section">
+                    <VerifyButton 
+                        userId={currentData.userId}
+                        verified={currentData.verified || false}
+                        onVerificationChange={(verified) => {
+                            setCurrentData({ ...currentData, verified });
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* Hide profile sections for deleted users */}
+            {!currentData.deleted && (
+                <div className="profile-sections">
+                    <Section
+                        type="username"
+                        error={errors.username}
+                        icon="alternate_email--filled"
+                        label="Имя пользователя:"
+                        value={currentData.username}
+                        onChange={handleUsernameChange}
+                        readOnly={!currentData.isOwnProfile}
+                        placeholder="username" />
+
+                    {currentData.bio !== undefined && (
+                        <Section
+                            type="bio"
+                            icon="info--filled"
+                            label="О себе:"
+                            value={currentData.bio}
+                            onChange={handleBioChange}
+                            readOnly={!currentData.isOwnProfile}
+                            placeholder="Нет информации о себе"
+                            textArea />
+                    )}
+
+                    {currentData.memberSince && (
+                        <Section
+                            type="member-since"
+                            icon="calendar_month--filled"
+                            label="Участник с:"
+                            value={formatDate(currentData.memberSince)}
+                            readOnly={true} />
+                    )}
+
+                    {currentData.verified && (
+                        <Section
+                            type="verified"
+                            icon="verified--filled"
+                            label="Верификация:"
+                            value="Этот аккаунт - официальное лицо FromChat."
+                            readOnly={true}
+                        />
+                    )}
+                </div>
+            )}
+
+            
+
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleFileSelect}
+            />
         </StyledDialog>
     );
 }
