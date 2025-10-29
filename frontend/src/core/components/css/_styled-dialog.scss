@@ -26,7 +26,6 @@ $dialog-padding: 30px;
         max-width: 500px;
         max-height: calc(100vh - $dialog-padding * 2);
         background: rgba($color-dark-surface-container, 0.75);
-        backdrop-filter: blur(20px);
         border: 1px solid rgba($color-dark-outline-variant, 0.3);
         border-radius: 16px;
         box-shadow: 0 24px 38px 3px rgba(0, 0, 0, 0.14),
@@ -35,8 +34,7 @@ $dialog-padding: 30px;
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        // Framer Motion handles all animations
-        // Removed CSS transitions to prevent interference
+        position: relative;
     
         .styled-dialog-content {
             flex: 1;
