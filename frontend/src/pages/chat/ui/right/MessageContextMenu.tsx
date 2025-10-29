@@ -276,7 +276,7 @@ export function MessageContextMenu({
                 className={`context-menu-reaction-bar ${reactionBarPosition} ${isEmojiMenuExpanded ? "expanded" : ""} ${expandUpward ? "expand-upward" : ""}`}
                 style={isEmojiMenuExpanded && !expandUpward ? {
                     position: 'fixed',
-                    top: `${(-(contextMenuHeight || 0) + 95)}px`,
+                    top: `${(-(contextMenuHeight || 0) + 50)}px`,
                     width: '320px',
                     height: '400px',
                     zIndex: 1001
@@ -304,18 +304,18 @@ export function MessageContextMenu({
                             <span className="material-symbols">add</span>
                         </button>
                     </div>
-                       ) : (
-                           <div
-                               ref={emojiMenuRef}
-                               className="emoji-menu-wrapper">
-                               <EmojiMenu
-                                   isOpen={true}
-                                   onClose={handleClose}
-                                   onEmojiSelect={handleEmojiSelect}
-                                   mode="integrated"
-                               />
-                           </div>
-                       )}
+                ) : (
+                    <div
+                        ref={emojiMenuRef}
+                        className="emoji-menu-wrapper">
+                        <EmojiMenu
+                            isOpen={true}
+                            onClose={handleClose}
+                            onEmojiSelect={handleEmojiSelect}
+                            mode="integrated"
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Context Menu */}

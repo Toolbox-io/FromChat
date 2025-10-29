@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { MaterialDialog } from "@/core/components/Dialog";
 import { RichTextArea } from "@/core/components/RichTextArea";
 import type { Message } from "@/core/types";
 import Quote from "@/core/components/Quote";
-import AnimatedHeight from "@/core/components/animations/AnimatedHeight";
 import { useImmer } from "use-immer";
 import { EmojiMenu } from "./EmojiMenu";
 
@@ -145,58 +145,82 @@ export function ChatInputWrapper(
     return (
         <div className="chat-input-wrapper" ref={chatInputWrapperRef}>
             <form className="input-group" id="message-form" onSubmit={handleSubmit}>
-                <AnimatedHeight visible={editVisible} onFinish={onCloseEdit}>
-                    {editingMessage && (
-                        <div className="reply-preview contextual-preview">
-                            <mdui-icon name="edit" />
-                            <Quote className="reply-content contextual-content" background="surfaceContainer">
-                                <span className="reply-username">{editingMessage!.username}</span>
-                                <span className="reply-text">{editingMessage!.content}</span>
-                            </Quote>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearEdit}></mdui-button-icon>
-                        </div>
-                    )}
-                </AnimatedHeight>
-                <AnimatedHeight visible={replyToVisible} onFinish={onCloseReply}>
-                    {replyTo && (
-                        <div className="reply-preview contextual-preview">
-                            <mdui-icon name="reply" />
-                            <Quote className="reply-content contextual-content" background="surfaceContainer">
-                                <span className="reply-username">{replyTo!.username}</span>
-                                <span className="reply-text">{replyTo!.content}</span>
-                            </Quote>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply}></mdui-button-icon>
-                        </div>
-                    )}
-                </AnimatedHeight>
-                <AnimatedHeight visible={attachmentsVisible} onFinish={() => setSelectedFiles([])}>
-                    {selectedFiles.length > 0 && (
-                        <div className="attachments-preview contextual-preview">
-                            <mdui-icon name="attach_file" />
-                            <div className="attachments-chips">
-                                {selectedFiles.map((file, i) => (
-                                    <mdui-chip
-                                        key={i}
-                                        variant="input"
-                                        end-icon="close"
-                                        title={`${file.name} (${Math.round(file.size/1024/1024)} MB)`}
-                                        onClick={() => {
-                                            if (selectedFiles.length == 1) {
-                                                setAttachmentsVisible(false);
-                                            } else {
-                                                setSelectedFiles(draft => { draft.splice(i) })
-                                            }
-                                        }}
-                                    >
-                                        <mdui-icon slot="icon" name="attach_file"></mdui-icon>
-                                        <span className="name">{file.name}</span>
-                                    </mdui-chip>
-                                ))}
+                <AnimatePresence onExitComplete={onCloseEdit}>
+                    {editVisible && editingMessage && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ overflow: "hidden" }}
+                        >
+                            <div className="reply-preview contextual-preview">
+                                <mdui-icon name="edit" />
+                                <Quote className="reply-content contextual-content" background="surfaceContainer">
+                                    <span className="reply-username">{editingMessage!.username}</span>
+                                    <span className="reply-text">{editingMessage!.content}</span>
+                                </Quote>
+                                <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearEdit}></mdui-button-icon>
                             </div>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={() => setAttachmentsVisible(false)}></mdui-button-icon>
-                        </div>
+                        </motion.div>
                     )}
-                </AnimatedHeight>
+                </AnimatePresence>
+                <AnimatePresence onExitComplete={onCloseReply}>
+                    {replyToVisible && replyTo && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ overflow: "hidden" }}
+                        >
+                            <div className="reply-preview contextual-preview">
+                                <mdui-icon name="reply" />
+                                <Quote className="reply-content contextual-content" background="surfaceContainer">
+                                    <span className="reply-username">{replyTo!.username}</span>
+                                    <span className="reply-text">{replyTo!.content}</span>
+                                </Quote>
+                                <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply}></mdui-button-icon>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                <AnimatePresence onExitComplete={() => setSelectedFiles([])}>
+                    {attachmentsVisible && selectedFiles.length > 0 && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ overflow: "hidden" }}
+                        >
+                            <div className="attachments-preview contextual-preview">
+                                <mdui-icon name="attach_file" />
+                                <div className="attachments-chips">
+                                    {selectedFiles.map((file, i) => (
+                                        <mdui-chip
+                                            key={i}
+                                            variant="input"
+                                            end-icon="close"
+                                            title={`${file.name} (${Math.round(file.size/1024/1024)} MB)`}
+                                            onClick={() => {
+                                                if (selectedFiles.length == 1) {
+                                                    setAttachmentsVisible(false);
+                                                } else {
+                                                    setSelectedFiles(draft => { draft.splice(i) })
+                                                }
+                                            }}
+                                        >
+                                            <mdui-icon slot="icon" name="attach_file"></mdui-icon>
+                                            <span className="name">{file.name}</span>
+                                        </mdui-chip>
+                                    ))}
+                                </div>
+                                <mdui-button-icon icon="close" className="reply-cancel" onClick={() => setAttachmentsVisible(false)}></mdui-button-icon>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
                 <div className="chat-input">
                     <div className="left-buttons">
                         <mdui-button-icon

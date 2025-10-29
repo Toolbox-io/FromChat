@@ -1,0 +1,19 @@
+---
+alwaysApply: true
+---
+
+When using the browser, use this information to work better:
+
+## Login credentials
+
+Username: test
+Password: 11111
+
+## Server URL
+
+http://localhost:8301
+
+## Rules
+- Do NOT start the dev server yourself, it's started automatically. 
+  If the URL doesn't work, stop and ask me to turn on the dev server.
+- Don't wait, you are slow enough to keep up with the browser.
