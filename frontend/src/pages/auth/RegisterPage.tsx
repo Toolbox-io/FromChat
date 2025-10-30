@@ -7,7 +7,7 @@ import type { ErrorResponse, RegisterRequest, LoginResponse } from "@/core/types
 import { API_BASE_URL } from "@/core/config";
 import { useAppState } from "@/pages/chat/state";
 import { MaterialTextField } from "@/core/components/MaterialTextField";
-import { ensureKeysOnLogin } from "@/core/api/authApi";
+import { ensureKeysOnLogin, deriveAuthSecret } from "@/core/api/authApi";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
@@ -74,11 +74,12 @@ export default function RegisterPage() {
                     }
 
                     try {
+                        const derived = await deriveAuthSecret(username, password);
                         const request: RegisterRequest = {
                             display_name: displayName,
                             username: username,
-                            password: password,
-                            confirm_password: confirmPassword
+                            password: derived,
+                            confirm_password: derived
                         }
 
                         const response = await fetch(`${API_BASE_URL}/register`, {

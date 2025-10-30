@@ -36,6 +36,32 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Validate device session from JWT
+    session_id = payload.get("session_id")
+    if not session_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    device_session = (
+        db.query(DeviceSession)
+        .filter(DeviceSession.user_id == user.id, DeviceSession.session_id == session_id)
+        .first()
+    )
+
+    if not device_session or device_session.revoked:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session revoked or not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Touch last_seen on valid session
+    device_session.last_seen = datetime.now()
+    db.commit()
+
     # Check if user is suspended
     if user.suspended:
         raise HTTPException(

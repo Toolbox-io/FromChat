@@ -2,7 +2,7 @@ import { useImmer } from "use-immer";
 import { AlertsContainer, type Alert, type AlertType } from "./Auth";
 import { AuthContainer, AuthHeader } from "./Auth";
 import type { ErrorResponse, LoginRequest, LoginResponse } from "@/core/types";
-import { ensureKeysOnLogin } from "@/core/api/authApi";
+import { ensureKeysOnLogin, deriveAuthSecret } from "@/core/api/authApi";
 import { API_BASE_URL } from "@/core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
@@ -47,9 +47,10 @@ export default function LoginPage() {
                         }
 
                         try {
+                            const derived = await deriveAuthSecret(username, password);
                             const request: LoginRequest = {
                                 username: username,
-                                password: password
+                                password: derived
                             }
 
                             const response = await fetch(`${API_BASE_URL}/login`, {
