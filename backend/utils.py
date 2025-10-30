@@ -6,11 +6,12 @@ import bcrypt
 from constants import *
 
 # JWT Helper Functions
-def create_token(user_id: int, username: str) -> str:
+def create_token(user_id: int, username: str, session_id: str) -> str:
     expire = datetime.now() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     payload = {
         "user_id": user_id,
         "username": username,
+        "session_id": session_id,
         "exp": expire
     }
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)

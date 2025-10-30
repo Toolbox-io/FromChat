@@ -10,3 +10,4 @@ pywebpush>=1.14.0
 cryptography>=41.0.0
 alembic>=1.13.2
 better-profanity>=0.7.0
+user-agents>=2.2.0

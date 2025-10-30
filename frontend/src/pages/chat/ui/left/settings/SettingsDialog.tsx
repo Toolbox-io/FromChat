@@ -7,12 +7,21 @@ import { isElectron } from "@/core/electron/electron";
 import { useAppState } from "@/pages/chat/state";
 import type { Switch } from "mdui/components/switch";
 import { getAuthHeaders } from "@/core/api/authApi";
+import { changePassword } from "@/core/api/securityApi";
+import { listDevices, revokeDevice, logoutAllOtherDevices, type DeviceInfo } from "@/core/api/devicesApi";
+import { useImmer } from "use-immer";
 
 export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
     const [activePanel, setActivePanel] = useState("notifications-settings");
     const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
     const [pushSupported, setPushSupported] = useState(false);
     const user = useAppState(state => state.user);
+    const logout = useAppState(state => state.logout);
+    const [devices, updateDevices] = useImmer<DeviceInfo[]>([]);
+    const [cpCurrent, setCpCurrent] = useState("");
+    const [cpNext, setCpNext] = useState("");
+    const [cpConfirm, setCpConfirm] = useState("");
+    const [cpLogoutAll, setCpLogoutAll] = useState(true);
 
     useEffect(() => {
         setPushSupported(isSupported());
@@ -20,6 +29,14 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
         // For web browsers, we check if there's a subscription
         setPushNotificationsEnabled(isSupported());
     }, []);
+
+    useEffect(() => {
+        if (activePanel === "devices-settings" && user.authToken) {
+            listDevices(user.authToken)
+                .then(list => updateDevices(() => list))
+                .catch(() => {});
+        }
+    }, [activePanel, user.authToken, updateDevices]);
 
     const handlePanelChange = (panelId: string) => {
         setActivePanel(panelId);
@@ -80,15 +97,6 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
                             Уведомления
                         </mdui-list-item>
                         <mdui-list-item
-                            icon="palette--filled"
-                            rounded
-                            active={activePanel === "appearance-settings"}
-                            onClick={() => handlePanelChange("appearance-settings")}
-                            style={{ cursor: "pointer" }}
-                        >
-                            Внешний вид
-                        </mdui-list-item>
-                        <mdui-list-item
                             icon="security--filled"
                             rounded
                             active={activePanel === "security-settings"}
@@ -98,31 +106,13 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
                             Безопасность
                         </mdui-list-item>
                         <mdui-list-item
-                            icon="language--filled"
+                            icon="devices--filled"
                             rounded
-                            active={activePanel === "language-settings"}
-                            onClick={() => handlePanelChange("language-settings")}
+                            active={activePanel === "devices-settings"}
+                            onClick={() => handlePanelChange("devices-settings")}
                             style={{ cursor: "pointer" }}
                         >
-                            Язык
-                        </mdui-list-item>
-                        <mdui-list-item
-                            icon="storage--filled"
-                            rounded
-                            active={activePanel === "storage-settings"}
-                            onClick={() => handlePanelChange("storage-settings")}
-                            style={{ cursor: "pointer" }}
-                        >
-                            Хранилище
-                        </mdui-list-item>
-                        <mdui-list-item
-                            icon="help--filled"
-                            rounded
-                            active={activePanel === "help-settings"}
-                            onClick={() => handlePanelChange("help-settings")}
-                            style={{ cursor: "pointer" }}
-                        >
-                            Помощь
+                            Устройства
                         </mdui-list-item>
                         <mdui-list-item
                             icon="info--filled"
@@ -145,31 +135,33 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
                                     Push уведомления
                                 </mdui-switch>
                             )}
-                            <mdui-switch checked>Новые сообщения</mdui-switch>
-                            <mdui-switch checked>Звуковые уведомления</mdui-switch>
-                            <mdui-switch>Уведомления о статусе</mdui-switch>
-                            <mdui-switch checked>Email уведомления</mdui-switch>
                         </div>
 
-                        <div id="appearance-settings" className={`settings-panel ${activePanel === "appearance-settings" ? "active" : ""}`}>
-                            <h3>Внешний вид</h3>
-                            <mdui-select label="Тема" variant="outlined">
-                                <mdui-menu-item value="dark">Тёмная</mdui-menu-item>
-                                <mdui-menu-item value="light">Светлая</mdui-menu-item>
-                                <mdui-menu-item value="auto">Авто</mdui-menu-item>
-                            </mdui-select>
-                            <mdui-select label="Размер шрифта" variant="outlined">
-                                <mdui-menu-item value="small">Маленький</mdui-menu-item>
-                                <mdui-menu-item value="medium">Средний</mdui-menu-item>
-                                <mdui-menu-item value="large">Большой</mdui-menu-item>
-                            </mdui-select>
-                        </div>
 
                         <div id="security-settings" className={`settings-panel ${activePanel === "security-settings" ? "active" : ""}`}>
                             <h3>Безопасность</h3>
-                            <mdui-button variant="outlined">Изменить пароль</mdui-button>
-                            <mdui-button variant="outlined">Двухфакторная аутентификация</mdui-button>
-                            <mdui-switch>Автоматический выход</mdui-switch>
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                if (!user.authToken || !user.username) return;
+                                if (!cpCurrent || !cpNext || cpNext !== cpConfirm) return;
+                                try {
+                                    await changePassword(user.authToken, user.username, cpCurrent, cpNext, cpLogoutAll);
+                                    setCpCurrent("");
+                                    setCpNext("");
+                                    setCpConfirm("");
+                                } catch (err) {
+                                    console.error(err);
+                                }
+                            }}>
+                                <mdui-text-field label="Текущий пароль" type="password" value={cpCurrent} onInput={(e: any) => setCpCurrent(e.target.value)} variant="outlined" toggle-password></mdui-text-field>
+                                <mdui-text-field label="Новый пароль" type="password" value={cpNext} onInput={(e: any) => setCpNext(e.target.value)} variant="outlined" toggle-password></mdui-text-field>
+                                <mdui-text-field label="Подтвердите пароль" type="password" value={cpConfirm} onInput={(e: any) => setCpConfirm(e.target.value)} variant="outlined" toggle-password></mdui-text-field>
+                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                    <mdui-switch checked={cpLogoutAll} onInput={(e: any) => setCpLogoutAll(e.target.checked)}>Выйти на всех устройствах (кроме текущего)</mdui-switch>
+                                    <div style={{ flexGrow: 1 }}></div>
+                                    <mdui-button type="submit" variant="tonal">Сохранить</mdui-button>
+                                </div>
+                            </form>
                         </div>
 
                         <div id="language-settings" className={`settings-panel ${activePanel === "language-settings" ? "active" : ""}`}>
@@ -188,19 +180,26 @@ export function SettingsDialog({ isOpen, onOpenChange }: DialogProps) {
                             <mdui-button variant="outlined">Очистить кэш</mdui-button>
                         </div>
 
-                        <div id="help-settings" className={`settings-panel ${activePanel === "help-settings" ? "active" : ""}`}>
-                            <h3>Помощь</h3>
-                            <mdui-button variant="outlined">Руководство пользователя</mdui-button>
-                            <mdui-button variant="outlined">Связаться с поддержкой</mdui-button>
-                            <mdui-button variant="outlined">FAQ</mdui-button>
+                        <div id="devices-settings" className={`settings-panel ${activePanel === "devices-settings" ? "active" : ""}`}>
+                            <h3>Устройства</h3>
+                            <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                                <mdui-button variant="tonal" onClick={async () => { if (!user.authToken) return; await logoutAllOtherDevices(user.authToken); const list = await listDevices(user.authToken); updateDevices(() => list); }}>Выйти на всех остальных устройствах</mdui-button>
+                                <mdui-button variant="outlined" onClick={async () => { if (!user.authToken) return; await fetch(`${API_BASE_URL}/logout`, { headers: getAuthHeaders(user.authToken) }); logout(); }}>Выйти на этом устройстве</mdui-button>
+                            </div>
+                            <mdui-list>
+                                {devices.map((d) => (
+                                    <mdui-list-item key={d.session_id} icon={d.current ? "devices_other--filled" : "devices--filled"} rounded end-icon={!d.current ? "logout--filled" : undefined} onEndIconClick={async () => { if (!user.authToken || d.current) return; await revokeDevice(user.authToken, d.session_id); const list = await listDevices(user.authToken); updateDevices(() => list); }}>
+                                        <div slot="headline">{d.browser_name || "Браузер"} на {d.os_name || "OS"} {d.current ? " (это устройство)" : ""}</div>
+                                        <div slot="description">Последняя активность: {d.last_seen || "—"}</div>
+                                    </mdui-list-item>
+                                ))}
+                            </mdui-list>
                         </div>
 
                         <div id="about-settings" className={`settings-panel ${activePanel === "about-settings" ? "active" : ""}`}>
                             <h3>О приложении</h3>
-                            <p>Версия: 1.0.0</p>
-                            <p>© 2025 <span className="product-name">{PRODUCT_NAME}</span>. Все права защищены.</p>
-                            <mdui-button variant="outlined">Политика конфиденциальности</mdui-button>
-                            <mdui-button variant="outlined">Условия использования</mdui-button>
+                            <p>100% open source. Репозиторий на <a href="https://github.com/Toolbox-io/FromChat" target="_blank" rel="noreferrer">GitHub</a>.</p>
+                            <p><span className="product-name">{PRODUCT_NAME}</span></p>
                         </div>
                     </div>
                 </div>

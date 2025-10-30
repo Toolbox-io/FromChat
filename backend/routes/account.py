@@ -1,10 +1,13 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+import uuid
+from user_agents import parse as parse_ua
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
-from models import LoginRequest, RegisterRequest, User, CryptoPublicKey, CryptoBackup
+from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
 from utils import create_token, get_password_hash, verify_password
 from validation import is_valid_password, is_valid_username, is_valid_display_name
 
@@ -37,7 +40,7 @@ def check_auth(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/login")
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, db: Session = Depends(get_db), http: Request = None):
     user = db.query(User).filter(User.username == request.username.strip()).first()
 
     if not user or not verify_password(request.password.strip(), user.password_hash):
@@ -46,11 +49,33 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail="Неверное имя пользователя или пароль"
         )
 
+    # Create device session and embed into JWT
+    raw_ua = http.headers.get("user-agent") if http else None
+    ua = parse_ua(raw_ua or "")
+    session_id = uuid.uuid4().hex
+
+    device = DeviceSession(
+        user_id=user.id,
+        raw_user_agent=raw_ua,
+        device_type=("mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"),
+        os_name=(ua.os.family or None),
+        os_version=(ua.os.version_string or None),
+        browser_name=(ua.browser.family or None),
+        browser_version=(ua.browser.version_string or None),
+        brand=(ua.device.brand or None),
+        model=(ua.device.model or None),
+        session_id=session_id,
+        created_at=datetime.now(),
+        last_seen=datetime.now(),
+        revoked=False,
+    )
+    db.add(device)
+
     user.online = True
     user.last_seen = datetime.now()
     db.commit()
 
-    token = create_token(user.id, user.username)
+    token = create_token(user.id, user.username, session_id)
 
     return {
         "status": "success",
@@ -61,7 +86,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/register")
-def register(request: RegisterRequest, db: Session = Depends(get_db)):
+def register(request: RegisterRequest, db: Session = Depends(get_db), http: Request = None):
     username = request.username.strip()
     display_name = request.display_name.strip()
     password = request.password.strip()
@@ -134,7 +159,29 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    token = create_token(new_user.id, new_user.username)
+    # Create initial device session
+    raw_ua = http.headers.get("user-agent") if http else None
+    ua = parse_ua(raw_ua or "")
+    session_id = uuid.uuid4().hex
+    device = DeviceSession(
+        user_id=new_user.id,
+        raw_user_agent=raw_ua,
+        device_type=("mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"),
+        os_name=(ua.os.family or None),
+        os_version=(ua.os.version_string or None),
+        browser_name=(ua.browser.family or None),
+        browser_version=(ua.browser.version_string or None),
+        brand=(ua.device.brand or None),
+        model=(ua.device.model or None),
+        session_id=session_id,
+        created_at=datetime.now(),
+        last_seen=datetime.now(),
+        revoked=False,
+    )
+    db.add(device)
+    db.commit()
+
+    token = create_token(new_user.id, new_user.username, session_id)
 
     return {
         "status": "success",
@@ -225,6 +272,37 @@ def logout(
         "status": "success",
         "message": "Logged out successfully"
     }
+
+
+@router.post("/change-password")
+def change_password(
+    request: ChangePasswordRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify current derived password against stored hash
+    if not verify_password(request.currentPasswordDerived.strip(), current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Текущий пароль неверный")
+
+    # Update password hash to hash of new derived password
+    current_user.password_hash = get_password_hash(request.newPasswordDerived.strip())
+    db.commit()
+
+    # Optionally revoke all other sessions, keeping the current one
+    if request.logoutAllExceptCurrent:
+        from utils import verify_token as _verify_token
+        payload = _verify_token(credentials.credentials)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        current_session_id = payload.get("session_id")
+        db.query(DeviceSession).filter(
+            DeviceSession.user_id == current_user.id,
+            DeviceSession.session_id != current_session_id,
+        ).update({DeviceSession.revoked: True})
+        db.commit()
+
+    return {"status": "success"}
 
 
 @router.get("/users")
