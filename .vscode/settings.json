@@ -1,9 +1,7 @@
 {
     "files.exclude": {
         "**/__pycache__": true,
-        "**/package-lock.json": true
-    },
-    "github-actions.workflows.pinned.workflows": [],
-    "github-actions.workflows.pinned.workflows.ignore": true,
-    "github-actions.workflows.pinned.workflows.ignoreContextAccess": true
+        "**/package-lock.json": true,
+        "**/*.module.scss.d.ts": true
+    }
 }

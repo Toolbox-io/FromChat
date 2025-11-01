@@ -5,11 +5,15 @@ import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { visualizer } from 'rollup-plugin-visualizer';
+import sassDts from 'vite-plugin-sass-dts';
 
 const outDir = process.env.VITE_ELECTRON ? "build/electron" : "build/normal";
 
 const plugins: PluginOption[] = [
     react(),
+    sassDts({
+        enabledMode: ['development', 'production']
+    }),
     createHtmlPlugin({
         minify: {
             collapseWhitespace: true,
