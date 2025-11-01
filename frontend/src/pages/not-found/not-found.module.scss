@@ -1,4 +1,4 @@
-.not-found-page {
+.notFoundPage {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -7,7 +7,7 @@
     padding: 2rem;
 }
 
-.not-found-container {
+.notFoundContainer {
     display: flex;
     align-items: center;
     gap: 3rem;
@@ -20,11 +20,26 @@
     backdrop-filter: blur(10px);
 }
 
-.not-found-content {
+.notFoundContent {
     flex: 1;
+
+    h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 1rem;
+        line-height: 1.2;
+    }
+
+    p {
+        font-size: 1.1rem;
+        color: #718096;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
 }
 
-.error-code {
+.errorCode {
     font-size: 6rem;
     font-weight: 900;
     color: #667eea;
@@ -33,28 +48,13 @@
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.not-found-content h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: #2d3748;
-    margin-bottom: 1rem;
-    line-height: 1.2;
-}
-
-.not-found-content p {
-    font-size: 1.1rem;
-    color: #718096;
-    margin-bottom: 2rem;
-    line-height: 1.6;
-}
-
-.not-found-actions {
+.notFoundActions {
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
 }
 
-.not-found-illustration {
+.notFoundIllustration {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -63,22 +63,25 @@
 }
 
 @media (max-width: 768px) {
-    .not-found-container {
+    .notFoundContainer {
         flex-direction: column;
         text-align: center;
         gap: 2rem;
         padding: 2rem;
     }
 
-    .error-code {
+    .errorCode {
         font-size: 4rem;
     }
 
-    .not-found-content h1 {
-        font-size: 2rem;
+    .notFoundContent {
+        h1 {
+            font-size: 2rem;
+        }
     }
 
-    .not-found-actions {
+    .notFoundActions {
         justify-content: center;
     }
 }
+
