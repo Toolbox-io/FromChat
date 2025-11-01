@@ -10,6 +10,7 @@ import { websocket } from "@/core/websocket";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineIndicator } from "@/pages/chat/ui/right/OnlineIndicator";
 import defaultAvatar from "@/images/default-avatar.png";
+import { MaterialBadge, MaterialCircularProgress, MaterialList, MaterialListItem } from "@/utils/material";
 
 interface PublicChat {
     id: string;
@@ -223,17 +224,15 @@ export function UnifiedChatsList() {
     }
 
     if (isLoadingUsers) {
-        return (
-            <mdui-circular-progress />
-        );
+        return <MaterialCircularProgress />;
     }
 
     return (
-        <mdui-list>
+        <MaterialList>
             {allChats.map((chat) => {
                 if (chat.type === "public") {
                     return (
-                        <mdui-list-item
+                        <MaterialListItem
                             key={`public-${chat.id}`}
                             headline={chat.name}
                             onClick={() => handlePublicChatClick(chat.name)}
@@ -255,11 +254,11 @@ export function UnifiedChatsList() {
                                     objectFit: "cover"
                                 }}
                             />
-                        </mdui-list-item>
+                        </MaterialListItem>
                     );
                 } else {
                     return (
-                        <mdui-list-item
+                        <MaterialListItem
                             key={`dm-${chat.id}`}
                             headline={chat.display_name}
                             onClick={() => handleDMClick(chat)}
@@ -288,20 +287,20 @@ export function UnifiedChatsList() {
                                         display: "block"
                                     }}
                                     onError={(e) => {
-                                        (e.target as HTMLImageElement).src = defaultAvatar;
+                                        e.target.src = defaultAvatar;
                                     }}
                                 />
                                 <OnlineIndicator userId={chat.id} />
                             </div>
                             {chat.unreadCount > 0 && (
-                                <mdui-badge slot="end-icon">
+                                <MaterialBadge slot="end-icon">
                                     {chat.unreadCount}
-                                </mdui-badge>
+                                </MaterialBadge>
                             )}
-                        </mdui-list-item>
+                        </MaterialListItem>
                     );
                 }
             })}
-        </mdui-list>
+        </MaterialList>
     );
 }

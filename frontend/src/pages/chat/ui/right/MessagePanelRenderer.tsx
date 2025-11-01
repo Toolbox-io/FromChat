@@ -14,6 +14,7 @@ import { TypingIndicator } from "./TypingIndicator";
 import { OnlineStatus } from "./OnlineStatus";
 import { typingManager } from "@/core/typingManager";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
+import { MaterialIcon, MaterialIconButton } from "@/utils/material";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
@@ -199,198 +200,202 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
             <AnimatePresence mode="wait">
                 <motion.div
                     key={panelKey}
-                    ref={messagePanelRef}
-                    className="chat-main"
-                    id="chat-inner"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
-                onDragEnter={panel ? (e) => {
-                    if (!e.dataTransfer) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dragCounterRef.current += 1;
-                    // Only show overlay when actual files are dragged
-                    const hasFiles = Array.from(e.dataTransfer.types || []).includes("Files");
-                    if (hasFiles) setIsDragging(true);
-                } : undefined}
-                onDragOver={panel ? (e) => {
-                    if (!e.dataTransfer) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.dataTransfer.dropEffect = "copy";
-                } : undefined}
-                onDragLeave={panel ? (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
-                    if (dragCounterRef.current === 0) setIsDragging(false);
-                } : undefined}
-                onDrop={panel ? (e) => {
-                    if (!e.dataTransfer) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const files = Array.from(e.dataTransfer.files || []);
-                    if (files.length > 0 && addFilesRef.current) {
-                        addFilesRef.current(files);
-                    }
-                    setIsDragging(false);
-                    dragCounterRef.current = 0;
-                } : undefined}>
-                <div className="chat-header">
-                    <img
-                        src={panelState?.profilePicture || defaultAvatar}
-                        alt="Avatar"
-                        className="chat-header-avatar"
-                        onClick={handleProfileClick}
-                        style={{ cursor: panel ? "pointer" : "default" }}
-                    />
-                    <div className="chat-header-info">
-                        <div className="info-chat">
-                            <h4 id="chat-name">{panelState?.title || "Выбор чата"}</h4>
-                            <ChatHeaderText panel={panel} />
+                    className="chat-wrapper"
+                >
+                    <div
+                        ref={messagePanelRef}
+                        className="chat-main"
+                        id="chat-inner"
+                        onDragEnter={panel ? (e) => {
+                            if (!e.dataTransfer) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            dragCounterRef.current += 1;
+                            // Only show overlay when actual files are dragged
+                            const hasFiles = Array.from(e.dataTransfer.types || []).includes("Files");
+                            if (hasFiles) setIsDragging(true);
+                        } : undefined}
+                        onDragOver={panel ? (e) => {
+                            if (!e.dataTransfer) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.dataTransfer.dropEffect = "copy";
+                        } : undefined}
+                        onDragLeave={panel ? (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+                            if (dragCounterRef.current === 0) setIsDragging(false);
+                        } : undefined}
+                        onDrop={panel ? (e) => {
+                            if (!e.dataTransfer) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const files = Array.from(e.dataTransfer.files || []);
+                            if (files.length > 0 && addFilesRef.current) {
+                                addFilesRef.current(files);
+                            }
+                            setIsDragging(false);
+                            dragCounterRef.current = 0;
+                        } : undefined}>
+                        <div className="chat-header">
+                            <img
+                                src={panelState?.profilePicture || defaultAvatar}
+                                alt="Avatar"
+                                className="chat-header-avatar"
+                                onClick={handleProfileClick}
+                                style={{ cursor: panel ? "pointer" : "default" }}
+                            />
+                            <div className="chat-header-info">
+                                <div className="info-chat">
+                                    <h4 id="chat-name">{panelState?.title || "Выбор чата"}</h4>
+                                    <ChatHeaderText panel={panel} />
+                                </div>
+                                {panel?.isDm() && (
+                                    <MaterialIconButton onClick={handleCallClick} icon="call--filled" />
+                                )}
+                            </div>
                         </div>
-                        {panel?.isDm() && (
-                            <mdui-button-icon onClick={handleCallClick} icon="call--filled" />
+
+                        {panelState?.isLoading ? (
+                            <div className="chat-messages" id="chat-messages">
+                                <div style={{
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    height: "100%",
+                                    color: "var(--mdui-color-on-surface-variant)"
+                                }}>
+                                    Загрузка сообщений...
+                                </div>
+                            </div>
+                        ) : panelState && panel ? (
+                            <ChatMessages
+                                messages={panelState.messages}
+                                isDm={panel.isDm()}
+                                dmRecipientPublicKey={(panel as DMPanel).dmData?.publicKey}
+                                onReplySelect={(message) => {
+                                    if (editMessage || editVisible) {
+                                        setPendingAction({ type: "reply", message: message });
+                                        setEditVisible(false); // onCloseEdit will apply pending
+                                    } else {
+                                        setReplyTo(message);
+                                    }
+                                }}
+                                onEditSelect={(message) => {
+                                    if (replyTo || replyToVisible) {
+                                        setPendingAction({ type: "edit", message: message });
+                                        setReplyToVisible(false); // onCloseReply will apply pending
+                                    } else {
+                                        setEditMessage(message);
+                                    }
+                                }}
+                                onDelete={(id) => panel.handleDeleteMessage(id)}
+                                onRetryMessage={(id) => panel.retryMessage(id)}
+                            >
+                                <div ref={messagesEndRef} />
+                            </ChatMessages>
+                        ) : (
+                            <div className="chat-messages" id="chat-messages">
+                                <div style={{
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    height: "100%",
+                                    color: "var(--mdui-color-on-surface-variant)"
+                                }}>
+                                    Выберите чат на боковой панели, чтобы начать переписку
+                                </div>
+                            </div>
+                        )}
+
+                        {panel && (
+                            <>
+                                <AnimatePresence>
+                                    {isDragging && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.5 }}
+                                            className="file-overlay"
+                                            onDragOver={(e) => e.preventDefault()}
+                                            onDrop={(e) => e.preventDefault()}
+                                        >
+                                            <div className="file-overlay-wrapper">
+                                                <div className="file-overlay-inner">
+                                                    <MaterialIcon name="upload_file" />
+                                                    <span>Отпустите файл(ы) для добавления</span>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+
+                                <ChatInputWrapper
+                                    onSendMessage={(text, files) => {
+                                        panel.handleSendMessage(text, replyTo?.id, files);
+                                        setReplyTo(null);
+                                    }}
+                                    onSaveEdit={(content) => {
+                                        if (editMessage) {
+                                            panel.handleEditMessage(editMessage.id, content);
+                                            setEditMessage(null);
+                                        }
+                                    }}
+                                    replyTo={replyTo}
+                                    replyToVisible={replyToVisible}
+                                    onClearReply={() => {
+                                        setPendingAction(null);
+                                        setReplyToVisible(false);
+                                    }}
+                                    onCloseReply={() => {
+                                        setReplyTo(null);
+                                        if (pendingAction && pendingAction.type === "edit") {
+                                            setEditMessage(pendingAction.message);
+                                            setPendingAction(null);
+                                        }
+                                    }}
+                                    editingMessage={editMessage}
+                                    editVisible={editVisible}
+                                    onClearEdit={() => {
+                                        setPendingAction(null);
+                                        setEditVisible(false);
+                                    }}
+                                    onCloseEdit={() => {
+                                        setEditMessage(null);
+                                        if (pendingAction && pendingAction.type === "reply") {
+                                            setReplyTo(pendingAction.message);
+                                            setPendingAction(null);
+                                        }
+                                    }}
+                                    onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
+                                    messagePanelRef={messagePanelRef}
+                                    onTyping={() => {
+                                        if (panel.isDm()) {
+                                            const dmPanel = panel as DMPanel;
+                                            dmPanel.handleTyping();
+                                        } else {
+                                            typingManager.sendTyping();
+                                        }
+                                    }}
+                                    onStopTyping={() => {
+                                        if (panel.isDm()) {
+                                            const dmPanel = panel as DMPanel;
+                                            typingManager.stopDmTypingOnMessage(dmPanel.getRecipientId()!);
+                                        } else {
+                                            typingManager.stopTypingOnMessage();
+                                        }
+                                    }}
+                                />
+                            </>
                         )}
                     </div>
-                </div>
-
-                {panelState?.isLoading ? (
-                    <div className="chat-messages" id="chat-messages">
-                        <div style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            height: "100%",
-                            color: "var(--mdui-color-on-surface-variant)"
-                        }}>
-                            Загрузка сообщений...
-                        </div>
-                    </div>
-                ) : panelState && panel ? (
-                    <ChatMessages
-                        messages={panelState.messages}
-                        isDm={panel.isDm()}
-                        dmRecipientPublicKey={(panel as DMPanel).dmData?.publicKey}
-                        onReplySelect={(message) => {
-                            if (editMessage || editVisible) {
-                                setPendingAction({ type: "reply", message: message });
-                                setEditVisible(false); // onCloseEdit will apply pending
-                            } else {
-                                setReplyTo(message);
-                            }
-                        }}
-                        onEditSelect={(message) => {
-                            if (replyTo || replyToVisible) {
-                                setPendingAction({ type: "edit", message: message });
-                                setReplyToVisible(false); // onCloseReply will apply pending
-                            } else {
-                                setEditMessage(message);
-                            }
-                        }}
-                        onDelete={(id) => panel.handleDeleteMessage(id)}
-                        onRetryMessage={(id) => panel.retryMessage(id)}
-                    >
-                        <div ref={messagesEndRef} />
-                    </ChatMessages>
-                ) : (
-                    <div className="chat-messages" id="chat-messages">
-                        <div style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            height: "100%",
-                            color: "var(--mdui-color-on-surface-variant)"
-                        }}>
-                            Выберите чат на боковой панели, чтобы начать переписку
-                        </div>
-                    </div>
-                )}
-
-                {panel && (
-                    <>
-                        <AnimatePresence>
-                            {isDragging && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.5 }}
-                                    className="file-overlay"
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDrop={(e) => e.preventDefault()}
-                                >
-                                    <div className="file-overlay-wrapper">
-                                        <div className="file-overlay-inner">
-                                            <mdui-icon name="upload_file" />
-                                            <span>Отпустите файл(ы) для добавления</span>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-
-                        <ChatInputWrapper
-                            onSendMessage={(text, files) => {
-                                panel.handleSendMessage(text, replyTo?.id, files);
-                                setReplyTo(null);
-                            }}
-                            onSaveEdit={(content) => {
-                                if (editMessage) {
-                                    panel.handleEditMessage(editMessage.id, content);
-                                    setEditMessage(null);
-                                }
-                            }}
-                            replyTo={replyTo}
-                            replyToVisible={replyToVisible}
-                            onClearReply={() => {
-                                setPendingAction(null);
-                                setReplyToVisible(false);
-                            }}
-                            onCloseReply={() => {
-                                setReplyTo(null);
-                                if (pendingAction && pendingAction.type === "edit") {
-                                    setEditMessage(pendingAction.message);
-                                    setPendingAction(null);
-                                }
-                            }}
-                            editingMessage={editMessage}
-                            editVisible={editVisible}
-                            onClearEdit={() => {
-                                setPendingAction(null);
-                                setEditVisible(false);
-                            }}
-                            onCloseEdit={() => {
-                                setEditMessage(null);
-                                if (pendingAction && pendingAction.type === "reply") {
-                                    setReplyTo(pendingAction.message);
-                                    setPendingAction(null);
-                                }
-                            }}
-                            onProvideFileAdder={(adder) => { addFilesRef.current = adder; }}
-                            messagePanelRef={messagePanelRef}
-                            onTyping={() => {
-                                if (panel.isDm()) {
-                                    const dmPanel = panel as DMPanel;
-                                    dmPanel.handleTyping();
-                                } else {
-                                    typingManager.sendTyping();
-                                }
-                            }}
-                            onStopTyping={() => {
-                                if (panel.isDm()) {
-                                    const dmPanel = panel as DMPanel;
-                                    typingManager.stopDmTypingOnMessage(dmPanel.getRecipientId()!);
-                                } else {
-                                    typingManager.stopTypingOnMessage();
-                                }
-                            }}
-                        />
-                    </>
-                )}
                 </motion.div>
             </AnimatePresence>
 

@@ -4,6 +4,7 @@ import useCall from "@/pages/chat/hooks/useCall";
 import defaultAvatar from "@/images/default-avatar.png";
 import { createPortal } from "react-dom";
 import { id } from "@/utils/utils";
+import { MaterialIconButton } from "@/utils/material";
 
 export function CallWindow() {
     const { chat, toggleCallMinimize, user } = useAppState();
@@ -196,8 +197,8 @@ export function CallWindow() {
                         onMouseDown={(e) => {
                             if (call.isMinimized) {
                                 // Only start dragging if not clicking on a button
-                                const target = e.target as HTMLElement;
-                                if (!target.closest("mdui-button-icon")) {
+                                // TODO change it to e.stopPropagation() on the buttons
+                                if (!e.target.closest("mdui-button-icon")) {
                                     setIsDragging(true);
                                     setDragOffset({
                                         x: e.clientX - pipPosition.x,
@@ -209,7 +210,7 @@ export function CallWindow() {
                     >
                         <div className="call-header">
                             <div className="window-controls">
-                                <mdui-button-icon
+                                <MaterialIconButton
                                     onClick={toggleCallMinimize}
                                     icon={call.isMinimized ? "open_in_full" : "close_fullscreen"}
                                     className="window-control-btn"
@@ -302,15 +303,15 @@ export function CallWindow() {
                         <div className="call-controls">
                             {status === "calling" && !isInitiator ? (
                                 <>
-                                    <mdui-button-icon onClick={acceptCall} icon="call" />
-                                    <mdui-button-icon onClick={rejectCall} icon="call_end" />
+                                    <MaterialIconButton onClick={acceptCall} icon="call" />
+                                    <MaterialIconButton onClick={rejectCall} icon="call_end" />
                                 </>
                             ) : (
                                 <>
-                                    <mdui-button-icon onClick={toggleMute} icon={isMuted ? "mic_off" : "mic"} />
-                                    <mdui-button-icon onClick={toggleVideo} icon={call.isVideoEnabled ? "videocam" : "videocam_off"} />
-                                    <mdui-button-icon onClick={toggleScreenShare} icon={call.isSharingScreen ? "stop_screen_share" : "screen_share"} />
-                                    <mdui-button-icon onClick={endCall} icon="call_end" />
+                                    <MaterialIconButton onClick={toggleMute} icon={isMuted ? "mic_off" : "mic"} />
+                                    <MaterialIconButton onClick={toggleVideo} icon={call.isVideoEnabled ? "videocam" : "videocam_off"} />
+                                    <MaterialIconButton onClick={toggleScreenShare} icon={call.isSharingScreen ? "stop_screen_share" : "screen_share"} />
+                                    <MaterialIconButton onClick={endCall} icon="call_end" />
                                 </>
                             )}
                         </div>

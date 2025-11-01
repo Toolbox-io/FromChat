@@ -28,7 +28,7 @@ def list_devices(
     current_session_id = _get_current_session_id(credentials)
     sessions = (
         db.query(DeviceSession)
-        .filter(DeviceSession.user_id == current_user.id)
+        .filter(DeviceSession.user_id == current_user.id, DeviceSession.revoked == False)
         .order_by(DeviceSession.last_seen.desc())
         .all()
     )
@@ -37,6 +37,7 @@ def list_devices(
             {
                 "session_id": s.session_id,
                 "device_type": s.device_type,
+                "device_name": s.device_name,
                 "os_name": s.os_name,
                 "os_version": s.os_version,
                 "browser_name": s.browser_name,

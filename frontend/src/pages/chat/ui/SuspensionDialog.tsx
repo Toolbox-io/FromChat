@@ -1,4 +1,5 @@
 import { StyledDialog } from "@/core/components/StyledDialog";
+import { MaterialIcon } from "@/utils/material";
 
 interface SuspensionDialogProps {
     reason: string;
@@ -13,7 +14,7 @@ export function SuspensionDialog({ reason, open, onOpenChange }: SuspensionDialo
             onOpenChange={onOpenChange}>
             <div className="suspension-dialog-content">
                 <div className="suspension-icon-section">
-                    <mdui-icon name="block--filled" className="suspension-icon" />
+                    <MaterialIcon name="block--filled" className="suspension-icon" />
                 </div>
                 
                 <div className="suspension-text">

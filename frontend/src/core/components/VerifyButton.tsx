@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { verifyUser } from "@/core/api/profileApi";
 import { useAppState } from "@/pages/chat/state";
+import { MaterialButton } from "@/utils/material";
 
 interface VerifyButtonProps {
     userId: number;
@@ -34,13 +35,13 @@ export function VerifyButton({ userId, verified, onVerificationChange }: VerifyB
     }
 
     return (
-        <mdui-button 
+        <MaterialButton 
             variant="filled"
             loading={isVerifying}
             onClick={handleVerifyToggle}
             title={verified ? "Снять подтверждение" : "Подтвердить аккаунт"}
         >
             {verified ? "Отменить подтверждение" : "Подтвердить"}
-        </mdui-button>
+        </MaterialButton>
     );
 }

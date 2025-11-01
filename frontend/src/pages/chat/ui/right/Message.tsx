@@ -16,6 +16,7 @@ import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
 import { parseProfileLink } from "@/core/profileLinks";
+import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem } from "@/utils/material";
 
 interface MessageReactionsProps {
     reactions?: Reaction[];
@@ -415,10 +416,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     }
 
     async function handleLinkClick(e: React.MouseEvent<HTMLDivElement>) {
-        const target = e.target as HTMLElement;
-
-        if (target.tagName === 'A') {
-            const profileLink = parseProfileLink((target as HTMLAnchorElement).href);
+        if (e.target.tagName === 'A') {
+            const link = (e.target as unknown as HTMLAnchorElement).href;
+            const profileLink = parseProfileLink(link);
 
             if (profileLink) {
                 e.preventDefault();
@@ -443,7 +443,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                             isOwnProfile: userProfile.id === user.currentUser?.id
                         });
                     } else {
-                        throw new Error("Invalid link: " + (target as HTMLAnchorElement).href);
+                        throw new Error(`Invalid link: ${link}`);
                     }
                 } catch (error) {
                     console.error("Failed to fetch user profile from link:", error);
@@ -483,8 +483,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                             src={message.username?.startsWith("Deleted User #") ? defaultAvatar : (message.profile_picture || defaultAvatar)}
                             alt={message.username}
                             onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = defaultAvatar;
+                                e.target.src = defaultAvatar;
                             }}
                         />
                     </div>
@@ -517,7 +516,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         onClick={handleLinkClick} />
 
                     {message.files && message.files.length > 0 && (
-                        <mdui-list className="message-attachments">
+                        <MaterialList className="message-attachments">
                             {message.files.map((file, idx) => {
                                 const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
                                 const isEncryptedDm = Boolean(isDm && file.encrypted);
@@ -542,7 +541,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                                                 />
                                                 {(!loadedImages.has(file.path) || isSending) && (
                                                     <div className="loading-overlay">
-                                                        <mdui-circular-progress />
+                                                        <MaterialCircularProgress />
                                                     </div>
                                                 )}
                                             </div>
@@ -554,18 +553,18 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                                                     await downloadFile(file);
                                                 }}
                                             >
-                                                <mdui-list-item>
+                                                <MaterialListItem>
                                                     <span className="with-icon-gap">
-                                                        {isDownloading ? <mdui-circular-progress /> : null}
+                                                        {isDownloading ? <MaterialCircularProgress /> : null}
                                                         {(file.name || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}
                                                     </span>
-                                                </mdui-list-item>
+                                                </MaterialListItem>
                                             </a>
                                         )}
                                     </div>
                                 );
                             })}
-                        </mdui-list>
+                        </MaterialList>
                     )}
 
                     <Reactions
@@ -585,7 +584,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         {isAuthor && message.runtimeData?.sendingState && (
                             <span className="message-status-indicator">
                                 {message.runtimeData.sendingState.status === 'sending' && (
-                                    <mdui-circular-progress style={{ width: '16px', height: '16px' }} />
+                                    <MaterialCircularProgress style={{ width: '16px', height: '16px' }} />
                                 )}
                                 {message.runtimeData.sendingState.status === 'failed' && (
                                     <span className="material-symbols error-icon">error</span>
@@ -617,13 +616,13 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         onClick={e => e.stopPropagation()}
                     />
                     <div className="fullscreen-controls top-right" onClick={e => e.stopPropagation()}>
-                        <mdui-button-icon icon="close" onClick={closeFullscreen} />
+                        <MaterialIconButton icon="close" onClick={closeFullscreen} />
                         {isDownloadingFullscreen ? (
                             <div className="progress-wrapper">
-                                <mdui-circular-progress />
+                                <MaterialCircularProgress />
                             </div>
                         ) : (
-                            <mdui-button-icon icon="download" onClick={downloadImage} />
+                            <MaterialIconButton icon="download" onClick={downloadImage} />
                         )}
                     </div>
                 </div>,

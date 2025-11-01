@@ -1,3 +1,4 @@
+import { MaterialButton, MaterialIconButton } from "@/utils/material";
 import "./css/cropper-dialog.scss";
 
 export function CropperDialog() {
@@ -6,14 +7,14 @@ export function CropperDialog() {
             <div className="cropper-dialog-content">
                 <div className="cropper-header">
                     <h3>Обрезать фото профиля</h3>
-                    <mdui-button-icon icon="close" id="cropper-close"></mdui-button-icon>
+                    <MaterialIconButton icon="close" id="cropper-close" />
                 </div>
                 <div className="cropper-container">
                     <div id="cropper-area"></div>
                 </div>
                 <div className="cropper-actions">
-                    <mdui-button id="crop-cancel" variant="outlined">Отмена</mdui-button>
-                    <mdui-button id="crop-save">Сохранить</mdui-button>
+                    <MaterialButton id="crop-cancel" variant="outlined">Отмена</MaterialButton>
+                    <MaterialButton id="crop-save">Сохранить</MaterialButton>
                 </div>
             </div>
         </mdui-dialog>

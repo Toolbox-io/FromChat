@@ -7,6 +7,7 @@ import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineIndicator } from "@/pages/chat/ui/right/OnlineIndicator";
 import defaultAvatar from "@/images/default-avatar.png";
 import SearchBar from "@/core/components/SearchBar";
+import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem } from "@/utils/material";
 
 interface SearchUser extends User {
     publicKey?: string | null;
@@ -121,7 +122,7 @@ export function UsernameSearch() {
             isExpanded={isExpanded}
             onToggleExpanded={handleToggleExpanded}
             leftIcon={isExpanded ? (
-                <mdui-button-icon
+                <MaterialIconButton
                     className="back-button"
                     onClick={(e) => {
                         e.stopPropagation();
@@ -134,7 +135,7 @@ export function UsernameSearch() {
         >
             {isSearching && (
                 <div className="search-loading">
-                    <mdui-circular-progress value={0}></mdui-circular-progress>
+                    <MaterialCircularProgress />
                     <span>Поиск...</span>
                 </div>
             )}
@@ -146,9 +147,9 @@ export function UsernameSearch() {
             )}
 
             {!isSearching && searchResults.length > 0 && (
-                <mdui-list>
+                <MaterialList>
                     {searchResults.map((searchUser) => (
-                        <mdui-list-item
+                        <MaterialListItem
                             key={searchUser.id}
                             headline={searchUser.username}
                             onClick={() => handleUserClick(searchUser)}
@@ -174,14 +175,14 @@ export function UsernameSearch() {
                                         display: "block"
                                     }}
                                     onError={(e) => {
-                                        (e.target as HTMLImageElement).src = defaultAvatar;
+                                        e.target.src = defaultAvatar;
                                     }}
                                 />
                                 <OnlineIndicator userId={searchUser.id} />
                             </div>
-                        </mdui-list-item>
+                        </MaterialListItem>
                     ))}
-                </mdui-list>
+                </MaterialList>
             )}
 
             {!isSearching && searchQuery.length < 2 && (
