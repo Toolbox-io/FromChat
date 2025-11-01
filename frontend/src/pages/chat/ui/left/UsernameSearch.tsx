@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { searchUsers, fetchUserPublicKey } from "@/core/api/dmApi";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { User } from "@/core/types";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineIndicator } from "@/pages/chat/ui/right/OnlineIndicator";
+import { OnlineStatus } from "@/pages/chat/ui/right/OnlineStatus";
 import defaultAvatar from "@/images/default-avatar.png";
 import SearchBar from "@/core/components/SearchBar";
 import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem } from "@/utils/material";
+import styles from "@/pages/chat/css/left-panel.module.scss";
 
 interface SearchUser extends User {
     publicKey?: string | null;
@@ -15,12 +17,14 @@ interface SearchUser extends User {
 }
 
 export function UsernameSearch() {
-    const { user, switchToDM } = useAppState();
+    const { user, switchToDM, chat } = useAppState();
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
+    const switchingToUserIdRef = useRef<number | null>(null);
+    const previousSearchResultIdsRef = useRef<Set<number>>(new Set());
 
     // Debounced search
     useEffect(() => {
@@ -58,18 +62,45 @@ export function UsernameSearch() {
 
     // Subscribe to online status for all search results
     useEffect(() => {
-        // Subscribe to all search results
+        const activeDmUserId = chat.activeDm?.userId;
+        const switchingToUserId = switchingToUserIdRef.current;
+        const currentSearchResultIds = new Set(searchResults.map(u => u.id));
+        const previousSearchResultIds = new Set(previousSearchResultIdsRef.current);
+        
+        // Unsubscribe from users that were in previous results but not in current results
+        // (unless they're the active DM or we're switching to them)
+        previousSearchResultIds.forEach(userId => {
+            if (!currentSearchResultIds.has(userId) && 
+                userId !== activeDmUserId && 
+                userId !== switchingToUserId) {
+                onlineStatusManager.unsubscribe(userId);
+            }
+        });
+
+        // Subscribe to all current search results
         searchResults.forEach(searchUser => {
             onlineStatusManager.subscribe(searchUser.id);
         });
 
-        // Cleanup function to unsubscribe from all users
+        // Update previous results for next effect run
+        previousSearchResultIdsRef.current = currentSearchResultIds;
+
+        // Cleanup function - don't unsubscribe here as normal transitions are handled in effect body
+        // This only runs when component unmounts or when transitioning to empty results
         return () => {
-            searchResults.forEach(searchUser => {
-                onlineStatusManager.unsubscribe(searchUser.id);
-            });
+            // Note: Normal search result transitions are handled above in the effect body
+            // by comparing previous vs current. This cleanup only runs when the component
+            // unmounts or when the dependency changes, but we've already handled
+            // unsubscription in the effect body above, so this is mostly a no-op for normal transitions.
+            
+            // Clear the ref if the user is now the active DM (state has updated)
+            const finalSwitchingToUserId = switchingToUserIdRef.current;
+            const finalActiveDmUserId = chat.activeDm?.userId;
+            if (finalSwitchingToUserId && finalSwitchingToUserId === finalActiveDmUserId) {
+                switchingToUserIdRef.current = null;
+            }
         };
-    }, [searchResults]);
+    }, [searchResults, chat.activeDm?.userId]);
 
 
     async function handleUserClick(searchUser: SearchUser) {
@@ -84,6 +115,8 @@ export function UsernameSearch() {
             }
 
             if (publicKey) {
+                // Store the userId we're switching to so cleanup doesn't unsubscribe
+                switchingToUserIdRef.current = searchUser.id;
                 switchToDM({
                     userId: searchUser.id,
                     username: searchUser.username,
@@ -134,14 +167,14 @@ export function UsernameSearch() {
             ) : "search--outlined"}
         >
             {isSearching && (
-                <div className="search-loading">
+                <div className={styles.searchLoading}>
                     <MaterialCircularProgress />
                     <span>Поиск...</span>
                 </div>
             )}
 
             {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
-                <div className="search-empty">
+                <div className={styles.searchEmpty}>
                     <span>Пользователи не найдены</span>
                 </div>
             )}
@@ -155,30 +188,33 @@ export function UsernameSearch() {
                             onClick={() => handleUserClick(searchUser)}
                             style={{ cursor: "pointer" }}
                         >
-                            <div slot="headline" className="search-result-headline">
-                                {searchUser.username}
-                                <StatusBadge 
-                                    verified={searchUser.verified || false}
-                                    userId={searchUser.id}
-                                    size="small"
-                                />
-                            </div>
-                            <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
-                                <img
-                                    src={searchUser.profile_picture || defaultAvatar}
-                                    alt={searchUser.username}
-                                    style={{
-                                        width: "40px",
-                                        height: "40px",
-                                        borderRadius: "50%",
-                                        objectFit: "cover",
-                                        display: "block"
-                                    }}
-                                    onError={(e) => {
-                                        e.target.src = defaultAvatar;
-                                    }}
-                                />
-                                <OnlineIndicator userId={searchUser.id} />
+                            <div slot="custom" className={styles.searchResultContainer}>
+                                <div className={styles.searchResult}>
+                                    <div className={styles.searchResultIcon}>
+                                        <img
+                                            src={searchUser.profile_picture || defaultAvatar}
+                                            alt={searchUser.username}
+                                            className={styles.searchResultIconImg}
+                                            onError={(e) => {
+                                                e.target.src = defaultAvatar;
+                                            }}
+                                        />
+                                        <OnlineIndicator userId={searchUser.id} />
+                                    </div>
+                                    <div className={styles.searchResultBody}>
+                                        <div className={styles.searchResultHeadline}>
+                                            {searchUser.username}
+                                            <StatusBadge 
+                                                verified={searchUser.verified || false}
+                                                userId={searchUser.id}
+                                                size="small"
+                                            />
+                                        </div>
+                                        <div className={styles.searchResultDescription}>
+                                            <OnlineStatus userId={searchUser.id} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </MaterialListItem>
                     ))}
@@ -186,7 +222,7 @@ export function UsernameSearch() {
             )}
 
             {!isSearching && searchQuery.length < 2 && (
-                <div className="search-hint">
+                <div className={styles.searchHint}>
                     <span>Введите минимум 2 символа для поиска</span>
                 </div>
             )}

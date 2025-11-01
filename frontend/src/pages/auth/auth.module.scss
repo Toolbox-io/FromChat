@@ -1,7 +1,7 @@
 @use "../../css/colors" as *;
 @use "../../css/material" as *;
 
-.auth-container {
+.authContainer {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -9,7 +9,7 @@
     padding: 2rem;
     background-color: $color-dark-surface;
 
-    .auth-card {
+    .authCard {
         background-color: $color-dark-surface-container;
         color: $color-dark-on-surface;
         border-radius: 12px;
@@ -17,9 +17,10 @@
         width: 100%;
         max-width: 450px;
         overflow: hidden;
+        animation: authCardAnimation 0.3s ease-in-out;
     }
 
-    .auth-header {
+    .authHeader {
         margin: 0;
         padding: 16px;
         padding-bottom: 0;
@@ -37,7 +38,7 @@
         }
     }
 
-    .auth-body {
+    .authBody {
         padding: 25px;
         padding-bottom: 16px;
 
@@ -48,3 +49,4 @@
         }
     }
 }
+

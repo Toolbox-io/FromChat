@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/pages/chat/state";
-import "./home.scss";
+import styles from "./home.module.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 import { MaterialButton, MaterialIcon } from "@/utils/material";
 
@@ -39,15 +39,15 @@ export default function HomePage() {
     );
 
     return (
-        <div className="homepage">
-            <header className="homepage-header">
-                <div className="container">
-                    <div className="header-content">
-                        <div className="logo">
+        <div className={styles.homepage}>
+            <header className={styles.homepageHeader}>
+                <div className={styles.container}>
+                    <div className={styles.headerContent}>
+                        <div className={styles.logo}>
                             <h1>FromChat</h1>
-                            <span className="tagline">100% открытый мессенджер</span>
+                            <span className={styles.tagline}>100% открытый мессенджер</span>
                         </div>
-                        <nav className="header-nav">
+                        <nav className={styles.headerNav}>
                             <GitHubLink>
                                 <MaterialButton variant="text">GitHub</MaterialButton>
                             </GitHubLink>
@@ -61,18 +61,18 @@ export default function HomePage() {
                 </div>
             </header>
 
-            <main className="homepage-main">
-                <section className="hero">
-                    <div className="container">
-                        <div className="hero-content">
-                            <h2 className="hero-title">
+            <main>
+                <section className={styles.hero}>
+                    <div className={styles.container}>
+                        <div className={styles.heroContent}>
+                            <h2 className={styles.heroTitle}>
                                 Безопасный мессенджер с открытым исходным кодом
                             </h2>
-                            <p className="hero-description">
+                            <p className={styles.heroDescription}>
                                 FromChat — это полностью открытый мессенджер с end-to-end шифрованием,
                                 поддержкой файлов и уведомлений. Создан для тех, кто ценит приватность и свободу.
                             </p>
-                            <div className="hero-actions">
+                            <div className={styles.heroActions}>
                                 {openBtn}
                                 {!isMobile && (
                                     <MaterialButton
@@ -83,32 +83,32 @@ export default function HomePage() {
                                 )}
                             </div>
                         </div>
-                        <div className="hero-visual">
-                            <div className="chat-preview">
-                                <div className="chat-window">
-                                    <div className="chat-header">
-                                        <div className="chat-title">Общий чат</div>
-                                        <div className="online-indicator">●</div>
+                        <div className={styles.heroVisual}>
+                            <div className={styles.chatPreview}>
+                                <div className={styles.chatWindow}>
+                                    <div className={styles.chatHeader}>
+                                        <div className={styles.chatTitle}>Общий чат</div>
+                                        <div className={styles.onlineIndicator}>●</div>
                                     </div>
-                                    <div className="chat-messages">
-                                        <div className="message received">
-                                            <div className="message-avatar">А</div>
-                                            <div className="message-content">
-                                                <div className="message-text">Привет! Как дела?</div>
-                                                <div className="message-time">14:30</div>
+                                    <div className={styles.chatMessages}>
+                                        <div className={`${styles.message} ${styles.received}`}>
+                                            <div className={styles.messageAvatar}>А</div>
+                                            <div className={styles.messageContent}>
+                                                <div className={styles.messageText}>Привет! Как дела?</div>
+                                                <div className={styles.messageTime}>14:30</div>
                                             </div>
                                         </div>
-                                        <div className="message sent">
-                                            <div className="message-content">
-                                                <div className="message-text">Всё отлично! А у тебя как?</div>
-                                                <div className="message-time">14:32</div>
+                                        <div className={`${styles.message} ${styles.sent}`}>
+                                            <div className={styles.messageContent}>
+                                                <div className={styles.messageText}>Всё отлично! А у тебя как?</div>
+                                                <div className={styles.messageTime}>14:32</div>
                                             </div>
                                         </div>
-                                        <div className="message received">
-                                            <div className="message-avatar">Б</div>
-                                            <div className="message-content">
-                                                <div className="message-text">Отправляю файл 📎</div>
-                                                <div className="message-time">14:35</div>
+                                        <div className={`${styles.message} ${styles.received}`}>
+                                            <div className={styles.messageAvatar}>Б</div>
+                                            <div className={styles.messageContent}>
+                                                <div className={styles.messageText}>Отправляю файл 📎</div>
+                                                <div className={styles.messageTime}>14:35</div>
                                             </div>
                                         </div>
                                     </div>
@@ -118,12 +118,12 @@ export default function HomePage() {
                     </div>
                 </section>
 
-                <section className="features">
-                    <div className="container">
-                        <h3 className="section-title">Возможности</h3>
-                        <div className="features-grid">
-                            <div className="feature-card">
-                                <div className="feature-icon">
+                <section className={styles.features}>
+                    <div className={styles.container}>
+                        <h3 className={styles.sectionTitle}>Возможности</h3>
+                        <div className={styles.featuresGrid}>
+                            <div className={styles.featureCard}>
+                                <div className={styles.featureIcon}>
                                     <MaterialIcon name="security" />
                                 </div>
                                 <h4>End-to-End Шифрование</h4>
@@ -133,8 +133,8 @@ export default function HomePage() {
                                 </p>
                             </div>
 
-                            <div className="feature-card">
-                                <div className="feature-icon">
+                            <div className={styles.featureCard}>
+                                <div className={styles.featureIcon}>
                                     <MaterialIcon name="code" />
                                 </div>
                                 <h4>100% открытый код</h4>
@@ -144,8 +144,8 @@ export default function HomePage() {
                                 </p>
                             </div>
 
-                            <div className="feature-card">
-                                <div className="feature-icon">
+                            <div className={styles.featureCard}>
+                                <div className={styles.featureIcon}>
                                     <MaterialIcon name="attach_file" />
                                 </div>
                                 <h4>Обмен Файлами</h4>
@@ -155,8 +155,8 @@ export default function HomePage() {
                                 </p>
                             </div>
 
-                            <div className="feature-card">
-                                <div className="feature-icon">
+                            <div className={styles.featureCard}>
+                                <div className={styles.featureIcon}>
                                     <MaterialIcon name="notifications" />
                                 </div>
                                 <h4>Уведомления</h4>
@@ -166,8 +166,8 @@ export default function HomePage() {
                                 </p>
                             </div>
 
-                            <div className="feature-card">
-                                <div className="feature-icon">
+                            <div className={styles.featureCard}>
+                                <div className={styles.featureIcon}>
                                     <MaterialIcon name="edit" />
                                 </div>
                                 <h4>Редактирование</h4>
@@ -177,8 +177,8 @@ export default function HomePage() {
                                 </p>
                             </div>
 
-                            <div className="feature-card">
-                                <div className="feature-icon">
+                            <div className={styles.featureCard}>
+                                <div className={styles.featureIcon}>
                                     <MaterialIcon name="computer" />
                                 </div>
                                 <h4>Кроссплатформенность</h4>
@@ -191,15 +191,15 @@ export default function HomePage() {
                     </div>
                 </section>
 
-                <section className="download">
-                    <div className="container">
-                        <div className="download-content">
+                <section className={styles.download}>
+                    <div className={styles.container}>
+                        <div className={styles.downloadContent}>
                             <h3>Скачайте приложение</h3>
                             <p>
                                 Для лучшего опыта используйте настольное приложение с поддержкой
                                 уведомлений и автономной работы.
                             </p>
-                            <div className="download-buttons">
+                            <div className={styles.downloadButtons}>
                                 {!isMobile ? (
                                     <>
                                         <a
@@ -227,14 +227,14 @@ export default function HomePage() {
                     </div>
                 </section>
 
-                <section className="cta">
-                    <div className="container">
-                        <div className="cta-content">
+                <section className={styles.cta}>
+                    <div className={styles.container}>
+                        <div className={styles.ctaContent}>
                             <h3>Готовы начать общение?</h3>
                             <p>
                                 Присоединяйтесь к FromChat и общайтесь безопасно с друзьями и коллегами.
                             </p>
-                            <div className="cta-actions">
+                            <div className={styles.ctaActions}>
                                 {isMobile ? (
                                     <MaterialButton variant="filled" onClick={() => navigate("/download-app")}>
                                         Скачать приложение
@@ -259,20 +259,20 @@ export default function HomePage() {
                 </section>
             </main>
 
-            <footer className="homepage-footer">
-                <div className="container">
-                    <div className="footer-content">
-                        <div className="footer-section">
+            <footer className={styles.homepageFooter}>
+                <div className={styles.container}>
+                    <div className={styles.footerContent}>
+                        <div className={styles.footerSection}>
                             <h4>Ссылки</h4>
                             <GitHubLink>GitHub</GitHubLink>
                             <SupportLink>Поддержка</SupportLink>
                         </div>
-                        <div className="footer-section">
+                        <div className={styles.footerSection}>
                             <h4>Лицензия</h4>
                             <p>GPL-3.0</p>
                         </div>
                     </div>
-                    <div className="footer-bottom">
+                    <div className={styles.footerBottom}>
                         <p>&copy; 2025 FromChat. Сделано программистом denis0001-dev с ❤️ для свободы общения.</p>
                     </div>
                 </div>

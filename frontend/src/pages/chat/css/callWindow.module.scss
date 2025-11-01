@@ -1,22 +1,23 @@
 @use "../../../css/material" as *;
 @use "sass:color";
 
-.call-window {
-    $transition: cubic-bezier(0.4, 0, 0.2, 1);
-
+.callWindow {
     position: fixed;
     z-index: 1000;
     display: flex;
     flex-direction: column;
     user-select: none;
-
-    // Base transition for all properties
-    transition: all 0.4s $transition;
-
-    // Disable all transitions while dragging for immediate feedback
-    &.dragging {
-        transition: none !important;
-    }
+    
+    // Add transitions for smooth mode switching
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                border 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                border-radius 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
     // Maximized mode (fullscreen)
     &.maximized {
@@ -33,30 +34,19 @@
         border-radius: 0;
         cursor: default;
 
-        &.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        &.hidden {
-            opacity: 0;
-            transform: translateY(-100%); // Slide up when ending in fullscreen
-            pointer-events: none;
-        }
-
-        .call-content {
+        .callContent {
             padding: 32px;
             gap: 24px;
 
-            .video-tiles-grid {
+            .videoTilesGrid {
                 gap: 24px;
                 min-height: 400px;
             }
         }
 
-        .call-header {
-            .window-controls {
-                .window-control-btn {
+        .callHeader {
+            .windowControls {
+                .windowControlBtn {
                     color: $color-dark-on-surface-variant;
 
                     &:hover {
@@ -80,28 +70,16 @@
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
         cursor: grab;
 
-        &.visible {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        &.hidden {
-            opacity: 0 !important;
-            transform: scale(0.7) !important; // Scale down and fade when ending in PiP
-            pointer-events: none;
-            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        }
-
         &.dragging {
             cursor: grabbing;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
         }
 
-        .call-header {
+        .callHeader {
             padding: 12px;
             min-height: auto;
 
-            .call-header-info {
+            .callHeaderInfo {
                 .username {
                     font-size: 14px;
                 }
@@ -111,8 +89,8 @@
                 }
             }
 
-            .window-controls {
-                .window-control-btn {
+            .windowControls {
+                .windowControlBtn {
                     color: $color-dark-primary;
 
                     &:hover {
@@ -123,52 +101,52 @@
             }
         }
 
-        .call-content {
+        .callContent {
             padding: 8px;
             gap: 8px;
 
-            .video-tiles-grid {
+            .videoTilesGrid {
                 gap: 8px;
                 min-height: 120px;
             }
 
-            .video-tile {
-                .tile-label {
+            .videoTile {
+                .tileLabel {
                     font-size: 10px;
                     padding: 2px 6px;
                 }
 
-                .video-placeholder {
-                    .placeholder-avatar {
+                .videoPlaceholder {
+                    .placeholderAvatar {
                         width: 40px;
                         height: 40px;
                     }
 
-                    .placeholder-username {
+                    .placeholderUsername {
                         font-size: 12px;
                     }
                 }
             }
 
-            .screen-share-tile {
-                .screen-share-video {
+            .screenShareTile {
+                .screenShareVideo {
                     object-fit: contain;
                 }
             }
         }
 
-        .call-controls {
+        .callControls {
             padding: 8px;
             gap: 8px;
 
-            mdui-button-icon {
+            :global(mdui-button-icon) {
                 --mdui-comp-icon-button-size: 36px;
             }
         }
     }
 
     // Dynamic gradients based on call state
-    &.gradient-calling {
+    &.gradientCalling {
         border-color: rgba(255, 193, 7, 0.5);
 
         &::before {
@@ -183,12 +161,12 @@
                 rgba(255, 152, 0, 0.12) 50%,
                 rgba(255, 193, 7, 0.12) 100%);
             border-radius: inherit;
-            animation: pulse-gradient 2s ease-in-out infinite;
+            animation: pulseGradient 2s ease-in-out infinite;
             pointer-events: none;
         }
     }
 
-    &.gradient-connecting {
+    &.gradientConnecting {
         border-color: rgba(33, 150, 243, 0.5);
 
         &::before {
@@ -203,12 +181,12 @@
                 rgba(63, 81, 181, 0.12) 50%,
                 rgba(33, 150, 243, 0.12) 100%);
             border-radius: inherit;
-            animation: connecting-gradient 1.5s ease-in-out infinite;
+            animation: connectingGradient 1.5s ease-in-out infinite;
             pointer-events: none;
         }
     }
 
-    &.gradient-active {
+    &.gradientActive {
         border-color: rgba(76, 175, 80, 0.5);
 
         &::before {
@@ -223,17 +201,17 @@
                 rgba(56, 142, 60, 0.12) 50%,
                 rgba(76, 175, 80, 0.12) 100%);
             border-radius: inherit;
-            animation: active-gradient 3s ease-in-out infinite;
+            animation: activeGradient 3s ease-in-out infinite;
             pointer-events: none;
         }
     }
 
-    &.gradient-default {
+    &.gradientDefault {
         border-color: rgba(158, 158, 158, 0.3);
     }
 }
 
-.call-header {
+.callHeader {
     padding: 20px;
     border-bottom: 1px solid $color-dark-outline-variant;
     position: relative;
@@ -243,7 +221,7 @@
     justify-content: space-between;
     flex-shrink: 0;
 
-    .window-controls {
+    .windowControls {
         display: flex;
         gap: 8px;
         position: absolute;
@@ -251,12 +229,12 @@
         top: 50%;
         transform: translateY(-50%);
 
-        .window-control-btn {
+        .windowControlBtn {
             transition: all 0.2s ease;
         }
     }
 
-    .call-header-info {
+    .callHeaderInfo {
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -278,16 +256,16 @@
             font-weight: 500;
         }
 
-        .encryption-emojis {
+        .encryptionEmojis {
             display: flex;
             justify-content: center;
             gap: 10px;
             margin-top: 8px;
 
-            .encryption-emoji {
+            .encryptionEmoji {
                 font-size: 24px;
                 display: inline-block;
-                animation: emoji-pulse 2s ease-in-out infinite;
+                animation: emojiPulse 2s ease-in-out infinite;
 
                 &:nth-child(1) { animation-delay: 0s; }
                 &:nth-child(2) { animation-delay: 0.2s; }
@@ -298,7 +276,7 @@
     }
 }
 
-.call-content {
+.callContent {
     padding: 24px;
     display: flex;
     flex-direction: row;
@@ -308,55 +286,35 @@
     flex: 1;
     overflow: hidden;
 
-    // Reduce padding when screen share is active to maximize space
-    &.with-screen-share {
+    &.withScreenShare {
         padding: 12px;
         gap: 16px;
-    }
 
-    // Default layout (no screen share): tiles in grid
-    .screen-share-area {
-        display: none;
-    }
-
-    .video-tiles-sidebar {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-        flex: 1;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    // Layout with screen share: screen share on left, video tiles on right
-    &.with-screen-share {
-        .screen-share-area {
+        .screenShareArea {
             display: flex;
             align-items: center;
             justify-content: center;
-            flex: 4; // Give 4x more space than sidebar
+            flex: 4;
             min-width: 0;
-            max-width: 80vw; // Limit screen share to 80% of viewport width
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 80vw;
             position: relative;
-            // Ensure no padding/margin that could create blank space
             padding: 0;
             margin: 0;
         }
 
-        .video-tiles-sidebar {
+        .videoTilesSidebar {
             display: flex;
             flex-direction: column;
             grid-template-columns: none;
-            flex: 1; // Give 1x space (4:1 ratio = 80:20)
-            min-width: 250px; // Ensure minimum 300px width
-            max-width: 20%; // Cap at 20% of container
+            flex: 1;
+            min-width: 250px;
+            max-width: 20%;
             flex-shrink: 0;
             gap: 16px;
             overflow-y: auto;
             overflow-x: hidden;
             padding: 5px;
 
-            // Custom scrollbar
             &::-webkit-scrollbar {
                 width: 6px;
             }
@@ -375,13 +333,24 @@
                 }
             }
 
-            .video-tile {
+            .videoTile {
                 min-height: 168px;
             }
         }
     }
 
-    .video-tile {
+    .screenShareArea {
+        display: none;
+    }
+
+    .videoTilesSidebar {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        flex: 1;
+    }
+
+    .videoTile {
         position: relative;
         background: rgba($color-dark-surface-variant, 0.5);
         border-radius: 16px;
@@ -397,13 +366,13 @@
             transform: scale(1.02);
         }
 
-        .video-element {
+        .videoElement {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
 
-        .video-placeholder {
+        .videoPlaceholder {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -413,7 +382,7 @@
             height: 100%;
             background: rgba($color-dark-surface-variant, 0.6);
 
-            .placeholder-avatar {
+            .placeholderAvatar {
                 width: 100px;
                 height: 100px;
                 border-radius: 50%;
@@ -421,14 +390,14 @@
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
             }
 
-            .placeholder-username {
+            .placeholderUsername {
                 font-size: 18px;
                 font-weight: 600;
                 color: $color-dark-on-surface;
             }
         }
 
-        .tile-label {
+        .tileLabel {
             position: absolute;
             bottom: 12px;
             left: 12px;
@@ -442,26 +411,24 @@
             -webkit-backdrop-filter: blur(10px);
         }
 
-        &.local-video {
-            .video-element {
-                transform: scaleX(-1); // Mirror local video
+        &.localVideo {
+            .videoElement {
+                transform: scaleX(-1);
             }
         }
     }
 
-    .screen-share-tile {
+    .screenShareTile {
         position: relative;
         border: 2px solid rgba($color-dark-primary, 0.6);
         border-radius: 12px;
         overflow: hidden;
         background: rgba(0, 0, 0, 0.95);
         display: inline-block;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        // Constrain to available space but size to content
         max-width: 100%;
         max-height: 100%;
 
-        .screen-share-video {
+        .screenShareVideo {
             width: auto;
             height: auto;
             max-width: 100%;
@@ -470,7 +437,7 @@
             object-fit: contain;
         }
 
-        .tile-label {
+        .tileLabel {
             position: absolute;
             bottom: 12px;
             left: 50%;
@@ -486,9 +453,21 @@
             z-index: 1;
         }
     }
+
+    .localScreenShare {
+        display: flex;
+    }
+
+    .remoteScreenShare {
+        display: flex;
+    }
+
+    .remoteVideo {
+        display: block;
+    }
 }
 
-.call-controls {
+.callControls {
     padding: 20px;
     display: flex;
     justify-content: center;
@@ -498,7 +477,7 @@
     z-index: 1;
     flex-shrink: 0;
 
-    mdui-button-icon {
+    :global(mdui-button-icon) {
         transition: all 0.2s ease;
 
         &[icon="call_end"] {
@@ -525,7 +504,7 @@
     }
 }
 
-.remote-audio {
+.remoteAudio {
     position: fixed;
     bottom: 0px;
     right: 0px;
@@ -536,7 +515,7 @@
 }
 
 // Animations
-@keyframes pulse-gradient {
+@keyframes pulseGradient {
     0%, 100% {
         opacity: 0.4;
     }
@@ -545,7 +524,7 @@
     }
 }
 
-@keyframes connecting-gradient {
+@keyframes connectingGradient {
     0%, 100% {
         opacity: 0.3;
     }
@@ -554,7 +533,7 @@
     }
 }
 
-@keyframes active-gradient {
+@keyframes activeGradient {
     0%, 100% {
         opacity: 0.2;
     }
@@ -563,7 +542,7 @@
     }
 }
 
-@keyframes emoji-pulse {
+@keyframes emojiPulse {
     0%, 100% {
         transform: scale(1);
         opacity: 0.8;
@@ -573,3 +552,4 @@
         opacity: 1;
     }
 }
+

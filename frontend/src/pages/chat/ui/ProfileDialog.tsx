@@ -13,6 +13,7 @@ import { OnlineStatus } from "./right/OnlineStatus";
 import { Input } from "@/core/components/Input";
 import { StyledDialog } from "@/core/components/StyledDialog";
 import { MaterialButton, MaterialFab, MaterialIcon } from "@/utils/material";
+import styles from "@/pages/chat/css/profile-dialog.module.scss";
 
 interface SectionProps {
     type: string;
@@ -36,14 +37,14 @@ function Section({ type, icon, label, error, value, onChange, readOnly, placehol
                     text={value || ""}
                     onTextChange={onChange}
                     placeholder={placeholder}
-                    className="value"
+                    className={styles.value}
                     rows={1}
                     readOnly={readOnly} />
             );
         } else {
             valueComponent = (
                 <input
-                    className="value"
+                    className={styles.value}
                     type="text"
                     value={value}
                     onChange={e => onChange(e.target.value)}
@@ -51,17 +52,17 @@ function Section({ type, icon, label, error, value, onChange, readOnly, placehol
             );
         }
     } else {
-        valueComponent = <span className="value">{value}</span>
+        valueComponent = <span className={styles.value}>{value}</span>
     }
 
     return (
-        <div className={`section ${type} ${error ? 'error' : ''}`}>
+        <div className={`${styles.section} ${type} ${error ? styles.error : ''}`}>
             <MaterialIcon name={icon} />
-            <div className="content-container">
-                <label className="label">{label}</label>
+            <div className={styles.contentContainer}>
+                <label className={styles.label}>{label}</label>
                 {valueComponent}
                 {error && (
-                    <div className="error-message">{error}</div>
+                    <div className={styles.errorMessage}>{error}</div>
                 )}
             </div>
         </div>
@@ -440,20 +441,20 @@ export function ProfileDialog() {
                 }
             }}
             onBackdropClick={handleClose}
-            className="profile-dialog"
+            contentClassName={styles.profileDialogContent}
             afterChildren={
                 currentData.isOwnProfile && (
                     <MaterialFab
                         icon="check"
-                        className={`profile-dialog-fab ${fabVisible ? "visible" : ""}`}
+                        className={`${styles.profileDialogFab} ${fabVisible ? styles.visible : ""}`}
                         onClick={handleSave}
                         disabled={isSaving} />
                 )
             }
         >
-            <div className="profile-picture-section">
+            <div className={styles.profilePictureSection}>
                 <img
-                    className="profile-picture"
+                    className={styles.profilePicture}
                     src={currentData.profilePicture || defaultAvatar}
                     alt="Profile Picture"
                     onError={(e) => {
@@ -463,7 +464,7 @@ export function ProfileDialog() {
                 
                 {currentData.isOwnProfile && (
                     <div
-                        className="profile-picture-edit-overlay"
+                        className={styles.profilePictureEditOverlay}
                         onClick={handleProfilePictureClick}
                     >
                         <MaterialIcon name="camera_alt--filled" />
@@ -471,11 +472,11 @@ export function ProfileDialog() {
                 )}
             </div>
 
-            <div className={`username-section ${errors.display_name ? 'error' : ''}`}>
-                <div className="username-with-badge">
+            <div className={`${styles.usernameSection} ${errors.display_name ? styles.error : ''}`}>
+                <div className={styles.usernameWithBadge}>
                     <Input
                         autoresizing={true}
-                        className="username-input"
+                        className={styles.usernameInput}
                         type="text"
                         value={currentData.display_name}
                         onChange={handleDisplayNameChange}
@@ -488,21 +489,21 @@ export function ProfileDialog() {
                         size="large" />
                 </div>
                 {errors.display_name && (
-                    <div className="error-message">{errors.display_name}</div>
+                    <div className={styles.errorMessage}>{errors.display_name}</div>
                 )}
             </div>
 
             {(currentData?.userId || currentData?.isOwnProfile) && !currentData.deleted && (
-                <div className="online-status-section">
+                <div className={styles.onlineStatusSection}>
                     <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
                 </div>
             )}
 
             {/* Admin Actions Section - Hide for deleted users */}
             {!currentData.isOwnProfile && user.currentUser?.id === 1 && !currentData.deleted && (
-                <div className="admin-actions-section">
-                    <h3 className="admin-actions-header">Admin Actions</h3>
-                    <div className="admin-buttons">
+                <div className={styles.adminActionsSection}>
+                    <h3 className={styles.adminActionsHeader}>Admin Actions</h3>
+                    <div className={styles.adminButtons}>
                         <MaterialButton 
                             variant="filled" 
                             color="error"
@@ -532,7 +533,7 @@ export function ProfileDialog() {
 
             {/* Verify button for non-admin owner */}
             {!currentData.isOwnProfile && currentData.userId && user.currentUser?.id !== 1 && (
-                <div className="verify-section">
+                <div className={styles.verifySection}>
                     <VerifyButton 
                         userId={currentData.userId}
                         verified={currentData.verified || false}
@@ -545,7 +546,7 @@ export function ProfileDialog() {
 
             {/* Hide profile sections for deleted users */}
             {!currentData.deleted && (
-                <div className="profile-sections">
+                <div className={styles.profileSections}>
                     <Section
                         type="username"
                         error={errors.username}

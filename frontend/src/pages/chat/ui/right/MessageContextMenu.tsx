@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { Message, Size2D } from "@/core/types";
 import { EmojiMenu } from "./EmojiMenu";
 import { useAppState } from "@/pages/chat/state";
+import styles from "@/pages/chat/css/MessageContextMenu.module.scss";
 
 interface MessageContextMenuProps {
     message: Message;
@@ -39,9 +40,8 @@ export function MessageContextMenu({
     const [isClosing, setIsClosing] = useState(false);
     const [reactionBarPosition, setReactionBarPosition] = useState<Size2D>({ x: 0, y: 0 });
     const [contextMenuPosition, setContextMenuPosition] = useState<Size2D>(position);
-    const [animationClass, setAnimationClass] = useState('entering');
-    const [reactionBarAnimationClass, setReactionBarAnimationClass] = useState('entering');
-    const [reactionBarSide, setReactionBarSide] = useState<'left' | 'right'>('left');
+    const [animationClass, setAnimationClass] = useState<keyof typeof styles>(styles.entering);
+    const [reactionBarAnimationClass, setReactionBarAnimationClass] = useState<keyof typeof styles>(styles.entering);
     const [isEmojiMenuExpanded, setIsEmojiMenuExpanded] = useState(false);
     const [initialDimensions, setInitialDimensions] = useState<{ width: number; height: number } | null>(null);
     const [expandUpward, setExpandUpward] = useState(false);
@@ -74,8 +74,7 @@ export function MessageContextMenu({
                     let menuY = position.y;
                     let reactionX = position.x;
                     let reactionY = position.y - reactionBarRect.height - 10; // Position above menu
-                    let animation = 'entering';
-                    let reactionSide: 'left' | 'right' = 'left';
+                    let animation: keyof typeof styles = styles.entering;
                     let reactionPositionedRight = false;
 
                     // Check if reaction bar would overflow at the top
@@ -83,19 +82,16 @@ export function MessageContextMenu({
                         // Position reaction bar to the right side of the context menu instead
                         reactionX = menuX + contextMenuRect.width + 10;
                         reactionY = menuY; // Align with menu top
-                        reactionSide = 'right';
                         reactionPositionedRight = true;
-                        animation = 'entering-right'; // Use right-side animation
+                        animation = styles.enteringRight; // Use right-side animation
                     } else {
                         // Try positioning above menu first
-                        reactionSide = 'left';
                         
                         // Check if shared rect would overflow horizontally
                         if (menuX + sharedRect.width > viewportWidth) {
                             menuX = position.x - contextMenuRect.width;
                             reactionX = menuX;
-                            animation = 'entering-left';
-                            reactionSide = 'right';
+                            animation = styles.enteringLeft;
                         }
                     }
 
@@ -111,14 +107,13 @@ export function MessageContextMenu({
                     if (reactionPositionedRight && reactionX + reactionBarRect.width > viewportWidth) {
                         // Position to the left side instead
                         reactionX = menuX - reactionBarRect.width - 10;
-                        reactionSide = 'left';
                     }
 
                     // Check if shared rect would overflow bottom edge (only if reaction bar is above)
                     if (!reactionPositionedRight && menuY + sharedRect.height > viewportHeight) {
                         menuY = viewportHeight - sharedRect.height;
                         reactionY = menuY - reactionBarRect.height - 10;
-                        animation = 'entering-up';
+                        animation = styles.enteringUp;
                     }
 
                     // Ensure menu doesn't go off the right edge
@@ -133,7 +128,6 @@ export function MessageContextMenu({
                     setReactionBarPosition({ x: reactionX, y: reactionY });
                     setAnimationClass(animation);
                     setReactionBarAnimationClass(animation);
-                    setReactionBarSide(reactionSide);
                 }
             });
 
@@ -147,7 +141,9 @@ export function MessageContextMenu({
             if (isOpen && !isClosing) {
                 // Check if the click is on a context menu element or reaction bar
                 const target = event.target as Element;
-                if (!target.closest('.context-menu') && !target.closest('.context-menu-reaction-bar')) {
+                // Use refs instead of class selectors for CSS modules
+                if ((!contextMenuRef.current || !contextMenuRef.current.contains(target)) && 
+                    (!reactionBarRef.current || !reactionBarRef.current.contains(target))) {
                     handleClose();
                 }
             }
@@ -181,17 +177,15 @@ export function MessageContextMenu({
 
     function handleClose() {
         setIsClosing(true);
-        // Set appropriate closing animation based on opening animation
-        const closingAnimation = animationClass.replace('entering', 'closing');
-        setAnimationClass(closingAnimation);
-        setReactionBarAnimationClass(closingAnimation);
+        setAnimationClass(styles.closing);
+        setReactionBarAnimationClass(styles.closing);
 
         // Wait for animation to complete before calling onOpenChange
         setTimeout(() => {
             onOpenChange(false);
             setIsClosing(false);
-            setAnimationClass('entering'); // Reset for next opening
-            setReactionBarAnimationClass('entering'); // Reset for next opening
+            setAnimationClass(styles.entering); // Reset for next opening
+            setReactionBarAnimationClass(styles.entering); // Reset for next opening
             // Reset emoji menu state after context menu animation completes
             setIsEmojiMenuExpanded(false);
             setInitialDimensions(null);
@@ -307,7 +301,7 @@ export function MessageContextMenu({
             {/* Reaction Bar */}
             <div
                 ref={reactionBarRef}
-                className={`context-menu-reaction-bar ${reactionBarSide} ${reactionBarAnimationClass} ${isEmojiMenuExpanded ? "expanded" : ""} ${expandUpward ? "expand-upward" : ""}`}
+                className={`${styles.contextMenuReactionBar} ${reactionBarAnimationClass} ${isEmojiMenuExpanded ? styles.expanded : ""} ${expandUpward ? styles.expandUpward : ""}`}
                 style={{
                     position: 'fixed',
                     ...(isEmojiMenuExpanded && expandUpward
@@ -326,11 +320,11 @@ export function MessageContextMenu({
                 }}
                 onClick={(e) => e.stopPropagation()}>
                 {!isEmojiMenuExpanded ? (
-                    <div className="reaction-bar-content">
+                    <div className={styles.reactionBarContent}>
                         {QUICK_REACTIONS.map((emoji, index) => (
                             <button
                                 key={index}
-                                className="reaction-emoji-button"
+                                className={styles.reactionEmojiButton}
                                 onClick={async () => await handleReactionClick(emoji)}
                                 title={emoji}
                             >
@@ -338,7 +332,7 @@ export function MessageContextMenu({
                             </button>
                         ))}
                         <button
-                            className="reaction-expand-button"
+                            className={styles.reactionExpandButton}
                             onClick={handleExpandClick}
                             title="More emojis"
                         >
@@ -348,7 +342,7 @@ export function MessageContextMenu({
                 ) : (
                     <div
                         ref={emojiMenuRef}
-                        className="emoji-menu-wrapper">
+                        className={styles.emojiMenuWrapper}>
                         <EmojiMenu
                             isOpen={true}
                             onClose={handleClose}
@@ -362,7 +356,7 @@ export function MessageContextMenu({
             {/* Context Menu */}
             <div
                 ref={contextMenuRef}
-                className={`context-menu ${animationClass} ${isEmojiMenuExpanded ? "faded" : ""}`}
+                className={`${styles.contextMenu} ${animationClass} ${isEmojiMenuExpanded ? styles.faded : ""}`}
                 style={{
                     position: 'fixed',
                     top: `${contextMenuPosition.y}px`,
@@ -373,7 +367,7 @@ export function MessageContextMenu({
                 {actions.map((action, i) => (
                     action.show && (
                         <div
-                            className="context-menu-item"
+                            className={styles.contextMenuItem}
                             onClick={action.onClick}
                             key={i}>
                             <span className="material-symbols">{action.icon}</span>

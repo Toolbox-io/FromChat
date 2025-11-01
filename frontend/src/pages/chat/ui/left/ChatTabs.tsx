@@ -1,12 +1,13 @@
 import { useAppState, type ChatTabs } from "@/pages/chat/state";
 import { UnifiedChatsList } from "./UnifiedChatsList";
 import { MaterialTab, MaterialTabPanel, MaterialTabs } from "@/utils/material";
+import styles from "@/pages/chat/css/left-panel.module.scss";
 
 export function ChatTabs() {
     const { chat, setActiveTab } = useAppState();
 
     return (
-        <div className="chat-tabs">
+        <div className={styles.chatTabs}>
             <MaterialTabs
                 value={chat.activeTab}
                 full-width

@@ -6,7 +6,7 @@
 $dialog-padding: 30px;
 
 // Base Styled Dialog Styles
-.styled-dialog-backdrop {
+.styledDialogBackdrop {
     position: fixed;
     top: 0;
     left: 0;
@@ -21,10 +21,10 @@ $dialog-padding: 30px;
     padding: $dialog-padding;
     box-sizing: border-box;
 
-    .styled-dialog {
+    .styledDialog {
         width: 100%;
         max-width: 500px;
-        max-height: calc(100vh - $dialog-padding * 2);
+        max-height: calc(100vh - #{$dialog-padding} * 2);
         background: rgba($color-dark-surface-container, 0.75);
         border: 1px solid rgba($color-dark-outline-variant, 0.3);
         border-radius: 16px;
@@ -35,8 +35,8 @@ $dialog-padding: 30px;
         display: flex;
         flex-direction: column;
         position: relative;
-    
-        .styled-dialog-content {
+
+        .styledDialogContent {
             flex: 1;
             overflow-y: auto;
             display: flex;

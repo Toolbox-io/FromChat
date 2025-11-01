@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import "./css/searchBar.scss";
+import styles from "./css/searchBar.module.scss";
 import { MaterialIcon } from "@/utils/material";
 
 interface SearchBarProps {
@@ -69,47 +69,47 @@ export default function SearchBar({
     return (
         <div
             ref={parentContainerRef}
-            className="search-parent"
+            className={styles.searchParent}
         >
             <div
                 ref={searchContainerRef}
-                className={`search-bar-container ${isExpanded ? "expanded" : "collapsed"}`}
+                className={`${styles.searchBarContainer} ${isExpanded ? styles.expanded : styles.collapsed}`}
                 style={{ height: dynamicHeight }}
                 onClick={!isExpanded ? handleToggle : undefined}
             >
                 {/* Single Search Bar Element */}
-                <div className="search-bar">
+                <div className={styles.searchBar}>
                     {/* Left Icon */}
-                    <div className="search-icon">
+                    <div className={styles.searchIcon}>
                         {renderIcon(leftIcon, "search--outlined")}
                     </div>
 
                     {/* Input/Placeholder */}
-                    <div className="search-input-container">
+                    <div className={styles.searchInputContainer}>
                         {isExpanded ? (
                             <input
                                 ref={inputRef}
                                 type="text"
                                 placeholder={placeholder}
-                                className="search-input"
+                                className={styles.searchInput}
                                 value={searchQuery}
                                 onChange={handleQueryChange}
                                 onClick={(e) => e.stopPropagation()}
                             />
                         ) : (
-                            <span className="search-placeholder">{placeholder}</span>
+                            <span className={styles.searchPlaceholder}>{placeholder}</span>
                         )}
                     </div>
 
                     {/* Right Icon */}
-                    <div className="search-clear">
+                    <div className={styles.searchClear}>
                         {renderIcon(rightIcon)}
                     </div>
                 </div>
 
                 {/* Results Section - Only visible when expanded */}
                 {isExpanded && (
-                    <div className="search-results">
+                    <div className={styles.searchResults}>
                         {children}
                     </div>
                 )}

@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence, type Transition } from "motion/react";
+import styles from "./css/styled-dialog.module.scss";
 
 interface StyledDialogProps {
     open: boolean;
@@ -8,6 +9,7 @@ interface StyledDialogProps {
     children: ReactNode;
     onBackdropClick?: () => void;
     className?: string;
+    contentClassName?: string;
     afterChildren?: ReactNode;
 }
 
@@ -17,6 +19,7 @@ export function StyledDialog({
     children, 
     onBackdropClick,
     className = "",
+    contentClassName = "",
     afterChildren
 }: StyledDialogProps) {
     const transition: Transition = { duration: 0.3, type: "tween", ease: "easeInOut" };
@@ -39,7 +42,7 @@ export function StyledDialog({
         <AnimatePresence>
             {open && (
                 <motion.div
-                    className={`styled-dialog-backdrop ${className}`}
+                    className={styles.styledDialogBackdrop}
                     onClick={(e) => {
                         if (e.target === e.currentTarget) {
                             if (onBackdropClick) {
@@ -54,12 +57,12 @@ export function StyledDialog({
                     exit={{ opacity: 0 }}
                     transition={transition}>
                     <motion.div
-                        className={`styled-dialog ${className}`}
+                        className={`${styles.styledDialog} ${className}`}
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.9, opacity: 0 }}
                         transition={transition}>
-                        <div className="styled-dialog-content">
+                        <div className={`${styles.styledDialogContent} ${contentClassName}`}>
                             {children}
                         </div>
                         {afterChildren}

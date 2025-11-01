@@ -1,12 +1,12 @@
 import { LeftPanel } from "./left/LeftPanel";
 import { RightPanel } from "./right/RightPanel";
-import "@/pages/chat/css/chat.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 import { CallWindow } from "./right/calls/CallWindow";
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppState } from "@/pages/chat/state";
 import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
+import styles from "@/pages/chat/css/layout.module.scss";
 
 export default function ChatPage() {
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();
@@ -69,8 +69,8 @@ export default function ChatPage() {
     if (navigateDownloadApp) return navigateDownloadApp;
 
     return (
-        <div id="chat-interface">
-            <div className="all-container">
+        <div className={styles.chatInterface}>
+            <div className={styles.allContainer}>
                 <LeftPanel />
                 <RightPanel />
             </div>

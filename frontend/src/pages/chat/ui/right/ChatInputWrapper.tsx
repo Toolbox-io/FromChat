@@ -7,6 +7,7 @@ import Quote from "@/core/components/Quote";
 import { useImmer } from "use-immer";
 import { EmojiMenu } from "./EmojiMenu";
 import { MaterialButton, MaterialIcon, MaterialIconButton } from "@/utils/material";
+import styles from "@/pages/chat/css/ChatInput.module.scss";
 
 interface ChatInputWrapperProps {
     onSendMessage: (message: string, files: File[]) => void;
@@ -144,8 +145,8 @@ export function ChatInputWrapper(
     }
 
     return (
-        <div className="chat-input-wrapper" ref={chatInputWrapperRef}>
-            <form className="input-group" id="message-form" onSubmit={handleSubmit}>
+        <div className={styles.chatInputWrapper} ref={chatInputWrapperRef}>
+            <form className={styles.inputGroup} id="message-form" onSubmit={handleSubmit}>
                 <AnimatePresence onExitComplete={onCloseEdit}>
                     {editVisible && editingMessage && (
                         <motion.div
@@ -155,13 +156,13 @@ export function ChatInputWrapper(
                             transition={{ duration: 0.25 }}
                             style={{ overflow: "hidden" }}
                         >
-                            <div className="reply-preview contextual-preview">
+                            <div className={styles.contextualPreview}>
                                 <MaterialIcon name="edit" />
-                                <Quote className="reply-content contextual-content" background="surfaceContainer">
-                                    <span className="reply-username">{editingMessage!.username}</span>
-                                    <span className="reply-text">{editingMessage!.content}</span>
+                                <Quote className={`${styles.quote} ${styles.contextualContent}`} background="surfaceContainer">
+                                    <span className={styles.replyUsername}>{editingMessage!.username}</span>
+                                    <span className={styles.replyText}>{editingMessage!.content}</span>
                                 </Quote>
-                                <MaterialIconButton icon="close" className="reply-cancel" onClick={onClearEdit}></MaterialIconButton>
+                                <MaterialIconButton icon="close" className={styles.replyCancel} onClick={onClearEdit}></MaterialIconButton>
                             </div>
                         </motion.div>
                     )}
@@ -175,13 +176,13 @@ export function ChatInputWrapper(
                             transition={{ duration: 0.25 }}
                             style={{ overflow: "hidden" }}
                         >
-                            <div className="reply-preview contextual-preview">
+                            <div className={styles.contextualPreview}>
                                 <MaterialIcon name="reply" />
-                                <Quote className="reply-content contextual-content" background="surfaceContainer">
-                                    <span className="reply-username">{replyTo!.username}</span>
-                                    <span className="reply-text">{replyTo!.content}</span>
+                                <Quote className={`${styles.quote} ${styles.contextualContent}`} background="surfaceContainer">
+                                    <span className={styles.replyUsername}>{replyTo!.username}</span>
+                                    <span className={styles.replyText}>{replyTo!.content}</span>
                                 </Quote>
-                                <MaterialIconButton icon="close" className="reply-cancel" onClick={onClearReply}></MaterialIconButton>
+                                <MaterialIconButton icon="close" className={styles.replyCancel} onClick={onClearReply}></MaterialIconButton>
                             </div>
                         </motion.div>
                     )}
@@ -195,9 +196,9 @@ export function ChatInputWrapper(
                             transition={{ duration: 0.25 }}
                             style={{ overflow: "hidden" }}
                         >
-                            <div className="attachments-preview contextual-preview">
+                            <div className={`${styles.attachmentsPreview} ${styles.contextualPreview}`}>
                                 <MaterialIcon name="attach_file" />
-                                <div className="attachments-chips">
+                                <div className={styles.attachmentsChips}>
                                     {selectedFiles.map((file, i) => (
                                         <mdui-chip
                                             key={i}
@@ -217,22 +218,22 @@ export function ChatInputWrapper(
                                         </mdui-chip>
                                     ))}
                                 </div>
-                                <MaterialIconButton icon="close" className="reply-cancel" onClick={() => setAttachmentsVisible(false)}></MaterialIconButton>
+                                <MaterialIconButton icon="close" className={styles.replyCancel} onClick={() => setAttachmentsVisible(false)}></MaterialIconButton>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
-                <div className="chat-input">
-                    <div className="left-buttons">
+                <div className={styles.chatInput}>
+                    <div className={styles.leftButtons}>
                         <MaterialIconButton
                             icon="mood"
                             onClick={handleEmojiButtonClick}
                             onMouseDown={e => e.stopPropagation()}
                             onMouseUp={e => e.stopPropagation()}
-                            className="emoji-btn" />
+                            className={styles.emojiBtn} />
                     </div>
                     <RichTextArea
-                        className="message-input"
+                        className={styles.messageInput}
                         id="message-input"
                         placeholder="Напишите сообщение..."
                         autoComplete="off"
@@ -240,9 +241,9 @@ export function ChatInputWrapper(
                         rows={1}
                         onTextChange={handleMessageChange}
                         onEnter={handleSubmit} />
-                    <div className="buttons">
-                        <MaterialIconButton icon="attach_file" onClick={handleAttachClick} className="attach-btn"></MaterialIconButton>
-                        <button type="submit" className="send-btn">
+                    <div className={styles.buttons}>
+                        <MaterialIconButton icon="attach_file" onClick={handleAttachClick}></MaterialIconButton>
+                        <button type="submit" className={styles.sendBtn}>
                             <span className="material-symbols filled">{editingMessage ? "check" : "send"}</span>
                         </button>
                     </div>

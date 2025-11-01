@@ -2,7 +2,6 @@
 @use "components";
 @use "colors" as *;
 @use "material" as *;
-@use "../core/components/css/styled-dialog";
 
 @use "fonts/montserrat";
 @use "fonts/material-symbols";
@@ -17,7 +16,6 @@ body {
     background-color: $color-dark-surface;
     color: $color-dark-on-surface;
     line-height: 1.6;
-    overflow: hidden;
 
     #main-wrapper {
         flex: 1;

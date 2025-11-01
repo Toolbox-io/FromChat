@@ -2,11 +2,11 @@ import { Message } from "./Message";
 import { useAppState } from "@/pages/chat/state";
 import type { Message as MessageType } from "@/core/types";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
-import { useEffect, useState, type ReactNode } from "react";
-import { MaterialDialog } from "@/core/components/Dialog";
+import { useState, type ReactNode } from "react";
 import { request } from "@/core/websocket";
 import type { AddReactionRequest, AddDmReactionRequest } from "@/core/types";
-import { MaterialButton } from "@/utils/material";
+import { confirm } from "mdui/functions/confirm";
+import styles from "@/pages/chat/css/right-panel.module.scss";
 
 interface ChatMessagesProps {
     messages?: MessageType[];
@@ -22,26 +22,12 @@ interface ChatMessagesProps {
 export function ChatMessages({ messages = [], children, isDm = false, onReplySelect, onEditSelect, onDelete, onRetryMessage, dmRecipientPublicKey }: ChatMessagesProps) {
     const { user } = useAppState();
 
-    // Use prop messages (panels provide their own messages)
-
     // Context menu state
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({
         isOpen: false,
         message: null,
         position: { x: 0, y: 0 }
     });
-
-    // Delete dialog
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [toBeDeleted, setToBeDeleted] = useState<{ id: number; isDm: boolean } | null>(null);
-
-
-    useEffect(() => {
-        if (!deleteDialogOpen) {
-            setToBeDeleted(null);
-        }
-    }, [deleteDialogOpen]);
-
 
     function handleContextMenu(e: React.MouseEvent, message: MessageType) {
         e.preventDefault();
@@ -67,19 +53,17 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
         if (onReplySelect) onReplySelect(message);
     };
 
-    async function confirmDelete() {
-        if (!toBeDeleted || !user.authToken) return;
-        try {
-            onDelete?.(toBeDeleted.id);
-        } catch (error) {
-            console.error("Failed to delete message:", error);
-        }
-        setDeleteDialogOpen(false);
-    }
-
     async function handleDelete(message: MessageType) {
-        setToBeDeleted({ id: message.id, isDm });
-        setDeleteDialogOpen(true);
+        try {
+            await confirm({
+                headline: "Удалить сообщение?",
+                confirmText: "Удалить",
+                cancelText: "Отменить",
+                onConfirm: () => onDelete?.(message.id)
+            });
+        } catch (error) {
+            // User cancelled
+        }
     }
 
     function handleRetry(message: MessageType) {
@@ -127,7 +111,7 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
 
     return (
         <>
-            <div className="chat-messages" id="chat-messages">
+            <div className={styles.chatMessages} id="chat-messages">
                 {messages.map((message: MessageType) => (
                     <Message
                         key={message.id}
@@ -143,14 +127,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                 ))}
                 {children}
             </div>
-
-            <MaterialDialog
-                headline="Удалить сообщение?"
-                open={deleteDialogOpen}
-                onOpenChange={setDeleteDialogOpen}>
-                <MaterialButton slot="action" variant="tonal" onClick={() => setDeleteDialogOpen(false)}>Отменить</MaterialButton>
-                <MaterialButton slot="action" variant="filled" onClick={confirmDelete}>Удалить</MaterialButton>
-            </MaterialDialog>
 
             {/* Context Menu */}
             {contextMenu.message && (
@@ -170,8 +146,6 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                     onOpenChange={handleContextMenuOpenChange}
                 />
             )}
-
-
         </>
     );
 }

@@ -10,7 +10,7 @@ import { useAppState } from "@/pages/chat/state";
 import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { useNavigate } from "react-router-dom";
-import "./auth.scss";
+import styles from "./auth.module.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 import { MaterialButton, MaterialTextField } from "@/utils/material";
 
@@ -31,7 +31,7 @@ export default function LoginPage() {
     return (
         <AuthContainer>
             <AuthHeader icon="login" title="Добро пожаловать!" subtitle="Войдите в свой аккаунт" />
-            <div className="auth-body">
+            <div className={styles.authBody}>
                 <AlertsContainer alerts={alerts} />
 
                 <form
@@ -117,7 +117,6 @@ export default function LoginPage() {
                     
                     <MaterialTextField
                         label="@Имя пользователя"
-                        id="login-username"
                         name="username"
                         variant="outlined"
                         icon="person--filled"
@@ -127,7 +126,6 @@ export default function LoginPage() {
 
                     <MaterialTextField
                         label="Пароль"
-                        id="login-password"
                         name="password"
                         variant="outlined"
                         type="password"

@@ -3,17 +3,19 @@
 $font-size: 16px;
 
 // Search container
-.search-parent {
+.searchParent {
     position: relative;
     height: 100%;
     width: 100%;
 }
 
 // SearchBar component styles
-.search-bar-container {
+.searchBarContainer {
     position: absolute;
     z-index: 1001;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 
     // All properties animate together simultaneously
     transition:
@@ -47,7 +49,7 @@ $font-size: 16px;
     }
 
     // Single search bar element
-    .search-bar {
+    .searchBar {
         display: flex;
         align-items: center;
         padding: 0 16px;
@@ -55,7 +57,7 @@ $font-size: 16px;
         gap: 12px;
         cursor: pointer;
 
-        .search-icon {
+        .searchIcon {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -69,18 +71,18 @@ $font-size: 16px;
             }
         }
 
-        .search-input-container {
+        .searchInputContainer {
             flex: 1;
             display: flex;
             align-items: center;
 
-            .search-placeholder {
+            .searchPlaceholder {
                 color: $color-dark-on-surface-variant;
                 font-size: $font-size;
                 pointer-events: none;
             }
 
-            .search-input {
+            .searchInput {
                 flex: 1;
                 border: none;
                 outline: none;
@@ -96,7 +98,7 @@ $font-size: 16px;
             }
         }
 
-        .search-clear {
+        .searchClear {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -112,43 +114,9 @@ $font-size: 16px;
     }
 
     // Results section
-    .search-results {
+    .searchResults {
         flex: 1;
         overflow-y: auto;
-
-        .search-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            padding: 32px;
-            color: $color-dark-on-surface-variant;
-
-            mdui-circular-progress {
-                --mdui-circular-progress-color: $color-dark-primary;
-            }
-        }
-
-        .search-empty,
-        .search-hint {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 32px;
-            color: $color-dark-on-surface-variant;
-            text-align: center;
-        }
-
-        // Custom styling for search result images
-        mdui-list-item {
-            img[slot="icon"] {
-                $size: 48px;
-
-                width: $size;
-                height: $size;
-                border-radius: 50%;
-                object-fit: cover;
-            }
-        }
     }
 }
+

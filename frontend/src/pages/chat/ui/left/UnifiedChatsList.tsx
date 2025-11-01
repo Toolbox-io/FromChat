@@ -11,6 +11,7 @@ import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineIndicator } from "@/pages/chat/ui/right/OnlineIndicator";
 import defaultAvatar from "@/images/default-avatar.png";
 import { MaterialBadge, MaterialCircularProgress, MaterialList, MaterialListItem } from "@/utils/material";
+import styles from "@/pages/chat/css/left-panel.module.scss";
 
 interface PublicChat {
     id: string;
@@ -239,7 +240,7 @@ export function UnifiedChatsList() {
                             style={{ cursor: "pointer" }}
                         >
                             {formatPublicChatMessage(chat.id) && (
-                                <span slot="description" className="list-description">
+                                <span slot="description" className={styles.listDescription}>
                                     {formatPublicChatMessage(chat.id)}
                                 </span>
                             )}
@@ -272,7 +273,7 @@ export function UnifiedChatsList() {
                                     size="small"
                                 />
                             </div>
-                            <span slot="description" className="list-description">
+                            <span slot="description" className={styles.listDescription}>
                                 {chat.lastMessage || "Нет сообщений"}
                             </span>
                             <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>

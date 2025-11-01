@@ -6,6 +6,7 @@
  */
 
 import { useAppState } from "@/pages/chat/state";
+import styles from "@/pages/chat/css/TypingIndicators.module.scss";
 
 interface OnlineIndicatorProps {
     userId: number;
@@ -22,8 +23,8 @@ export function OnlineIndicator({ userId, className = "" }: OnlineIndicatorProps
     }
 
     return (
-        <div className={`online-indicator ${className}`}>
-            <div className="indicator-dot online"></div>
+        <div className={`${styles.onlineIndicator} ${className}`}>
+            <div className={`${styles.indicatorDot} ${styles.online}`}></div>
         </div>
     );
 }

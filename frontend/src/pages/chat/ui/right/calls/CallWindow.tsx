@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { useAppState, type CallStatus } from "@/pages/chat/state";
+import { useAppState } from "@/pages/chat/state";
 import useCall from "@/pages/chat/hooks/useCall";
 import defaultAvatar from "@/images/default-avatar.png";
 import { createPortal } from "react-dom";
 import { id } from "@/utils/utils";
 import { MaterialIconButton } from "@/utils/material";
+import { motion, AnimatePresence } from "motion/react";
+import styles from "@/pages/chat/css/callWindow.module.scss";
 
 export function CallWindow() {
     const { chat, toggleCallMinimize, user } = useAppState();
@@ -26,20 +28,11 @@ export function CallWindow() {
     const [isDragging, setIsDragging] = useState(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [callDuration, setCallDuration] = useState(0);
-    const [isVisible, setIsVisible] = useState(false);
-    const [shouldRender, setShouldRender] = useState(false);
-    const [wasMinimized, setWasMinimized] = useState(false);
-    const [callData, setCallData] = useState<{
-        remoteUsername: string | null;
-        status: CallStatus;
-        isInitiator: boolean;
-        isMuted: boolean;
-    } | null>(null);
 
-    const status = callData?.status || call.status;
-    const remoteUsername = callData?.remoteUsername || call.remoteUsername;
-    const isInitiator = callData?.isInitiator || call.isInitiator;
-    const isMuted = callData?.isMuted || call.isMuted;
+    const status = call.status;
+    const remoteUsername = call.remoteUsername;
+    const isInitiator = call.isInitiator;
+    const isMuted = call.isMuted;
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -57,55 +50,6 @@ export function CallWindow() {
         };
     }, [call.status, call.startTime]);
 
-    // Preserve call data during exit animation
-    useEffect(() => {
-        if (call.isActive) {
-            setCallData({
-                remoteUsername: call.remoteUsername,
-                status: call.status,
-                isInitiator: call.isInitiator,
-                isMuted: call.isMuted
-            });
-        }
-    }, [call.isActive, call.remoteUsername, call.status, call.isInitiator, call.isMuted]);
-
-    // Track minimized state for exit animation
-    useEffect(() => {
-        if (call.isActive) {
-            setWasMinimized(call.isMinimized);
-        }
-    }, [call.isActive, call.isMinimized]);
-
-    // Handle visibility animation with entrance and exit delays
-    useEffect(() => {
-        if (call.isActive) {
-            setShouldRender(true);
-            // Small delay to ensure DOM is ready, then trigger animation
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    setIsVisible(true);
-                });
-            });
-        } else {
-            if (shouldRender) {
-                // Call ended - start exit animation
-                setIsVisible(false);
-                // After animation completes, stop rendering
-                const timer = setTimeout(() => {
-                    setShouldRender(false);
-                    setCallData(null);
-                    setWasMinimized(false);
-                }, 400); // Match the CSS transition duration
-                return () => clearTimeout(timer);
-            } else {
-                // Call not active and not rendered - ensure clean state
-                setShouldRender(false);
-                setIsVisible(false);
-                setCallData(null);
-                setWasMinimized(false);
-            }
-        }
-    }, [call.isActive, shouldRender, wasMinimized]);
 
     // Handle dragging for PiP mode
     useEffect(() => {
@@ -135,14 +79,6 @@ export function CallWindow() {
         };
     }, [isDragging, call.isMinimized, dragOffset]);
 
-    // Cleanup effect to reset state when component unmounts
-    useEffect(() => {
-        return () => {
-            setIsVisible(false);
-            setShouldRender(false);
-            setCallData(null);
-        };
-    }, []);
 
     function formatDuration(seconds: number) {
         const mins = Math.floor(seconds / 60);
@@ -166,64 +102,75 @@ export function CallWindow() {
     function getGradientClass() {
         switch (status) {
             case "calling":
-                return "gradient-calling";
+                return styles.gradientCalling;
             case "connecting":
-                return "gradient-connecting";
+                return styles.gradientConnecting;
             case "active":
-                return "gradient-active";
+                return styles.gradientActive;
             default:
-                return "gradient-default";
+                return styles.gradientDefault;
         }
     }
 
+
+    const isMinimized = call.isMinimized;
 
     return (
         createPortal(
             <>
                 <audio
                     ref={remoteAudioRef}
-                    className="remote-audio"
+                    className={styles.remoteAudio}
                     autoPlay
                     playsInline
                     controls />
 
-                {shouldRender && (
-                    <div
-                        className={`call-window ${(call.isActive ? call.isMinimized : wasMinimized) ? "minimized" : "maximized"} ${isDragging ? "dragging" : ""} ${getGradientClass()} ${isVisible ? "visible" : "hidden"}`}
-                        style={(call.isActive ? call.isMinimized : wasMinimized) ? {
-                            left: pipPosition.x,
-                            top: pipPosition.y
-                        } : undefined}
-                        onMouseDown={(e) => {
-                            if (call.isMinimized) {
-                                // Only start dragging if not clicking on a button
-                                // TODO change it to e.stopPropagation() on the buttons
-                                if (!e.target.closest("mdui-button-icon")) {
-                                    setIsDragging(true);
-                                    setDragOffset({
-                                        x: e.clientX - pipPosition.x,
-                                        y: e.clientY - pipPosition.y
-                                    });
-                                }
+                <AnimatePresence>
+                    {call.isActive && (
+                        <motion.div
+                            className={`${styles.callWindow} ${isMinimized ? styles.minimized : styles.maximized} ${isDragging ? styles.dragging : ""} ${getGradientClass()}`}
+                            style={isMinimized ? {
+                                left: pipPosition.x,
+                                top: pipPosition.y
+                            } : undefined}
+                            initial={false}
+                            exit={isMinimized ?
+                                { opacity: 0, scale: 0.7 } :
+                                { opacity: 0, y: -100 }
                             }
-                        }}
-                    >
-                        <div className="call-header">
-                            <div className="window-controls">
+                            transition={{ 
+                                opacity: { duration: 0.4 },
+                                scale: { duration: 0.4 },
+                                y: { duration: 0.4 }
+                            }}
+                            onMouseDown={(e) => {
+                                if (isMinimized) {
+                                    if (!e.target.closest("mdui-button-icon")) {
+                                        setIsDragging(true);
+                                        setDragOffset({
+                                            x: e.clientX - pipPosition.x,
+                                            y: e.clientY - pipPosition.y
+                                        });
+                                    }
+                                }
+                            }}
+                        >
+                        <div className={styles.callHeader}>
+                            <div className={styles.windowControls}>
                                 <MaterialIconButton
                                     onClick={toggleCallMinimize}
                                     icon={call.isMinimized ? "open_in_full" : "close_fullscreen"}
-                                    className="window-control-btn"
+                                    className={styles.windowControlBtn}
                                 />
                             </div>
 
-                            <div className="call-header-info">
-                                <h3 className="username">{remoteUsername}</h3>
-                                <p className="status">{getStatusText()}</p>
+                            <div className={styles.callHeaderInfo}>
+                                <h3 className={styles.username}>{remoteUsername}</h3>
+                                <p className={styles.status}>{getStatusText()}</p>
                                 {!call.isMinimized && call.encryptionEmojis.length > 0 && (
-                                    <div className="encryption-emojis">
+                                    <div className={styles.encryptionEmojis}>
                                         {call.encryptionEmojis.map((emoji, index) => (
-                                            <span key={index} className="encryption-emoji">
+                                            <span key={index} className={styles.encryptionEmoji}>
                                                 {emoji}
                                             </span>
                                         ))}
@@ -232,75 +179,75 @@ export function CallWindow() {
                             </div>
                         </div>
 
-                        <div className={`call-content ${(call.isSharingScreen || call.isRemoteScreenSharing) ? "with-screen-share" : ""}`}>
+                        <div className={`${styles.callContent} ${(call.isSharingScreen || call.isRemoteScreenSharing) ? styles.withScreenShare : ""}`}>
                             {/* Main screen share area - takes most space when active */}
-                            <div className="screen-share-area">
+                            <div className={styles.screenShareArea}>
                                 {/* Local screen share */}
                                 <div
-                                    className="video-tile screen-share-tile local-screen-share"
+                                    className={`${styles.videoTile} ${styles.screenShareTile} ${styles.localScreenShare}`}
                                     style={{ display: call.isSharingScreen ? "flex" : "none" }}>
                                     <video
                                         ref={localScreenShareRef}
-                                        className="video-element screen-share-video"
+                                        className={`${styles.videoElement} ${styles.screenShareVideo}`}
                                         autoPlay
                                         playsInline
                                         muted />
-                                    <div className="tile-label">Your Screen</div>
+                                    <div className={styles.tileLabel}>Your Screen</div>
                                 </div>
 
                                 {/* Remote screen share */}
                                 <div
-                                    className="video-tile screen-share-tile remote-screen-share"
+                                    className={`${styles.videoTile} ${styles.screenShareTile} ${styles.remoteScreenShare}`}
                                     style={{ display: call.isRemoteScreenSharing ? "flex" : "none" }}>
                                     <video
                                         ref={remoteScreenShareRef}
-                                        className="video-element screen-share-video"
+                                        className={`${styles.videoElement} ${styles.screenShareVideo}`}
                                         autoPlay
                                         playsInline />
-                                    <div className="tile-label">{remoteUsername}&apos;s Screen</div>
+                                    <div className={styles.tileLabel}>{remoteUsername}&apos;s Screen</div>
                                 </div>
                             </div>
 
                             {/* Video tiles sidebar - appears on right when screen share is active */}
-                            <div className="video-tiles-sidebar">
+                            <div className={styles.videoTilesSidebar}>
                                 {/* Local video tile */}
-                                <div className="video-tile local-video">
+                                <div className={`${styles.videoTile} ${styles.localVideo}`}>
                                     <video
                                         ref={localVideoRef}
-                                        className="video-element"
+                                        className={styles.videoElement}
                                         autoPlay
                                         playsInline
                                         muted
                                         style={{ display: call.isVideoEnabled ? "block" : "none" }} />
                                     {!call.isVideoEnabled && (
-                                        <div className="video-placeholder">
-                                            <img src={defaultAvatar} alt="Avatar" className="placeholder-avatar" />
-                                            <span className="placeholder-username">{user.currentUser?.username || "You"}</span>
+                                        <div className={styles.videoPlaceholder}>
+                                            <img src={defaultAvatar} alt="Avatar" className={styles.placeholderAvatar} />
+                                            <span className={styles.placeholderUsername}>{user.currentUser?.username || "You"}</span>
                                         </div>
                                     )}
-                                    <div className="tile-label">You</div>
+                                    <div className={styles.tileLabel}>You</div>
                                 </div>
 
                                 {/* Remote video tile */}
-                                <div className="video-tile remote-video">
+                                <div className={`${styles.videoTile} ${styles.remoteVideo}`}>
                                     <video
                                         ref={remoteVideoRef}
-                                        className="video-element"
+                                        className={styles.videoElement}
                                         autoPlay
                                         playsInline
                                         style={{ display: call.isRemoteVideoEnabled ? "block" : "none" }} />
                                     {!call.isRemoteVideoEnabled && (
-                                        <div className="video-placeholder">
-                                            <img src={defaultAvatar} alt="Avatar" className="placeholder-avatar" />
-                                            <span className="placeholder-username">{remoteUsername}</span>
+                                        <div className={styles.videoPlaceholder}>
+                                            <img src={defaultAvatar} alt="Avatar" className={styles.placeholderAvatar} />
+                                            <span className={styles.placeholderUsername}>{remoteUsername}</span>
                                         </div>
                                     )}
-                                    <div className="tile-label">{remoteUsername}</div>
+                                    <div className={styles.tileLabel}>{remoteUsername}</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="call-controls">
+                        <div className={styles.callControls}>
                             {status === "calling" && !isInitiator ? (
                                 <>
                                     <MaterialIconButton onClick={acceptCall} icon="call" />
@@ -315,8 +262,9 @@ export function CallWindow() {
                                 </>
                             )}
                         </div>
-                    </div>
-                )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </>,
             id("root")
         )

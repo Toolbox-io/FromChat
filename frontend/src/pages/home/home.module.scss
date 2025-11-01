@@ -36,7 +36,7 @@
     }
 
     // Header styles
-    .homepage-header {
+    .homepageHeader {
         padding: 1rem 0;
         background: rgba($color-dark-surface-container, 0.8);
         backdrop-filter: blur(20px);
@@ -47,7 +47,7 @@
         z-index: 1000;
         transition: all 0.3s ease;
 
-        .header-content {
+        .headerContent {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -69,7 +69,7 @@
                 }
             }
 
-            .header-nav {
+            .headerNav {
                 display: flex;
                 align-items: center;
                 gap: 10px;
@@ -89,11 +89,11 @@
         min-height: 80vh;
         margin-top: 0;
 
-        .hero-content {
+        .heroContent {
             flex: 1;
             max-width: 600px;
 
-            .hero-title {
+            .heroTitle {
                 font-size: 3.5rem;
                 font-weight: 800;
                 line-height: 1.1;
@@ -106,31 +106,31 @@
                 animation: neonGlow 3s ease-in-out infinite alternate;
             }
 
-            .hero-description {
+            .heroDescription {
                 font-size: 1.25rem;
                 line-height: 1.6;
                 margin-bottom: 2.5rem;
                 opacity: 0.9;
             }
 
-            .hero-actions {
+            .heroActions {
                 display: flex;
                 gap: 1rem;
                 flex-wrap: wrap;
             }
         }
 
-        .hero-visual {
+        .heroVisual {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 2rem;
 
-            .chat-preview {
+            .chatPreview {
                 perspective: 1000px;
 
-                .chat-window {
+                .chatWindow {
                     background: rgba($color-dark-surface-container, 0.95);
                     border-radius: 20px;
                     padding: 1.5rem;
@@ -144,7 +144,7 @@
                     width: 100%;
                     border: 1px solid rgba($color-dark-primary, 0.3);
 
-                    .chat-header {
+                    .chatHeader {
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
@@ -152,12 +152,12 @@
                         border-bottom: 1px solid rgba($color-dark-primary, 0.3);
                         margin-bottom: 1rem;
 
-                        .chat-title {
+                        .chatTitle {
                             font-weight: 600;
                             font-size: 1.1rem;
                         }
 
-                        .online-indicator {
+                        .onlineIndicator {
                             color: $color-dark-primary;
                             font-size: 0.8rem;
                             text-shadow: 0 0 10px rgba($color-dark-primary, 0.8);
@@ -165,7 +165,7 @@
                         }
                     }
 
-                    .chat-messages {
+                    .chatMessages {
                         display: flex;
                         flex-direction: column;
                         gap: 1rem;
@@ -178,7 +178,7 @@
                             &.sent {
                                 flex-direction: row-reverse;
 
-                                .message-content {
+                                .messageContent {
                                     background: linear-gradient(135deg, $color-dark-primary, $color-dark-primary-container);
                                     color: $color-dark-on-primary;
                                     box-shadow: 0 0 15px rgba($color-dark-primary, 0.3);
@@ -186,14 +186,14 @@
                             }
 
                             &.received {
-                                .message-content {
+                                .messageContent {
                                     background: rgba($color-dark-surface-variant, 0.8);
                                     color: $color-dark-on-surface-variant;
                                     border: 1px solid rgba($color-dark-outline-variant, 0.3);
                                 }
                             }
 
-                            .message-avatar {
+                            .messageAvatar {
                                 width: 32px;
                                 height: 32px;
                                 border-radius: 50%;
@@ -208,18 +208,18 @@
                                 box-shadow: 0 0 10px rgba($color-dark-primary, 0.4);
                             }
 
-                            .message-content {
+                            .messageContent {
                                 max-width: 70%;
                                 padding: 0.75rem 1rem;
                                 border-radius: 18px;
                                 position: relative;
 
-                                .message-text {
+                                .messageText {
                                     font-size: 0.9rem;
                                     line-height: 1.4;
                                 }
 
-                                .message-time {
+                                .messageTime {
                                     font-size: 0.75rem;
                                     opacity: 0.7;
                                     margin-top: 0.25rem;
@@ -240,7 +240,7 @@
         border-top: 1px solid rgba($color-dark-primary, 0.2);
         border-bottom: 1px solid rgba($color-dark-primary, 0.2);
 
-        .section-title {
+        .sectionTitle {
             text-align: center;
             font-size: 2.5rem;
             font-weight: 700;
@@ -252,12 +252,12 @@
             text-shadow: 0 0 20px rgba($color-dark-primary, 0.5);
         }
 
-        .features-grid {
+        .featuresGrid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 2rem;
 
-            .feature-card {
+            .featureCard {
                 background: rgba($color-dark-surface-container, 0.6);
                 backdrop-filter: blur(20px);
                 border-radius: 20px;
@@ -297,7 +297,7 @@
                     }
                 }
 
-                .feature-icon {
+                .featureIcon {
                     width: 60px;
                     height: 60px;
                     background: linear-gradient(135deg, rgba($color-dark-primary, 0.3), rgba($color-dark-tertiary, 0.3));
@@ -338,7 +338,7 @@
     .download {
         padding: 6rem 0;
 
-        .download-content {
+        .downloadContent {
             text-align: center;
             max-width: 600px;
             margin: 0 auto;
@@ -361,7 +361,7 @@
                 opacity: 0.9;
             }
 
-            .download-buttons {
+            .downloadButtons {
                 display: flex;
                 gap: 1rem;
                 justify-content: center;
@@ -377,7 +377,7 @@
         backdrop-filter: blur(20px);
         border-top: 1px solid rgba($color-dark-primary, 0.2);
 
-        .cta-content {
+        .ctaContent {
             text-align: center;
             max-width: 600px;
             margin: 0 auto;
@@ -400,7 +400,7 @@
                 opacity: 0.9;
             }
 
-            .cta-actions {
+            .ctaActions {
                 display: flex;
                 gap: 1rem;
                 justify-content: center;
@@ -410,20 +410,20 @@
     }
 
     // Footer
-    .homepage-footer {
+    .homepageFooter {
         background: rgba($color-dark-surface-container, 0.8);
         backdrop-filter: blur(20px);
         padding: 3rem 0 1rem;
         border-top: 1px solid rgba($color-dark-primary, 0.3);
         box-shadow: 0 -4px 20px rgba($color-dark-primary, 0.1);
 
-        .footer-content {
+        .footerContent {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 2rem;
             margin-bottom: 2rem;
 
-            .footer-section {
+            .footerSection {
                 h4 {
                     font-size: 1.1rem;
                     font-weight: 600;
@@ -458,7 +458,7 @@
             }
         }
 
-        .footer-bottom {
+        .footerBottom {
             text-align: center;
             padding-top: 2rem;
             border-top: 1px solid rgba($color-dark-primary, 0.3);
@@ -494,7 +494,7 @@
 // Responsive Design
 @media (min-width: 1024px) {
     .homepage {
-        .homepage-header {
+        .homepageHeader {
             position: fixed;
             top: 1rem;
             left: 50%;
@@ -518,7 +518,7 @@
 
 @media (max-width: 1023px) {
     .homepage {
-        .homepage-header {
+        .homepageHeader {
             position: sticky;
             top: 0;
             border-radius: 0;
@@ -535,8 +535,8 @@
             padding: 0 1rem;
         }
 
-        .homepage-header {
-            .header-content {
+        .homepageHeader {
+            .headerContent {
                 flex-direction: column;
                 gap: 1rem;
             }
@@ -547,21 +547,21 @@
             text-align: center;
             padding: 2rem 0;
 
-            .hero-content {
-                .hero-title {
+            .heroContent {
+                .heroTitle {
                     font-size: 2.5rem;
                 }
 
-                .hero-description {
+                .heroDescription {
                     font-size: 1.1rem;
                 }
             }
 
-            .hero-visual {
+            .heroVisual {
                 padding: 1rem;
 
-                .chat-preview {
-                    .chat-window {
+                .chatPreview {
+                    .chatWindow {
                         transform: none;
                         max-width: 100%;
                     }
@@ -570,26 +570,26 @@
         }
 
         .features {
-            .features-grid {
+            .featuresGrid {
                 grid-template-columns: 1fr;
 
-                .feature-card {
+                .featureCard {
                     padding: 1.5rem;
                 }
             }
 
-            .section-title {
+            .sectionTitle {
                 font-size: 2rem;
             }
         }
 
         .download {
-            .download-content {
+            .downloadContent {
                 h3 {
                     font-size: 2rem;
                 }
 
-                .download-buttons {
+                .downloadButtons {
                     flex-direction: column;
                     align-items: center;
                 }
@@ -597,20 +597,20 @@
         }
 
         .cta {
-            .cta-content {
+            .ctaContent {
                 h3 {
                     font-size: 2rem;
                 }
 
-                .cta-actions {
+                .ctaActions {
                     flex-direction: column;
                     align-items: center;
                 }
             }
         }
 
-        .homepage-footer {
-            .footer-content {
+        .homepageFooter {
+            .footerContent {
                 grid-template-columns: 1fr;
                 text-align: center;
             }
@@ -621,25 +621,25 @@
 @media (max-width: 480px) {
     .homepage {
         .hero {
-            .hero-content {
-                .hero-title {
+            .heroContent {
+                .heroTitle {
                     font-size: 2rem;
                 }
 
-                .hero-description {
+                .heroDescription {
                     font-size: 1rem;
                 }
             }
         }
 
         .features {
-            .section-title {
+            .sectionTitle {
                 font-size: 1.75rem;
             }
         }
 
         .download {
-            .download-content {
+            .downloadContent {
                 h3 {
                     font-size: 1.75rem;
                 }
@@ -647,7 +647,7 @@
         }
 
         .cta {
-            .cta-content {
+            .ctaContent {
                 h3 {
                     font-size: 1.75rem;
                 }
@@ -655,3 +655,4 @@
         }
     }
 }
+

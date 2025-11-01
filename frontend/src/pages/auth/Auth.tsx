@@ -1,9 +1,10 @@
 import type React from "react";
+import styles from "./auth.module.scss";
 
 export function AuthContainer({ children }: { children?: React.ReactNode }) {
     return (
-        <div className="auth-container">
-            <div className="auth-card fade-in">
+        <div className={styles.authContainer}>
+            <div className={styles.authCard}>
                 {children}
             </div>
         </div>
@@ -28,7 +29,7 @@ export function AuthHeader({ title, icon, subtitle }: AuthHeaderProps) {
     const iconName = typeof icon == "string" ? icon : icon.name;
 
     return (
-        <div className="auth-header">
+        <div className={styles.authHeader}>
             <h2>
                 <span className={`material-symbols ${iconType} large`}>{iconName}</span>
                 {title}

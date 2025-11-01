@@ -1,18 +1,15 @@
 @use "../../../css/colors" as *;
 @use "../../../css/material" as *;
-@use "../../../core/components/css/styled-dialog" as *;
 @use "sass:color";
 
-// Settings styles
-.styled-dialog-backdrop.settings-dialog {
-    .styled-dialog {
-        width: calc(100vw - $dialog-padding * 2);
-        height: calc(100vh - $dialog-padding * 2);
-        max-width: none;
-        max-height: none;
-    }
+// Settings styles - override StyledDialog's backdrop and dialog
+.settingsDialog {
+    width: calc(100vw - 60px) !important;
+    height: calc(100vh - 60px) !important;
+    max-width: none !important;
+    max-height: none !important;
 
-    #settings-dialog-inner {
+    .settingsDialogInner {
         width: 100%;
         height: 100%;
         display: flex;
@@ -25,16 +22,20 @@
             gap: 10px;
             margin-bottom: 16px;
             flex-shrink: 0;
+
+            .title {
+                display: block;
+            }
         }
 
-        #settings-menu {
+        .settingsMenu {
             display: flex;
             flex-direction: row;
             gap: 16px;
             flex: 1;
             min-height: 0;
 
-            mdui-list {
+            :global(mdui-list) {
                 max-width: 280px;
                 padding-right: 16px;
                 overflow-y: auto;
@@ -47,7 +48,7 @@
                 position: relative;
                 min-width: 0;
 
-                .settings-panel {
+                .settingsPanel {
                     display: flex;
                     flex-direction: column;
                     gap: 16px;
@@ -67,19 +68,19 @@
                         position: relative;
                     }
 
-                    h3 {
+                    :global(h3) {
                         margin: 0 0 16px 0;
                         color: $color-dark-on-surface;
                     }
 
-                    mdui-text-field,
-                    mdui-select,
-                    mdui-switch,
-                    mdui-button {
+                    :global(mdui-text-field),
+                    :global(mdui-select),
+                    :global(mdui-switch),
+                    :global(mdui-button) {
                         margin-bottom: 8px;
                     }
 
-                    mdui-switch {
+                    :global(mdui-switch) {
                         display: flex;
                         align-items: center;
                         justify-content: space-between;
@@ -91,13 +92,17 @@
                         }
                     }
 
-                    p {
+                    :global(p) {
                         margin: 8px 0;
                         color: $color-dark-on-surface-variant;
                     }
 
-                    mdui-linear-progress {
+                    :global(mdui-linear-progress) {
                         margin: 16px 0;
+                    }
+
+                    .productName {
+                        display: inline;
                     }
                 }
             }

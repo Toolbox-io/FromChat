@@ -2,18 +2,18 @@
 @use "../../../css/material" as *;
 @use "sass:color";
 
-.quote.contextual-content > .quote-inner {
+.quote.contextualContent > .quoteInner {
     display: flex;
     flex-direction: column;
     gap: 4px;
 
-    .reply-username {
+    .replyUsername {
         font-weight: 600;
         color: $color-dark-on-surface;
         font-size: 0.85rem;
     }
 
-    .reply-text {
+    .replyText {
         overflow: hidden;
         text-overflow: ellipsis;
     }
@@ -31,7 +31,7 @@
     gap: 8px;
 
     &.received {
-        .message-profile-pic {
+        .messageProfilePic {
             width: 40px;
             height: 40px;
             flex-shrink: 0;
@@ -52,7 +52,7 @@
         }
     }
 
-    .message-inner {
+    .messageInner {
         border-radius: 12px;
         position: relative;
         word-wrap: break-word;
@@ -62,7 +62,7 @@
         max-width: 100%;
         display: inline-block;
 
-        .message-username {
+        .messageUsername {
             font-weight: 600;
             margin-bottom: 0.3rem;
             font-size: 0.9rem;
@@ -78,7 +78,7 @@
             }
         }
 
-        .message-content {
+        .messageContent {
             word-wrap: break-word;
             margin: 10px 10px 0 10px;
             white-space: pre-wrap;
@@ -92,12 +92,12 @@
             }
         }
 
-        .quote.reply-preview {
+        .quote.replyPreview {
             user-select: none;
             margin: 10px;
         }
 
-        .message-attachments {
+        .messageAttachments {
             padding: 5px 0 0 0;
             overflow: hidden;
 
@@ -106,7 +106,7 @@
                     text-decoration: none;
                 }
 
-                .attachement-image {
+                .attachementImage {
                     max-width: 200px;
                     border-radius: 8px;
                     cursor: pointer;
@@ -124,17 +124,17 @@
                     }
                 }
 
-                .attachement-image.placeholder {
+                .attachementImage.placeholder {
                     background: $color-dark-surface-container-highest;
                     pointer-events: none;
                 }
 
-                .image-wrapper {
+                .imageWrapper {
                     position: relative;
                     display: inline-block;
                 }
 
-                .loading-overlay {
+                .loadingOverlay {
                     position: absolute;
                     inset: 0;
                     display: flex;
@@ -145,7 +145,7 @@
                     border-radius: 8px;
                 }
 
-                .preload-image {
+                .preloadImage {
                     position: absolute;
                     width: 0;
                     height: 0;
@@ -153,7 +153,7 @@
                     pointer-events: none;
                 }
 
-                .with-icon-gap {
+                .withIconGap {
                     display: inline-flex;
                     align-items: center;
                     gap: 8px;
@@ -161,7 +161,7 @@
             }
         }
 
-        .message-time {
+        .messageTime {
             font-size: 0.7rem;
             color: $color-dark-on-surface-variant;
             margin-top: 0.3rem;
@@ -173,13 +173,13 @@
             justify-content: flex-end;
             gap: 4px;
 
-            .message-status-indicator {
+            .messageStatusIndicator {
                 display: flex;
                 align-items: center;
                 width: $status-indicator-size;
                 height: $status-indicator-size;
 
-                .error-icon, .success-icon {
+                .errorIcon, .successIcon {
                     font-size: $status-indicator-size;
                     width: $status-indicator-size;
                     height: $status-indicator-size;
@@ -194,7 +194,7 @@
     }
 
     &.received {
-        .message-inner {
+        .messageInner {
             background: $color-dark-surface-container;
             color: $color-dark-on-surface;
             border-top-left-radius: 5px;
@@ -221,7 +221,7 @@
             }
         }
 
-        .message-time {
+        .messageTime {
             color: $color-dark-on-surface-variant;
             font-weight: 500;
         }
@@ -231,7 +231,7 @@
         margin-left: auto;
         flex-direction: row-reverse;
 
-        .message-inner {
+        .messageInner {
             background: linear-gradient(135deg, color.adjust($color-dark-primary, $lightness: 8%), color.adjust($color-dark-primary-container, $lightness: 5%));
             color: $color-dark-on-primary;
             border-top-right-radius: 5px;
@@ -258,29 +258,29 @@
             }
         }
 
-        &.emoji-message {
-            .message-inner {
+        &.emojiMessage {
+            .messageInner {
                 align-items: flex-end;
                 display: flex;
                 flex-direction: column;
 
-                .message-content {
-                    &.emoji-content {
+                .messageContent {
+                    &.emojiContent {
                         text-align: right;
                     }
                 }
             }
         }
 
-        .message-time {
+        .messageTime {
             color: $color-dark-on-primary;
             font-weight: 500;
         }
     }
 
     // Emoji message styles
-    &.emoji-message {
-        .message-inner {
+    &.emojiMessage {
+        .messageInner {
             background: transparent;
             border: none;
             box-shadow: none;
@@ -292,24 +292,24 @@
             }
         }
 
-        .message-content {
+        .messageContent {
             margin: 0;
             padding: 0;
             text-align: right;
 
-            &.emoji-content {
+            &.emojiContent {
                 font-size: 2rem;
                 line-height: 1.2;
             }
 
-            &.single-emoji-content {
+            &.singleEmojiContent {
                 font-size: 4rem;
                 line-height: 1;
                 margin-bottom: 8px;
             }
         }
 
-        .message-time {
+        .messageTime {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 12px;
             padding: 4px 8px;
@@ -328,7 +328,7 @@
     }
 }
 
-.message-username {
+.messageUsername {
     &.loading {
         opacity: 0.6;
         cursor: default;
@@ -336,7 +336,7 @@
 }
 
 // Fullscreen Image Viewer
-.fullscreen-image-overlay {
+.fullscreenImageOverlay {
     position: fixed;
     inset: 0;
     width: 100vw;
@@ -351,7 +351,7 @@
         opacity: 0;
     }
 
-    .fullscreen-animated-image {
+    .fullscreenAnimatedImage {
         position: absolute;
         object-fit: contain;
         border-radius: 12px;
@@ -359,18 +359,18 @@
         transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease;
     }
 
-    .fullscreen-controls {
+    .fullscreenControls {
         position: absolute;
         display: flex;
         gap: 8px;
 
-        &.top-right {
+        &.topRight {
             top: 12px;
             right: 12px;
         }
     }
 
-    .progress-wrapper {
+    .progressWrapper {
         width: 40px;
         height: 40px;
         display: flex;
@@ -380,8 +380,8 @@
 }
 
 // Mention link styling
-.message-content {
-    .mention-link {
+.messageContent {
+    .mentionLink {
         color: $color-dark-primary;
         text-decoration: none;
         font-weight: 500;
@@ -400,3 +400,97 @@
         }
     }
 }
+
+// Reaction styles
+.messageReactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+    margin-left: 10px;
+    margin-right: 10px;
+    animation: messageReactionsFadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.reactionButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 16px;
+    background-color: $color-dark-surface-container;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    font-size: 1px;
+    min-height: 28px;
+    animation: reactionFadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    &.removing {
+        animation: reactionFadeOut 0.2s ease forwards;
+    }
+
+    &:hover {
+        background-color: $color-dark-surface-container-high;
+        transform: scale(1.05);
+    }
+
+    &.reacted {
+        background-color: $color-dark-primary-container;
+        border-color: $color-dark-primary;
+        color: $color-dark-on-primary-container;
+
+        &:hover {
+            background-color: color.adjust($color-dark-primary-container, $lightness: 20%);
+        }
+    }
+}
+
+.reactionEmoji {
+    font-size: 17px;
+    line-height: 1;
+}
+
+.reactionCount {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+// Animation for reactions appearing/disappearing
+@keyframes messageReactionsFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes reactionFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes reactionFadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+

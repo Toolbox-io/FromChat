@@ -15,6 +15,8 @@ import { OnlineStatus } from "./OnlineStatus";
 import { typingManager } from "@/core/typingManager";
 import { PublicChatPanel } from "./panels/PublicChatPanel";
 import { MaterialIcon, MaterialIconButton } from "@/utils/material";
+import styles from "@/pages/chat/css/layout.module.scss";
+import rightPanelStyles from "@/pages/chat/css/right-panel.module.scss";
 
 interface MessagePanelRendererProps {
     panel: MessagePanel | null;
@@ -196,7 +198,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     const panelKey = chat.activePanel?.getState().title || "empty";
 
     return (
-        <div className="chat-container">
+        <div className={styles.chatContainer}>
             <AnimatePresence mode="wait">
                 <motion.div
                     key={panelKey}
@@ -204,12 +206,11 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
-                    className="chat-wrapper"
+                    className={rightPanelStyles.chatWrapper}
                 >
                     <div
                         ref={messagePanelRef}
-                        className="chat-main"
-                        id="chat-inner"
+                        className={rightPanelStyles.chatMain}
                         onDragEnter={panel ? (e) => {
                             if (!e.dataTransfer) return;
                             e.preventDefault();
@@ -242,16 +243,16 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                             setIsDragging(false);
                             dragCounterRef.current = 0;
                         } : undefined}>
-                        <div className="chat-header">
+                        <div className={rightPanelStyles.chatHeader}>
                             <img
                                 src={panelState?.profilePicture || defaultAvatar}
                                 alt="Avatar"
-                                className="chat-header-avatar"
+                                className={rightPanelStyles.chatHeaderAvatar}
                                 onClick={handleProfileClick}
                                 style={{ cursor: panel ? "pointer" : "default" }}
                             />
-                            <div className="chat-header-info">
-                                <div className="info-chat">
+                            <div className={rightPanelStyles.chatHeaderInfo}>
+                                <div className={rightPanelStyles.infoChat}>
                                     <h4 id="chat-name">{panelState?.title || "Выбор чата"}</h4>
                                     <ChatHeaderText panel={panel} />
                                 </div>
@@ -262,7 +263,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                         </div>
 
                         {panelState?.isLoading ? (
-                            <div className="chat-messages" id="chat-messages">
+                            <div className={rightPanelStyles.chatMessages} id="chat-messages">
                                 <div style={{
                                     display: "flex",
                                     justifyContent: "center",
@@ -300,7 +301,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                                 <div ref={messagesEndRef} />
                             </ChatMessages>
                         ) : (
-                            <div className="chat-messages" id="chat-messages">
+                            <div className={rightPanelStyles.chatMessages} id="chat-messages">
                                 <div style={{
                                     display: "flex",
                                     justifyContent: "center",
@@ -314,30 +315,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                         )}
 
                         {panel && (
-                            <>
-                                <AnimatePresence>
-                                    {isDragging && (
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.5 }}
-                                            className="file-overlay"
-                                            onDragOver={(e) => e.preventDefault()}
-                                            onDrop={(e) => e.preventDefault()}
-                                        >
-                                            <div className="file-overlay-wrapper">
-                                                <div className="file-overlay-inner">
-                                                    <MaterialIcon name="upload_file" />
-                                                    <span>Отпустите файл(ы) для добавления</span>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-
-
-                                <ChatInputWrapper
+                            <ChatInputWrapper
                                     onSendMessage={(text, files) => {
                                         panel.handleSendMessage(text, replyTo?.id, files);
                                         setReplyTo(null);
@@ -393,9 +371,29 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                                         }
                                     }}
                                 />
-                            </>
                         )}
                     </div>
+
+                    {panel && (
+                        <AnimatePresence>
+                            {isDragging && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.5 }}
+                                    className={rightPanelStyles.fileOverlay}
+                                >
+                                    <div className={rightPanelStyles.fileOverlayWrapper}>
+                                        <div className={rightPanelStyles.fileOverlayInner}>
+                                            <MaterialIcon name="upload_file" />
+                                            <span>Отпустите файл(ы) для добавления</span>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    )}
                 </motion.div>
             </AnimatePresence>
 

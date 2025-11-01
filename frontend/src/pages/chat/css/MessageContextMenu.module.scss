@@ -10,7 +10,7 @@
 }
 
 // Context menu reaction bar - main container
-.context-menu-reaction-bar {
+.contextMenuReactionBar {
     position: fixed;
     display: flex;
     align-items: center;
@@ -29,19 +29,19 @@
         animation: reactionBarEnter 0.2s ease forwards;
     }
 
-    &.entering-left {
+    &.enteringLeft {
         opacity: 0;
         transform: translateX(-20px) translateY(20px) scale(0.9);
         animation: reactionBarEnterLeft 0.2s ease forwards;
     }
 
-    &.entering-up {
+    &.enteringUp {
         opacity: 0;
         transform: translateY(-20px) scale(0.9);
         animation: reactionBarEnterUp 0.2s ease forwards;
     }
 
-    &.entering-right {
+    &.enteringRight {
         opacity: 0;
         transform: translateX(20px) scale(0.9);
         animation: reactionBarEnterRight 0.2s ease forwards;
@@ -53,13 +53,13 @@
         animation: reactionBarClose 0.2s ease forwards;
     }
 
-    &.closing-left {
+    &.closingLeft {
         opacity: 1;
         transform: translateX(0) translateY(0) scale(1);
         animation: reactionBarCloseLeft 0.2s ease forwards;
     }
 
-    &.closing-up {
+    &.closingUp {
         opacity: 1;
         transform: translateY(0) scale(1);
         animation: reactionBarCloseUp 0.2s ease forwards;
@@ -75,7 +75,7 @@
         border-radius: 16px;
 
         // Emoji menu wrapper inside expanded reaction bar
-        .emoji-menu-wrapper {
+        .emojiMenuWrapper {
             width: 320px;
             height: 400px;
             display: flex;
@@ -85,13 +85,13 @@
         }
 
         // Upward expansion animation
-        &.expand-upward .emoji-menu-wrapper {
+        &.expandUpward .emojiMenuWrapper {
             animation: emojiMenuEnterUp 0.3s ease !important;
         }
     }
 
     // Reaction bar content - contains emoji buttons
-    .reaction-bar-content {
+    .reactionBarContent {
         display: flex;
         align-items: center;
         gap: 4px;
@@ -103,7 +103,7 @@
     }
 
     // Individual emoji buttons
-    .reaction-emoji-button {
+    .reactionEmojiButton {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -129,7 +129,7 @@
     }
 
     // Expand button for emoji menu
-    .reaction-expand-button {
+    .reactionExpandButton {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -153,20 +153,20 @@
             transition: transform 0.1s ease;
         }
 
-        .material-symbols {
+        :global(.material-symbols) {
             font-size: 18px;
             color: var(--mdui-color-on-surface);
             transition: transform 0.2s ease;
         }
 
-        &:hover .material-symbols {
+        &:hover :global(.material-symbols) {
             transform: rotate(90deg);
         }
     }
 }
 
 // Context menu - separate element
-.context-menu {
+.contextMenu {
     position: fixed;
     @extend %background;
     border-radius: 16px;
@@ -184,15 +184,15 @@
         animation: fadeInDown 0.2s ease forwards;
     }
 
-    &.entering-left {
+    &.enteringLeft {
         animation: fadeInLeft 0.2s ease forwards;
     }
 
-    &.entering-up {
+    &.enteringUp {
         animation: fadeInUp 0.2s ease forwards;
     }
 
-    &.entering-up-left {
+    &.enteringUpLeft {
         animation: fadeInUpLeft 0.2s ease forwards;
     }
 
@@ -200,15 +200,15 @@
         animation: fadeOutUp 0.2s ease forwards;
     }
 
-    &.closing-left {
+    &.closingLeft {
         animation: fadeOutRight 0.2s ease forwards;
     }
 
-    &.closing-up {
+    &.closingUp {
         animation: fadeOutDown 0.2s ease forwards;
     }
 
-    &.closing-up-left {
+    &.closingUpLeft {
         animation: fadeOutDownRight 0.2s ease forwards;
     }
 
@@ -217,7 +217,7 @@
     }
 
     // Context menu items
-    .context-menu-item {
+    .contextMenuItem {
         display: flex;
         align-items: center;
         gap: 0.75rem;
@@ -236,8 +236,248 @@
             transform: scale(0.95);
         }
 
-        .material-symbols {
+        :global(.material-symbols) {
             font-size: 18px;
         }
     }
 }
+
+// Context menu wrapper animations
+@keyframes contextMenuEnter {
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes contextMenuEnterLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes contextMenuEnterUp {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes contextMenuEnterUpLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+    }
+}
+
+@keyframes contextMenuClose {
+    to {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-20px) scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseUp {
+    to {
+        opacity: 0;
+        transform: translateY(20px) scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseUpLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-20px) translateY(20px) scale(0.8);
+    }
+}
+
+@keyframes emojiMenuEnter {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes emojiMenuEnterDown {
+    from {
+        opacity: 0;
+        transform: scaleY(0);
+        transform-origin: top;
+    }
+
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+@keyframes emojiMenuEnterUp {
+    from {
+        opacity: 0;
+        transform: scaleY(0);
+        transform-origin: bottom;
+    }
+
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+// Reaction bar animations
+@keyframes reactionBarEnter {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes reactionBarEnterLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+    }
+}
+
+@keyframes reactionBarEnterUp {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes reactionBarEnterRight {
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes reactionBarClose {
+    to {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
+    }
+}
+
+@keyframes reactionBarCloseLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-20px) translateY(-20px) scale(0.9);
+    }
+}
+
+@keyframes reactionBarCloseUp {
+    to {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUpLeft {
+    from {
+        opacity: 0;
+        transform: translate(10px, 10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(0, 0);
+    }
+}
+
+@keyframes fadeOutUp {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes fadeOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+}
+
+@keyframes fadeOutDown {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}
+
+@keyframes fadeOutDownRight {
+    from {
+        opacity: 1;
+        transform: translate(0, 0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translate(10px, 10px);
+    }
+}
+
