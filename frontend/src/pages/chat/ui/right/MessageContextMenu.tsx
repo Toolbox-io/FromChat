@@ -250,6 +250,15 @@ export function MessageContextMenu({
             },
             show: isAuthor || user.currentUser?.id === 1
         },
+        {
+            label: "Copy",
+            icon: "content_copy",
+            onClick: () => {
+                navigator.clipboard.writeText(message.content);
+                handleClose();
+            },
+            show: true
+        }
     ];
 
     // Quick reactions for the reaction bar
