@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { checkUserSimilarity } from "@/core/api/profileApi";
 import { useAppState } from "@/pages/chat/state";
+import { MaterialIcon } from "@/utils/material";
 
 interface StatusBadgeProps {
     verified: boolean;
@@ -33,7 +34,7 @@ export function StatusBadge({ verified, userId, size = "small" }: StatusBadgePro
     if (verified) {
         return (
             <span className={`${className} verified`} title="Подтверждённый аккаунт">
-                <mdui-icon name="verified--filled" />
+                <MaterialIcon name="verified--filled" />
             </span>
         );
     }
@@ -41,7 +42,7 @@ export function StatusBadge({ verified, userId, size = "small" }: StatusBadgePro
     if (isSimilarToVerified) {
         return (
             <span className={`${className} warning`} title="Похож на подтверждённый аккаунт">
-                <mdui-icon name="warning" />
+                <MaterialIcon name="warning--filled" />
             </span>
         );
     }

@@ -7,6 +7,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
 from utils import create_token, get_password_hash, verify_password
 from validation import is_valid_password, is_valid_username, is_valid_display_name
@@ -51,12 +52,14 @@ def login(request: LoginRequest, db: Session = Depends(get_db), http: Request = 
 
     # Create device session and embed into JWT
     raw_ua = http.headers.get("user-agent") if http else None
+    device_name = http.headers.get("x-device-name") if http else None
     ua = parse_ua(raw_ua or "")
     session_id = uuid.uuid4().hex
 
     device = DeviceSession(
         user_id=user.id,
         raw_user_agent=raw_ua,
+        device_name=device_name,
         device_type=("mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"),
         os_name=(ua.os.family or None),
         os_version=(ua.os.version_string or None),
@@ -161,11 +164,13 @@ def register(request: RegisterRequest, db: Session = Depends(get_db), http: Requ
 
     # Create initial device session
     raw_ua = http.headers.get("user-agent") if http else None
+    device_name = http.headers.get("x-device-name") if http else None
     ua = parse_ua(raw_ua or "")
     session_id = uuid.uuid4().hex
     device = DeviceSession(
         user_id=new_user.id,
         raw_user_agent=raw_ua,
+        device_name=device_name,
         device_type=("mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"),
         os_name=(ua.os.family or None),
         os_version=(ua.os.version_string or None),
@@ -261,9 +266,19 @@ def delete_user_as_owner(
 
 @router.get("/logout")
 def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    # Revoke current session
+    from utils import verify_token as _verify_token
+    payload = _verify_token(credentials.credentials)
+    if payload and payload.get("session_id"):
+        db.query(DeviceSession).filter(
+            DeviceSession.user_id == current_user.id,
+            DeviceSession.session_id == payload["session_id"],
+        ).update({DeviceSession.revoked: True})
+
     current_user.online = False
     current_user.last_seen = datetime.now()
     db.commit()

@@ -3,6 +3,7 @@ import { getAuthHeaders } from "@/core/api/authApi";
 
 export interface DeviceInfo {
     session_id: string;
+    device_name?: string;
     device_type?: string;
     os_name?: string;
     os_version?: string;

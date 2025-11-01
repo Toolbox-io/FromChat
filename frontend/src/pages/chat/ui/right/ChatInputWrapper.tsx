@@ -6,6 +6,7 @@ import type { Message } from "@/core/types";
 import Quote from "@/core/components/Quote";
 import { useImmer } from "use-immer";
 import { EmojiMenu } from "./EmojiMenu";
+import { MaterialButton, MaterialIcon, MaterialIconButton } from "@/utils/material";
 
 interface ChatInputWrapperProps {
     onSendMessage: (message: string, files: File[]) => void;
@@ -155,12 +156,12 @@ export function ChatInputWrapper(
                             style={{ overflow: "hidden" }}
                         >
                             <div className="reply-preview contextual-preview">
-                                <mdui-icon name="edit" />
+                                <MaterialIcon name="edit" />
                                 <Quote className="reply-content contextual-content" background="surfaceContainer">
                                     <span className="reply-username">{editingMessage!.username}</span>
                                     <span className="reply-text">{editingMessage!.content}</span>
                                 </Quote>
-                                <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearEdit}></mdui-button-icon>
+                                <MaterialIconButton icon="close" className="reply-cancel" onClick={onClearEdit}></MaterialIconButton>
                             </div>
                         </motion.div>
                     )}
@@ -175,12 +176,12 @@ export function ChatInputWrapper(
                             style={{ overflow: "hidden" }}
                         >
                             <div className="reply-preview contextual-preview">
-                                <mdui-icon name="reply" />
+                                <MaterialIcon name="reply" />
                                 <Quote className="reply-content contextual-content" background="surfaceContainer">
                                     <span className="reply-username">{replyTo!.username}</span>
                                     <span className="reply-text">{replyTo!.content}</span>
                                 </Quote>
-                                <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply}></mdui-button-icon>
+                                <MaterialIconButton icon="close" className="reply-cancel" onClick={onClearReply}></MaterialIconButton>
                             </div>
                         </motion.div>
                     )}
@@ -195,7 +196,7 @@ export function ChatInputWrapper(
                             style={{ overflow: "hidden" }}
                         >
                             <div className="attachments-preview contextual-preview">
-                                <mdui-icon name="attach_file" />
+                                <MaterialIcon name="attach_file" />
                                 <div className="attachments-chips">
                                     {selectedFiles.map((file, i) => (
                                         <mdui-chip
@@ -211,19 +212,19 @@ export function ChatInputWrapper(
                                                 }
                                             }}
                                         >
-                                            <mdui-icon slot="icon" name="attach_file"></mdui-icon>
+                                            <MaterialIcon slot="icon" name="attach_file"></MaterialIcon>
                                             <span className="name">{file.name}</span>
                                         </mdui-chip>
                                     ))}
                                 </div>
-                                <mdui-button-icon icon="close" className="reply-cancel" onClick={() => setAttachmentsVisible(false)}></mdui-button-icon>
+                                <MaterialIconButton icon="close" className="reply-cancel" onClick={() => setAttachmentsVisible(false)}></MaterialIconButton>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
                 <div className="chat-input">
                     <div className="left-buttons">
-                        <mdui-button-icon
+                        <MaterialIconButton
                             icon="mood"
                             onClick={handleEmojiButtonClick}
                             onMouseDown={e => e.stopPropagation()}
@@ -240,7 +241,7 @@ export function ChatInputWrapper(
                         onTextChange={handleMessageChange}
                         onEnter={handleSubmit} />
                     <div className="buttons">
-                        <mdui-button-icon icon="attach_file" onClick={handleAttachClick} className="attach-btn"></mdui-button-icon>
+                        <MaterialIconButton icon="attach_file" onClick={handleAttachClick} className="attach-btn"></MaterialIconButton>
                         <button type="submit" className="send-btn">
                             <span className="material-symbols filled">{editingMessage ? "check" : "send"}</span>
                         </button>
@@ -250,7 +251,7 @@ export function ChatInputWrapper(
             <MaterialDialog open={errorOpen} onOpenChange={setErrorOpen} close-on-overlay-click close-on-esc>
                 <div slot="headline">Ошибка</div>
                 <div>Общий размер вложений превышает 4 ГБ.</div>
-                <mdui-button slot="action" onClick={() => setErrorOpen(false)}>Закрыть</mdui-button>
+                <MaterialButton slot="action" onClick={() => setErrorOpen(false)}>Закрыть</MaterialButton>
             </MaterialDialog>
 
             <EmojiMenu

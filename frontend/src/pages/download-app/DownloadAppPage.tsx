@@ -1,3 +1,4 @@
+import { MaterialButton } from "@/utils/material";
 import "./download-app.scss";
 
 export default function DownloadAppPage() {
@@ -11,7 +12,7 @@ export default function DownloadAppPage() {
                 </p>
 
                 <a href="https://github.com/denis0001-dev/FromChat-android/releases/latest">
-                    <mdui-button>Скачать на GitHub</mdui-button>
+                    <MaterialButton>Скачать на GitHub</MaterialButton>
                 </a>
 
                 <p>
@@ -19,7 +20,7 @@ export default function DownloadAppPage() {
                 </p>
 
                 <a href="https://t.me/denis0001-dev">
-                    <mdui-button>Написать в поддержку</mdui-button>
+                    <MaterialButton>Написать в поддержку</MaterialButton>
                 </a>
             </div>
         </div>

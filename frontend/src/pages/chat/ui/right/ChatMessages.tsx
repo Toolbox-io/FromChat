@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { MaterialDialog } from "@/core/components/Dialog";
 import { request } from "@/core/websocket";
 import type { AddReactionRequest, AddDmReactionRequest } from "@/core/types";
+import { MaterialButton } from "@/utils/material";
 
 interface ChatMessagesProps {
     messages?: MessageType[];
@@ -147,8 +148,8 @@ export function ChatMessages({ messages = [], children, isDm = false, onReplySel
                 headline="Удалить сообщение?"
                 open={deleteDialogOpen}
                 onOpenChange={setDeleteDialogOpen}>
-                <mdui-button slot="action" variant="tonal" onClick={() => setDeleteDialogOpen(false)}>Отменить</mdui-button>
-                <mdui-button slot="action" variant="filled" onClick={confirmDelete}>Удалить</mdui-button>
+                <MaterialButton slot="action" variant="tonal" onClick={() => setDeleteDialogOpen(false)}>Отменить</MaterialButton>
+                <MaterialButton slot="action" variant="filled" onClick={confirmDelete}>Удалить</MaterialButton>
             </MaterialDialog>
 
             {/* Context Menu */}

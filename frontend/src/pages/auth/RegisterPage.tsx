@@ -6,7 +6,7 @@ import { TextField } from "mdui/components/text-field";
 import type { ErrorResponse, RegisterRequest, LoginResponse } from "@/core/types";
 import { API_BASE_URL } from "@/core/config";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialTextField } from "@/core/components/MaterialTextField";
+import { MaterialButton, MaterialTextField } from "@/utils/material";
 import { ensureKeysOnLogin, deriveAuthSecret } from "@/core/api/authApi";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
@@ -156,7 +156,7 @@ export default function RegisterPage() {
                         required
                         ref={confirmPasswordElement} />
 
-                    <mdui-button type="submit">Зарегистрироваться</mdui-button>
+                    <MaterialButton type="submit">Зарегистрироваться</MaterialButton>
                 </form>
 
                 <div className="text-center">

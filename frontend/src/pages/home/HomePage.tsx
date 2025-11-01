@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/pages/chat/state";
 import "./home.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
+import { MaterialButton, MaterialIcon } from "@/utils/material";
 
 function GitHubLink({ children }: { children: React.ReactNode }) {
     return (
@@ -32,9 +33,9 @@ export default function HomePage() {
     }
 
     const openBtn = (
-        <mdui-button variant="filled" onClick={handleGetStarted}>
+        <MaterialButton variant="filled" onClick={handleGetStarted}>
             {isMobile ? "Скачать приложение" : isLoggedIn ? "Перейти в чат" : "Войти"}
-        </mdui-button>
+        </MaterialButton>
     );
 
     return (
@@ -48,10 +49,10 @@ export default function HomePage() {
                         </div>
                         <nav className="header-nav">
                             <GitHubLink>
-                                <mdui-button variant="text">GitHub</mdui-button>
+                                <MaterialButton variant="text">GitHub</MaterialButton>
                             </GitHubLink>
                             <SupportLink>
-                                <mdui-button variant="text">Поддержка</mdui-button>
+                                <MaterialButton variant="text">Поддержка</MaterialButton>
                             </SupportLink>
 
                             {openBtn}
@@ -73,12 +74,13 @@ export default function HomePage() {
                             </p>
                             <div className="hero-actions">
                                 {openBtn}
-                                {!isMobile && <mdui-button
-                                    variant="outlined"
-                                    onClick={() => navigate("/register")}
-                                >
-                                    Зарегистрироваться
-                                </mdui-button>}
+                                {!isMobile && (
+                                    <MaterialButton
+                                        variant="outlined"
+                                        onClick={() => navigate("/register")}>
+                                        Зарегистрироваться
+                                    </MaterialButton>
+                                )}
                             </div>
                         </div>
                         <div className="hero-visual">
@@ -122,7 +124,7 @@ export default function HomePage() {
                         <div className="features-grid">
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="security" />
+                                    <MaterialIcon name="security" />
                                 </div>
                                 <h4>End-to-End Шифрование</h4>
                                 <p>
@@ -133,7 +135,7 @@ export default function HomePage() {
 
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="code" />
+                                    <MaterialIcon name="code" />
                                 </div>
                                 <h4>100% открытый код</h4>
                                 <p>
@@ -144,7 +146,7 @@ export default function HomePage() {
 
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="attach_file" />
+                                    <MaterialIcon name="attach_file" />
                                 </div>
                                 <h4>Обмен Файлами</h4>
                                 <p>
@@ -155,7 +157,7 @@ export default function HomePage() {
 
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="notifications" />
+                                    <MaterialIcon name="notifications" />
                                 </div>
                                 <h4>Уведомления</h4>
                                 <p>
@@ -166,7 +168,7 @@ export default function HomePage() {
 
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="edit" />
+                                    <MaterialIcon name="edit" />
                                 </div>
                                 <h4>Редактирование</h4>
                                 <p>
@@ -177,7 +179,7 @@ export default function HomePage() {
 
                             <div className="feature-card">
                                 <div className="feature-icon">
-                                    <mdui-icon name="computer" />
+                                    <MaterialIcon name="computer" />
                                 </div>
                                 <h4>Кроссплатформенность</h4>
                                 <p>
@@ -205,20 +207,20 @@ export default function HomePage() {
                                             target="_blank"
                                             rel="noopener noreferrer"
                                         >
-                                            <mdui-button variant="filled">
-                                                <mdui-icon name="download" slot="icon" />
+                                            <MaterialButton variant="filled">
+                                                <MaterialIcon name="download" slot="icon" />
                                                 Скачать для ПК
-                                            </mdui-button>
+                                            </MaterialButton>
                                         </a>
-                                        <mdui-button variant="outlined" onClick={() => navigate("/login")}>
-                                            <mdui-icon name="language" slot="icon" />
+                                        <MaterialButton variant="outlined" onClick={() => navigate("/login")}>
+                                            <MaterialIcon name="language" slot="icon" />
                                             Веб-версия
-                                        </mdui-button>
+                                        </MaterialButton>
                                     </>
                                 ) : (
-                                    <mdui-button variant="filled" onClick={() => navigate("/download-app")}>
+                                    <MaterialButton variant="filled" onClick={() => navigate("/download-app")}>
                                         Скачать приложение
-                                    </mdui-button>
+                                    </MaterialButton>
                                 )}
                             </div>
                         </div>
@@ -234,21 +236,21 @@ export default function HomePage() {
                             </p>
                             <div className="cta-actions">
                                 {isMobile ? (
-                                    <mdui-button variant="filled" onClick={() => navigate("/download-app")}>
+                                    <MaterialButton variant="filled" onClick={() => navigate("/download-app")}>
                                         Скачать приложение
-                                    </mdui-button>
+                                    </MaterialButton>
                                 ) : (
                                     <>
-                                        <mdui-button
+                                        <MaterialButton
                                             variant="filled"
                                             onClick={() => navigate("/register")}>
                                             Создать аккаунт
-                                        </mdui-button>
-                                        <mdui-button
+                                        </MaterialButton>
+                                        <MaterialButton
                                             variant="outlined"
                                             onClick={() => navigate("/login")}>
                                             Войти
-                                        </mdui-button>
+                                        </MaterialButton>
                                     </>
                                 )}
                             </div>

@@ -157,6 +157,7 @@ class DeviceSession(Base):
     raw_user_agent = Column(Text, nullable=True)
 
     # Parsed fields
+    device_name = Column(String(128), nullable=True)
     device_type = Column(String(32), nullable=True)  # desktop/mobile/tablet/bot/unknown
     os_name = Column(String(64), nullable=True)
     os_version = Column(String(64), nullable=True)

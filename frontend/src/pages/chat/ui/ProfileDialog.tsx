@@ -12,6 +12,7 @@ import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineStatus } from "./right/OnlineStatus";
 import { Input } from "@/core/components/Input";
 import { StyledDialog } from "@/core/components/StyledDialog";
+import { MaterialButton, MaterialFab, MaterialIcon } from "@/utils/material";
 
 interface SectionProps {
     type: string;
@@ -55,7 +56,7 @@ function Section({ type, icon, label, error, value, onChange, readOnly, placehol
 
     return (
         <div className={`section ${type} ${error ? 'error' : ''}`}>
-            <mdui-icon name={icon} />
+            <MaterialIcon name={icon} />
             <div className="content-container">
                 <label className="label">{label}</label>
                 {valueComponent}
@@ -442,12 +443,11 @@ export function ProfileDialog() {
             className="profile-dialog"
             afterChildren={
                 currentData.isOwnProfile && (
-                    <mdui-fab
+                    <MaterialFab
                         icon="check"
                         className={`profile-dialog-fab ${fabVisible ? "visible" : ""}`}
                         onClick={handleSave}
-                        disabled={isSaving}
-                    />
+                        disabled={isSaving} />
                 )
             }
         >
@@ -457,16 +457,16 @@ export function ProfileDialog() {
                     src={currentData.profilePicture || defaultAvatar}
                     alt="Profile Picture"
                     onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = defaultAvatar;
+                        e.target.src = defaultAvatar;
                     }}
                 />
+                
                 {currentData.isOwnProfile && (
                     <div
                         className="profile-picture-edit-overlay"
                         onClick={handleProfilePictureClick}
                     >
-                        <mdui-icon name="camera_alt--filled" />
+                        <MaterialIcon name="camera_alt--filled" />
                     </div>
                 )}
             </div>
@@ -481,6 +481,7 @@ export function ProfileDialog() {
                         onChange={handleDisplayNameChange}
                         readOnly={!currentData.isOwnProfile}
                         placeholder="Имя" />
+                    
                     <StatusBadge 
                         verified={currentData.verified || false}
                         userId={currentData.userId}
@@ -502,22 +503,22 @@ export function ProfileDialog() {
                 <div className="admin-actions-section">
                     <h3 className="admin-actions-header">Admin Actions</h3>
                     <div className="admin-buttons">
-                        <mdui-button 
+                        <MaterialButton 
                             variant="filled" 
                             color="error"
                             icon={currentData.suspended ? "check_circle--filled" : "block--filled"}
                             onClick={handleSuspend}
                         >
                             {currentData.suspended ? "Unsuspend Account" : "Suspend Account"}
-                        </mdui-button>
-                        <mdui-button 
+                        </MaterialButton>
+                        <MaterialButton 
                             variant="filled" 
                             color="error"
                             icon="delete_forever--filled"
                             onClick={handleDelete}
                         >
                             Delete Account
-                        </mdui-button>
+                        </MaterialButton>
                         <VerifyButton 
                             userId={currentData.userId!}
                             verified={currentData.verified || false}

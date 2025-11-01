@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Size2D, Rect } from "@/core/types";
+import { MaterialButton } from "@/utils/material";
 
 interface ImageCropperProps {
     onCrop: (croppedImageData: string) => void;
@@ -180,12 +181,12 @@ export function ImageCropper({ onCrop, onCancel, imageFile }: ImageCropperProps)
                 alt="Crop source"
             />
             <div className="cropper-actions">
-                <mdui-button onClick={handleCrop} disabled={!isLoaded}>
+                <MaterialButton onClick={handleCrop} disabled={!isLoaded}>
                     Обрезать
-                </mdui-button>
-                <mdui-button variant="outlined" onClick={onCancel}>
+                </MaterialButton>
+                <MaterialButton variant="outlined" onClick={onCancel}>
                     Отмена
-                </mdui-button>
+                </MaterialButton>
             </div>
         </div>
     );

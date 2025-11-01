@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "./css/searchBar.scss";
+import { MaterialIcon } from "@/utils/material";
 
 interface SearchBarProps {
     placeholder: string;
@@ -57,9 +58,9 @@ export default function SearchBar({
     function renderIcon(icon: string | React.ReactNode | undefined, defaultIcon?: string) {
         if (icon === null) return null;
         if (!icon) {
-            return defaultIcon ? <mdui-icon name={defaultIcon}></mdui-icon> : null;
+            return defaultIcon ? <MaterialIcon name={defaultIcon} /> : null;
         } else if (typeof icon === 'string') {
-            return <mdui-icon name={icon}></mdui-icon>;
+            return <MaterialIcon name={icon} />;
         } else {
             return icon;
         }

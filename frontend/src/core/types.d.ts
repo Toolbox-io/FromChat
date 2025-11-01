@@ -631,3 +631,10 @@ export interface StopDmTypingRequest extends WebSocketMessage {
         recipientId: number;
     };
 }
+
+
+// -------------
+// Utility types
+// -------------
+
+export type Override<TBase, TExt> = Omit<TBase, keyof TExt> & TExt;

@@ -7,12 +7,12 @@ import { API_BASE_URL } from "@/core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialTextField } from "@/core/components/MaterialTextField";
 import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { useNavigate } from "react-router-dom";
 import "./auth.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
+import { MaterialButton, MaterialTextField } from "@/utils/material";
 
 export default function LoginPage() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
@@ -114,6 +114,7 @@ export default function LoginPage() {
                             showAlert("danger", "Ошибка соединения с сервером");
                         }
                     }}>
+                    
                     <MaterialTextField
                         label="@Имя пользователя"
                         id="login-username"
@@ -136,7 +137,7 @@ export default function LoginPage() {
                         required
                         ref={passwordElement} />
 
-                    <mdui-button type="submit">Войти</mdui-button>
+                    <MaterialButton type="submit">Войти</MaterialButton>
                 </form>
 
                 <div className="text-center">

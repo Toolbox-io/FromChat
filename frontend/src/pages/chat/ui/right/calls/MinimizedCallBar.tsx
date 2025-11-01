@@ -1,6 +1,7 @@
 import { useAppState } from "@/pages/chat/state";
 import useCall from "@/pages/chat/hooks/useCall";
 import defaultAvatar from "@/images/default-avatar.png";
+import { MaterialIconButton } from "@/utils/material";
 
 export function MinimizedCallBar() {
     const { chat, toggleCallMinimize } = useAppState();
@@ -49,11 +50,11 @@ export function MinimizedCallBar() {
 
             <div className="call-actions" onClick={(e) => e.stopPropagation()}>
                 {call.status === "calling" && !call.isInitiator ? (
-                    <mdui-button-icon onClick={endCall} icon="call_end" />
+                    <MaterialIconButton onClick={endCall} icon="call_end" />
                 ) : (
                     <>
-                        <mdui-button-icon onClick={toggleMute} icon={call.isMuted ? "mic_off" : "mic"} />
-                        <mdui-button-icon onClick={endCall} icon="call_end" />
+                        <MaterialIconButton onClick={toggleMute} icon={call.isMuted ? "mic_off" : "mic"} />
+                        <MaterialIconButton onClick={endCall} icon="call_end" />
                     </>
                 )}
             </div>
