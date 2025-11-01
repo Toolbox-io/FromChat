@@ -2,8 +2,6 @@
 @use "../../../css/material" as *;
 @use "sass:color";
 
-$scrollbar-width: 8px;
-
 .chat-wrapper {
     flex-grow: 1;
     height: 100%;
@@ -17,31 +15,9 @@ $scrollbar-width: 8px;
         position: relative;
         overflow-y: auto;
 
-        // Fancy floating thin scrollbar with invisible transparent margin
-        scrollbar-width: thin;
-        scrollbar-color: rgba($color-dark-primary, 0.3) transparent;
-
-        &::-webkit-scrollbar {
-            width: $scrollbar-width;
-        }
-
-        &::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        &::-webkit-scrollbar-thumb {
-            background: rgba($color-dark-primary, 0.3);
-            border-radius: 4px;
-            margin: 2px;
-
-            &:hover {
-                background: rgba($color-dark-primary, 0.5);
-            }
-        }
-
         .chat-header {
             padding: 16px;
-            margin: 10px 10px - $scrollbar-width 0 10px;
+            margin: 10px 10px 0 10px;
             background: rgba($color-dark-surface-container, 0.7);
             backdrop-filter: blur(20px);
             border-radius: 30px;

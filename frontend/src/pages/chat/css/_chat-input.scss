@@ -1,11 +1,10 @@
 @use "../../../css/colors" as *;
 @use "../../../css/material" as *;
 @use "sass:color";
-@use "right-panel" as *;
 
 .chat-input-wrapper {
     position: relative;
-    margin: 0 10px - $scrollbar-width 10px 10px;
+    margin: 0 10px 10px 10px;
     position: sticky;
     bottom: 10px;
     z-index: 1;
