@@ -68,4 +68,4 @@ export function optimizeCssModules(options?: OptimizeCssModuleOptions): Plugin {
             }
         })
     };
-};
+}

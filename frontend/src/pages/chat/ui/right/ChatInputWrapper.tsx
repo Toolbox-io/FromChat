@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MaterialDialog } from "@/core/components/Dialog";
 import { RichTextArea } from "@/core/components/RichTextArea";
 import type { Message } from "@/core/types";
 import Quote from "@/core/components/Quote";
 import { useImmer } from "use-immer";
 import { EmojiMenu } from "./EmojiMenu";
-import { MaterialButton, MaterialIcon, MaterialIconButton } from "@/utils/material";
+import { MaterialIcon, MaterialIconButton } from "@/utils/material";
 import styles from "@/pages/chat/css/ChatInput.module.scss";
+import { alert } from "mdui/functions/alert";
 
 interface ChatInputWrapperProps {
     onSendMessage: (message: string, files: File[]) => void;
@@ -47,7 +47,6 @@ export function ChatInputWrapper(
     const [message, setMessage] = useState("");
     const [selectedFiles, setSelectedFiles] = useImmer<File[]>([]);
     const [attachmentsVisible, setAttachmentsVisible] = useState(false);
-    const [errorOpen, setErrorOpen] = useState(false);
     const [emojiMenuOpen, setEmojiMenuOpen] = useState(false);
     const [emojiMenuPosition, setEmojiMenuPosition] = useState({ x: 0, y: 0 });
     const chatInputWrapperRef = useRef<HTMLDivElement>(null);
@@ -116,9 +115,13 @@ export function ChatInputWrapper(
             const totalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
             const limit = 4 * 1024 * 1024 * 1024; // 4GB
             if (totalSize > limit) {
-                setErrorOpen(true);
+                alert({
+                    headline: "Ошибка",
+                    description: "Общий размер вложений превышает 4 ГБ."
+                });
                 return;
             }
+
             if (editingMessage && onSaveEdit) {
                 onSaveEdit(message);
                 setMessage("");
@@ -249,11 +252,6 @@ export function ChatInputWrapper(
                     </div>
                 </div>
             </form>
-            <MaterialDialog open={errorOpen} onOpenChange={setErrorOpen} close-on-overlay-click close-on-esc>
-                <div slot="headline">Ошибка</div>
-                <div>Общий размер вложений превышает 4 ГБ.</div>
-                <MaterialButton slot="action" onClick={() => setErrorOpen(false)}>Закрыть</MaterialButton>
-            </MaterialDialog>
 
             <EmojiMenu
                 isOpen={emojiMenuOpen}

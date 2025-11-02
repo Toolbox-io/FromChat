@@ -132,13 +132,13 @@ export function CallWindow() {
                             style={isMinimized ? {
                                 left: pipPosition.x,
                                 top: pipPosition.y
-                            } : undefined}
+                            } : {}}
                             initial={false}
                             exit={isMinimized ?
                                 { opacity: 0, scale: 0.7 } :
                                 { opacity: 0, y: -100 }
                             }
-                            transition={{ 
+                            transition={isDragging ? { duration: 0 } : { 
                                 opacity: { duration: 0.4 },
                                 scale: { duration: 0.4 },
                                 y: { duration: 0.4 }
