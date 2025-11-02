@@ -6,14 +6,21 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { visualizer } from 'rollup-plugin-visualizer';
 import sassDts from 'vite-plugin-sass-dts';
+import { optimizeCssModules } from './plugins/optimizeCssModules';
 
-const outDir = process.env.VITE_ELECTRON ? "build/electron" : "build/normal";
+const currentDir = path.resolve(__dirname);
+const outDir = process.env.VITE_ELECTRON ? `${currentDir}/build/electron` : `${currentDir}/build/normal`;
 
 const plugins: PluginOption[] = [
-    react(),
+    react({
+        babel: {
+            compact: false
+        }
+    }),
     sassDts({
         enabledMode: ['development', 'production']
     }),
+    optimizeCssModules(),
     createHtmlPlugin({
         minify: {
             collapseWhitespace: true,
@@ -40,7 +47,7 @@ if (process.env.VITE_ELECTRON) {
                 entry: "electron/main.ts",
                 vite: {
                     build: {
-                        outDir: "build/electron/core"
+                        outDir: `${outDir}/core`
                     }
                 }
             },
@@ -48,7 +55,7 @@ if (process.env.VITE_ELECTRON) {
                 input: "frontend/electron/preload.ts",
                 vite: {
                     build: {
-                        outDir: "build/electron/core"
+                        outDir: `${outDir}/core`
                     }
                 }
             },
@@ -79,6 +86,11 @@ export default defineConfig({
         allowedHosts: ["beta.fromchat.ru"]
     },
     appType: "spa",
+    optimizeDeps: {
+        esbuildOptions: {
+            target: "es2022"
+        }
+    },
     css: {
         postcss: {
             plugins: [autoprefixer()]
@@ -99,5 +111,6 @@ export default defineConfig({
         assetsInlineLimit: 0,
         outDir: `${outDir}/dist`,
         chunkSizeWarningLimit: 1024
-    }
+    },
+    cacheDir: `${currentDir}/build/cache`
 });
