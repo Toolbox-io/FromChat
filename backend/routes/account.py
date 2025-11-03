@@ -1,12 +1,18 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
+import uuid
+from user_agents import parse as parse_ua
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
-from models import LoginRequest, RegisterRequest, User, CryptoPublicKey, CryptoBackup
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
 from utils import create_token, get_password_hash, verify_password
 from validation import is_valid_password, is_valid_username, is_valid_display_name
+import os
 
 router = APIRouter()
 
@@ -37,7 +43,7 @@ def check_auth(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/login")
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, db: Session = Depends(get_db), http: Request = None):
     user = db.query(User).filter(User.username == request.username.strip()).first()
 
     if not user or not verify_password(request.password.strip(), user.password_hash):
@@ -46,11 +52,35 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail="Неверное имя пользователя или пароль"
         )
 
+    # Create device session and embed into JWT
+    raw_ua = http.headers.get("user-agent") if http else None
+    device_name = http.headers.get("x-device-name") if http else None
+    ua = parse_ua(raw_ua or "")
+    session_id = uuid.uuid4().hex
+
+    device = DeviceSession(
+        user_id=user.id,
+        raw_user_agent=raw_ua,
+        device_name=device_name,
+        device_type=("mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"),
+        os_name=(ua.os.family or None),
+        os_version=(ua.os.version_string or None),
+        browser_name=(ua.browser.family or None),
+        browser_version=(ua.browser.version_string or None),
+        brand=(ua.device.brand or None),
+        model=(ua.device.model or None),
+        session_id=session_id,
+        created_at=datetime.now(),
+        last_seen=datetime.now(),
+        revoked=False,
+    )
+    db.add(device)
+
     user.online = True
     user.last_seen = datetime.now()
     db.commit()
 
-    token = create_token(user.id, user.username)
+    token = create_token(user.id, user.username, session_id)
 
     return {
         "status": "success",
@@ -61,7 +91,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/register")
-def register(request: RegisterRequest, db: Session = Depends(get_db)):
+def register(request: RegisterRequest, db: Session = Depends(get_db), http: Request = None):
     username = request.username.strip()
     display_name = request.display_name.strip()
     password = request.password.strip()
@@ -134,7 +164,31 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    token = create_token(new_user.id, new_user.username)
+    # Create initial device session
+    raw_ua = http.headers.get("user-agent") if http else None
+    device_name = http.headers.get("x-device-name") if http else None
+    ua = parse_ua(raw_ua or "")
+    session_id = uuid.uuid4().hex
+    device = DeviceSession(
+        user_id=new_user.id,
+        raw_user_agent=raw_ua,
+        device_name=device_name,
+        device_type=("mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"),
+        os_name=(ua.os.family or None),
+        os_version=(ua.os.version_string or None),
+        browser_name=(ua.browser.family or None),
+        browser_version=(ua.browser.version_string or None),
+        brand=(ua.device.brand or None),
+        model=(ua.device.model or None),
+        session_id=session_id,
+        created_at=datetime.now(),
+        last_seen=datetime.now(),
+        revoked=False,
+    )
+    db.add(device)
+    db.commit()
+
+    token = create_token(new_user.id, new_user.username, session_id)
 
     return {
         "status": "success",
@@ -214,9 +268,19 @@ def delete_user_as_owner(
 
 @router.get("/logout")
 def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    # Revoke current session
+    from utils import verify_token as _verify_token
+    payload = _verify_token(credentials.credentials)
+    if payload and payload.get("session_id"):
+        db.query(DeviceSession).filter(
+            DeviceSession.user_id == current_user.id,
+            DeviceSession.session_id == payload["session_id"],
+        ).update({DeviceSession.revoked: True})
+
     current_user.online = False
     current_user.last_seen = datetime.now()
     db.commit()
@@ -225,6 +289,37 @@ def logout(
         "status": "success",
         "message": "Logged out successfully"
     }
+
+
+@router.post("/change-password")
+def change_password(
+    request: ChangePasswordRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify current derived password against stored hash
+    if not verify_password(request.currentPasswordDerived.strip(), current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Текущий пароль неверный")
+
+    # Update password hash to hash of new derived password
+    current_user.password_hash = get_password_hash(request.newPasswordDerived.strip())
+    db.commit()
+
+    # Optionally revoke all other sessions, keeping the current one
+    if request.logoutAllExceptCurrent:
+        from utils import verify_token as _verify_token
+        payload = _verify_token(credentials.credentials)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        current_session_id = payload.get("session_id")
+        db.query(DeviceSession).filter(
+            DeviceSession.user_id == current_user.id,
+            DeviceSession.session_id != current_session_id,
+        ).update({DeviceSession.revoked: True})
+        db.commit()
+
+    return {"status": "success"}
 
 
 @router.get("/users")
@@ -256,4 +351,86 @@ def search_users(q: str, current_user: User = Depends(get_current_user), db: Ses
     
     return {
         "users": [convert_user(u) for u in users]
+    }
+
+
+async def _delete_user_data(user: User, db: Session):
+    """
+    Helper function to delete user data - marks user as deleted, clears sensitive data,
+    deletes profile picture, removes non-whitelist user data, and sends WebSocket message.
+    """
+    user_id = user.id
+    
+    # Mark user as deleted and clear sensitive data
+    user.deleted = True
+    user.display_name = f"Deleted User #{user_id}"
+    user.bio = None
+    user.password_hash = ""
+    user.username = f"deleted_{user_id}"
+    user.profile_picture = None
+    user.last_seen = None  # Clear last seen timestamp
+    user.created_at = None  # Clear member since timestamp
+    
+    # Delete profile picture file if exists
+    if user.profile_picture and user.profile_picture.startswith("/api/profile-picture/"):
+        try:
+            filename = user.profile_picture.split("/")[-1]
+            filepath = os.path.join("data/uploads/pfp", filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except Exception as e:
+            # Log error but don't fail the request
+            pass
+    
+    # Dynamic deletion of all non-whitelist data
+    WHITELIST_TABLES = {"message", "dm_envelope", "reaction", "dm_reaction", "message_file", "dm_file"}
+    
+    try:
+        inspector = inspect(db.bind)
+        all_tables = inspector.get_table_names()
+        
+        for table_name in all_tables:
+            if table_name in WHITELIST_TABLES or table_name == "user":
+                continue
+            
+            # Check if table has user_id column
+            columns = inspector.get_columns(table_name)
+            has_user_id = any(col['name'] == 'user_id' for col in columns)
+            
+            if has_user_id:
+                # Delete all records for this user
+                db.execute(text(f"DELETE FROM {table_name} WHERE user_id = :uid"), {"uid": user_id})
+        
+        db.commit()
+    except Exception as e:
+        # Log error and rollback
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete user data")
+    
+    # Send WebSocket deletion message
+    try:
+        from .messaging import messagingManager
+        await messagingManager.send_deletion_to_user(user_id)
+    except Exception as e:
+        # Log error but don't fail the request
+        pass
+
+
+@router.post("/delete")
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete the current user's own account - preserves messages/DMs/reactions/files
+    """
+    # Prevent admin/owner account self-deletion
+    if current_user.username == OWNER_USERNAME or current_user.id == 1:
+        raise HTTPException(status_code=400, detail="Cannot delete admin/owner account")
+    
+    await _delete_user_data(current_user, db)
+    
+    return {
+        "status": "success",
+        "message": "Account deleted successfully"
     }

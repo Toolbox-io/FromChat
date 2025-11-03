@@ -1,32 +1,33 @@
 import { useAppState, type ChatTabs } from "@/pages/chat/state";
 import { UnifiedChatsList } from "./UnifiedChatsList";
-import type { Tabs } from "mdui/components/tabs";
+import { MaterialTab, MaterialTabPanel, MaterialTabs } from "@/utils/material";
+import styles from "@/pages/chat/css/left-panel.module.scss";
 
 export function ChatTabs() {
     const { chat, setActiveTab } = useAppState();
 
     return (
-        <div className="chat-tabs">
-            <mdui-tabs
+        <div className={styles.chatTabs}>
+            <MaterialTabs
                 value={chat.activeTab}
                 full-width
-                onChange={(e) => setActiveTab((e.target as Tabs).value as ChatTabs)}>
-                <mdui-tab value="chats">
+                onChange={(e) => setActiveTab(e.target.value as ChatTabs)}>
+                <MaterialTab value="chats">
                     Чаты
-                </mdui-tab>
-                <mdui-tab value="channels">
+                </MaterialTab>
+                <MaterialTab value="channels">
                     Каналы
-                </mdui-tab>
-                <mdui-tab value="contacts">
+                </MaterialTab>
+                <MaterialTab value="contacts">
                     Контакты
-                </mdui-tab>
+                </MaterialTab>
 
-                <mdui-tab-panel slot="panel" value="chats">
+                <MaterialTabPanel slot="panel" value="chats">
                     <UnifiedChatsList />
-                </mdui-tab-panel>
-                <mdui-tab-panel slot="panel" value="channels">Скоро будет...</mdui-tab-panel>
-                <mdui-tab-panel slot="panel" value="contacts">Скоро будет...</mdui-tab-panel>
-            </mdui-tabs>
+                </MaterialTabPanel>
+                <MaterialTabPanel slot="panel" value="channels">Скоро будет...</MaterialTabPanel>
+                <MaterialTabPanel slot="panel" value="contacts">Скоро будет...</MaterialTabPanel>
+            </MaterialTabs>
         </div>
     );
 }

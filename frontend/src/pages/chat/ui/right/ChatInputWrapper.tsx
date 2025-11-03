@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { MaterialDialog } from "@/core/components/Dialog";
+import { motion, AnimatePresence } from "motion/react";
 import { RichTextArea } from "@/core/components/RichTextArea";
 import type { Message } from "@/core/types";
 import Quote from "@/core/components/Quote";
-import AnimatedHeight from "@/core/components/animations/AnimatedHeight";
 import { useImmer } from "use-immer";
 import { EmojiMenu } from "./EmojiMenu";
+import { MaterialIcon, MaterialIconButton } from "@/utils/material";
+import styles from "@/pages/chat/css/ChatInput.module.scss";
+import { alert } from "mdui/functions/alert";
 
 interface ChatInputWrapperProps {
     onSendMessage: (message: string, files: File[]) => void;
@@ -45,7 +47,6 @@ export function ChatInputWrapper(
     const [message, setMessage] = useState("");
     const [selectedFiles, setSelectedFiles] = useImmer<File[]>([]);
     const [attachmentsVisible, setAttachmentsVisible] = useState(false);
-    const [errorOpen, setErrorOpen] = useState(false);
     const [emojiMenuOpen, setEmojiMenuOpen] = useState(false);
     const [emojiMenuPosition, setEmojiMenuPosition] = useState({ x: 0, y: 0 });
     const chatInputWrapperRef = useRef<HTMLDivElement>(null);
@@ -114,9 +115,13 @@ export function ChatInputWrapper(
             const totalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
             const limit = 4 * 1024 * 1024 * 1024; // 4GB
             if (totalSize > limit) {
-                setErrorOpen(true);
+                alert({
+                    headline: "Ошибка",
+                    description: "Общий размер вложений превышает 4 ГБ."
+                });
                 return;
             }
+
             if (editingMessage && onSaveEdit) {
                 onSaveEdit(message);
                 setMessage("");
@@ -143,71 +148,95 @@ export function ChatInputWrapper(
     }
 
     return (
-        <div className="chat-input-wrapper" ref={chatInputWrapperRef}>
-            <form className="input-group" id="message-form" onSubmit={handleSubmit}>
-                <AnimatedHeight visible={editVisible} onFinish={onCloseEdit}>
-                    {editingMessage && (
-                        <div className="reply-preview contextual-preview">
-                            <mdui-icon name="edit" />
-                            <Quote className="reply-content contextual-content" background="surfaceContainer">
-                                <span className="reply-username">{editingMessage!.username}</span>
-                                <span className="reply-text">{editingMessage!.content}</span>
-                            </Quote>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearEdit}></mdui-button-icon>
-                        </div>
-                    )}
-                </AnimatedHeight>
-                <AnimatedHeight visible={replyToVisible} onFinish={onCloseReply}>
-                    {replyTo && (
-                        <div className="reply-preview contextual-preview">
-                            <mdui-icon name="reply" />
-                            <Quote className="reply-content contextual-content" background="surfaceContainer">
-                                <span className="reply-username">{replyTo!.username}</span>
-                                <span className="reply-text">{replyTo!.content}</span>
-                            </Quote>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={onClearReply}></mdui-button-icon>
-                        </div>
-                    )}
-                </AnimatedHeight>
-                <AnimatedHeight visible={attachmentsVisible} onFinish={() => setSelectedFiles([])}>
-                    {selectedFiles.length > 0 && (
-                        <div className="attachments-preview contextual-preview">
-                            <mdui-icon name="attach_file" />
-                            <div className="attachments-chips">
-                                {selectedFiles.map((file, i) => (
-                                    <mdui-chip
-                                        key={i}
-                                        variant="input"
-                                        end-icon="close"
-                                        title={`${file.name} (${Math.round(file.size/1024/1024)} MB)`}
-                                        onClick={() => {
-                                            if (selectedFiles.length == 1) {
-                                                setAttachmentsVisible(false);
-                                            } else {
-                                                setSelectedFiles(draft => { draft.splice(i) })
-                                            }
-                                        }}
-                                    >
-                                        <mdui-icon slot="icon" name="attach_file"></mdui-icon>
-                                        <span className="name">{file.name}</span>
-                                    </mdui-chip>
-                                ))}
+        <div className={styles.chatInputWrapper} ref={chatInputWrapperRef}>
+            <form className={styles.inputGroup} id="message-form" onSubmit={handleSubmit}>
+                <AnimatePresence onExitComplete={onCloseEdit}>
+                    {editVisible && editingMessage && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ overflow: "hidden" }}
+                        >
+                            <div className={styles.contextualPreview}>
+                                <MaterialIcon name="edit" />
+                                <Quote className={`${styles.quote} ${styles.contextualContent}`} background="surfaceContainer">
+                                    <span className={styles.replyUsername}>{editingMessage!.username}</span>
+                                    <span className={styles.replyText}>{editingMessage!.content}</span>
+                                </Quote>
+                                <MaterialIconButton icon="close" className={styles.replyCancel} onClick={onClearEdit}></MaterialIconButton>
                             </div>
-                            <mdui-button-icon icon="close" className="reply-cancel" onClick={() => setAttachmentsVisible(false)}></mdui-button-icon>
-                        </div>
+                        </motion.div>
                     )}
-                </AnimatedHeight>
-                <div className="chat-input">
-                    <div className="left-buttons">
-                        <mdui-button-icon
+                </AnimatePresence>
+                <AnimatePresence onExitComplete={onCloseReply}>
+                    {replyToVisible && replyTo && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ overflow: "hidden" }}
+                        >
+                            <div className={styles.contextualPreview}>
+                                <MaterialIcon name="reply" />
+                                <Quote className={`${styles.quote} ${styles.contextualContent}`} background="surfaceContainer">
+                                    <span className={styles.replyUsername}>{replyTo!.username}</span>
+                                    <span className={styles.replyText}>{replyTo!.content}</span>
+                                </Quote>
+                                <MaterialIconButton icon="close" className={styles.replyCancel} onClick={onClearReply}></MaterialIconButton>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                <AnimatePresence onExitComplete={() => setSelectedFiles([])}>
+                    {attachmentsVisible && selectedFiles.length > 0 && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ overflow: "hidden" }}
+                        >
+                            <div className={`${styles.attachmentsPreview} ${styles.contextualPreview}`}>
+                                <MaterialIcon name="attach_file" />
+                                <div className={styles.attachmentsChips}>
+                                    {selectedFiles.map((file, i) => (
+                                        <mdui-chip
+                                            key={i}
+                                            variant="input"
+                                            end-icon="close"
+                                            title={`${file.name} (${Math.round(file.size/1024/1024)} MB)`}
+                                            onClick={() => {
+                                                if (selectedFiles.length == 1) {
+                                                    setAttachmentsVisible(false);
+                                                } else {
+                                                    setSelectedFiles(draft => { draft.splice(i) })
+                                                }
+                                            }}
+                                        >
+                                            <MaterialIcon slot="icon" name="attach_file"></MaterialIcon>
+                                            <span className="name">{file.name}</span>
+                                        </mdui-chip>
+                                    ))}
+                                </div>
+                                <MaterialIconButton icon="close" className={styles.replyCancel} onClick={() => setAttachmentsVisible(false)}></MaterialIconButton>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                <div className={styles.chatInput}>
+                    <div className={styles.leftButtons}>
+                        <MaterialIconButton
                             icon="mood"
                             onClick={handleEmojiButtonClick}
                             onMouseDown={e => e.stopPropagation()}
                             onMouseUp={e => e.stopPropagation()}
-                            className="emoji-btn" />
+                            className={styles.emojiBtn} />
                     </div>
                     <RichTextArea
-                        className="message-input"
+                        className={styles.messageInput}
                         id="message-input"
                         placeholder="Напишите сообщение..."
                         autoComplete="off"
@@ -215,19 +244,14 @@ export function ChatInputWrapper(
                         rows={1}
                         onTextChange={handleMessageChange}
                         onEnter={handleSubmit} />
-                    <div className="buttons">
-                        <mdui-button-icon icon="attach_file" onClick={handleAttachClick} className="attach-btn"></mdui-button-icon>
-                        <button type="submit" className="send-btn">
+                    <div className={styles.buttons}>
+                        <MaterialIconButton icon="attach_file" onClick={handleAttachClick}></MaterialIconButton>
+                        <button type="submit" className={styles.sendBtn}>
                             <span className="material-symbols filled">{editingMessage ? "check" : "send"}</span>
                         </button>
                     </div>
                 </div>
             </form>
-            <MaterialDialog open={errorOpen} onOpenChange={setErrorOpen} close-on-overlay-click close-on-esc>
-                <div slot="headline">Ошибка</div>
-                <div>Общий размер вложений превышает 4 ГБ.</div>
-                <mdui-button slot="action" onClick={() => setErrorOpen(false)}>Закрыть</mdui-button>
-            </MaterialDialog>
 
             <EmojiMenu
                 isOpen={emojiMenuOpen}

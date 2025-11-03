@@ -16,6 +16,8 @@ import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
 import { parseProfileLink } from "@/core/profileLinks";
+import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem } from "@/utils/material";
+import styles from "@/pages/chat/css/Message.module.scss";
 
 interface MessageReactionsProps {
     reactions?: Reaction[];
@@ -110,7 +112,7 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
     }
 
     return (
-        <div className="message-reactions">
+        <div className={styles.messageReactions}>
             {visibleReactions.map((reaction, index) => {
                 const hasUserReacted = reaction.users.some(u => u.id === user.currentUser?.id);
                 const isAnimating = animatingReactions.has(reaction.emoji);
@@ -118,12 +120,12 @@ function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsPr
                 return (
                     <button
                         key={`${messageId || 'unknown'}-${reaction.emoji}-${reaction.count}-${index}`}
-                        className={`reaction-button ${hasUserReacted ? "reacted" : ""} ${isAnimating ? "removing" : ""}`}
+                        className={`${styles.reactionButton} ${hasUserReacted ? styles.reacted : ""} ${isAnimating ? styles.removing : ""}`}
                         onClick={() => onReactionClick(reaction.emoji)}
                         title={reaction.users.map(u => u.username).join(", ")}
                     >
-                        <span className="reaction-emoji">{reaction.emoji}</span>
-                        <span className="reaction-count">{reaction.count}</span>
+                        <span className={styles.reactionEmoji}>{reaction.emoji}</span>
+                        <span className={styles.reactionCount}>{reaction.count}</span>
                     </button>
                 );
             })}
@@ -176,7 +178,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
         // Now process @mentions that aren't in existing links
         content = content.replace(/@([a-zA-Z0-9_.-]+)/g, (match, username) => {
-            return `<a href="https://fromchat.ru/@${username}" class="mention-link">${match}</a>`;
+            return `<a href="https://fromchat.ru/@${username}" class="${styles.mentionLink}">${match}</a>`;
         });
 
         // Restore the original links
@@ -187,7 +189,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         return {
             __html: DOMPurify.sanitize(parse(content, { async: false })).trim()
         };
-    }, [message.content]);
+    }, [message.content, styles.mentionLink]);
 
     // Auto-decrypt images in DMs
     useEffect(() => {
@@ -415,10 +417,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     }
 
     async function handleLinkClick(e: React.MouseEvent<HTMLDivElement>) {
-        const target = e.target as HTMLElement;
-
-        if (target.tagName === 'A') {
-            const profileLink = parseProfileLink((target as HTMLAnchorElement).href);
+        if (e.target.tagName === 'A') {
+            const link = (e.target as unknown as HTMLAnchorElement).href;
+            const profileLink = parseProfileLink(link);
 
             if (profileLink) {
                 e.preventDefault();
@@ -443,7 +444,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                             isOwnProfile: userProfile.id === user.currentUser?.id
                         });
                     } else {
-                        throw new Error("Invalid link: " + (target as HTMLAnchorElement).href);
+                        throw new Error(`Invalid link: ${link}`);
                     }
                 } catch (error) {
                     console.error("Failed to fetch user profile from link:", error);
@@ -473,27 +474,26 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     return (
         <>
             <div
-                className={`message ${isAuthor ? "sent" : "received"} ${isEmojiMessage ? "emoji-message" : ""} ${isSingleEmojiMessage ? "single-emoji" : ""}`}
+                className={`${styles.message} ${isAuthor ? styles.sent : styles.received} ${isEmojiMessage ? styles.emojiMessage : ""} ${isSingleEmojiMessage ? "" : ""}`}
                 data-id={message.id}
                 onContextMenu={handleContextMenu}
             >
                 {!isAuthor && !isDm && (
-                    <div className="message-profile-pic" onClick={handleProfileClick}>
+                    <div className={styles.messageProfilePic} onClick={handleProfileClick}>
                         <img
                             src={message.username?.startsWith("Deleted User #") ? defaultAvatar : (message.profile_picture || defaultAvatar)}
                             alt={message.username}
                             onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = defaultAvatar;
+                                e.target.src = defaultAvatar;
                             }}
                         />
                     </div>
                 )}
 
-                <div className="message-inner">
+                <div className={styles.messageInner}>
                     {!isAuthor && !isDm && !isSingleEmojiMessage && (
                         <div
-                            className="message-username"
+                            className={styles.messageUsername}
                             onClick={handleProfileClick}>
                             {message.username}
                             <StatusBadge
@@ -505,19 +505,19 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                     )}
 
                     {message.reply_to && (
-                        <Quote className="reply-preview contextual-content" background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
-                            <span className="reply-username">{message.reply_to.username}</span>
-                            <span className="reply-text">{message.reply_to.content}</span>
+                        <Quote className={`${styles.replyPreview} ${styles.contextualContent}`} background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
+                            <span className={styles.replyUsername}>{message.reply_to.username}</span>
+                            <span className={styles.replyText}>{message.reply_to.content}</span>
                         </Quote>
                     )}
 
                     <div
-                        className={`message-content ${isEmojiMessage ? "emoji-content" : ""} ${isSingleEmojiMessage ? "single-emoji-content" : ""}`}
+                        className={`${styles.messageContent} ${isEmojiMessage ? styles.emojiContent : ""} ${isSingleEmojiMessage ? styles.singleEmojiContent : ""}`}
                         dangerouslySetInnerHTML={formattedMessage}
                         onClick={handleLinkClick} />
 
                     {message.files && message.files.length > 0 && (
-                        <mdui-list className="message-attachments">
+                        <MaterialList className={styles.messageAttachments}>
                             {message.files.map((file, idx) => {
                                 const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name || "");
                                 const isEncryptedDm = Boolean(isDm && file.encrypted);
@@ -527,9 +527,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                                 const isSending = message.runtimeData?.sendingState?.status === 'sending';
 
                                 return (
-                                    <div className="attachment" key={idx}>
+                                    <div className={styles.attachment} key={idx}>
                                         {isImage ? (
-                                            <div className="image-wrapper">
+                                            <div className={styles.imageWrapper}>
                                                 <img
                                                     ref={(el) => {
                                                         if (el) imageRefs.current.set(file.path, el);
@@ -538,11 +538,11 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                                                     alt={file.name || "image"}
                                                     onClick={(e) => handleImageClick(file, e.currentTarget)}
                                                     onLoad={() => updateLoadedImages(draft => { draft.add(file.path); })}
-                                                    className={`attachement-image ${loadedImages.has(file.path) ? "" : "loading"}`}
+                                                    className={`${styles.attachementImage} ${loadedImages.has(file.path) ? "" : styles.loading}`}
                                                 />
                                                 {(!loadedImages.has(file.path) || isSending) && (
-                                                    <div className="loading-overlay">
-                                                        <mdui-circular-progress />
+                                                    <div className={styles.loadingOverlay}>
+                                                        <MaterialCircularProgress />
                                                     </div>
                                                 )}
                                             </div>
@@ -554,18 +554,18 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                                                     await downloadFile(file);
                                                 }}
                                             >
-                                                <mdui-list-item>
-                                                    <span className="with-icon-gap">
-                                                        {isDownloading ? <mdui-circular-progress /> : null}
+                                                <MaterialListItem>
+                                                    <span className={styles.withIconGap}>
+                                                        {isDownloading ? <MaterialCircularProgress /> : null}
                                                         {(file.name || file.path.split("/").pop() || "Имя файла неизвестно").replace(/\d+_\d+_/, "")}
                                                     </span>
-                                                </mdui-list-item>
+                                                </MaterialListItem>
                                             </a>
                                         )}
                                     </div>
                                 );
                             })}
-                        </mdui-list>
+                        </MaterialList>
                     )}
 
                     <Reactions
@@ -574,7 +574,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         messageId={message.id}
                     />
 
-                    <div className="message-time">
+                    <div className={styles.messageTime}>
                         {formatTime(message.timestamp)}
                         {message.is_edited ? " (edited)" : undefined}
 
@@ -583,15 +583,15 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         )}
 
                         {isAuthor && message.runtimeData?.sendingState && (
-                            <span className="message-status-indicator">
+                            <span className={styles.messageStatusIndicator}>
                                 {message.runtimeData.sendingState.status === 'sending' && (
-                                    <mdui-circular-progress style={{ width: '16px', height: '16px' }} />
+                                    <MaterialCircularProgress style={{ width: '16px', height: '16px' }} />
                                 )}
                                 {message.runtimeData.sendingState.status === 'failed' && (
-                                    <span className="material-symbols error-icon">error</span>
+                                    <span className={`material-symbols ${styles.errorIcon}`}>error</span>
                                 )}
                                 {message.runtimeData.sendingState.status === 'sent' && (
-                                    <span className="material-symbols success-icon">check</span>
+                                    <span className={`material-symbols ${styles.successIcon}`}>check</span>
                                 )}
                             </span>
                         )}
@@ -602,12 +602,12 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
             {/* Fullscreen Image Viewer with shared-element like transition */}
             {fullscreenImage && createPortal(
                 <div
-                    className={`fullscreen-image-overlay ${isAnimatingOpen ? "open" : "closing"}`}
+                    className={`${styles.fullscreenImageOverlay} ${isAnimatingOpen ? "" : styles.closing}`}
                     onClick={closeFullscreen}>
                     <img
                         src={fullscreenImage.src}
                         alt={fullscreenImage.name}
-                        className={`fullscreen-animated-image ${isAnimatingOpen ? "to-end" : "to-start"}`}
+                        className={styles.fullscreenAnimatedImage}
                         style={{
                             left: `${isAnimatingOpen ? fullscreenImage.endRect.left : fullscreenImage.startRect.left}px`,
                             top: `${isAnimatingOpen ? fullscreenImage.endRect.top : fullscreenImage.startRect.top}px`,
@@ -616,14 +616,14 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                         }}
                         onClick={e => e.stopPropagation()}
                     />
-                    <div className="fullscreen-controls top-right" onClick={e => e.stopPropagation()}>
-                        <mdui-button-icon icon="close" onClick={closeFullscreen} />
+                    <div className={`${styles.fullscreenControls} ${styles.topRight}`} onClick={e => e.stopPropagation()}>
+                        <MaterialIconButton icon="close" onClick={closeFullscreen} />
                         {isDownloadingFullscreen ? (
-                            <div className="progress-wrapper">
-                                <mdui-circular-progress />
+                            <div className={styles.progressWrapper}>
+                                <MaterialCircularProgress />
                             </div>
                         ) : (
-                            <mdui-button-icon icon="download" onClick={downloadImage} />
+                            <MaterialIconButton icon="download" onClick={downloadImage} />
                         )}
                     </div>
                 </div>,

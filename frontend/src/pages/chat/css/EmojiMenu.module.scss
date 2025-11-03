@@ -1,0 +1,193 @@
+@use "../../../css/colors" as *;
+@use "../../../css/material" as *;
+@use "sass:color";
+
+// Emoji Menu Styles
+.emojiMenu {
+    $transition: cubic-bezier(0.4, 0, 0.2, 1);
+
+    background: $color-dark-surface-container;
+    border: 1px solid rgba($color-dark-outline-variant, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(20px);
+    width: 320px;
+    height: 400px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform-origin: bottom left;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: transform 0.25s $transition, opacity 0.25s $transition;
+    user-select: none;
+
+    &.open {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .emojiMenuHeader {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+
+        .emojiCategoryTabs {
+            $scrollbar-height: 2px;
+
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-behavior: smooth;
+            padding: 8px;
+            padding-bottom: 8px - $scrollbar-height;
+
+            &::-webkit-scrollbar {
+                height: $scrollbar-height; // slightly taller to accommodate inner padding
+            }
+
+            &::-webkit-scrollbar-track {
+                background: transparent;
+                margin: 0 6px; // add space at both ends (left/right)
+            }
+
+            &::-webkit-scrollbar-thumb {
+                background-color: $color-dark-surface-container-high;
+                border-radius: 2px;
+                border: 0 solid transparent; // remove vertical padding
+                border-left: 2px solid transparent; // keep horizontal padding (left/right)
+                border-right: 2px solid transparent;
+                background-clip: padding-box; // keep color inside the border
+            }
+
+            .emojiCategoryTab {
+                background-color: transparent;
+                border: none;
+                border-radius: 10px;
+                padding: 16px;
+                cursor: pointer;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                font-size: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+                aspect-ratio: 1 / 1;
+                transform: scale(1);
+
+                &:hover {
+                    background-color: $color-dark-surface-container-high;
+                }
+
+                &:active {
+                    transform: scale(0.8);
+                }
+
+                &.active {
+                    background-color: $color-dark-primary-container;
+                }
+
+                span {
+                    position: relative;
+                    z-index: 1;
+                    display: flex;
+                }
+            }
+        }
+    }
+
+    .emojiGrid {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+
+        &::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background-color: $color-dark-surface-container-high;
+            border-radius: 3px;
+        }
+
+        .emojiCategorySection {
+            .emojiCategoryTitle {
+                position: sticky;
+                top: 5px;
+                padding: 5px 12px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: $color-dark-on-surface-variant;
+                z-index: 2;
+                margin: 0;
+                backdrop-filter: blur(10px);
+                border-radius: 10px;
+                margin: 5px;
+                background-color: rgba($color-dark-surface-container-high, 0.7);
+            }
+
+            .emojiCategoryGrid {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 2px;
+                padding: 8px;
+            }
+        }
+
+        .emojiItem {
+            $size: 30px;
+
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            padding: 5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: $size;
+            width: $size;
+            height: $size;
+            box-sizing: content-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            &:hover {
+                background: $color-dark-surface-container-high;
+                transform: scale(1.1);
+            }
+
+            &:active {
+                transform: scale(0.95);
+            }
+        }
+    }
+
+    .emojiEmptyState {
+        padding: 20px;
+        text-align: center;
+        color: $color-dark-on-surface-variant;
+        font-size: 0.9rem;
+    }
+
+    // Integrated mode styles (inside reaction bar)
+    &.integrated {
+        position: relative !important;
+        width: 320px !important;
+        height: 400px !important;
+        transform: none !important;
+        opacity: 1 !important;
+        box-shadow: none;
+        border: none;
+        background: $color-dark-surface-container;
+        overflow: visible;
+    }
+}

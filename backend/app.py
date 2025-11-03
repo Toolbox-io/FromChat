@@ -5,7 +5,7 @@ import subprocess
 import sys
 import os
 from constants import DATABASE_URL
-from routes import account, messaging, profile, push, webrtc
+from routes import account, messaging, profile, push, webrtc, devices
 import logging
 from models import User
 from constants import OWNER_USERNAME
@@ -89,3 +89,4 @@ app.include_router(messaging.router)
 app.include_router(profile.router)
 app.include_router(push.router, prefix="/push")
 app.include_router(webrtc.router, prefix="/webrtc")
+app.include_router(devices.router, prefix="/devices")

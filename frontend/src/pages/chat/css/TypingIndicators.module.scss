@@ -1,0 +1,108 @@
+@use "../../../css/colors" as *;
+@use "../../../css/material" as *;
+@use "sass:color";
+
+// Unified typing indicator styles (used for both public chat and DMs)
+.typingIndicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: $color-dark-primary;
+
+    .typingDots {
+        display: flex;
+        gap: 2px;
+
+        span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: $color-dark-primary;
+            animation: typingDot 1.4s infinite ease-in-out;
+
+            &:nth-child(1) {
+                animation-delay: -0.32s;
+            }
+
+            &:nth-child(2) {
+                animation-delay: -0.16s;
+            }
+        }
+    }
+
+    .typingText {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+}
+
+// Online status display (used in DMs when not typing)
+.onlineStatus {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: $color-dark-on-surface-variant;
+
+    .statusDot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+
+        &.online {
+            background: #4caf50;
+            box-shadow: 0 0 6px rgba(76, 175, 80, 0.4);
+        }
+
+        &.offline {
+            background: $color-dark-on-surface-variant;
+            opacity: 0.6;
+        }
+    }
+
+    .statusText {
+        font-weight: 500;
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+}
+
+// Online indicator for profile pictures (positioned at bottom right)
+.onlineIndicator {
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    z-index: 10;
+    pointer-events: none;
+    transform: none;
+
+    .indicatorDot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid $color-dark-surface;
+        box-sizing: border-box;
+        display: block;
+        background: #4caf50;
+        position: relative;
+        transform: none;
+
+        &.online {
+            background: #4caf50;
+        }
+    }
+}
+
+// Typing dot animation
+@keyframes typingDot {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+

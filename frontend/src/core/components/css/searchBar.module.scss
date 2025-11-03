@@ -1,0 +1,122 @@
+@use "../../../css/material" as *;
+
+$font-size: 16px;
+
+// Search container
+.searchParent {
+    position: relative;
+    height: 100%;
+    width: 100%;
+}
+
+// SearchBar component styles
+.searchBarContainer {
+    position: absolute;
+    z-index: 1001;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    // All properties animate together simultaneously
+    transition:
+        height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        right 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        border-radius 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+    // Initial background color for smooth transition
+    background-color: $color-dark-surface-container-high;
+
+    &.collapsed {
+        top: 8px;
+        left: 16px;
+        right: 16px;
+        border-radius: 24px;
+        // Height will be set dynamically by React (48px)
+        // background-color inherited from parent
+    }
+
+    &.expanded {
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 0;
+        background-color: $color-dark-surface-container;
+        // Height will be set dynamically by React
+    }
+
+    // Single search bar element
+    .searchBar {
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        height: 48px;
+        gap: 12px;
+        cursor: pointer;
+
+        .searchIcon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+
+            mdui-icon {
+                color: $color-dark-on-surface-variant;
+                font-size: 20px;
+                cursor: pointer;
+            }
+        }
+
+        .searchInputContainer {
+            flex: 1;
+            display: flex;
+            align-items: center;
+
+            .searchPlaceholder {
+                color: $color-dark-on-surface-variant;
+                font-size: $font-size;
+                pointer-events: none;
+            }
+
+            .searchInput {
+                flex: 1;
+                border: none;
+                outline: none;
+                background: transparent;
+                color: $color-dark-on-surface;
+                font-size: $font-size;
+                padding: 8px 0;
+                pointer-events: auto;
+
+                &::placeholder {
+                    color: $color-dark-on-surface-variant;
+                }
+            }
+        }
+
+        .searchClear {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+
+            mdui-icon {
+                color: $color-dark-on-surface-variant;
+                font-size: 20px;
+                cursor: pointer;
+            }
+        }
+    }
+
+    // Results section
+    .searchResults {
+        flex: 1;
+        overflow-y: auto;
+    }
+}
+

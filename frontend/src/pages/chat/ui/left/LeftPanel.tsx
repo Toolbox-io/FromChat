@@ -4,29 +4,26 @@ import { SettingsDialog } from "./settings/SettingsDialog";
 import { UsernameSearch } from "./UsernameSearch";
 import { ChatTabs } from "./ChatTabs";
 import { ChatHeader } from "./ChatHeader";
+import { MaterialBottomAppBar, MaterialFab, MaterialIconButton } from "@/utils/material";
+import styles from "@/pages/chat/css/left-panel.module.scss";
 
 function BottomAppBar() {
     const [settingsOpen, onSettingsOpenChange] = useState(false);
     const { logout } = useAppState();
 
-    const handleLogout = () => {
-        logout();
-    };
-
     return (
         <>
-            <mdui-bottom-app-bar>
-                <mdui-button-icon icon="settings--filled" id="settings-open" onClick={() => onSettingsOpenChange(true)}></mdui-button-icon>
-                <mdui-button-icon icon="group_add--filled"></mdui-button-icon>
+            <MaterialBottomAppBar>
+                <MaterialIconButton icon="settings--filled" id="settings-open" onClick={() => onSettingsOpenChange(true)} />
+                <MaterialIconButton icon="group_add--filled" />
                 <div style={{ flexGrow: 1 }}></div>
-                <mdui-button-icon
+                <MaterialIconButton
                     icon="logout--filled"
                     id="logout-btn"
-                    onClick={handleLogout}
-                    title="Выйти"
-                ></mdui-button-icon>
-                <mdui-fab icon="edit--filled"></mdui-fab>
-            </mdui-bottom-app-bar>
+                    onClick={logout}
+                    title="Выйти" />
+                <MaterialFab icon="edit--filled" />
+            </MaterialBottomAppBar>
             <SettingsDialog isOpen={settingsOpen} onOpenChange={onSettingsOpenChange} />
         </>
     );
@@ -34,9 +31,9 @@ function BottomAppBar() {
 
 export function LeftPanel() {
     return (
-        <div className="chat-list" id="chat-list">
+        <div className={styles.chatList} id="chat-list">
             <ChatHeader />
-            <div className="search-container">
+            <div className={styles.searchContainer}>
                 <UsernameSearch />
             </div>
             <ChatTabs />

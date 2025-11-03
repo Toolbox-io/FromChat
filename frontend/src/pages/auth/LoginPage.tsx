@@ -2,17 +2,17 @@ import { useImmer } from "use-immer";
 import { AlertsContainer, type Alert, type AlertType } from "./Auth";
 import { AuthContainer, AuthHeader } from "./Auth";
 import type { ErrorResponse, LoginRequest, LoginResponse } from "@/core/types";
-import { ensureKeysOnLogin } from "@/core/api/authApi";
+import { ensureKeysOnLogin, deriveAuthSecret } from "@/core/api/authApi";
 import { API_BASE_URL } from "@/core/config";
 import { useRef } from "react";
 import type { TextField } from "mdui/components/text-field";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialTextField } from "@/core/components/MaterialTextField";
 import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { useNavigate } from "react-router-dom";
-import "./auth.scss";
+import styles from "./auth.module.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
+import { MaterialButton, MaterialTextField } from "@/utils/material";
 
 export default function LoginPage() {
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
@@ -31,7 +31,7 @@ export default function LoginPage() {
     return (
         <AuthContainer>
             <AuthHeader icon="login" title="Добро пожаловать!" subtitle="Войдите в свой аккаунт" />
-            <div className="auth-body">
+            <div className={styles.authBody}>
                 <AlertsContainer alerts={alerts} />
 
                 <form
@@ -47,9 +47,10 @@ export default function LoginPage() {
                         }
 
                         try {
+                            const derived = await deriveAuthSecret(username, password);
                             const request: LoginRequest = {
                                 username: username,
-                                password: password
+                                password: derived
                             }
 
                             const response = await fetch(`${API_BASE_URL}/login`, {
@@ -113,9 +114,9 @@ export default function LoginPage() {
                             showAlert("danger", "Ошибка соединения с сервером");
                         }
                     }}>
+                    
                     <MaterialTextField
                         label="@Имя пользователя"
-                        id="login-username"
                         name="username"
                         variant="outlined"
                         icon="person--filled"
@@ -125,7 +126,6 @@ export default function LoginPage() {
 
                     <MaterialTextField
                         label="Пароль"
-                        id="login-password"
                         name="password"
                         variant="outlined"
                         type="password"
@@ -135,7 +135,7 @@ export default function LoginPage() {
                         required
                         ref={passwordElement} />
 
-                    <mdui-button type="submit">Войти</mdui-button>
+                    <MaterialButton type="submit">Войти</MaterialButton>
                 </form>
 
                 <div className="text-center">

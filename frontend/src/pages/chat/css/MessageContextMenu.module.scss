@@ -1,0 +1,483 @@
+@use "../../../css/colors" as *;
+@use "../../../css/material" as *;
+@use "sass:color";
+
+// Glassmorphism background mixin
+%background {
+    background: rgba($color-dark-surface-container, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba($color-dark-outline-variant, 0.3);
+}
+
+// Context menu reaction bar - main container
+.contextMenuReactionBar {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    @extend %background;
+    border-radius: 16px;
+    z-index: 1001;
+    transition: width 0.3s ease-out, height 0.3s ease-out;
+    user-select: none;
+
+    // Animation states
+    &.entering {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+        animation: reactionBarEnter 0.2s ease forwards;
+    }
+
+    &.enteringLeft {
+        opacity: 0;
+        transform: translateX(-20px) translateY(20px) scale(0.9);
+        animation: reactionBarEnterLeft 0.2s ease forwards;
+    }
+
+    &.enteringUp {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
+        animation: reactionBarEnterUp 0.2s ease forwards;
+    }
+
+    &.enteringRight {
+        opacity: 0;
+        transform: translateX(20px) scale(0.9);
+        animation: reactionBarEnterRight 0.2s ease forwards;
+    }
+
+    &.closing {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        animation: reactionBarClose 0.2s ease forwards;
+    }
+
+    &.closingLeft {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+        animation: reactionBarCloseLeft 0.2s ease forwards;
+    }
+
+    &.closingUp {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        animation: reactionBarCloseUp 0.2s ease forwards;
+    }
+
+
+    // Expanded state - contains emoji menu
+    &.expanded {
+        padding: 0;
+        overflow: hidden;
+        width: 320px;
+        height: 400px;
+        border-radius: 16px;
+
+        // Emoji menu wrapper inside expanded reaction bar
+        .emojiMenuWrapper {
+            width: 320px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: emojiMenuEnterDown 0.3s ease;
+        }
+
+        // Upward expansion animation
+        &.expandUpward .emojiMenuWrapper {
+            animation: emojiMenuEnterUp 0.3s ease !important;
+        }
+    }
+
+    // Reaction bar content - contains emoji buttons
+    .reactionBarContent {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: opacity 0.3s ease-out;
+
+        &.faded {
+            opacity: 0;
+        }
+    }
+
+    // Individual emoji buttons
+    .reactionEmojiButton {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 16px;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        font-size: 18px;
+
+        &:hover {
+            background: var(--mdui-color-surface-container-high);
+            transform: scale(1.3);
+            box-shadow: var(--mdui-elevation-1);
+        }
+
+        &:active {
+            transform: scale(0.95);
+            transition: transform 0.1s ease;
+        }
+    }
+
+    // Expand button for emoji menu
+    .reactionExpandButton {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--mdui-color-outline);
+        border-radius: 16px;
+        background: var(--mdui-color-surface);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+        &:hover {
+            background: var(--mdui-color-surface-container-high);
+            border-color: var(--mdui-color-primary);
+            transform: scale(1.1);
+            box-shadow: var(--mdui-elevation-1);
+        }
+
+        &:active {
+            transform: scale(0.95);
+            transition: transform 0.1s ease;
+        }
+
+        :global(.material-symbols) {
+            font-size: 18px;
+            color: var(--mdui-color-on-surface);
+            transition: transform 0.2s ease;
+        }
+
+        &:hover :global(.material-symbols) {
+            transform: rotate(90deg);
+        }
+    }
+}
+
+// Context menu - separate element
+.contextMenu {
+    position: fixed;
+    @extend %background;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 8px 32px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    min-width: 160px;
+    z-index: 1000;
+    user-select: none;
+    gap: 4px;
+    display: flex;
+    flex-direction: column;
+
+    // Animation states
+    &.entering {
+        animation: fadeInDown 0.2s ease forwards;
+    }
+
+    &.enteringLeft {
+        animation: fadeInLeft 0.2s ease forwards;
+    }
+
+    &.enteringUp {
+        animation: fadeInUp 0.2s ease forwards;
+    }
+
+    &.enteringUpLeft {
+        animation: fadeInUpLeft 0.2s ease forwards;
+    }
+
+    &.closing {
+        animation: fadeOutUp 0.2s ease forwards;
+    }
+
+    &.closingLeft {
+        animation: fadeOutRight 0.2s ease forwards;
+    }
+
+    &.closingUp {
+        animation: fadeOutDown 0.2s ease forwards;
+    }
+
+    &.closingUpLeft {
+        animation: fadeOutDownRight 0.2s ease forwards;
+    }
+
+    &.faded {
+        opacity: 0;
+    }
+
+    // Context menu items
+    .contextMenuItem {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 4px 6px;
+        cursor: pointer;
+        color: $color-dark-on-surface;
+        font-size: 0.9rem;
+        transition: background-color 0.25s ease, transform 0.25s ease;
+        border-radius: 8px;
+
+        &:hover {
+            background-color: rgba($color-dark-surface-container, 0.5);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+
+        :global(.material-symbols) {
+            font-size: 18px;
+        }
+    }
+}
+
+// Context menu wrapper animations
+@keyframes contextMenuEnter {
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes contextMenuEnterLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes contextMenuEnterUp {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes contextMenuEnterUpLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+    }
+}
+
+@keyframes contextMenuClose {
+    to {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-20px) scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseUp {
+    to {
+        opacity: 0;
+        transform: translateY(20px) scale(0.8);
+    }
+}
+
+@keyframes contextMenuCloseUpLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-20px) translateY(20px) scale(0.8);
+    }
+}
+
+@keyframes emojiMenuEnter {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes emojiMenuEnterDown {
+    from {
+        opacity: 0;
+        transform: scaleY(0);
+        transform-origin: top;
+    }
+
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+@keyframes emojiMenuEnterUp {
+    from {
+        opacity: 0;
+        transform: scaleY(0);
+        transform-origin: bottom;
+    }
+
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+// Reaction bar animations
+@keyframes reactionBarEnter {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes reactionBarEnterLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+    }
+}
+
+@keyframes reactionBarEnterUp {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes reactionBarEnterRight {
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes reactionBarClose {
+    to {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
+    }
+}
+
+@keyframes reactionBarCloseLeft {
+    to {
+        opacity: 0;
+        transform: translateX(-20px) translateY(-20px) scale(0.9);
+    }
+}
+
+@keyframes reactionBarCloseUp {
+    to {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUpLeft {
+    from {
+        opacity: 0;
+        transform: translate(10px, 10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(0, 0);
+    }
+}
+
+@keyframes fadeOutUp {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes fadeOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+}
+
+@keyframes fadeOutDown {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}
+
+@keyframes fadeOutDownRight {
+    from {
+        opacity: 1;
+        transform: translate(0, 0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translate(10px, 10px);
+    }
+}
+

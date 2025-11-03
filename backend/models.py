@@ -146,6 +146,37 @@ class DMReaction(Base):
     __table_args__ = (UniqueConstraint('dm_envelope_id', 'user_id', 'emoji', name='unique_dm_reaction'),)
 
 
+# Tracks authenticated device sessions per user
+class DeviceSession(Base):
+    __tablename__ = "device_session"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+
+    # Raw User-Agent for reference/debugging
+    raw_user_agent = Column(Text, nullable=True)
+
+    # Parsed fields
+    device_name = Column(String(128), nullable=True)
+    device_type = Column(String(32), nullable=True)  # desktop/mobile/tablet/bot/unknown
+    os_name = Column(String(64), nullable=True)
+    os_version = Column(String(64), nullable=True)
+    browser_name = Column(String(64), nullable=True)
+    browser_version = Column(String(64), nullable=True)
+    brand = Column(String(64), nullable=True)
+    model = Column(String(64), nullable=True)
+
+    # Session identity embedded into JWTs
+    session_id = Column(String(64), unique=True, nullable=False, index=True)
+
+    # Lifecycle
+    created_at = Column(DateTime, default=datetime.now)
+    last_seen = Column(DateTime, default=datetime.now)
+    revoked = Column(Boolean, default=False)
+
+    # Relationship back to user (optional lazy to avoid heavy loads)
+    user = relationship("User", lazy="select")
+
 # Pydantic модели
 class LoginRequest(BaseModel):
     username: str
@@ -157,6 +188,12 @@ class RegisterRequest(BaseModel):
     display_name: str
     password: str
     confirm_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    currentPasswordDerived: str
+    newPasswordDerived: str
+    logoutAllExceptCurrent: bool = False
 
 
 class SendMessageRequest(BaseModel):

@@ -12,6 +12,8 @@ import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { OnlineStatus } from "./right/OnlineStatus";
 import { Input } from "@/core/components/Input";
 import { StyledDialog } from "@/core/components/StyledDialog";
+import { MaterialButton, MaterialFab, MaterialIcon } from "@/utils/material";
+import styles from "@/pages/chat/css/profile-dialog.module.scss";
 
 interface SectionProps {
     type: string;
@@ -35,14 +37,14 @@ function Section({ type, icon, label, error, value, onChange, readOnly, placehol
                     text={value || ""}
                     onTextChange={onChange}
                     placeholder={placeholder}
-                    className="value"
+                    className={styles.value}
                     rows={1}
                     readOnly={readOnly} />
             );
         } else {
             valueComponent = (
                 <input
-                    className="value"
+                    className={styles.value}
                     type="text"
                     value={value}
                     onChange={e => onChange(e.target.value)}
@@ -50,17 +52,17 @@ function Section({ type, icon, label, error, value, onChange, readOnly, placehol
             );
         }
     } else {
-        valueComponent = <span className="value">{value}</span>
+        valueComponent = <span className={styles.value}>{value}</span>
     }
 
     return (
-        <div className={`section ${type} ${error ? 'error' : ''}`}>
-            <mdui-icon name={icon} />
-            <div className="content-container">
-                <label className="label">{label}</label>
+        <div className={`${styles.section} ${type} ${error ? styles.error : ''}`}>
+            <MaterialIcon name={icon} />
+            <div className={styles.contentContainer}>
+                <label className={styles.label}>{label}</label>
                 {valueComponent}
                 {error && (
-                    <div className="error-message">{error}</div>
+                    <div className={styles.errorMessage}>{error}</div>
                 )}
             </div>
         </div>
@@ -439,160 +441,164 @@ export function ProfileDialog() {
                 }
             }}
             onBackdropClick={handleClose}
+            contentClassName={styles.profileDialogContent}
+            afterChildren={
+                currentData.isOwnProfile && (
+                    <MaterialFab
+                        icon="check"
+                        className={`${styles.profileDialogFab} ${fabVisible ? styles.visible : ""}`}
+                        onClick={handleSave}
+                        disabled={isSaving} />
+                )
+            }
         >
-            <div className="profile-picture-section">
-                        <img
-                            className="profile-picture"
-                            src={currentData.profilePicture || defaultAvatar}
-                            alt="Profile Picture"
-                            onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = defaultAvatar;
+            <div className={styles.profilePictureSection}>
+                <img
+                    className={styles.profilePicture}
+                    src={currentData.profilePicture || defaultAvatar}
+                    alt="Profile Picture"
+                    onError={(e) => {
+                        e.target.src = defaultAvatar;
+                    }}
+                />
+                
+                {currentData.isOwnProfile && (
+                    <div
+                        className={styles.profilePictureEditOverlay}
+                        onClick={handleProfilePictureClick}
+                    >
+                        <MaterialIcon name="camera_alt--filled" />
+                    </div>
+                )}
+            </div>
+
+            <div className={`${styles.usernameSection} ${errors.display_name ? styles.error : ''}`}>
+                <div className={styles.usernameWithBadge}>
+                    <Input
+                        autoresizing={true}
+                        className={styles.usernameInput}
+                        type="text"
+                        value={currentData.display_name}
+                        onChange={handleDisplayNameChange}
+                        readOnly={!currentData.isOwnProfile}
+                        placeholder="Имя" />
+                    
+                    <StatusBadge 
+                        verified={currentData.verified || false}
+                        userId={currentData.userId}
+                        size="large" />
+                </div>
+                {errors.display_name && (
+                    <div className={styles.errorMessage}>{errors.display_name}</div>
+                )}
+            </div>
+
+            {(currentData?.userId || currentData?.isOwnProfile) && !currentData.deleted && (
+                <div className={styles.onlineStatusSection}>
+                    <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
+                </div>
+            )}
+
+            {/* Admin Actions Section - Hide for deleted users */}
+            {!currentData.isOwnProfile && user.currentUser?.id === 1 && !currentData.deleted && (
+                <div className={styles.adminActionsSection}>
+                    <h3 className={styles.adminActionsHeader}>Admin Actions</h3>
+                    <div className={styles.adminButtons}>
+                        <MaterialButton 
+                            variant="filled" 
+                            color="error"
+                            icon={currentData.suspended ? "check_circle--filled" : "block--filled"}
+                            onClick={handleSuspend}
+                        >
+                            {currentData.suspended ? "Unsuspend Account" : "Suspend Account"}
+                        </MaterialButton>
+                        <MaterialButton 
+                            variant="filled" 
+                            color="error"
+                            icon="delete_forever--filled"
+                            onClick={handleDelete}
+                        >
+                            Delete Account
+                        </MaterialButton>
+                        <VerifyButton 
+                            userId={currentData.userId!}
+                            verified={currentData.verified || false}
+                            onVerificationChange={(verified) => {
+                                setCurrentData({ ...currentData, verified });
                             }}
                         />
-                        {currentData.isOwnProfile && (
-                            <div
-                                className="profile-picture-edit-overlay"
-                                onClick={handleProfilePictureClick}
-                            >
-                                <mdui-icon name="camera_alt--filled" />
-                            </div>
-                        )}
                     </div>
+                </div>
+            )}
 
-                    <div className={`username-section ${errors.display_name ? 'error' : ''}`}>
-                        <div className="username-with-badge">
-                            <Input
-                                autoresizing={true}
-                                className="username-input"
-                                type="text"
-                                value={currentData.display_name}
-                                onChange={handleDisplayNameChange}
-                                readOnly={!currentData.isOwnProfile}
-                                placeholder="Имя" />
-                            <StatusBadge 
-                                verified={currentData.verified || false}
-                                userId={currentData.userId}
-                                size="large" />
-                        </div>
-                        {errors.display_name && (
-                            <div className="error-message">{errors.display_name}</div>
-                        )}
-                    </div>
-
-                    {(currentData?.userId || currentData?.isOwnProfile) && !currentData.deleted && (
-                        <div className="online-status-section">
-                            <OnlineStatus userId={currentData.userId || user.currentUser!.id} />
-                        </div>
-                    )}
-
-                    {/* Admin Actions Section - Hide for deleted users */}
-                    {!currentData.isOwnProfile && user.currentUser?.id === 1 && !currentData.deleted && (
-                        <div className="admin-actions-section">
-                            <h3 className="admin-actions-header">Admin Actions</h3>
-                            <div className="admin-buttons">
-                                <mdui-button 
-                                    variant="filled" 
-                                    color="error"
-                                    icon={currentData.suspended ? "check_circle--filled" : "block--filled"}
-                                    onClick={handleSuspend}
-                                >
-                                    {currentData.suspended ? "Unsuspend Account" : "Suspend Account"}
-                                </mdui-button>
-                                <mdui-button 
-                                    variant="filled" 
-                                    color="error"
-                                    icon="delete_forever--filled"
-                                    onClick={handleDelete}
-                                >
-                                    Delete Account
-                                </mdui-button>
-                                <VerifyButton 
-                                    userId={currentData.userId!}
-                                    verified={currentData.verified || false}
-                                    onVerificationChange={(verified) => {
-                                        setCurrentData({ ...currentData, verified });
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Verify button for non-admin owner */}
-                    {!currentData.isOwnProfile && currentData.userId && user.currentUser?.id !== 1 && (
-                        <div className="verify-section">
-                            <VerifyButton 
-                                userId={currentData.userId}
-                                verified={currentData.verified || false}
-                                onVerificationChange={(verified) => {
-                                    setCurrentData({ ...currentData, verified });
-                                }}
-                            />
-                        </div>
-                    )}
-
-                    {/* Hide profile sections for deleted users */}
-                    {!currentData.deleted && (
-                        <div className="profile-sections">
-                            <Section
-                                type="username"
-                                error={errors.username}
-                                icon="alternate_email--filled"
-                                label="Имя пользователя:"
-                                value={currentData.username}
-                                onChange={handleUsernameChange}
-                                readOnly={!currentData.isOwnProfile}
-                                placeholder="username" />
-
-                            {currentData.bio !== undefined && (
-                                <Section
-                                    type="bio"
-                                    icon="info--filled"
-                                    label="О себе:"
-                                    value={currentData.bio}
-                                    onChange={handleBioChange}
-                                    readOnly={!currentData.isOwnProfile}
-                                    placeholder="Нет информации о себе"
-                                    textArea />
-                            )}
-
-                            {currentData.memberSince && (
-                                <Section
-                                    type="member-since"
-                                    icon="calendar_month--filled"
-                                    label="Участник с:"
-                                    value={formatDate(currentData.memberSince)}
-                                    readOnly={true} />
-                            )}
-
-                            {currentData.verified && (
-                                <Section
-                                    type="verified"
-                                    icon="verified--filled"
-                                    label="Верификация:"
-                                    value="Этот аккаунт - официальное лицо FromChat."
-                                    readOnly={true}
-                                />
-                            )}
-                        </div>
-                    )}
-
-                {currentData.isOwnProfile && (
-                    <mdui-fab
-                        icon="check"
-                        className={`profile-dialog-fab ${fabVisible ? "visible" : ""}`}
-                        onClick={handleSave}
-                        disabled={isSaving}
+            {/* Verify button for non-admin owner */}
+            {!currentData.isOwnProfile && currentData.userId && user.currentUser?.id !== 1 && (
+                <div className={styles.verifySection}>
+                    <VerifyButton 
+                        userId={currentData.userId}
+                        verified={currentData.verified || false}
+                        onVerificationChange={(verified) => {
+                            setCurrentData({ ...currentData, verified });
+                        }}
                     />
-                )}
+                </div>
+            )}
 
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={handleFileSelect}
-                />
+            {/* Hide profile sections for deleted users */}
+            {!currentData.deleted && (
+                <div className={styles.profileSections}>
+                    <Section
+                        type="username"
+                        error={errors.username}
+                        icon="alternate_email--filled"
+                        label="Имя пользователя:"
+                        value={currentData.username}
+                        onChange={handleUsernameChange}
+                        readOnly={!currentData.isOwnProfile}
+                        placeholder="username" />
+
+                    {currentData.bio !== undefined && (
+                        <Section
+                            type="bio"
+                            icon="info--filled"
+                            label="О себе:"
+                            value={currentData.bio}
+                            onChange={handleBioChange}
+                            readOnly={!currentData.isOwnProfile}
+                            placeholder="Нет информации о себе"
+                            textArea />
+                    )}
+
+                    {currentData.memberSince && (
+                        <Section
+                            type="member-since"
+                            icon="calendar_month--filled"
+                            label="Участник с:"
+                            value={formatDate(currentData.memberSince)}
+                            readOnly={true} />
+                    )}
+
+                    {currentData.verified && (
+                        <Section
+                            type="verified"
+                            icon="verified--filled"
+                            label="Верификация:"
+                            value="Этот аккаунт - официальное лицо FromChat."
+                            readOnly={true}
+                        />
+                    )}
+                </div>
+            )}
+
+            
+
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleFileSelect}
+            />
         </StyledDialog>
     );
 }

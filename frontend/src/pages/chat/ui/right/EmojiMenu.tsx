@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { EMOJI_CATEGORIES, getRecentEmojis, addRecentEmoji } from "./emojiData";
 import type { Size2D } from "@/core/types";
+import styles from "@/pages/chat/css/EmojiMenu.module.scss";
 
 interface BaseEmojiMenuProps {
     isOpen: boolean;
@@ -118,26 +119,29 @@ export function EmojiMenu(props: EmojiMenuProps) {
     return (
         <div
             ref={menuRef}
-            className={`emoji-menu ${isOpen ? "open" : ""} ${mode}`}
-            style={mode === "standalone" && position ? {
-                position: "fixed",
-                left: position.x,
-                bottom: position.y,
-                zIndex: 1000,
-                pointerEvents: isOpen ? "auto" : "none"
-            } : {
-                pointerEvents: isOpen ? "auto" : "none"
+            className={`${styles.emojiMenu} ${isOpen ? styles.open : ""} ${mode === "integrated" ? styles.integrated : ""}`}
+            style={{
+                pointerEvents: isOpen ? "auto" : "none",
+                ...(mode === "standalone" && position ? {
+                    position: "fixed",
+                    left: position.x,
+                    bottom: position.y,
+                    zIndex: 1000,
+                } : {}),
+                ...(mode === "integrated" ? {
+                    position: "relative",
+                } : {})
             }}
-        >
-            <div className="emoji-menu-header">
-            <div ref={tabsRef} className="emoji-category-tabs">
+            >
+            <div className={styles.emojiMenuHeader}>
+            <div ref={tabsRef} className={styles.emojiCategoryTabs}>
                 {EMOJI_CATEGORIES.map((category) => (
                     <button
                         key={category.name}
                         ref={(el) => {
                             if (el) tabRefs.current.set(category.name, el);
                         }}
-                        className={`emoji-category-tab ${activeCategory === category.name ? "active" : ""}`}
+                        className={`${styles.emojiCategoryTab} ${activeCategory === category.name ? styles.active : ""}`}
                         onClick={() => scrollToCategory(category.name)}
                         title={category.name}
                     >
@@ -149,7 +153,7 @@ export function EmojiMenu(props: EmojiMenuProps) {
 
             <div
                 ref={scrollRef}
-                className="emoji-grid"
+                className={styles.emojiGrid}
                 onScroll={handleScroll}
             >
                 {EMOJI_CATEGORIES.map((category) => {
@@ -161,17 +165,17 @@ export function EmojiMenu(props: EmojiMenuProps) {
                             ref={(el) => {
                                 if (el) categoryRefs.current.set(category.name, el);
                             }}
-                            className="emoji-category-section"
+                            className={styles.emojiCategorySection}
                         >
-                            <h3 className="emoji-category-title">
+                            <h3 className={styles.emojiCategoryTitle}>
                                 {category.name.charAt(0).toUpperCase() + category.name.slice(1)}
                             </h3>
                             {emojis.length > 0 ? (
-                                <div className="emoji-category-grid">
+                                <div className={styles.emojiCategoryGrid}>
                                     {emojis.map((emoji, index) => (
                                         <button
                                             key={`${category.name}-${index}`}
-                                            className="emoji-item"
+                                            className={styles.emojiItem}
                                             onClick={() => handleEmojiClick(emoji)}
                                             title={emoji}
                                         >
@@ -180,7 +184,7 @@ export function EmojiMenu(props: EmojiMenuProps) {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="emoji-empty-state">
+                                <div className={styles.emojiEmptyState}>
                                     <span>No {category.name} emojis</span>
                                 </div>
                             )}

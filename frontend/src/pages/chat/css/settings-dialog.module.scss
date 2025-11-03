@@ -1,0 +1,112 @@
+@use "../../../css/colors" as *;
+@use "../../../css/material" as *;
+@use "sass:color";
+
+.settingsDialog {
+    width: calc(100vw - 60px) !important;
+    height: calc(100vh - 60px) !important;
+    max-width: none !important;
+    max-height: none !important;
+
+    .settingsDialogInner {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        overflow-y: auto;
+
+        .settingsHeader {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+
+            .settingsTitle {
+                margin: 0;
+                font-size: 22px;
+                font-weight: 500;
+                color: $color-dark-on-surface;
+                flex: 1;
+            }
+        }
+
+        .settingsLayout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 1px;
+
+            .sidebar {
+                width: 240px;
+                overflow-y: auto;
+            }
+
+            .contentPanel {
+                flex: 1;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                position: relative;
+
+                .panelContent {
+                    padding: 24px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                    flex: 1;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    overflow-y: auto;
+
+                    .panelTitle {
+                        margin: 0;
+                        font-size: 20px;
+                        font-weight: 500;
+                        color: $color-dark-on-surface;
+                        padding-bottom: 16px;
+                        border-bottom: 1px solid $color-dark-outline-variant;
+                    }
+
+                    .loadingContainer {
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 32px;
+                    }
+
+                    .sectionActions {
+                        display: flex;
+                        justify-content: flex-end;
+                        padding: 8px 0;
+                    }
+                }
+            }
+        }
+    }
+}
+
+.clickableItem {
+    cursor: pointer;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.dangerItem {
+    color: $color-dark-error;
+    
+    &::part(icon) {
+        color: $color-dark-error;
+    }
+
+    &::part(headline) {
+        color: $color-dark-error;
+    }
+
+    &::part(description) {
+        color: $color-dark-error;
+    }
+}

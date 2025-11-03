@@ -372,12 +372,19 @@ export const useAppState = create<AppState>((set, get) => ({
     },
 
     // Panel management
-    setActivePanel: (panel: MessagePanel | null) => set((state) => ({
-        chat: {
-            ...state.chat,
-            activePanel: panel
+    setActivePanel: (panel: MessagePanel | null) => {
+        const state = get();
+        // Deactivate the current panel before switching
+        if (state.chat.activePanel && state.chat.activePanel !== panel) {
+            state.chat.activePanel.deactivate();
         }
-    })),
+        return set((state) => ({
+            chat: {
+                ...state.chat,
+                activePanel: panel
+            }
+        }));
+    },
     // Stash a panel to be applied after switch-out animation ends
     setPendingPanel: (panel: MessagePanel | null) => set((state) => ({
         chat: {
@@ -386,22 +393,29 @@ export const useAppState = create<AppState>((set, get) => ({
         }
     })),
     // Apply pending panel atomically and update related fields
-    applyPendingPanel: () => set((state) => ({
-        chat: {
-            ...state.chat,
-            activePanel: state.chat.pendingPanel || state.chat.activePanel,
-            // when switching to public chat, keep reference if type matches
-            publicChatPanel: (state.chat.pendingPanel instanceof PublicChatPanel)
-                ? (state.chat.pendingPanel as PublicChatPanel)
-                : state.chat.publicChatPanel,
-            dmPanel: (state.chat.pendingPanel instanceof DMPanel)
-                ? (state.chat.pendingPanel as DMPanel)
-                : state.chat.dmPanel,
-            // update currentChat from panel title if available
-            currentChat: state.chat.pendingPanel ? state.chat.pendingPanel.getState().title || state.chat.currentChat : state.chat.currentChat,
-            pendingPanel: null
+    applyPendingPanel: () => {
+        const state = get();
+        // Deactivate the current panel before switching
+        if (state.chat.activePanel) {
+            state.chat.activePanel.deactivate();
         }
-    })),
+        return set((state) => ({
+            chat: {
+                ...state.chat,
+                activePanel: state.chat.pendingPanel || state.chat.activePanel,
+                // when switching to public chat, keep reference if type matches
+                publicChatPanel: (state.chat.pendingPanel instanceof PublicChatPanel)
+                    ? (state.chat.pendingPanel as PublicChatPanel)
+                    : state.chat.publicChatPanel,
+                dmPanel: (state.chat.pendingPanel instanceof DMPanel)
+                    ? (state.chat.pendingPanel as DMPanel)
+                    : state.chat.dmPanel,
+                // update currentChat from panel title if available
+                currentChat: state.chat.pendingPanel ? state.chat.pendingPanel.getState().title || state.chat.currentChat : state.chat.currentChat,
+                pendingPanel: null
+            }
+        }));
+    },
 
     switchToPublicChat: async (chatName: string) => {
         const { user, chat } = get();

@@ -31,7 +31,7 @@ When working with this project, follow these rules:
 - If the typecheck passed, there's no need for checking the linter errors.
 
 ## Async Operations
-- When you need a delay, use `await delay(millis);` in an async function. If the current function is not async,
+- When you need a delay, use `await delay(millis);` from `@/utils/utils` in an async function. If the current function is not async,
   make it async.
 
 ## Database
@@ -51,3 +51,8 @@ When working with this project, follow these rules:
 - Batch tool calls when possible to reduce latency
 - Use semantic search before grep when looking for concepts
 - Use TODOs for complex multi-step tasks to track progress
+
+## Styling
+- Use SCSS modules
+- Use nested styles
+- Put SCSS into one folder per page

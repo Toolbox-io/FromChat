@@ -183,6 +183,21 @@ export async function subscribe(token: string): Promise<boolean> {
         return true;
     }
 
+    // If subscription doesn't exist, try to get it from the push manager or create a new one
+    if (!subscription && registration) {
+        try {
+            // Try to get existing subscription first
+            subscription = await registration.pushManager.getSubscription();
+            // If no existing subscription, create a new one
+            if (!subscription) {
+                subscription = await subscribeToWebPush();
+            }
+        } catch (error) {
+            console.error("Failed to get or create subscription:", error);
+            subscription = await subscribeToWebPush();
+        }
+    }
+
     return await sendSubscriptionToServer(token);
 }
 

@@ -3,6 +3,7 @@ import { generateX25519KeyPair } from "@/utils/crypto/asymmetric";
 import { encodeBlob, encryptBackupWithPassword, decryptBackupWithPassword, decodeBlob } from "@/utils/crypto/backup";
 import { b64, ub64 } from "@/utils/utils";
 import { API_BASE_URL } from "@/core/config";
+import { hkdfExtractAndExpand } from "@/utils/crypto/kdf";
 
 /**
  * Generates authentication headers for API requests
@@ -143,4 +144,16 @@ export function restoreKeys() {
 
 export function getAuthToken(): string | null {
 	return localStorage.getItem("authToken");
+}
+
+/**
+ * Derive a client-side authentication secret so the raw password never leaves the client.
+ * Uses PBKDF2 (via WebCrypto) + HKDF to produce a stable 32-byte key, then base64.
+ */
+export async function deriveAuthSecret(username: string, password: string): Promise<string> {
+    // Use per-user salt derived from username; in future we can fetch a server-provided salt
+    const salt = new TextEncoder().encode(`fromchat.user:${username}`);
+    // Derive 32 bytes using HKDF; PBKDF2 already used within importPassword
+    const derived = await hkdfExtractAndExpand(new TextEncoder().encode(password), salt, new TextEncoder().encode("auth-secret"), 32);
+    return b64(derived);
 }

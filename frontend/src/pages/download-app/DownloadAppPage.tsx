@@ -1,9 +1,10 @@
-import "./download-app.scss";
+import { MaterialButton } from "@/utils/material";
+import styles from "./download-app.module.scss";
 
 export default function DownloadAppPage() {
     return (
-        <div className="download-app-screen">
-            <div className="inner">
+        <div className={styles.downloadAppScreen}>
+            <div>
                 <h1>Чтобы пользоваться мессенджером, скачайте приложение</h1>
                 <p>
                     Этот сайт <b>не предназначен</b> для работы на маленьких экранах, поэтому
@@ -11,7 +12,7 @@ export default function DownloadAppPage() {
                 </p>
 
                 <a href="https://github.com/denis0001-dev/FromChat-android/releases/latest">
-                    <mdui-button>Скачать на GitHub</mdui-button>
+                    <MaterialButton>Скачать на GitHub</MaterialButton>
                 </a>
 
                 <p>
@@ -19,7 +20,7 @@ export default function DownloadAppPage() {
                 </p>
 
                 <a href="https://t.me/denis0001-dev">
-                    <mdui-button>Написать в поддержку</mdui-button>
+                    <MaterialButton>Написать в поддержку</MaterialButton>
                 </a>
             </div>
         </div>

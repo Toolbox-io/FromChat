@@ -6,6 +6,7 @@
  */
 
 import { useMemo } from "react";
+import styles from "@/pages/chat/css/TypingIndicators.module.scss";
 
 interface TypingIndicatorProps {
     typingUsers: string[]; // Array of usernames who are typing
@@ -23,13 +24,13 @@ export function TypingIndicator({ typingUsers }: TypingIndicatorProps) {
     }, [typingUsers]);
 
     return (
-        <div className="typing-indicator">
-            <div className="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
+        <div className={styles.typingIndicator}>
+            <div className={styles.typingDots}>
+                <span />
+                <span />
+                <span />
             </div>
-            <span className="typing-text">{typingText}</span>
+            <span className={styles.typingText}>{typingText}</span>
         </div>
     );
 }

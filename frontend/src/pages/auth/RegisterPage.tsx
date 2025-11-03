@@ -6,10 +6,10 @@ import { TextField } from "mdui/components/text-field";
 import type { ErrorResponse, RegisterRequest, LoginResponse } from "@/core/types";
 import { API_BASE_URL } from "@/core/config";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialTextField } from "@/core/components/MaterialTextField";
-import { ensureKeysOnLogin } from "@/core/api/authApi";
+import { MaterialButton, MaterialTextField } from "@/utils/material";
+import { ensureKeysOnLogin, deriveAuthSecret } from "@/core/api/authApi";
 import { useNavigate } from "react-router-dom";
-import "./auth.scss";
+import styles from "./auth.module.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 
 export default function RegisterPage() {
@@ -31,7 +31,7 @@ export default function RegisterPage() {
     return (
         <AuthContainer>
             <AuthHeader icon="person_add" title="Регистрация" subtitle="Создайте новый аккаунт" />
-            <div className="auth-body">
+            <div className={styles.authBody}>
                 <AlertsContainer alerts={alerts} />
 
                 <form onSubmit={async (e) => {
@@ -74,11 +74,12 @@ export default function RegisterPage() {
                     }
 
                     try {
+                        const derived = await deriveAuthSecret(username, password);
                         const request: RegisterRequest = {
                             display_name: displayName,
                             username: username,
-                            password: password,
-                            confirm_password: confirmPassword
+                            password: derived,
+                            confirm_password: derived
                         }
 
                         const response = await fetch(`${API_BASE_URL}/register`, {
@@ -112,7 +113,6 @@ export default function RegisterPage() {
                 }}>
                     <MaterialTextField
                         label="Отображаемое имя"
-                        id="register-display-name"
                         name="display_name"
                         variant="outlined"
                         icon="badge--filled"
@@ -123,7 +123,6 @@ export default function RegisterPage() {
                         ref={displayNameElement} />
                     <MaterialTextField
                         label="@Имя пользователя"
-                        id="register-username"
                         name="username"
                         variant="outlined"
                         icon="person--filled"
@@ -134,7 +133,6 @@ export default function RegisterPage() {
                         ref={usernameElement} />
                     <MaterialTextField
                         label="Пароль"
-                        id="register-password"
                         name="password"
                         variant="outlined"
                         type="password"
@@ -145,7 +143,6 @@ export default function RegisterPage() {
                         ref={passwordElement} />
                     <MaterialTextField
                         label="Подтвердите пароль"
-                        id="register-confirm-password"
                         name="confirm_password"
                         variant="outlined"
                         type="password"
@@ -155,7 +152,7 @@ export default function RegisterPage() {
                         required
                         ref={confirmPasswordElement} />
 
-                    <mdui-button type="submit">Зарегистрироваться</mdui-button>
+                    <MaterialButton type="submit">Зарегистрироваться</MaterialButton>
                 </form>
 
                 <div className="text-center">

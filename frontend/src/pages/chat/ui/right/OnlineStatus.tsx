@@ -6,6 +6,7 @@
  */
 
 import { useAppState } from "@/pages/chat/state";
+import styles from "@/pages/chat/css/TypingIndicators.module.scss";
 
 interface OnlineStatusProps {
     userId: number;
@@ -38,9 +39,9 @@ export function OnlineStatus({ userId, showLastSeen = false }: OnlineStatusProps
     }
 
     return (
-        <div className="online-status">
-            <div className={`status-dot ${status?.online ? "online" : "offline"}`}></div>
-            <span className="status-text">
+        <div className={styles.onlineStatus}>
+            <div className={`${styles.statusDot} ${status?.online ? styles.online : styles.offline}`}></div>
+            <span className={styles.statusText}>
                 {!status ? "Загрузка..." : status?.online ? "В сети" : "Не в сети"}
             </span>
             {showLastSeen && status && !status.online && (

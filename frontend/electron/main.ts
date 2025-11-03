@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Notification, ipcMain } from 'electron';
-import path from "node:path";
+import path from "path";
 import type { NotificationShowOptions } from '../electron.d.ts';
 
 let mainWindow: BrowserWindow | null = null;
