@@ -8,13 +8,13 @@
     "license": "GPL-3.0",
     "authors": "denis0001-dev",
     "scripts": {
-        "backend:run": "cd backend && dotenv -e ../deployment/.env -- ../.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8300 --reload --reload-exclude './alembic' --reload-exclude './alembic/*' --reload-exclude './alembic/versions/*' --access-log",
+        "backend:run": "bash ./scripts/backend:run.sh",
         "backend:dependencies": "python3 -m venv .venv && ./.venv/bin/pip3 install -r backend/requirements.txt",
         "backend:reinstall": "rm -rf .venv && npm run backend:dependencies",
         "backend:clean": "rm -rf backend/data",
-        "frontend:dev": "vite frontend",
+        "frontend:dev": "dotenv -e deployment/.env -- vite frontend",
         "frontend:typecheck": "tsc --project frontend",
-        "frontend:build": "npm run frontend:typecheck && vite build frontend",
+        "frontend:build": "npm run frontend:typecheck && dotenv -e deployment/.env -- vite build frontend",
         "frontend:electron:dev": "VITE_ELECTRON=true npm run frontend:dev",
         "frontend:electron:build": "VITE_ELECTRON=true npm run frontend:build && rm -rf out && electron-forge make --force --arch arm64,x64",
         "frontend:preview": "vite preview frontend",
@@ -29,7 +29,7 @@
         "clean": "npm run backend:clean && npm run frontend:clean && npm run preview:clean",
         "install": "npm run backend:dependencies && npm run generate:env",
         "prepare": "husky",
-        "generate:env": "echo \"JWT_SECRET=\\\"$(openssl rand -base64 32)\\\"\" > deployment/.env && ./.venv/bin/python3 backend/generate_vapid_keys.py 1>>deployment/.env && echo \"TURN_USERNAME=\\\"set-your-username\\\"\\nTURN_SECRET=\\\"set-your-secret\\\"\" >> deployment/.env"
+        "generate:env": "bash ./scripts/generate:env.sh"
     },
     "files": [
         "frontend/build/electron"
