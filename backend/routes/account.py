@@ -1,6 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 import uuid
 from user_agents import parse as parse_ua
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -11,6 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
 from utils import create_token, get_password_hash, verify_password
 from validation import is_valid_password, is_valid_username, is_valid_display_name
+import os
 
 router = APIRouter()
 
@@ -349,4 +351,86 @@ def search_users(q: str, current_user: User = Depends(get_current_user), db: Ses
     
     return {
         "users": [convert_user(u) for u in users]
+    }
+
+
+async def _delete_user_data(user: User, db: Session):
+    """
+    Helper function to delete user data - marks user as deleted, clears sensitive data,
+    deletes profile picture, removes non-whitelist user data, and sends WebSocket message.
+    """
+    user_id = user.id
+    
+    # Mark user as deleted and clear sensitive data
+    user.deleted = True
+    user.display_name = f"Deleted User #{user_id}"
+    user.bio = None
+    user.password_hash = ""
+    user.username = f"deleted_{user_id}"
+    user.profile_picture = None
+    user.last_seen = None  # Clear last seen timestamp
+    user.created_at = None  # Clear member since timestamp
+    
+    # Delete profile picture file if exists
+    if user.profile_picture and user.profile_picture.startswith("/api/profile-picture/"):
+        try:
+            filename = user.profile_picture.split("/")[-1]
+            filepath = os.path.join("data/uploads/pfp", filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except Exception as e:
+            # Log error but don't fail the request
+            pass
+    
+    # Dynamic deletion of all non-whitelist data
+    WHITELIST_TABLES = {"message", "dm_envelope", "reaction", "dm_reaction", "message_file", "dm_file"}
+    
+    try:
+        inspector = inspect(db.bind)
+        all_tables = inspector.get_table_names()
+        
+        for table_name in all_tables:
+            if table_name in WHITELIST_TABLES or table_name == "user":
+                continue
+            
+            # Check if table has user_id column
+            columns = inspector.get_columns(table_name)
+            has_user_id = any(col['name'] == 'user_id' for col in columns)
+            
+            if has_user_id:
+                # Delete all records for this user
+                db.execute(text(f"DELETE FROM {table_name} WHERE user_id = :uid"), {"uid": user_id})
+        
+        db.commit()
+    except Exception as e:
+        # Log error and rollback
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete user data")
+    
+    # Send WebSocket deletion message
+    try:
+        from .messaging import messagingManager
+        await messagingManager.send_deletion_to_user(user_id)
+    except Exception as e:
+        # Log error but don't fail the request
+        pass
+
+
+@router.post("/delete")
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete the current user's own account - preserves messages/DMs/reactions/files
+    """
+    # Prevent admin/owner account self-deletion
+    if current_user.username == OWNER_USERNAME or current_user.id == 1:
+        raise HTTPException(status_code=400, detail="Cannot delete admin/owner account")
+    
+    await _delete_user_data(current_user, db)
+    
+    return {
+        "status": "success",
+        "message": "Account deleted successfully"
     }

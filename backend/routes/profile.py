@@ -426,59 +426,8 @@ async def delete_user(
     if target_user.id == 1:
         raise HTTPException(status_code=400, detail="Cannot delete admin account")
     
-    # Mark user as deleted and clear sensitive data
-    target_user.deleted = True
-    target_user.display_name = f"Deleted User #{user_id}"
-    target_user.bio = None
-    target_user.password_hash = ""
-    target_user.username = f"deleted_{user_id}"
-    target_user.profile_picture = None
-    target_user.last_seen = None  # Clear last seen timestamp
-    target_user.created_at = None  # Clear member since timestamp
-    
-    # Delete profile picture file if exists
-    if target_user.profile_picture and target_user.profile_picture.startswith("/api/profile-picture/"):
-        try:
-            import os
-            filename = target_user.profile_picture.split("/")[-1]
-            filepath = os.path.join("data/uploads/pfp", filename)
-            if os.path.exists(filepath):
-                os.remove(filepath)
-        except Exception as e:
-            # Log error but don't fail the request
-            pass
-    
-    # Dynamic deletion of all non-whitelist data
-    WHITELIST_TABLES = {"message", "dm_envelope", "reaction", "dm_reaction", "message_file", "dm_file"}
-    
-    try:
-        inspector = inspect(db.bind)
-        all_tables = inspector.get_table_names()
-        
-        for table_name in all_tables:
-            if table_name in WHITELIST_TABLES or table_name == "user":
-                continue
-            
-            # Check if table has user_id column
-            columns = inspector.get_columns(table_name)
-            has_user_id = any(col['name'] == 'user_id' for col in columns)
-            
-            if has_user_id:
-                # Delete all records for this user
-                db.execute(text(f"DELETE FROM {table_name} WHERE user_id = :uid"), {"uid": user_id})
-        
-        db.commit()
-    except Exception as e:
-        # Log error and rollback
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to delete user data")
-    
-    # Send WebSocket deletion message
-    try:
-        await messagingManager.send_deletion_to_user(user_id)
-    except Exception as e:
-        # Log error but don't fail the request
-        pass
+    from .account import _delete_user_data
+    await _delete_user_data(target_user, db)
     
     return {
         "status": "success",
