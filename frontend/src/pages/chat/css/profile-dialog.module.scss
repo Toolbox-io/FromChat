@@ -53,6 +53,9 @@
 
     .usernameWithBadge {
         gap: 0;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
 
         .usernameInput {
             background: none;
