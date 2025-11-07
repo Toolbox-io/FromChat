@@ -29,7 +29,6 @@
         height: 100vh;
         background-color: rgba($color-dark-surface, 0.98);
         backdrop-filter: blur(40px);
-        -webkit-backdrop-filter: blur(40px);
         border: none;
         border-radius: 0;
         cursor: default;
@@ -64,7 +63,6 @@
         height: 300px;
         background-color: rgba($color-dark-surface, 0.95);
         backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
         border: 2px solid rgba($color-dark-outline, 0.4);
         border-radius: 16px;
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
@@ -415,7 +413,6 @@
             font-weight: 600;
             border-radius: 8px;
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
         }
 
         &.localVideo {
@@ -455,7 +452,6 @@
             color: $color-dark-on-primary;
             border-radius: 8px;
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
             pointer-events: none;
             z-index: 1;
         }
