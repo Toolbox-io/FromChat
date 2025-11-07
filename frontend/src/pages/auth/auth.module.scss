@@ -99,6 +99,13 @@
         backface-visibility: hidden;
     }
 
+    .formWrapper {
+        position: absolute;
+        width: 100%;
+        top: 0;
+        left: 0;
+    }
+
     .authCard {
         background: rgba($color-dark-surface-container, 0.7);
         backdrop-filter: blur(20px);

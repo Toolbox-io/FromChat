@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate, useLocation, matchRoutes, type RouteObject } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, matchRoutes, Navigate, type RouteObject } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { ElectronTitleBar } from "./Electron";
 import { useAppState } from "./pages/chat/state";
@@ -12,14 +12,14 @@ import { delay } from "./utils/utils";
 
 // Lazy load route components
 const HomePage = lazy(() => import("./pages/home/HomePage"));
-const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
-const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
+const AuthPage = lazy(() => import("./pages/auth/AuthPage"));
 const ChatPage = lazy(() => import("./pages/chat/ui/ChatPage"));
 
 const routeConfig: RouteObject[] = [
     { path: "/", element: <HomePage /> },
-    { path: "/login", element: <LoginPage /> },
-    { path: "/register", element: <RegisterPage /> },
+    { path: "/auth", element: <AuthPage /> },
+    { path: "/login", element: <Navigate to="/auth?mode=login" replace /> },
+    { path: "/register", element: <Navigate to="/auth?mode=register" replace /> },
     { path: "/download-app", element: <DownloadAppPage /> },
     {
         path: "/chat",
