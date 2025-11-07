@@ -2,7 +2,7 @@ import { useAppState } from "@/pages/chat/state";
 import { useState } from "react";
 import { SettingsDialog } from "./settings/SettingsDialog";
 import { UsernameSearch } from "./UsernameSearch";
-import { ChatTabs } from "./ChatTabs";
+import { UnifiedChatsList } from "./UnifiedChatsList";
 import { ChatHeader } from "./ChatHeader";
 import { MaterialBottomAppBar, MaterialFab, MaterialIconButton } from "@/utils/material";
 import styles from "@/pages/chat/css/left-panel.module.scss";
@@ -35,7 +35,7 @@ export function LeftPanel() {
             <div className={styles.searchContainer}>
                 <UsernameSearch />
             </div>
-            <ChatTabs />
+            <UnifiedChatsList />
             <BottomAppBar />
         </div>
     );

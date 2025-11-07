@@ -74,45 +74,11 @@
         }
     }
 
-    .chatTabs {
-        margin-top: 5px;
-        width: 100%;
-        height: calc(100% - 80px);
-        display: flex;
-        flex-direction: column;
-        min-height: 0; // prevent flex collapse when inner overflows
-        --mdui-color-surface: $color-dark-surface-container;
-        --mdui-color-surface-variant: transparent;
-
-        img {
-            width: 45px;
-            height: 45px;
-            border-radius: 20%;
-            object-fit: cover;
-        }
-
-        mdui-tabs {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            min-height: 0; // enable inner panel to scroll
-        }
-
-        mdui-tab-panel[active] {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0; // critical to avoid collapsing
-            overflow: auto;
-        }
-
-        mdui-list {
-            flex: 1;
-            min-height: 0; // allow scroll area to size correctly
-            overflow-y: auto;
-            padding: 0;
-            margin: 0;
-        }
+    .unifiedChatsList {
+        flex: 1;
+        min-height: 0; // allow scroll area to size correctly
+        overflow-y: auto;
+        margin-top: 10px;
     }
 
     // Search container
