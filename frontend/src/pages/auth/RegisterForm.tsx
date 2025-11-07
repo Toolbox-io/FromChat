@@ -5,7 +5,7 @@ import { useImmer } from "use-immer";
 import type { ErrorResponse, RegisterRequest, LoginResponse } from "@/core/types";
 import { API_BASE_URL } from "@/core/config";
 import { useAppState } from "@/pages/chat/state";
-import { MaterialButton } from "@/utils/material";
+import { MaterialButton, MaterialIconButton } from "@/utils/material";
 import { ensureKeysOnLogin, deriveAuthSecret } from "@/core/api/authApi";
 import { AuthTextField, type AuthTextFieldHandle } from "./AuthTextField";
 import type { Alert, AlertType } from "./Auth";
@@ -220,32 +220,28 @@ export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
                             ref={confirmPasswordElement} />
                     </motion.div>
 
-                    <motion.div
-                        initial="initial"
-                        animate="animate"
-                        variants={registerButtonVariants}
-                        transition={registerButtonTransition}
-                    >
-                        <MaterialButton type="submit" disabled={isLoading} loading={isLoading}>
-                            {isLoading ? "Регистрация..." : "Зарегистрироваться"}
-                        </MaterialButton>
-                    </motion.div>
+                    <div className={styles.authButtons}>
+                        <motion.div
+                            initial="initial"
+                            animate="animate"
+                            variants={registerButtonVariants}
+                            transition={registerButtonTransition}
+                        >
+                            <MaterialIconButton icon="arrow_back" onClick={onSwitchMode} />
+                        </motion.div>
+                        <motion.div
+                            initial="initial"
+                            animate="animate"
+                            variants={registerButtonVariants}
+                            transition={registerButtonTransition}
+                        >
+                            <MaterialButton type="submit" disabled={isLoading} loading={isLoading} icon="person_add">
+                                {isLoading ? "Регистрация..." : "Зарегистрироваться"}
+                            </MaterialButton>
+                        </motion.div>
+                    </div>
+                    
                 </motion.form>
-
-                <div className={styles["text-center"]}>
-                    <p>
-                        Уже есть аккаунт?
-                        <a
-                            href="#"
-                            className="link"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                onSwitchMode();
-                            }}>
-                            Войдите
-                        </a>
-                    </p>
-                </div>
             </div>
         </>
     );

@@ -187,32 +187,32 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
                             ref={passwordElement} />
                     </motion.div>
 
-                    <motion.div
-                        initial="initial"
-                        animate="animate"
-                        variants={loginButtonVariants}
-                        transition={loginButtonTransition}
-                    >
-                        <MaterialButton type="submit" disabled={isLoading}>
-                            {isLoading ? "Вход..." : "Войти"}
-                        </MaterialButton>
-                    </motion.div>
+                    <div className={styles.authButtons}>
+                        <motion.div
+                            initial="initial"
+                            animate="animate"
+                            variants={loginButtonVariants}
+                            transition={loginButtonTransition}
+                        >
+                            <MaterialButton type="submit" disabled={isLoading}>
+                                {isLoading ? "Вход..." : "Войти"}
+                            </MaterialButton>
+                        </motion.div>
+                    </div>
                 </motion.form>
 
-                <div className={styles["text-center"]}>
-                    <p>
-                        Ещё нет аккаунта?
-                        <a
-                            href="#"
-                            className="link"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                onSwitchMode();
-                            }}>
-                            Зарегистрируйтесь
-                        </a>
-                    </p>
-                </div>
+                <p className={styles.registerLink}>
+                    Ещё нет аккаунта?
+                    <a
+                        href="#"
+                        className="link"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onSwitchMode();
+                        }}>
+                        Зарегистрируйтесь
+                    </a>
+                </p>
             </div>
         </>
     );

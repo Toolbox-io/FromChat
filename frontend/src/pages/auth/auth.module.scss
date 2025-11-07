@@ -2,26 +2,12 @@
 @use "../../css/colors" as *;
 @use "../../css/material" as *;
 
-@keyframes gradientShift {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
-    }
-}
-
-@keyframes authCardEnter {
+@keyframes rotateGradient {
     from {
-        opacity: 0;
-        transform: scale(0.95) translateY(10px);
+        transform: translate(-50%, -50%) rotate(0deg);
     }
     to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
+        transform: translate(-50%, -50%) rotate(360deg);
     }
 }
 
@@ -29,17 +15,6 @@
     from {
         opacity: 0;
         transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
     }
     to {
         opacity: 1;
@@ -98,14 +73,7 @@
         will-change: transform;
         backface-visibility: hidden;
     }
-
-    .formWrapper {
-        position: absolute;
-        width: 100%;
-        top: 0;
-        left: 0;
-    }
-
+    
     .authCard {
         background: rgba($color-dark-surface-container, 0.7);
         backdrop-filter: blur(20px);
@@ -122,46 +90,71 @@
         overflow: hidden;
         position: relative;
         z-index: 1;
-    }
 
-    .authHeader {
-        margin: 0;
-        padding: 24px;
-        padding-bottom: 8px;
-        text-align: center;
+        .formWrapper {
+            position: absolute;
+            width: 100%;
+            top: 0;
+            left: 0;
 
-        h2 {
-            font-size: 1.8rem;
-            margin: 0;
-            margin-bottom: 0.5rem;
-            align-items: center;
-            display: flex;
-            flex-direction: row;
-            gap: 10px;
-            justify-content: center;
-            font-weight: 600;
-
-            .material-symbols {
-                color: $color-dark-primary;
-                filter: drop-shadow(0 0 8px rgba($color-dark-primary, 0.4));
+            .authHeader {
+                margin: 0;
+                padding: 24px;
+                padding-bottom: 8px;
+                text-align: center;
+        
+                h2 {
+                    font-size: 1.8rem;
+                    margin: 0;
+                    margin-bottom: 0.5rem;
+                    align-items: center;
+                    display: flex;
+                    flex-direction: row;
+                    gap: 10px;
+                    justify-content: center;
+                    font-weight: 600;
+        
+                    .material-symbols {
+                        color: $color-dark-primary;
+                        filter: drop-shadow(0 0 8px rgba($color-dark-primary, 0.4));
+                    }
+                }
+        
+                p {
+                    color: $color-dark-on-surface-variant;
+                    font-size: 0.95rem;
+                    margin: 0;
+                }
             }
-        }
-
-        p {
-            color: $color-dark-on-surface-variant;
-            font-size: 0.95rem;
-            margin: 0;
-        }
-    }
-
-    .authBody {
-        padding: 24px;
-        padding-bottom: 20px;
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+        
+            .authBody {
+                padding: 24px;
+                padding-bottom: 20px;
+        
+                form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+        
+                    .authButtons {
+                        display: flex;
+                        flex-direction: row;
+                        gap: 16px;
+                    }
+                }
+        
+                .registerLink {
+                    text-align: center;
+                    margin-top: 16px;
+                    font-size: 0.9rem;
+                    color: $color-dark-on-surface-variant;
+        
+                    a {
+                        color: $color-dark-primary;
+                        margin-inline-start: 3px;
+                    }
+                }
+            }
         }
     }
 }
@@ -170,134 +163,132 @@
 .authTextField {
     position: relative;
     width: 100%;
-}
 
-.fieldContainer {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: rgba($color-dark-surface-variant, 0.3);
-    border: 1px solid rgba($color-dark-outline, 0.2);
-    border-radius: 12px;
-    padding: 0 0 0 12px;
-    transition: all 0.3s ease;
-    min-height: 44px;
+    .fieldContainer {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba($color-dark-surface-variant, 0.3);
+        border: 1px solid rgba($color-dark-outline, 0.2);
+        border-radius: 12px;
+        padding: 0 0 0 12px;
+        transition: all 0.3s ease;
+        min-height: 44px;
 
-    &:hover {
-        border-color: rgba($color-dark-outline, 0.4);
-        background: rgba($color-dark-surface-variant, 0.4);
-    }
-
-    &.focused {
-        border-color: $color-dark-primary;
-        background: rgba($color-dark-surface-variant, 0.5);
-        box-shadow: 
-            0 0 0 4px rgba($color-dark-primary, 0.1),
-            0 4px 12px rgba($color-dark-primary, 0.2);
-    }
-
-    &.error {
-        border-color: $color-dark-error;
-        animation: shake 0.4s ease;
+        &:hover {
+            border-color: rgba($color-dark-outline, 0.4);
+            background: rgba($color-dark-surface-variant, 0.4);
+        }
 
         &.focused {
+            border-color: $color-dark-primary;
+            background: rgba($color-dark-surface-variant, 0.5);
             box-shadow: 
-                0 0 0 4px rgba($color-dark-error, 0.1),
-                0 4px 12px rgba($color-dark-error, 0.2);
+                0 0 0 4px rgba($color-dark-primary, 0.1),
+                0 4px 12px rgba($color-dark-primary, 0.2);
+        }
+
+        &.error {
+            border-color: $color-dark-error;
+            animation: shake 0.4s ease;
+
+            &.focused {
+                box-shadow: 
+                    0 0 0 4px rgba($color-dark-error, 0.1),
+                    0 4px 12px rgba($color-dark-error, 0.2);
+            }
+        }
+
+        &.noIcon {
+            gap: 0;
+
+            .inputWrapper {
+                margin-left: 0;
+            }
+        }
+
+        &.hasToggle {
+            padding-right: 12px;
         }
     }
-}
 
-.fieldIcon {
-    color: $color-dark-on-surface-variant;
-    font-size: 18px;
-    flex-shrink: 0;
-    transition: color 0.3s ease;
-
-    .fieldContainer.focused & {
-        color: $color-dark-primary;
-    }
-}
-
-.inputWrapper {
-    position: relative;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    min-height: 44px;
-}
-
-// When there's no icon, the input should use the icon space
-.fieldContainer.noIcon {
-    gap: 0;
-}
-
-.fieldContainer.noIcon .inputWrapper {
-    margin-left: 0;
-}
-
-// Add right padding when password toggle is present
-.fieldContainer.hasToggle {
-    padding-right: 12px;
-}
-
-.input {
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: $color-dark-on-surface;
-    font-size: 0.95rem;
-    font-family: inherit;
-    padding: 12px 0 12px 0;
-    line-height: 1.4;
-    height: auto;
-    min-height: 20px;
-
-    &::placeholder {
+    .fieldIcon {
         color: $color-dark-on-surface-variant;
-        opacity: 0.7;
-    }
-
-    &:focus::placeholder {
-        opacity: 0.5;
-    }
-}
-
-.togglePassword {
-    background: none;
-    border: none;
-    color: $color-dark-on-surface-variant;
-    cursor: pointer;
-    padding: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-
-    &:hover {
-        background: rgba($color-dark-on-surface, 0.1);
-        color: $color-dark-on-surface;
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-
-    .material-symbols {
         font-size: 18px;
-    }
-}
+        flex-shrink: 0;
+        transition: color 0.3s ease;
 
-.counter {
-    margin-top: 4px;
-    padding-left: 16px;
-    font-size: 0.75rem;
-    color: $color-dark-on-surface-variant;
-    text-align: right;
+        .fieldContainer.focused & {
+            color: $color-dark-primary;
+        }
+    }
+
+    .inputWrapper {
+        position: relative;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+    }
+
+    .input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: $color-dark-on-surface;
+        font-size: 0.95rem;
+        font-family: inherit;
+        padding: 12px 0 12px 0;
+        line-height: 1.4;
+        height: auto;
+        min-height: 20px;
+
+        &::placeholder {
+            color: $color-dark-on-surface-variant;
+            opacity: 0.7;
+        }
+
+        &:focus::placeholder {
+            opacity: 0.5;
+        }
+    }
+
+    .togglePassword {
+        background: none;
+        border: none;
+        color: $color-dark-on-surface-variant;
+        cursor: pointer;
+        padding: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+
+        &:hover {
+            background: rgba($color-dark-on-surface, 0.1);
+            color: $color-dark-on-surface;
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+
+        .material-symbols {
+            font-size: 18px;
+        }
+    }
+
+    .counter {
+        margin-top: 4px;
+        padding-left: 16px;
+        font-size: 0.75rem;
+        color: $color-dark-on-surface-variant;
+        text-align: right;
+    }
 }
 
 // Alert Styles
@@ -306,97 +297,24 @@
     flex-direction: column;
     gap: 8px;
     margin-bottom: 16px;
-}
 
-.alert {
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    animation: slideInDown 0.3s ease;
-
-    &.alert-success {
-        background: rgba($color-dark-primary-container, 0.3);
-        color: $color-dark-on-primary-container;
-        border: 1px solid rgba($color-dark-primary, 0.3);
-    }
-
-    &.alert-danger {
-        background: rgba($color-dark-error-container, 0.3);
-        color: $color-dark-on-error-container;
-        border: 1px solid rgba($color-dark-error, 0.3);
-    }
-}
-
-// Link styles
-.text-center {
-    margin-top: 16px;
-
-    p {
-        color: $color-dark-on-surface-variant;
+    .alert {
+        padding: 12px 16px;
+        border-radius: 12px;
         font-size: 0.9rem;
-        margin: 0;
+        line-height: 1.5;
+        animation: slideInDown 0.3s ease;
 
-        .link {
-            color: $color-dark-primary;
-            text-decoration: none;
-            margin-left: 4px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            position: relative;
+        &.alert-success {
+            background: rgba($color-dark-primary-container, 0.3);
+            color: $color-dark-on-primary-container;
+            border: 1px solid rgba($color-dark-primary, 0.3);
+        }
 
-            &::after {
-                content: "";
-                position: absolute;
-                bottom: -2px;
-                left: 0;
-                width: 0;
-                height: 2px;
-                background: $color-dark-primary;
-                transition: width 0.3s ease;
-            }
-
-            &:hover {
-                color: color.adjust($color-dark-primary, $lightness: 10%);
-
-                &::after {
-                    width: 100%;
-                }
-            }
+        &.alert-danger {
+            background: rgba($color-dark-error-container, 0.3);
+            color: $color-dark-on-error-container;
+            border: 1px solid rgba($color-dark-error, 0.3);
         }
     }
 }
-
-// Reduced motion support
-@media (prefers-reduced-motion: reduce) {
-    .authContainer {
-        animation: none;
-        background: $color-dark-surface;
-    }
-
-    .authCard {
-        animation: none;
-    }
-
-    .authTextField {
-        animation: none;
-    }
-
-    .fieldContainer {
-        transition: border-color 0.2s ease, background-color 0.2s ease;
-
-        &.error {
-            animation: none;
-        }
-    }
-
-    .input,
-    .label {
-        transition: color 0.2s ease;
-    }
-
-    .link::after {
-        transition: none;
-    }
-}
-
