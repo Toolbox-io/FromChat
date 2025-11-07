@@ -48,27 +48,29 @@
     background: $color-dark-surface;
 
     .gradientBackground {
+        $size: 550px;
+
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 800px;
-        height: 800px;
+        width: $size;
+        height: $size;
         background: conic-gradient(
             from 0deg,
-            rgba(147, 51, 234, 0.4) 0%,
-            rgba(168, 85, 247, 0.35) 12.5%,
-            rgba(192, 132, 252, 0.3) 25%,
-            rgba(217, 70, 239, 0.25) 37.5%,
-            rgba(192, 132, 252, 0.3) 50%,
-            rgba(168, 85, 247, 0.35) 62.5%,
-            rgba(147, 51, 234, 0.4) 75%,
-            rgba(126, 34, 206, 0.35) 87.5%,
-            rgba(147, 51, 234, 0.4) 100%
+            rgba(147, 51, 234, 0.5) 0%,
+            rgba(99, 102, 241, 0.6) 12.5%,
+            rgba(59, 130, 246, 0.55) 25%,
+            rgba(168, 85, 247, 0.5) 37.5%,
+            rgba(217, 70, 239, 0.6) 50%,
+            rgba(236, 72, 153, 0.55) 62.5%,
+            rgba(192, 132, 252, 0.5) 75%,
+            rgba(126, 34, 206, 0.6) 87.5%,
+            rgba(147, 51, 234, 0.5) 100%
         );
-        animation: rotateGradient 15s linear infinite;
+        animation: rotateGradient 8s linear infinite;
         border-radius: 50%;
-        filter: blur(100px);
+        filter: blur(80px);
         z-index: 0;
         will-change: transform;
         backface-visibility: hidden;
