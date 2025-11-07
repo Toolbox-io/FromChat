@@ -116,7 +116,7 @@
                     width: 50px;
                     height: 50px;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, color.adjust($color-dark-primary, $lightness: 8%), color.adjust($color-dark-primary-container, $lightness: 5%));
+                    background-color: $color-dark-primary;
                     color: $color-dark-on-primary;
                     border: 1px solid rgba($color-dark-primary, 0.5);
                     cursor: pointer;

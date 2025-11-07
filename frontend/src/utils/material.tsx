@@ -40,7 +40,7 @@ import type { Badge } from 'mdui/components/badge';
 import type { CircularProgress } from 'mdui/components/circular-progress';
 import type { BottomAppBar } from 'mdui/components/bottom-app-bar';
 
-setColorScheme("#91cef4");
+setColorScheme("#9333EA");
 
 type BasePropCustomization<Tag extends keyof React.JSX.IntrinsicElements, Type> = Override<ComponentPropsWithoutRef<Tag>, {
     ref?: Ref<Type>;

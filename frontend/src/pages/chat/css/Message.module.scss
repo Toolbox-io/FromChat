@@ -210,7 +210,7 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: linear-gradient(135deg, rgba($color-dark-primary, 0.05), rgba($color-dark-tertiary, 0.03));
+                background: linear-gradient(135deg, rgba(147, 51, 234, 0.05), rgba(99, 102, 241, 0.03));
                 pointer-events: none;
                 z-index: 0;
             }
@@ -232,7 +232,7 @@
         flex-direction: row-reverse;
 
         .messageInner {
-            background: linear-gradient(135deg, color.adjust($color-dark-primary, $lightness: 8%), color.adjust($color-dark-primary-container, $lightness: 5%));
+            background: linear-gradient(135deg, #9333EA, #6366F1, #3B82F6);
             color: $color-dark-on-primary;
             border-top-right-radius: 5px;
             box-shadow: 0 0 20px rgba($color-dark-primary, 0.4);
