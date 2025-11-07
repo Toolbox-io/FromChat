@@ -229,7 +229,7 @@ export function UnifiedChatsList() {
     }
 
     return (
-        <MaterialList>
+        <MaterialList className={styles.unifiedChatsList}>
             {allChats.map((chat) => {
                 if (chat.type === "public") {
                     return (
