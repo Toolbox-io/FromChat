@@ -1,26 +1,6 @@
 @use "material" as *;
 @use "sass:color";
 
-.text-center {
-    text-align: center;
-}
-
-.alert {
-    padding: 0.8rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-
-    &.alert-success {
-        background-color: #C6F6D5;
-        color: #22543D;
-    }
-
-    &.alert-danger {
-        background-color: #FED7D7;
-        color: #742A2A;
-    }
-}
-
 .link {
     color: $color-dark-primary;
     font-weight: 600;
@@ -28,27 +8,6 @@
 
 button, input {
     font: inherit;
-}
-
-// Dialog content styles
-.dialog-content {
-    h3 {
-        margin: 0 0 1rem 0;
-        color: $color-dark-on-surface;
-        font-size: 1.2rem;
-        font-weight: 600;
-    }
-
-    mdui-text-field {
-        width: 100%;
-    }
-
-    .dialog-actions {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: flex-end;
-        margin-top: 1rem;
-    }
 }
 
 .rich-text-area {
@@ -83,33 +42,6 @@ button, input {
     }
 }
 
-// Verified badge styles
-.verified-badge {
-    display: inline-flex;
-    align-items: center;
-    color: $color-dark-primary;
-    vertical-align: middle;
-    user-select: none;
-
-    &.small {
-        font-size: 14px;
-        width: 14px;
-        height: 14px;
-    }
-
-    &.medium {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
-
-    &.large {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
-    }
-}
-
 // Status badge styles (unified for verified and warning)
 .status-badge {
     display: inline-flex;
@@ -141,13 +73,6 @@ button, input {
         width: 24px;
         height: 24px;
     }
-}
-
-// Profile dialog specific styles
-.username-with-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 .similarity-warning {

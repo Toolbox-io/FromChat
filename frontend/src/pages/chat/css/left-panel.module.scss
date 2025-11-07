@@ -30,11 +30,11 @@
             flex-grow: 1;
             font-size: 1.8rem;
             font-weight: 700;
-            background: linear-gradient(45deg, $color-dark-primary, $color-dark-tertiary);
-            -webkit-background-clip: text;
+            background: linear-gradient(45deg, #9333EA, #6366F1, #3B82F6, #A855F7, #D946EF, #EC4899, #C084FC, #7E22CE);
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            text-shadow: 0 0 20px rgba($color-dark-primary, 0.5);
+            text-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
         }
 
         .profile {
