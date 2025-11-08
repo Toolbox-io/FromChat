@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { MinimizedCallBar } from "@/pages/chat/ui/right/calls/MinimizedCallBar";
 import styles from "@/pages/chat/css/left-panel.module.scss";
+import logoIcon from "@/images/logo.svg";
 
 export function ChatHeader() {
     const { profileData } = useProfile();
@@ -27,6 +28,7 @@ export function ChatHeader() {
     return (
         <>
             <header className={styles.chatHeaderLeft}>
+                <img src={logoIcon} alt="Logo" style={{ width: "48px", height: "48px" }} />
                 <div className={styles.productName}>{PRODUCT_NAME}</div>
                 <div className={styles.profile}>
                     <a href="#" id="profile-open" onClick={handleProfileClick}>
