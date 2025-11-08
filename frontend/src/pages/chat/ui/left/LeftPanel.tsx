@@ -15,8 +15,7 @@ function BottomAppBar() {
         <>
             <MaterialBottomAppBar>
                 <MaterialIconButton icon="settings--filled" id="settings-open" onClick={() => onSettingsOpenChange(true)} />
-                <MaterialIconButton icon="group_add--filled" />
-                <div style={{ flexGrow: 1 }}></div>
+                <div style={{ flexGrow: 1 }} />
                 <MaterialIconButton
                     icon="logout--filled"
                     id="logout-btn"
@@ -31,7 +30,7 @@ function BottomAppBar() {
 
 export function LeftPanel() {
     return (
-        <div className={styles.chatList} id="chat-list">
+        <div className={styles.chatList}>
             <ChatHeader />
             <div className={styles.searchContainer}>
                 <UsernameSearch />

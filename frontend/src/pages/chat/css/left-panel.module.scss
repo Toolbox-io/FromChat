@@ -26,6 +26,14 @@
         align-items: center;
         padding: 16px;
 
+        .logo {
+            $size: 35px;
+
+            width: $size;
+            height: $size;
+            margin-right: 8px;
+        }
+
         .productName {
             flex-grow: 1;
             font-size: 1.8rem;
