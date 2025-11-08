@@ -44,6 +44,7 @@
         "@electron-forge/plugin-auto-unpack-natives": "^7.9.0",
         "@electron-forge/plugin-fuses": "^7.9.0",
         "@electron/fuses": "^1.0.0",
+        "@types/he": "^1.2.3",
         "@types/react": "^19.1.13",
         "@types/react-dom": "^19.1.9",
         "@vitejs/plugin-react": "^5.0.3",
@@ -64,9 +65,9 @@
         "vite-plugin-sass-dts": "^1.3.34"
     },
     "dependencies": {
-        "dompurify": "^3.2.7",
         "electron-squirrel-startup": "^1.0.1",
         "escape-string-regexp": "^5.0.0",
+        "he": "^1.2.0",
         "marked": "^16.3.0",
         "mdui": "^2.1.4",
         "motion": "^12.23.24",

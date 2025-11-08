@@ -3,7 +3,7 @@ import type { Attachment, Message as MessageType, Reaction } from "@/core/types"
 import defaultAvatar from "@/images/default-avatar.png";
 import Quote from "@/core/components/Quote";
 import { parse } from "marked";
-import DOMPurify from "dompurify";
+import { escape as escapeHtml } from "he";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { getCurrentKeys } from "@/core/api/authApi";
 import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
@@ -170,7 +170,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     const formattedMessage = useMemo(() => {
         // First, temporarily replace existing fromchat.ru links to avoid conflicts
         const linkPlaceholders: string[] = [];
-        let content = message.content.replace(/https?:\/\/fromchat\.ru\/@[a-zA-Z0-9_.-]+/g, (match) => {
+        let content = escapeHtml(message.content).replace(/https?:\/\/fromchat\.ru\/@[a-zA-Z0-9_.-]+/g, (match) => {
             const placeholder = `__LINK_PLACEHOLDER_${linkPlaceholders.length}__`;
             linkPlaceholders.push(match);
             return placeholder;
@@ -186,8 +186,10 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
             content = content.replace(`__LINK_PLACEHOLDER_${index}__`, link);
         });
 
+        const rendered = parse(content, { async: false }).trim();
+
         return {
-            __html: DOMPurify.sanitize(parse(content, { async: false })).trim()
+            __html: rendered
         };
     }, [message.content, styles.mentionLink]);
 
