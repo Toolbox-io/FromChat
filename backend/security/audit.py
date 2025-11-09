@@ -231,7 +231,7 @@ def _render_public_chat(action: str, fields: Dict[str, Any]) -> List[str]:
         if fields.get("original_author_id") is not None:
             lines.append(f"Original author: user #{fields['original_author_id']}")
         if fields.get("content"):
-            lines.append("↳ Previous content:")
+            lines.append("Previous content:")
             for line in unescape(fields["content"]).splitlines():
                 lines.append(f"| {line}")
         return lines
