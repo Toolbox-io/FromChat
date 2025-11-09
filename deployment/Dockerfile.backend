@@ -18,7 +18,8 @@ RUN useradd -u 1000 app && \
 # 2.2. Copy content and create dirs
 COPY --chown=app backend .
 COPY --from=builder --chown=app /app/.venv .venv
-RUN mkdir -p /app/data && \
+RUN mkdir -p /app/data /app/logs && \
+    chown -R app /app/data /app/logs && \
     printf '#!/bin/sh\nexec /app/.venv/bin/python /app/admin_cli.py "$@"\n' > /usr/local/bin/admin-cli && \
     chmod +x /usr/local/bin/admin-cli
 
