@@ -3,7 +3,6 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import inspect, text
 from PIL import Image
 import os
 import uuid
@@ -15,8 +14,18 @@ from pydantic import BaseModel
 from validation import is_valid_username, is_valid_display_name
 from similarity import is_user_similar_to_verified
 from .messaging import messagingManager
+from security.audit import log_security
+from security.profanity import contains_profanity
 
 router = APIRouter()
+
+
+def _ensure_owner_unsuspended(user: User | None, db: Session):
+    if user and user.id == 1 and user.suspended:
+        user.suspended = False
+        user.suspension_reason = None
+        db.commit()
+        db.refresh(user)
 
 # Request models
 class UpdateProfileRequest(BaseModel):
@@ -104,15 +113,53 @@ async def get_user_profile(
     """
     Get current user's profile information
     """
+    _ensure_owner_unsuspended(current_user, db)
+
+    return UserProfileResponse(
+        id=current_user.id,
+        username=current_user.username,
+        display_name=current_user.display_name,
+        profile_picture=current_user.profile_picture,
+        bio=current_user.bio,
+        online=current_user.online,
+        last_seen=current_user.last_seen,
+        created_at=current_user.created_at,
+        verified=current_user.verified,
+        suspended=current_user.suspended or False,
+        suspension_reason=current_user.suspension_reason,
+        deleted=current_user.deleted or False,
+    )
+
+
+@router.get("/user/list")
+async def list_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.id != 1:
+        raise HTTPException(status_code=403, detail="Only admin can list users")
+
+    _ensure_owner_unsuspended(current_user, db)
+
+    users = db.query(User).order_by(User.username.asc()).all()
     return {
-        "id": current_user.id,
-        "username": current_user.username,
-        "display_name": current_user.display_name,
-        "profile_picture": current_user.profile_picture,
-        "bio": current_user.bio,
-        "online": current_user.online,
-        "last_seen": current_user.last_seen,
-        "created_at": current_user.created_at
+        "users": [
+            UserProfileResponse(
+                id=user.id,
+                username=user.username,
+                display_name=user.display_name,
+                profile_picture=user.profile_picture,
+                bio=user.bio,
+                online=user.online,
+                last_seen=user.last_seen,
+                created_at=user.created_at,
+                verified=user.verified,
+                suspended=user.suspended or False,
+                suspension_reason=user.suspension_reason,
+                deleted=user.deleted or False,
+            ).model_dump()
+            for user in users
+        ]
     }
 
 @router.put("/user/profile")
@@ -134,6 +181,11 @@ async def update_user_profile(
                 status_code=400, 
                 detail="Имя пользователя должно быть от 3 до 20 символов и содержать только английские буквы, цифры, дефисы и подчеркивания"
             )
+        if contains_profanity(username):
+            raise HTTPException(
+                status_code=400,
+                detail="Имя пользователя содержит запрещённые слова"
+            )
         
         # Check if username is already taken by another user
         existing_user = db.query(User).filter(User.username == username, User.id != current_user.id).first()
@@ -150,6 +202,11 @@ async def update_user_profile(
             raise HTTPException(
                 status_code=400, 
                 detail="Отображаемое имя должно быть от 1 до 64 символов и не может быть пустым"
+            )
+        if contains_profanity(display_name):
+            raise HTTPException(
+                status_code=400,
+                detail="Отображаемое имя содержит запрещённые слова"
             )
         
         current_user.display_name = display_name
@@ -214,6 +271,8 @@ async def get_user_by_username(
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    _ensure_owner_unsuspended(user, db)
     
     return UserProfileResponse(
         id=user.id,
@@ -223,7 +282,11 @@ async def get_user_by_username(
         bio=user.bio,
         online=user.online,
         last_seen=user.last_seen,
-        created_at=user.created_at
+        created_at=user.created_at,
+        verified=user.verified,
+        suspended=user.suspended or False,
+        suspension_reason=user.suspension_reason,
+        deleted=user.deleted or False,
     )
 
 @router.get("/user/id/{user_id}")
@@ -238,6 +301,8 @@ async def get_user_by_id(
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    _ensure_owner_unsuspended(user, db)
     
     # Handle deleted users
     if user.deleted:
@@ -293,6 +358,15 @@ async def verify_user(
     target_user.verified = not target_user.verified
     db.commit()
     
+    log_security(
+        "admin_verify_toggle",
+        actor=current_user.username,
+        actor_id=current_user.id,
+        target_username=target_user.username,
+        target_id=target_user.id,
+        verified=target_user.verified,
+    )
+
     return {
         "verified": target_user.verified,
         "message": f"User verification {'enabled' if target_user.verified else 'disabled'}"
@@ -363,6 +437,15 @@ async def suspend_user(
     target_user.suspension_reason = request.reason
     db.commit()
     
+    log_security(
+        "admin_suspend_user",
+        actor=current_user.username,
+        actor_id=current_user.id,
+        target_username=target_user.username,
+        target_id=target_user.id,
+        reason=request.reason,
+    )
+
     # Send WebSocket suspension message
     try:
         await messagingManager.send_suspension_to_user(user_id, request.reason)
@@ -399,6 +482,14 @@ async def unsuspend_user(
     target_user.suspension_reason = None
     db.commit()
     
+    log_security(
+        "admin_unsuspend_user",
+        actor=current_user.username,
+        actor_id=current_user.id,
+        target_username=target_user.username,
+        target_id=target_user.id,
+    )
+
     return {
         "status": "success",
         "message": f"User {target_user.username} has been unsuspended"
@@ -426,9 +517,22 @@ async def delete_user(
     if target_user.id == 1:
         raise HTTPException(status_code=400, detail="Cannot delete admin account")
     
+    snapshot_username = target_user.username
+    snapshot_display_name = target_user.display_name
+
     from .account import _delete_user_data
     await _delete_user_data(target_user, db)
     
+    log_security(
+        "admin_delete_user",
+        severity="warning",
+        actor=current_user.username,
+        actor_id=current_user.id,
+        target_username=snapshot_username,
+        target_display_name=snapshot_display_name,
+        target_id=target_user.id,
+    )
+
     return {
         "status": "success",
         "message": f"User {target_user.username} has been deleted"

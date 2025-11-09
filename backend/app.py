@@ -1,16 +1,18 @@
-from fastapi import FastAPI
+import time
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import subprocess
 import sys
 import os
-from constants import DATABASE_URL
-from routes import account, messaging, profile, push, webrtc, devices
+from routes import account, messaging, profile, push, webrtc, devices, moderation
 import logging
 from models import User
 from constants import OWNER_USERNAME
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+
+from db import POOL_CONFIG, SessionLocal
+from logging_config import access_logger  # noqa: F401 - ensure loggers configured
+from security.audit import log_access
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -33,11 +35,7 @@ async def lifespan(app: FastAPI):
         raise
     
     try:
-        engine = create_engine(DATABASE_URL)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
         with SessionLocal() as db:
-            # Find the owner user
             owner = db.query(User).filter(User.username == OWNER_USERNAME).first()
             if owner and not owner.verified:
                 owner.verified = True
@@ -47,10 +45,18 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Owner user '{OWNER_USERNAME}' is already verified")
             else:
                 logger.warning(f"Owner user '{OWNER_USERNAME}' not found")
-                
     except Exception as e:
         logger.error(f"Failed to ensure owner verification: {e}")
     
+    logger.info(
+        "SQLAlchemy pool configured (size=%s, max_overflow=%s, timeout=%ss, recycle=%ss, pre_ping=%s)",
+        POOL_CONFIG["pool_size"],
+        POOL_CONFIG["max_overflow"],
+        POOL_CONFIG["pool_timeout"],
+        POOL_CONFIG["pool_recycle"],
+        POOL_CONFIG["pool_pre_ping"],
+    )
+
     # Start the messaging cleanup task
     try:
         from routes.messaging import messagingManager
@@ -65,6 +71,41 @@ async def lifespan(app: FastAPI):
 
 # Инициализация FastAPI
 app = FastAPI(title="FromChat", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def access_logging_middleware(request: Request, call_next):
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        duration = time.perf_counter() - start
+        user = getattr(getattr(request, "state", None), "current_user", None)
+        log_access(
+            "http_error",
+            method=request.method,
+            path=request.url.path,
+            status="error",
+            user=getattr(user, "username", None),
+            ip=request.client.host if request.client else None,
+            duration=f"{duration:.3f}s",
+            error=str(exc),
+        )
+        raise
+    else:
+        duration = time.perf_counter() - start
+        user = getattr(getattr(request, "state", None), "current_user", None)
+        log_access(
+            "http_request",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            user=getattr(user, "username", None),
+            ip=request.headers.get("x-forwarded-for") or (request.client.host if request.client else None),
+            duration=f"{duration:.3f}s",
+        )
+        return response
+
 
 # CORS
 app.add_middleware(
@@ -90,3 +131,4 @@ app.include_router(profile.router)
 app.include_router(push.router, prefix="/push")
 app.include_router(webrtc.router, prefix="/webrtc")
 app.include_router(devices.router, prefix="/devices")
+app.include_router(moderation.router)

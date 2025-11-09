@@ -9,7 +9,9 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
     volumes:
-      - "data:/app/data"
+      - data:/app/data
+      - logs:/app/logs
+
     develop:
       watch:
         - action: sync+restart
@@ -42,3 +44,5 @@ services:
 volumes:
   data:
     name: fromchat-data
+  logs:
+    name: fromchat-logs

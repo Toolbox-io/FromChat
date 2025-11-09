@@ -1,4 +1,6 @@
 from datetime import datetime
+from collections import defaultdict, deque
+import time
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
@@ -8,13 +10,33 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
 from utils import create_token, get_password_hash, verify_password
 from validation import is_valid_password, is_valid_username, is_valid_display_name
 import os
 
+from security.audit import log_security
+from security.profanity import contains_profanity
 router = APIRouter()
+
+_FAILED_ATTEMPT_WINDOW_SECONDS = 300
+_FAILED_ATTEMPT_THRESHOLD = 5
+_failed_login_attempts: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _record_failed_login(identifier: str) -> bool:
+    now = time.time()
+    attempts = _failed_login_attempts[identifier]
+    attempts.append(now)
+
+    while attempts and now - attempts[0] > _FAILED_ATTEMPT_WINDOW_SECONDS:
+        attempts.popleft()
+
+    return len(attempts) >= _FAILED_ATTEMPT_THRESHOLD
+
+
+def _reset_failed_logins(identifier: str) -> None:
+    _failed_login_attempts.pop(identifier, None)
 
 def convert_user(user: User) -> dict:
     return {
@@ -43,18 +65,51 @@ def check_auth(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/login")
-def login(request: LoginRequest, db: Session = Depends(get_db), http: Request = None):
-    user = db.query(User).filter(User.username == request.username.strip()).first()
+def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
+    username = request.username.strip()
+    x_forwarded_for = http.headers.get("x-forwarded-for") if http else None
+    client_ip = x_forwarded_for.split(",")[0].strip() if x_forwarded_for else (http.client.host if http and http.client else None)
+
+    user = db.query(User).filter(User.username == username).first()
 
     if not user or not verify_password(request.password.strip(), user.password_hash):
+        log_security(
+            "login_failed",
+            severity="warning",
+            username=username,
+            ip=client_ip,
+            reason="invalid_credentials",
+        )
+        identifiers = [f"user:{username}"]
+        if client_ip:
+            identifiers.append(f"ip:{client_ip}")
+
+        suspicious = False
+        for identifier in identifiers:
+            if _record_failed_login(identifier):
+                suspicious = True
+
+        if suspicious:
+            total_failures = {
+                identifier: len(_failed_login_attempts.get(identifier, []))
+                for identifier in identifiers
+            }
+            log_security(
+                "auth_bruteforce_detected",
+                severity="warning",
+                username=username,
+                ip=client_ip,
+                failures=total_failures,
+                window_seconds=_FAILED_ATTEMPT_WINDOW_SECONDS,
+            )
         raise HTTPException(
             status_code=401,
             detail="Неверное имя пользователя или пароль"
         )
 
     # Create device session and embed into JWT
-    raw_ua = http.headers.get("user-agent") if http else None
-    device_name = http.headers.get("x-device-name") if http else None
+    raw_ua = http.headers.get("user-agent")
+    device_name = http.headers.get("x-device-name")
     ua = parse_ua(raw_ua or "")
     session_id = uuid.uuid4().hex
 
@@ -82,6 +137,23 @@ def login(request: LoginRequest, db: Session = Depends(get_db), http: Request = 
 
     token = create_token(user.id, user.username, session_id)
 
+    identifiers = [f"user:{username}"]
+    if client_ip:
+        identifiers.append(f"ip:{client_ip}")
+    for identifier in identifiers:
+        _reset_failed_logins(identifier)
+
+    log_security(
+        "login_success",
+        username=user.username,
+        user_id=user.id,
+        ip=client_ip,
+        session_id=session_id,
+        device=device.device_type,
+        os=device.os_name,
+        browser=device.browser_name,
+    )
+
     return {
         "status": "success",
         "message": "Login successful",
@@ -91,11 +163,12 @@ def login(request: LoginRequest, db: Session = Depends(get_db), http: Request = 
 
 
 @router.post("/register")
-def register(request: RegisterRequest, db: Session = Depends(get_db), http: Request = None):
+def register(request: RegisterRequest, http: Request, db: Session = Depends(get_db)):
     username = request.username.strip()
     display_name = request.display_name.strip()
     password = request.password.strip()
     confirm_password = request.confirm_password.strip()
+    client_ip = http.client.host if http.client else None
 
     # Determine if owner already exists
     owner_exists = db.query(User).filter(User.username == OWNER_USERNAME).first() is not None
@@ -113,11 +186,21 @@ def register(request: RegisterRequest, db: Session = Depends(get_db), http: Requ
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Имя пользователя должно быть от 3 до 20 символов и содержать только английские буквы, цифры, дефисы и подчеркивания"
         )
+    if contains_profanity(username):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Имя пользователя содержит запрещённые слова"
+        )
 
     if not is_valid_display_name(display_name):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Отображаемое имя должно быть от 1 до 64 символов и не может быть пустым"
+        )
+    if contains_profanity(display_name):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Отображаемое имя содержит запрещённые слова"
         )
 
     if not is_valid_password(password):
@@ -165,8 +248,8 @@ def register(request: RegisterRequest, db: Session = Depends(get_db), http: Requ
     db.refresh(new_user)
 
     # Create initial device session
-    raw_ua = http.headers.get("user-agent") if http else None
-    device_name = http.headers.get("x-device-name") if http else None
+    raw_ua = http.headers.get("user-agent")
+    device_name = http.headers.get("x-device-name")
     ua = parse_ua(raw_ua or "")
     session_id = uuid.uuid4().hex
     device = DeviceSession(
@@ -189,6 +272,24 @@ def register(request: RegisterRequest, db: Session = Depends(get_db), http: Requ
     db.commit()
 
     token = create_token(new_user.id, new_user.username, session_id)
+
+    os_name = ua.os.family or "Unknown OS"
+    if ua.os.version_string:
+        os_name = f"{os_name} {ua.os.version_string}"
+    browser_name = ua.browser.family or "Unknown browser"
+    if ua.browser.version_string:
+        browser_name = f"{browser_name} {ua.browser.version_string}"
+    user_agent_summary = f"{os_name}, {browser_name}"
+
+    log_security(
+        "registration_success",
+        username=new_user.username,
+        display_name=new_user.display_name,
+        user_id=new_user.id,
+        ip=client_ip,
+        user_agent=user_agent_summary,
+        owner=is_owner,
+    )
 
     return {
         "status": "success",
@@ -264,10 +365,20 @@ def delete_user_as_owner(
     db.delete(user)
     db.commit()
 
+    log_security(
+        "admin_delete_user",
+        severity="warning",
+        actor=current_user.username,
+        actor_id=current_user.id,
+        target_username=user.username,
+        target_id=user.id,
+    )
+
     return {"status": "success", "deleted_user_id": user_id}
 
 @router.get("/logout")
 def logout(
+    http: Request,
     credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -285,6 +396,15 @@ def logout(
     current_user.last_seen = datetime.now()
     db.commit()
 
+    client_ip = http.client.host if http.client else None
+    log_security(
+        "logout",
+        username=current_user.username,
+        user_id=current_user.id,
+        ip=client_ip,
+        session_id=payload.get("session_id") if payload else None,
+    )
+
     return {
         "status": "success",
         "message": "Logged out successfully"
@@ -294,6 +414,7 @@ def logout(
 @router.post("/change-password")
 def change_password(
     request: ChangePasswordRequest,
+    http: Request,
     credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -318,6 +439,15 @@ def change_password(
             DeviceSession.session_id != current_session_id,
         ).update({DeviceSession.revoked: True})
         db.commit()
+
+    client_ip = http.client.host if http.client else None
+    log_security(
+        "password_changed",
+        username=current_user.username,
+        user_id=current_user.id,
+        ip=client_ip,
+        logout_others=bool(request.logoutAllExceptCurrent),
+    )
 
     return {"status": "success"}
 
@@ -430,6 +560,13 @@ async def delete_account(
     
     await _delete_user_data(current_user, db)
     
+    log_security(
+        "self_delete_account",
+        severity="warning",
+        user_id=current_user.id,
+        username=current_user.username,
+    )
+
     return {
         "status": "success",
         "message": "Account deleted successfully"

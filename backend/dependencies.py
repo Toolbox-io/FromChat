@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from utils import *
@@ -17,8 +17,9 @@ def get_db():
 
 # Зависимость для получения текущего пользователя
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> User:
     token = credentials.credentials
     payload = verify_token(token)
@@ -35,6 +36,12 @@ def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    if user.id == 1 and user.suspended:
+        user.suspended = False
+        user.suspension_reason = None
+        db.commit()
+        db.refresh(user)
 
     # Validate device session from JWT
     session_id = payload.get("session_id")
@@ -76,5 +83,8 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account deleted",
         )
+
+    request.state.current_user = user
+    request.state.session_id = session_id
 
     return user

@@ -1,4 +1,5 @@
 from datetime import datetime
+import html
 import logging
 from pathlib import Path
 import os
@@ -6,6 +7,11 @@ import re
 import uuid
 import asyncio
 import time
+import unicodedata
+from collections import defaultdict, deque
+from difflib import SequenceMatcher
+from types import SimpleNamespace
+from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials
@@ -19,6 +25,8 @@ from PIL import Image
 import io
 import json
 from better_profanity import profanity as _bp
+from security.audit import log_access, log_dm, log_public_chat, log_security
+from security.profanity import censor_text
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -31,6 +39,110 @@ FILES_ENCRYPTED_DIR = FILES_BASE_DIR / "encrypted"
 
 os.makedirs(FILES_NORMAL_DIR, exist_ok=True)
 os.makedirs(FILES_ENCRYPTED_DIR, exist_ok=True)
+
+_SPAM_WINDOW_SECONDS = 45
+_SPAM_SIMILARITY_THRESHOLD = 0.88
+_SPAM_MESSAGE_LIMIT = 5
+_BURST_WINDOW_SECONDS = 30
+_BURST_COUNT_THRESHOLD = 20
+_SHORT_MESSAGE_LENGTH = 8
+_SHORT_MESSAGE_REPEAT_LIMIT = 4
+
+_recent_message_cache: dict[int, deque[tuple[str, str, float]]] = defaultdict(deque)
+_message_rate_cache: dict[int, deque[float]] = defaultdict(deque)
+_burst_last_logged: dict[int, float] = {}
+
+
+def _normalize_for_spam(text: str) -> str:
+    normalized = unicodedata.normalize("NFKC", text or "").casefold()
+    # Remove whitespace and punctuation while keeping alphanumerics
+    cleaned = re.sub(r"[^0-9a-zа-яё]+", "", normalized, flags=re.IGNORECASE)
+    return cleaned
+
+
+def _monitor_public_message_activity(user: User, content: str, db: Session) -> None:
+    now = time.time()
+
+    def suspend(reason: str, event: str, **extra: Any) -> None:
+        if user.suspended or user.id == 1:
+            return
+        user.suspended = True
+        user.suspension_reason = reason
+        db.commit()
+        log_security(
+            event,
+            severity="warning",
+            user_id=user.id,
+            username=user.username,
+            reason=reason,
+            **extra,
+        )
+        try:
+            asyncio.create_task(messagingManager.send_suspension_to_user(user.id, reason))
+        except Exception:
+            pass
+
+    # Rate tracking for burst detection
+    rate_bucket = _message_rate_cache[user.id]
+    rate_bucket.append(now)
+    while rate_bucket and now - rate_bucket[0] > _BURST_WINDOW_SECONDS:
+        rate_bucket.popleft()
+
+    burst_count = len(rate_bucket)
+    if burst_count >= _BURST_COUNT_THRESHOLD:
+        last_logged = _burst_last_logged.get(user.id)
+        if not last_logged or now - last_logged > _BURST_WINDOW_SECONDS:
+            log_security(
+                "public_message_burst",
+                severity="warning",
+                user_id=user.id,
+                username=user.username,
+                count=burst_count,
+                window_seconds=_BURST_WINDOW_SECONDS,
+            )
+            _burst_last_logged[user.id] = now
+        suspend(
+            "Automatic suspension: excessive message rate",
+            "auto_suspension_public_burst",
+            count=burst_count,
+            window_seconds=_BURST_WINDOW_SECONDS,
+        )
+
+    # Similarity-based spam detection
+    normalized = _normalize_for_spam(content)
+    history = _recent_message_cache[user.id]
+    while history and now - history[0][2] > _SPAM_WINDOW_SECONDS:
+        history.popleft()
+
+    prior_same = sum(1 for prev_norm, _, _ in history if prev_norm == normalized)
+    prior_similar = sum(
+        1
+        for prev_norm, _, _ in history
+        if prev_norm and normalized and prev_norm != normalized and SequenceMatcher(None, normalized, prev_norm).ratio() >= _SPAM_SIMILARITY_THRESHOLD
+    )
+
+    history.append((normalized, content, now))
+
+    total_matches = prior_same + prior_similar + 1
+
+    if len(normalized) <= _SHORT_MESSAGE_LENGTH and prior_same + 1 >= _SHORT_MESSAGE_REPEAT_LIMIT:
+        suspend(
+            "Automatic suspension: repeated short messages",
+            "auto_suspension_public_spam",
+            occurrences=prior_same + 1,
+            window_seconds=_SPAM_WINDOW_SECONDS,
+            match_type="short",
+        )
+        return
+
+    if total_matches >= _SPAM_MESSAGE_LIMIT:
+        suspend(
+            "Automatic suspension: repeated similar public messages",
+            "auto_suspension_public_spam",
+            similar_messages=total_matches,
+            window_seconds=_SPAM_WINDOW_SECONDS,
+            match_type="similar",
+        )
 
 
 def convert_message(msg: Message) -> dict:
@@ -138,46 +250,6 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
         ]
     }
 
-# для тех кто читает этот код я эти маты не писал
-# мат писал ии а я сам не матерюсь))
-# - denis0001-dev
-_RU_EXTRA = [
-    "бляд", "блять", "бля", "сука", "суки", "сучка", "мразь", "ебан",
-    "ебать", "ебёт", "ебет", "уёбок", "уебок", "уебище", "пизда",
-    "пиздец", "пизд", "хуй", "хуя", "хуе", "хуё", "хер", "гондон",
-    "долбоёб", "долбоеб", "дебил"
-]
-
-_bp.load_censor_words()
-_bp.add_censor_words(_RU_EXTRA)
-
-# Additional phrase-level filters (case-insensitive)
-_PHRASE_PATTERNS: list[re.Pattern] = [
-    re.compile(r"\bmax\s+is\s+better\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bмакс\s+лучше\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bfromchat\s+г[ао]вно\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bфромчат\s+г[ао]вно\b", re.IGNORECASE | re.UNICODE),
-]
-
-def _mask_span(text: str, start: int, end: int) -> str:
-    return text[:start] + ("\\*" * (end - start)) + text[end:]
-
-def _apply_phrase_filters(text: str) -> str:
-    result = text
-    for pattern in _PHRASE_PATTERNS:
-        # Replace all occurrences; iterate until no more matches to avoid overlapping issues
-        while True:
-            m = pattern.search(result)
-            if not m:
-                break
-            result = _mask_span(result, m.start(), m.end())
-    return result
-
-def filter_profanity(text: str) -> str:
-    preprocessed = _apply_phrase_filters(text)
-    return _bp.censor(preprocessed, censor_char="\\*")
-
-
 @router.post("/send_message")
 async def send_message(
     request: SendMessageRequest | None = None,
@@ -204,23 +276,26 @@ async def send_message(
         if not original_message:
             raise HTTPException(status_code=404, detail="Original message not found")
 
-    if not request.content.strip():
+    raw_content = request.content.strip()
+
+    if not raw_content:
         raise HTTPException(
             status_code=400,
             detail="No content provided"
         )
 
     # Apply profanity filter before storing
-    filtered_content = filter_profanity(request.content.strip())
+    filtered_content = censor_text(raw_content)
+    escaped_content = html.escape(filtered_content, quote=False)
 
-    if len(filtered_content) > 4096:
+    if len(escaped_content) > 4096:
         raise HTTPException(
             status_code=400,
             detail="Message too long"
         )
 
     new_message = Message(
-        content=filtered_content,
+        content=escaped_content,
         user_id=current_user.id,
         reply_to_id=request.reply_to_id,
         timestamp=datetime.now()
@@ -293,7 +368,6 @@ async def send_message(
 
     # Realtime broadcast for HTTP uploads as well
     try:
-        from .messaging import messagingManager  # self import safe here
         await messagingManager.broadcast({
             "type": "newMessage",
             "data": convert_message(new_message)
@@ -301,7 +375,22 @@ async def send_message(
     except Exception:
         pass
 
-    return {"status": "success", "message": convert_message(new_message)}
+    _monitor_public_message_activity(current_user, filtered_content, db)
+
+    message_payload = convert_message(new_message)
+    log_public_chat(
+        "message_created",
+        message_id=new_message.id,
+        user_id=current_user.id,
+        username=current_user.username,
+        reply_to=new_message.reply_to_id,
+        attachments=len(new_message.files or []),
+        length=len(new_message.content),
+        suspended=current_user.suspended,
+        content=new_message.content,
+    )
+
+    return {"status": "success", "message": message_payload}
 
 
 @router.get("/get_messages")
@@ -404,6 +493,7 @@ async def dm_send(
             )
             db.add(df)
         db.commit()
+        db.refresh(env)
 
     # Send push notification for DM
     try:
@@ -432,6 +522,16 @@ async def dm_send(
         await messagingManager.send_to_user(env.sender_id, payload_ws)
     except Exception:
         pass
+
+    log_dm(
+        "message_sent",
+        dm_envelope_id=env.id,
+        sender_id=current_user.id,
+        sender_username=current_user.username,
+        recipient_id=env.recipient_id,
+        attachment_count=len(env.files or []),
+        reply_to=env.reply_to_id,
+    )
 
     return {"status": "ok", "id": env.id}
 
@@ -531,15 +631,35 @@ async def edit_message(
         raise HTTPException(status_code=404, detail="Message not found")
     if message.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own messages")
-    if not request.content.strip():
+    raw_content = request.content.strip()
+
+    if not raw_content:
         raise HTTPException(status_code=400, detail="Message content cannot be empty")
-    message.content = request.content.strip()
+
+    original_content = message.content
+    sanitized_content = censor_text(raw_content)
+    escaped_content = html.escape(sanitized_content, quote=False)
+    if len(escaped_content) > 4096:
+        raise HTTPException(status_code=400, detail="Message too long")
+
+    message.content = escaped_content
     message.is_edited = True
 
     db.commit()
     db.refresh(message)
 
-    return {"status": "success", "message": convert_message(message)}
+    payload = convert_message(message)
+    log_public_chat(
+        "message_edited",
+        message_id=message.id,
+        user_id=current_user.id,
+        username=current_user.username,
+        reply_to=message.reply_to_id,
+        content=message.content,
+        previous_content=original_content,
+    )
+
+    return {"status": "success", "message": payload}
 
 
 @router.delete("/delete_message/{message_id}")
@@ -557,8 +677,18 @@ async def delete_message(
     if current_user.username != OWNER_USERNAME and message.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only delete your own messages")
 
+    original_content = message.content
     db.delete(message)
     db.commit()
+
+    log_public_chat(
+        "message_deleted",
+        message_id=message_id,
+        actor_id=current_user.id,
+        actor_username=current_user.username,
+        original_author_id=message.user_id,
+        content=original_content,
+    )
 
     return {"status": "success", "message_id": message_id}
 
@@ -600,9 +730,10 @@ async def add_reaction(
     # Refresh message to get updated reactions
     db.refresh(message)
 
+    message_data = convert_message(message)
+
     # Broadcast reaction update
     try:
-        from .messaging import messagingManager
         await messagingManager.broadcast({
             "type": "reactionUpdate",
             "data": {
@@ -611,13 +742,22 @@ async def add_reaction(
                 "action": action,
                 "user_id": current_user.id,
                 "username": current_user.username,
-                "reactions": convert_message(message)["reactions"]
+                "reactions": message_data["reactions"]
             }
         })
     except Exception:
         pass
 
-    return {"status": "success", "action": action, "reactions": convert_message(message)["reactions"]}
+    log_public_chat(
+        "reaction_update",
+        message_id=request.message_id,
+        user_id=current_user.id,
+        username=current_user.username,
+        action=action,
+        emoji=request.emoji,
+    )
+
+    return {"status": "success", "action": action, "reactions": message_data["reactions"]}
 
 
 @router.post("/dm/add_reaction")
@@ -661,6 +801,8 @@ async def add_dm_reaction(
     # Refresh envelope to get updated reactions
     db.refresh(envelope)
 
+    envelope_data = convert_dm_envelope(envelope)
+
     # Broadcast reaction update to both participants
     try:
         await messagingManager.broadcast({
@@ -671,13 +813,22 @@ async def add_dm_reaction(
                 "action": action,
                 "user_id": current_user.id,
                 "username": current_user.username,
-                "reactions": convert_dm_envelope(envelope)["reactions"]
+                "reactions": envelope_data["reactions"]
             }
         })
     except Exception:
         pass
 
-    return {"status": "success", "action": action, "reactions": convert_dm_envelope(envelope)["reactions"]}
+    log_dm(
+        "reaction_update",
+        dm_envelope_id=request.dm_envelope_id,
+        user_id=current_user.id,
+        username=current_user.username,
+        action=action,
+        emoji=request.emoji,
+    )
+
+    return {"status": "success", "action": action, "reactions": envelope_data["reactions"]}
 
 
 class MessaggingSocketManager:
@@ -697,13 +848,37 @@ class MessaggingSocketManager:
         # Initialize subscriptions for this connection
         self.ws_subscriptions[websocket] = set()
 
+        ws_path = getattr(getattr(websocket, "url", None), "path", None)
+        if not ws_path and isinstance(getattr(websocket, "scope", None), dict):
+            ws_path = websocket.scope.get("path")
+        ws_path = ws_path or "unknown"
+        headers = {}
+        if isinstance(getattr(websocket, "scope", None), dict):
+            headers = {k.decode("latin1"): v.decode("latin1") for k, v in websocket.scope.get("headers", [])}
+        xff = headers.get("x-forwarded-for")
+        client_ip = xff.split(",")[0].strip() if xff else (websocket.client.host if websocket.client else None)
+
+        def _log_ws(event: str, user: User | None, **extra: Any) -> None:
+            log_access(
+                "ws_event",
+                path=ws_path,
+                event=event,
+                user=user.username if user else None,
+                user_id=user.id if user else None,
+                ip=client_ip,
+                **extra,
+            )
+
         while True:
             data = await websocket.receive_json()
             type = data["type"]
 
             def get_current_user_inner() -> User | None:
                 if data["credentials"]:
+                    dummy_request = SimpleNamespace()
+                    dummy_request.state = SimpleNamespace()
                     return get_current_user(
+                        dummy_request,
                         HTTPAuthorizationCredentials(
                             scheme=data["credentials"]["scheme"],
                             credentials=data["credentials"]["credentials"]
@@ -714,6 +889,7 @@ class MessaggingSocketManager:
                     return None
 
             if type == "ping":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if current_user:
@@ -737,6 +913,7 @@ class MessaggingSocketManager:
                                 }
                             }
                         })
+                        _log_ws("ping_error", current_user)
                 except HTTPException:
                     await websocket.send_json({
                         "type": "ping",
@@ -748,8 +925,11 @@ class MessaggingSocketManager:
                             }
                         }
                     })
+                    _log_ws("ping_error", current_user)
                 await websocket.send_json({"type": "ping", "data": {"status": "success"}})
+                _log_ws("ping", current_user)
             elif type == "getMessages":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -757,9 +937,12 @@ class MessaggingSocketManager:
                     self.user_by_ws[websocket] = current_user.id
 
                     await websocket.send_json({"type": type, "data": await get_messages(current_user, db)})
+                    _log_ws("getMessages", current_user)
                 except HTTPException as e:
+                    _log_ws("getMessages_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "sendMessage":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -775,9 +958,12 @@ class MessaggingSocketManager:
                     })
 
                     await websocket.send_json({"type": type, "data": response})
+                    _log_ws("sendMessage", current_user, message_id=response["message"]["id"])
                 except HTTPException as e:
+                    _log_ws("sendMessage_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "dmSend":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -827,9 +1013,21 @@ class MessaggingSocketManager:
                     await self.send_to_user(env.recipient_id, payload);
                     await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}});
                     await self.send_to_user(env.sender_id, payload);
+
+                    _log_ws("dmSend", current_user, dm_envelope_id=env.id, recipient_id=env.recipient_id)
+                    log_dm(
+                        "message_sent_ws",
+                        dm_envelope_id=env.id,
+                        sender_id=current_user.id,
+                        sender_username=current_user.username,
+                        recipient_id=env.recipient_id,
+                        reply_to=env.reply_to_id,
+                    )
                 except HTTPException as e:
+                    _log_ws("dmSend_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "editMessage":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -845,9 +1043,12 @@ class MessaggingSocketManager:
                     })
 
                     await websocket.send_json({"type": type, "data": response})
+                    _log_ws("editMessage", current_user, message_id=message_id)
                 except HTTPException as e:
+                    _log_ws("editMessage_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "dmEdit":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -887,9 +1088,19 @@ class MessaggingSocketManager:
                     await self.send_to_user(env.recipient_id, payload_ws)
                     await self.send_to_user(env.sender_id, payload_ws)
                     await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}})
+
+                    _log_ws("dmEdit", current_user, dm_envelope_id=env.id)
+                    log_dm(
+                        "message_edited",
+                        dm_envelope_id=env.id,
+                        user_id=current_user.id,
+                        username=current_user.username,
+                    )
                 except HTTPException as e:
+                    _log_ws("dmEdit_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "dmDelete":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -917,9 +1128,20 @@ class MessaggingSocketManager:
                     await self.send_to_user(env.recipient_id, payload_ws)
                     await websocket.send_json({"type": type, "data": {"status": "ok", "id": env_id}})
                     await self.send_to_user(env.sender_id, payload_ws)
+
+                    _log_ws("dmDelete", current_user, dm_envelope_id=env_id)
+                    log_dm(
+                        "message_deleted",
+                        dm_envelope_id=env_id,
+                        user_id=current_user.id,
+                        username=current_user.username,
+                        recipient_id=env.recipient_id,
+                    )
                 except HTTPException as e:
+                    _log_ws("dmDelete_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "deleteMessage":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -933,9 +1155,12 @@ class MessaggingSocketManager:
                     })
 
                     await websocket.send_json({"type": type, "data": response})
+                    _log_ws("deleteMessage", current_user, message_id=message_id)
                 except HTTPException as e:
+                    _log_ws("deleteMessage_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "addReaction":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -963,9 +1188,12 @@ class MessaggingSocketManager:
                     })
 
                     await websocket.send_json({"type": type, "data": response})
+                    _log_ws("addReaction", current_user, message_id=request_data["message_id"], emoji=request_data["emoji"], action=response["action"])
                 except HTTPException as e:
+                    _log_ws("addReaction_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "addDmReaction":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -993,10 +1221,13 @@ class MessaggingSocketManager:
                     })
 
                     await websocket.send_json({"type": type, "data": response})
+                    _log_ws("addDmReaction", current_user, dm_envelope_id=request_data["dm_envelope_id"], emoji=request_data["emoji"], action=response["action"])
                 except HTTPException as e:
+                    _log_ws("addDmReaction_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "call_signaling":
                 # Forward WebRTC signaling between peers
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -1019,10 +1250,13 @@ class MessaggingSocketManager:
 
                     # Optional ack
                     await websocket.send_json({"type": "call_signaling", "data": {"status": "ok"}})
+                    _log_ws("call_signaling", current_user, to_user_id=to_user_id)
                 except HTTPException as e:
+                    _log_ws("call_signaling_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
             elif type == "call_video_toggle":
                 # Forward video toggle state between peers
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -1049,9 +1283,13 @@ class MessaggingSocketManager:
 
                     await websocket.send_json({"type": "call_video_toggle", "data": {"status": "ok"}})
                 except HTTPException as e:
+                    _log_ws("call_video_toggle_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
+                else:
+                    _log_ws("call_video_toggle", current_user, to_user_id=to_user_id, enabled=payload.get("enabled", False))
             elif type == "call_screen_share_toggle":
                 # Forward screen share toggle state between peers
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -1078,8 +1316,12 @@ class MessaggingSocketManager:
 
                     await websocket.send_json({"type": "call_screen_share_toggle", "data": {"status": "ok"}})
                 except HTTPException as e:
+                    _log_ws("call_screen_share_toggle_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
+                else:
+                    _log_ws("call_screen_share_toggle", current_user, to_user_id=to_user_id, enabled=payload.get("enabled", False))
             elif type == "subscribeStatus":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -1096,7 +1338,7 @@ class MessaggingSocketManager:
                             "data": {
                                 "userId": user_id_to_subscribe,
                                 "online": target_user.online,
-                                "lastSeen": target_user.last_seen.isoformat()
+                                "lastSeen": target_user.last_seen.isoformat() if target_user.last_seen else None
                             }
                         })
                     else:
@@ -1105,8 +1347,12 @@ class MessaggingSocketManager:
                             "data": {"status": "error", "error": "User not found"}
                         })
                 except HTTPException as e:
+                    _log_ws("subscribeStatus_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
+                else:
+                    _log_ws("subscribeStatus", current_user, target_user_id=user_id_to_subscribe)
             elif type == "unsubscribeStatus":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -1117,8 +1363,12 @@ class MessaggingSocketManager:
 
                     await websocket.send_json({"type": "unsubscribeStatus", "data": {"status": "ok"}})
                 except HTTPException as e:
+                    _log_ws("unsubscribeStatus_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
+                else:
+                    _log_ws("unsubscribeStatus", current_user, target_user_id=user_id_to_unsubscribe)
             elif type == "typing":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -1137,8 +1387,12 @@ class MessaggingSocketManager:
 
                     await websocket.send_json({"type": "typing", "data": {"status": "ok"}})
                 except HTTPException as e:
+                    _log_ws("typing_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
+                else:
+                    _log_ws("typing", current_user)
             elif type == "stopTyping":
+                current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
                     if not current_user:
@@ -1158,7 +1412,10 @@ class MessaggingSocketManager:
 
                     await websocket.send_json({"type": "stopTyping", "data": {"status": "ok"}})
                 except HTTPException as e:
+                    _log_ws("stopTyping_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
+                else:
+                    _log_ws("stopTyping", current_user)
             elif type == "dmTyping":
                 try:
                     current_user = get_current_user_inner()
@@ -1219,11 +1476,25 @@ class MessaggingSocketManager:
 
     async def connect(self, websocket: WebSocket, db: Session):
         await websocket.accept()
+        client_ip = websocket.client.host if websocket.client else None
+        log_access(
+            "ws_connect",
+            path=str(websocket.url.path),
+            ip=client_ip,
+        )
         self.connections.append(websocket)
         try:
             await self.handle_connection(websocket, db)
         except WebSocketDisconnect as e:
             logger.info(f"WebSocket disconnected with code {e.code}: {e.reason}")
+            log_access(
+                "ws_disconnect",
+                severity="warning" if e.code != 1000 else "info",
+                path=str(websocket.url.path),
+                ip=client_ip,
+                code=e.code,
+                reason=e.reason,
+            )
         finally:
             # Cleanup connection
             self.connections.remove(websocket)
