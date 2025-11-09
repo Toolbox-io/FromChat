@@ -9,6 +9,7 @@ from routes import account, messaging, profile, push, webrtc, devices, moderatio
 import logging
 from models import User
 from constants import OWNER_USERNAME
+from utils import get_client_ip
 
 from db import POOL_CONFIG, SessionLocal
 from logging_config import access_logger  # noqa: F401 - ensure loggers configured
@@ -87,7 +88,7 @@ async def access_logging_middleware(request: Request, call_next):
             path=request.url.path,
             status="error",
             user=getattr(user, "username", None),
-            ip=request.client.host if request.client else None,
+            ip=get_client_ip(request),
             duration=f"{duration:.3f}s",
             error=str(exc),
         )
@@ -101,7 +102,7 @@ async def access_logging_middleware(request: Request, call_next):
             path=request.url.path,
             status=response.status_code,
             user=getattr(user, "username", None),
-            ip=request.headers.get("x-forwarded-for") or (request.client.host if request.client else None),
+            ip=get_client_ip(request),
             duration=f"{duration:.3f}s",
         )
         return response

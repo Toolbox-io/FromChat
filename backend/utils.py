@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
+from fastapi import Request
 import jwt
-from typing import Optional
+from typing import Optional, Any
 import bcrypt
 
 from constants import *
@@ -32,3 +33,25 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def get_client_ip(request: Request) -> Optional[str]:
+    if not request:
+        return None
+
+    headers = request.headers
+    forwarded = headers.get("x-forwarded-for") or headers.get("X-Forwarded-For")
+    if forwarded:
+        candidate = forwarded.split(",")[0].strip()
+        if candidate:
+            return candidate
+
+    if request.client and request.client.host:
+        return request.client.host
+
+    if isinstance(request.scope, dict):
+        client_info = request.scope.get("client")
+        if isinstance(client_info, (list, tuple)) and client_info:
+            return client_info[0]
+
+    return None

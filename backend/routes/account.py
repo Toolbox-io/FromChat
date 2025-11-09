@@ -11,7 +11,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
 from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
-from utils import create_token, get_password_hash, verify_password
+from utils import create_token, get_password_hash, verify_password, get_client_ip
 from validation import is_valid_password, is_valid_username, is_valid_display_name
 import os
 
@@ -67,8 +67,7 @@ def check_auth(current_user: User = Depends(get_current_user)):
 @router.post("/login")
 def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
     username = request.username.strip()
-    x_forwarded_for = http.headers.get("x-forwarded-for") if http else None
-    client_ip = x_forwarded_for.split(",")[0].strip() if x_forwarded_for else (http.client.host if http and http.client else None)
+    client_ip = get_client_ip(http)
 
     user = db.query(User).filter(User.username == username).first()
 
@@ -168,7 +167,7 @@ def register(request: RegisterRequest, http: Request, db: Session = Depends(get_
     display_name = request.display_name.strip()
     password = request.password.strip()
     confirm_password = request.confirm_password.strip()
-    client_ip = http.client.host if http.client else None
+    client_ip = get_client_ip(http)
 
     # Determine if owner already exists
     owner_exists = db.query(User).filter(User.username == OWNER_USERNAME).first() is not None
@@ -396,7 +395,7 @@ def logout(
     current_user.last_seen = datetime.now()
     db.commit()
 
-    client_ip = http.client.host if http.client else None
+    client_ip = get_client_ip(http)
     log_security(
         "logout",
         username=current_user.username,
@@ -440,7 +439,7 @@ def change_password(
         ).update({DeviceSession.revoked: True})
         db.commit()
 
-    client_ip = http.client.host if http.client else None
+    client_ip = get_client_ip(http)
     log_security(
         "password_changed",
         username=current_user.username,
