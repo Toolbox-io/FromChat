@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -11,7 +12,7 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 class HumanReadableFileHandler(RotatingFileHandler):
     def __init__(self, filename: Path, level: int) -> None:
-        super().__init__(filename, maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8")
+        super().__init__(filename, maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8", delay=True)
         self.level = level
         self._lock = RLock()
         self._last_date: str | None = None
@@ -29,6 +30,9 @@ class HumanReadableFileHandler(RotatingFileHandler):
             lines = [line.rstrip() for line in message.splitlines() if line.strip()]
 
             with self._lock:
+                if self.stream is None:
+                    self.stream = self._open()
+
                 if self._last_date != date_str:
                     if self._last_date is not None:
                         self.stream.write("\n")
