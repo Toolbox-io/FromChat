@@ -16,6 +16,7 @@ from validation import is_valid_password, is_valid_username, is_valid_display_na
 import os
 
 from security.audit import log_security
+from security.profanity import contains_profanity
 router = APIRouter()
 
 _FAILED_ATTEMPT_WINDOW_SECONDS = 300
@@ -185,11 +186,21 @@ def register(request: RegisterRequest, http: Request, db: Session = Depends(get_
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Имя пользователя должно быть от 3 до 20 символов и содержать только английские буквы, цифры, дефисы и подчеркивания"
         )
+    if contains_profanity(username):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Имя пользователя содержит запрещённые слова"
+        )
 
     if not is_valid_display_name(display_name):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Отображаемое имя должно быть от 1 до 64 символов и не может быть пустым"
+        )
+    if contains_profanity(display_name):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Отображаемое имя содержит запрещённые слова"
         )
 
     if not is_valid_password(password):

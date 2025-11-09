@@ -145,10 +145,28 @@ def _render_security(action: str, fields: Dict[str, Any]) -> List[str]:
     if action == "auto_suspension_public_spam":
         lines = [
             f"Automatic suspension triggered for {_format_user(fields)}",
-            f"Similar messages detected: {fields.get('similar_messages')}",
         ]
+        match_type = fields.get("match_type")
+        if match_type:
+            lines.append(f"Match type: {match_type}")
+        similar = fields.get("similar_messages")
+        occurrences = fields.get("occurrences")
+        if similar:
+            lines.append(f"Similar messages detected: {similar}")
+        if occurrences and not similar:
+            lines.append(f"Occurrences: {occurrences}")
         if fields.get("window_seconds"):
             lines.append(f"Observation window: {fields['window_seconds']} seconds")
+        if fields.get("reason"):
+            lines.append(f"Reason: {fields['reason']}")
+        return lines
+    if action == "auto_suspension_public_burst":
+        lines = [
+            f"Automatic suspension triggered for {_format_user(fields)}",
+            f"Messages sent: {fields.get('count')} within {fields.get('window_seconds')} seconds",
+        ]
+        if fields.get("reason"):
+            lines.append(f"Reason: {fields['reason']}")
         return lines
     if action == "public_message_burst":
         return [

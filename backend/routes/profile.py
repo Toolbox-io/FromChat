@@ -15,6 +15,7 @@ from validation import is_valid_username, is_valid_display_name
 from similarity import is_user_similar_to_verified
 from .messaging import messagingManager
 from security.audit import log_security
+from security.profanity import contains_profanity
 
 router = APIRouter()
 
@@ -180,6 +181,11 @@ async def update_user_profile(
                 status_code=400, 
                 detail="Имя пользователя должно быть от 3 до 20 символов и содержать только английские буквы, цифры, дефисы и подчеркивания"
             )
+        if contains_profanity(username):
+            raise HTTPException(
+                status_code=400,
+                detail="Имя пользователя содержит запрещённые слова"
+            )
         
         # Check if username is already taken by another user
         existing_user = db.query(User).filter(User.username == username, User.id != current_user.id).first()
@@ -196,6 +202,11 @@ async def update_user_profile(
             raise HTTPException(
                 status_code=400, 
                 detail="Отображаемое имя должно быть от 1 до 64 символов и не может быть пустым"
+            )
+        if contains_profanity(display_name):
+            raise HTTPException(
+                status_code=400,
+                detail="Отображаемое имя содержит запрещённые слова"
             )
         
         current_user.display_name = display_name

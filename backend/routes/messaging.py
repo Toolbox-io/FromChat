@@ -7,6 +7,7 @@ import re
 import uuid
 import asyncio
 import time
+import unicodedata
 from collections import defaultdict, deque
 from difflib import SequenceMatcher
 from types import SimpleNamespace
@@ -44,14 +45,42 @@ _SPAM_SIMILARITY_THRESHOLD = 0.88
 _SPAM_MESSAGE_LIMIT = 5
 _BURST_WINDOW_SECONDS = 30
 _BURST_COUNT_THRESHOLD = 20
+_SHORT_MESSAGE_LENGTH = 8
+_SHORT_MESSAGE_REPEAT_LIMIT = 4
 
-_recent_message_cache: dict[int, deque[tuple[str, float]]] = defaultdict(deque)
+_recent_message_cache: dict[int, deque[tuple[str, str, float]]] = defaultdict(deque)
 _message_rate_cache: dict[int, deque[float]] = defaultdict(deque)
 _burst_last_logged: dict[int, float] = {}
 
 
+def _normalize_for_spam(text: str) -> str:
+    normalized = unicodedata.normalize("NFKC", text or "").casefold()
+    # Remove whitespace and punctuation while keeping alphanumerics
+    cleaned = re.sub(r"[^0-9a-zа-яё]+", "", normalized, flags=re.IGNORECASE)
+    return cleaned
+
+
 def _monitor_public_message_activity(user: User, content: str, db: Session) -> None:
     now = time.time()
+
+    def suspend(reason: str, event: str, **extra: Any) -> None:
+        if user.suspended or user.id == 1:
+            return
+        user.suspended = True
+        user.suspension_reason = reason
+        db.commit()
+        log_security(
+            event,
+            severity="warning",
+            user_id=user.id,
+            username=user.username,
+            reason=reason,
+            **extra,
+        )
+        try:
+            asyncio.create_task(messagingManager.send_suspension_to_user(user.id, reason))
+        except Exception:
+            pass
 
     # Rate tracking for burst detection
     rate_bucket = _message_rate_cache[user.id]
@@ -59,7 +88,8 @@ def _monitor_public_message_activity(user: User, content: str, db: Session) -> N
     while rate_bucket and now - rate_bucket[0] > _BURST_WINDOW_SECONDS:
         rate_bucket.popleft()
 
-    if len(rate_bucket) >= _BURST_COUNT_THRESHOLD:
+    burst_count = len(rate_bucket)
+    if burst_count >= _BURST_COUNT_THRESHOLD:
         last_logged = _burst_last_logged.get(user.id)
         if not last_logged or now - last_logged > _BURST_WINDOW_SECONDS:
             log_security(
@@ -67,39 +97,52 @@ def _monitor_public_message_activity(user: User, content: str, db: Session) -> N
                 severity="warning",
                 user_id=user.id,
                 username=user.username,
-                count=len(rate_bucket),
+                count=burst_count,
                 window_seconds=_BURST_WINDOW_SECONDS,
             )
             _burst_last_logged[user.id] = now
+        suspend(
+            "Automatic suspension: excessive message rate",
+            "auto_suspension_public_burst",
+            count=burst_count,
+            window_seconds=_BURST_WINDOW_SECONDS,
+        )
 
     # Similarity-based spam detection
+    normalized = _normalize_for_spam(content)
     history = _recent_message_cache[user.id]
-    history.append((content, now))
-    while history and now - history[0][1] > _SPAM_WINDOW_SECONDS:
+    while history and now - history[0][2] > _SPAM_WINDOW_SECONDS:
         history.popleft()
 
-    similar_messages = sum(
-        1 for previous_content, _ in history
-        if SequenceMatcher(None, content, previous_content).ratio() >= _SPAM_SIMILARITY_THRESHOLD
+    prior_same = sum(1 for prev_norm, _, _ in history if prev_norm == normalized)
+    prior_similar = sum(
+        1
+        for prev_norm, _, _ in history
+        if prev_norm and normalized and prev_norm != normalized and SequenceMatcher(None, normalized, prev_norm).ratio() >= _SPAM_SIMILARITY_THRESHOLD
     )
 
-    if similar_messages >= _SPAM_MESSAGE_LIMIT and not user.suspended and user.id != 1:
-        reason = "Automatic suspension: repeated similar public messages"
-        user.suspended = True
-        user.suspension_reason = reason
-        db.commit()
-        log_security(
+    history.append((normalized, content, now))
+
+    total_matches = prior_same + prior_similar + 1
+
+    if len(normalized) <= _SHORT_MESSAGE_LENGTH and prior_same + 1 >= _SHORT_MESSAGE_REPEAT_LIMIT:
+        suspend(
+            "Automatic suspension: repeated short messages",
             "auto_suspension_public_spam",
-            severity="warning",
-            user_id=user.id,
-            username=user.username,
-            similar_messages=similar_messages,
+            occurrences=prior_same + 1,
             window_seconds=_SPAM_WINDOW_SECONDS,
+            match_type="short",
         )
-        try:
-            asyncio.create_task(messagingManager.send_suspension_to_user(user.id, reason))
-        except Exception:
-            pass
+        return
+
+    if total_matches >= _SPAM_MESSAGE_LIMIT:
+        suspend(
+            "Automatic suspension: repeated similar public messages",
+            "auto_suspension_public_spam",
+            similar_messages=total_matches,
+            window_seconds=_SPAM_WINDOW_SECONDS,
+            match_type="similar",
+        )
 
 
 def convert_message(msg: Message) -> dict:
