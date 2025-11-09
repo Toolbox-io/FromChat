@@ -375,7 +375,7 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
     parser = argparse.ArgumentParser(description="FromChat Emergency Admin CLI")
     parser.add_argument(
         "--api-url",
-        default=os.getenv("FC_ADMIN_API_URL", "http://127.0.0.1:8301/api"),
+        default=os.getenv("FC_ADMIN_API_URL", "http://127.0.0.1:8300"),
         help="Base API URL for the FromChat backend (default: %(default)s).",
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
