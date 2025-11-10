@@ -68,10 +68,10 @@ def check_auth(current_user: User = Depends(get_current_user)):
 
 @router.post("/login")
 @rate_limit_per_ip("5/minute")
-def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
-    username = request.username.strip()
-    client_ip = get_client_ip(http)
-    raw_ua = http.headers.get("user-agent")
+def login(request: Request, login_request: LoginRequest, db: Session = Depends(get_db)):
+    username = login_request.username.strip()
+    client_ip = get_client_ip(request)
+    raw_ua = request.headers.get("user-agent")
 
     if is_user_agent_blocked(raw_ua):
         log_security(
@@ -89,7 +89,7 @@ def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
 
     user = db.query(User).filter(User.username == username).first()
 
-    if not user or not verify_password(request.password.strip(), user.password_hash):
+    if not user or not verify_password(login_request.password.strip(), user.password_hash):
         log_security(
             "login_failed",
             severity="warning",
@@ -125,8 +125,8 @@ def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
         )
 
     # Create device session and embed into JWT
-    raw_ua = http.headers.get("user-agent")
-    device_name = http.headers.get("x-device-name")
+    raw_ua = request.headers.get("user-agent")
+    device_name = request.headers.get("x-device-name")
     ua = parse_ua(raw_ua or "")
     session_id = uuid.uuid4().hex
 
@@ -181,13 +181,13 @@ def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
 
 @router.post("/register")
 @rate_limit_per_ip("3/hour")
-def register(request: RegisterRequest, http: Request, db: Session = Depends(get_db)):
-    username = request.username.strip()
-    display_name = request.display_name.strip()
-    password = request.password.strip()
-    confirm_password = request.confirm_password.strip()
-    client_ip = get_client_ip(http)
-    raw_ua = http.headers.get("user-agent")
+def register(request: Request, register_request: RegisterRequest, db: Session = Depends(get_db)):
+    username = register_request.username.strip()
+    display_name = register_request.display_name.strip()
+    password = register_request.password.strip()
+    confirm_password = register_request.confirm_password.strip()
+    client_ip = get_client_ip(request)
+    raw_ua = request.headers.get("user-agent")
 
     if is_user_agent_blocked(raw_ua):
         log_security(
@@ -281,8 +281,8 @@ def register(request: RegisterRequest, http: Request, db: Session = Depends(get_
     db.refresh(new_user)
 
     # Create initial device session
-    raw_ua = http.headers.get("user-agent")
-    device_name = http.headers.get("x-device-name")
+    raw_ua = request.headers.get("user-agent")
+    device_name = request.headers.get("x-device-name")
     ua = parse_ua(raw_ua or "")
     session_id = uuid.uuid4().hex
     device = DeviceSession(
@@ -447,22 +447,22 @@ def logout(
 @router.post("/change-password")
 @rate_limit_per_user("5/hour")
 def change_password(
-    request: ChangePasswordRequest,
-    http: Request,
+    request: Request,
+    password_request: ChangePasswordRequest,
     credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     # Verify current derived password against stored hash
-    if not verify_password(request.currentPasswordDerived.strip(), current_user.password_hash):
+    if not verify_password(password_request.currentPasswordDerived.strip(), current_user.password_hash):
         raise HTTPException(status_code=401, detail="Текущий пароль неверный")
 
     # Update password hash to hash of new derived password
-    current_user.password_hash = get_password_hash(request.newPasswordDerived.strip())
+    current_user.password_hash = get_password_hash(password_request.newPasswordDerived.strip())
     db.commit()
 
     # Optionally revoke all other sessions, keeping the current one
-    if request.logoutAllExceptCurrent:
+    if password_request.logoutAllExceptCurrent:
         from utils import verify_token as _verify_token
         payload = _verify_token(credentials.credentials)
         if not payload:
@@ -474,13 +474,13 @@ def change_password(
         ).update({DeviceSession.revoked: True})
         db.commit()
 
-    client_ip = get_client_ip(http)
+    client_ip = get_client_ip(request)
     log_security(
         "password_changed",
         username=current_user.username,
         user_id=current_user.id,
         ip=client_ip,
-        logout_others=bool(request.logoutAllExceptCurrent),
+        logout_others=bool(password_request.logoutAllExceptCurrent),
     )
 
     return {"status": "success"}

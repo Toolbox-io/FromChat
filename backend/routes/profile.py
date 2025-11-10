@@ -7,6 +7,7 @@ from PIL import Image
 import os
 import uuid
 import io
+from fastapi import Request
 
 from dependencies import get_db, get_current_user
 from models import User, UpdateBioRequest, UserProfileResponse
@@ -42,6 +43,7 @@ os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
 @router.post("/upload-profile-picture")
 @rate_limit_per_user("10/minute")
 async def upload_profile_picture(
+    request: Request,
     profile_picture: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -167,7 +169,8 @@ async def list_users(
 @router.put("/user/profile")
 @rate_limit_per_user("10/minute")
 async def update_user_profile(
-    request: UpdateProfileRequest,
+    request: Request,
+    update_request: UpdateProfileRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -177,8 +180,8 @@ async def update_user_profile(
     updated = False
     
     # Update username if provided
-    if request.username is not None:
-        username = request.username.strip()
+    if update_request.username is not None:
+        username = update_request.username.strip()
         if not is_valid_username(username):
             raise HTTPException(
                 status_code=400, 
@@ -199,8 +202,8 @@ async def update_user_profile(
         updated = True
     
     # Update display name if provided
-    if request.display_name is not None:
-        display_name = request.display_name.strip()
+    if update_request.display_name is not None:
+        display_name = update_request.display_name.strip()
         if not is_valid_display_name(display_name):
             raise HTTPException(
                 status_code=400, 
@@ -216,8 +219,8 @@ async def update_user_profile(
         updated = True
     
     # Update bio if provided
-    if request.description is not None:
-        bio = request.description.strip()
+    if update_request.description is not None:
+        bio = update_request.description.strip()
         if len(bio) > 500:
             raise HTTPException(status_code=400, detail="Bio must be 500 characters or less")
         
@@ -244,17 +247,18 @@ async def update_user_profile(
 @router.put("/user/bio")
 @rate_limit_per_user("10/minute")
 async def update_user_bio(
-    request: UpdateBioRequest,
+    request: Request,
+    bio_request: UpdateBioRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Update current user's bio
     """
-    if len(request.bio) > 500:  # Limit bio to 500 characters
+    if len(bio_request.bio) > 500:  # Limit bio to 500 characters
         raise HTTPException(status_code=400, detail="Bio must be 500 characters or less")
     
-    current_user.bio = request.bio.strip()
+    current_user.bio = bio_request.bio.strip()
     db.commit()
     
     return {

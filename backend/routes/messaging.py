@@ -12,7 +12,7 @@ from collections import defaultdict, deque
 from difflib import SequenceMatcher
 from types import SimpleNamespace
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -254,7 +254,8 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
 @router.post("/send_message")
 @rate_limit_per_user("30/minute")
 async def send_message(
-    request: SendMessageRequest | None = None,
+    request: Request,
+    message_request: SendMessageRequest | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     # Optional multipart form support
@@ -262,23 +263,26 @@ async def send_message(
     files: list[UploadFile] = File(default=[]),
 ):
     # If payload is provided, prefer it for multipart requests
-    if payload and request is None:
+    if payload and message_request is None:
         # Expect JSON: {"type":"text","data":{"content": str}, "reply_to_id": number|null}
         try:
             obj = json.loads(payload)
             content = obj.get("content", "")
             reply_to_id = obj.get("reply_to_id", None)
-            request = SendMessageRequest(content=content, reply_to_id=reply_to_id)
+            message_request = SendMessageRequest(content=content, reply_to_id=reply_to_id)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid payload JSON")
 
-    if request.reply_to_id:
+    if not message_request:
+        raise HTTPException(status_code=400, detail="Missing request data")
+
+    if message_request.reply_to_id:
         # Check if the message being replied to exists
-        original_message = db.query(Message).filter(Message.id == request.reply_to_id).first()
+        original_message = db.query(Message).filter(Message.id == message_request.reply_to_id).first()
         if not original_message:
             raise HTTPException(status_code=404, detail="Original message not found")
 
-    raw_content = request.content.strip()
+    raw_content = message_request.content.strip()
 
     if not raw_content:
         raise HTTPException(
@@ -299,7 +303,7 @@ async def send_message(
     new_message = Message(
         content=escaped_content,
         user_id=current_user.id,
-        reply_to_id=request.reply_to_id,
+        reply_to_id=message_request.reply_to_id,
         timestamp=datetime.now()
     )
 
@@ -412,6 +416,7 @@ async def get_messages(db: Session = Depends(get_db)):
 @router.post("/dm/send")
 @rate_limit_per_user("20/minute")
 async def dm_send(
+    request: Request,
     payload: dict | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -624,8 +629,9 @@ async def get_dm_conversations(current_user: User = Depends(get_current_user), d
 @router.put("/edit_message/{message_id}")
 @rate_limit_per_user("20/minute")
 async def edit_message(
+    request: Request,
     message_id: int,
-    request: EditMessageRequest,
+    edit_request: EditMessageRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -635,7 +641,7 @@ async def edit_message(
         raise HTTPException(status_code=404, detail="Message not found")
     if message.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own messages")
-    raw_content = request.content.strip()
+    raw_content = edit_request.content.strip()
 
     if not raw_content:
         raise HTTPException(status_code=400, detail="Message content cannot be empty")
@@ -700,20 +706,21 @@ async def delete_message(
 @router.post("/add_reaction")
 @rate_limit_per_user("50/minute")
 async def add_reaction(
-    request: ReactionRequest,
+    request: Request,
+    reaction_request: ReactionRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     # Check if message exists
-    message = db.query(Message).filter(Message.id == request.message_id).first()
+    message = db.query(Message).filter(Message.id == reaction_request.message_id).first()
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
 
     # Check if reaction already exists
     existing_reaction = db.query(Reaction).filter(
-        Reaction.message_id == request.message_id,
+        Reaction.message_id == reaction_request.message_id,
         Reaction.user_id == current_user.id,
-        Reaction.emoji == request.emoji
+        Reaction.emoji == reaction_request.emoji
     ).first()
 
     if existing_reaction:
@@ -723,9 +730,9 @@ async def add_reaction(
     else:
         # Add new reaction
         new_reaction = Reaction(
-            message_id=request.message_id,
+            message_id=reaction_request.message_id,
             user_id=current_user.id,
-            emoji=request.emoji
+            emoji=reaction_request.emoji
         )
         db.add(new_reaction)
         action = "added"
@@ -742,8 +749,8 @@ async def add_reaction(
         await messagingManager.broadcast({
             "type": "reactionUpdate",
             "data": {
-                "message_id": request.message_id,
-                "emoji": request.emoji,
+                "message_id": reaction_request.message_id,
+                "emoji": reaction_request.emoji,
                 "action": action,
                 "user_id": current_user.id,
                 "username": current_user.username,
@@ -755,11 +762,11 @@ async def add_reaction(
 
     log_public_chat(
         "reaction_update",
-        message_id=request.message_id,
+        message_id=reaction_request.message_id,
         user_id=current_user.id,
         username=current_user.username,
         action=action,
-        emoji=request.emoji,
+        emoji=reaction_request.emoji,
     )
 
     return {"status": "success", "action": action, "reactions": message_data["reactions"]}
@@ -768,12 +775,13 @@ async def add_reaction(
 @router.post("/dm/add_reaction")
 @rate_limit_per_user("50/minute")
 async def add_dm_reaction(
-    request: DMReactionRequest,
+    request: Request,
+    reaction_request: DMReactionRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     # Check if DM envelope exists
-    envelope = db.query(DMEnvelope).filter(DMEnvelope.id == request.dm_envelope_id).first()
+    envelope = db.query(DMEnvelope).filter(DMEnvelope.id == reaction_request.dm_envelope_id).first()
     if not envelope:
         raise HTTPException(status_code=404, detail="DM envelope not found")
 
@@ -783,9 +791,9 @@ async def add_dm_reaction(
 
     # Check if reaction already exists
     existing_reaction = db.query(DMReaction).filter(
-        DMReaction.dm_envelope_id == request.dm_envelope_id,
+        DMReaction.dm_envelope_id == reaction_request.dm_envelope_id,
         DMReaction.user_id == current_user.id,
-        DMReaction.emoji == request.emoji
+        DMReaction.emoji == reaction_request.emoji
     ).first()
 
     if existing_reaction:
@@ -795,9 +803,9 @@ async def add_dm_reaction(
     else:
         # Add new reaction
         new_reaction = DMReaction(
-            dm_envelope_id=request.dm_envelope_id,
+            dm_envelope_id=reaction_request.dm_envelope_id,
             user_id=current_user.id,
-            emoji=request.emoji
+            emoji=reaction_request.emoji
         )
         db.add(new_reaction)
         action = "added"
@@ -814,8 +822,8 @@ async def add_dm_reaction(
         await messagingManager.broadcast({
             "type": "dmReactionUpdate",
             "data": {
-                "dm_envelope_id": request.dm_envelope_id,
-                "emoji": request.emoji,
+                "dm_envelope_id": reaction_request.dm_envelope_id,
+                "emoji": reaction_request.emoji,
                 "action": action,
                 "user_id": current_user.id,
                 "username": current_user.username,
@@ -827,11 +835,11 @@ async def add_dm_reaction(
 
     log_dm(
         "reaction_update",
-        dm_envelope_id=request.dm_envelope_id,
+        dm_envelope_id=reaction_request.dm_envelope_id,
         user_id=current_user.id,
         username=current_user.username,
         action=action,
-        emoji=request.emoji,
+        emoji=reaction_request.emoji,
     )
 
     return {"status": "success", "action": action, "reactions": envelope_data["reactions"]}
