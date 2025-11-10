@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: raspberry-pi
     env:
       HOME: "/root"
     environment:
