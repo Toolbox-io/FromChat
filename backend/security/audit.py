@@ -190,7 +190,7 @@ def _render_security(action: str, fields: Dict[str, Any]) -> List[str]:
         lines.append(f"Total entries: {total}")
         return lines
     if action == "blocked_user_agent":
-        action_type = fields.get("action", "access")
+        action_type = fields.get("action_type", "access")
         lines = [f"Blocked user agent attempted {action_type}"]
         if fields.get("username"):
             lines.append(f"Username: {fields['username']}")

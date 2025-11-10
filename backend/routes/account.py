@@ -80,7 +80,7 @@ def login(request: Request, login_request: LoginRequest, db: Session = Depends(g
             username=username,
             ip=client_ip,
             user_agent=raw_ua or "Unknown",
-            action="login",
+            action_type="login",
         )
         raise HTTPException(
             status_code=403,
@@ -196,7 +196,7 @@ def register(request: Request, register_request: RegisterRequest, db: Session = 
             username=username,
             ip=client_ip,
             user_agent=raw_ua or "Unknown",
-            action="registration",
+            action_type="registration",
         )
         raise HTTPException(
             status_code=403,

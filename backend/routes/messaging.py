@@ -251,31 +251,17 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
         ]
     }
 
-@router.post("/send_message")
-@rate_limit_per_user("30/minute")
-async def send_message(
-    request: Request,
-    message_request: SendMessageRequest | None = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    # Optional multipart form support
-    payload: str | None = Form(default=None),
-    files: list[UploadFile] = File(default=[]),
-):
-    # If payload is provided, prefer it for multipart requests
-    if payload and message_request is None:
-        # Expect JSON: {"type":"text","data":{"content": str}, "reply_to_id": number|null}
-        try:
-            obj = json.loads(payload)
-            content = obj.get("content", "")
-            reply_to_id = obj.get("reply_to_id", None)
-            message_request = SendMessageRequest(content=content, reply_to_id=reply_to_id)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid payload JSON")
 
-    if not message_request:
-        raise HTTPException(status_code=400, detail="Missing request data")
-
+async def _send_message_internal(
+    message_request: SendMessageRequest,
+    current_user: User,
+    db: Session,
+    files: list[UploadFile] = [],
+) -> dict:
+    """Internal function to send a message without requiring a Request object.
+    
+    This can be called from both HTTP endpoints and WebSocket handlers.
+    """
     if message_request.reply_to_id:
         # Check if the message being replied to exists
         original_message = db.query(Message).filter(Message.id == message_request.reply_to_id).first()
@@ -397,6 +383,34 @@ async def send_message(
     )
 
     return {"status": "success", "message": message_payload}
+
+
+@router.post("/send_message")
+@rate_limit_per_user("30/minute")
+async def send_message(
+    request: Request,
+    message_request: SendMessageRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    # Optional multipart form support
+    payload: str | None = Form(default=None),
+    files: list[UploadFile] = File(default=[]),
+):
+    # If payload is provided, prefer it for multipart requests
+    if payload and message_request is None:
+        # Expect JSON: {"type":"text","data":{"content": str}, "reply_to_id": number|null}
+        try:
+            obj = json.loads(payload)
+            content = obj.get("content", "")
+            reply_to_id = obj.get("reply_to_id", None)
+            message_request = SendMessageRequest(content=content, reply_to_id=reply_to_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid payload JSON")
+
+    if not message_request:
+        raise HTTPException(status_code=400, detail="Missing request data")
+
+    return await _send_message_internal(message_request, current_user, db, files)
 
 
 @router.get("/get_messages")
@@ -963,9 +977,10 @@ class MessaggingSocketManager:
                         raise HTTPException(401)
                     self.user_by_ws[websocket] = current_user.id
 
-                    request: SendMessageRequest = SendMessageRequest.model_validate(data["data"])
+                    message_request: SendMessageRequest = SendMessageRequest.model_validate(data["data"])
 
-                    response = await send_message(request, current_user, db, None, [])
+                    # Call internal function directly (rate limiting is handled at infrastructure level via Caddy)
+                    response = await _send_message_internal(message_request, current_user, db, [])
                     await self.broadcast({
                         "type": "newMessage",
                         "data": response["message"]
