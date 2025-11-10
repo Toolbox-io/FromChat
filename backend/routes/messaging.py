@@ -27,6 +27,7 @@ import json
 from better_profanity import profanity as _bp
 from security.audit import log_access, log_dm, log_public_chat, log_security
 from security.profanity import censor_text
+from security.rate_limit import rate_limit_per_user
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -251,6 +252,7 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
     }
 
 @router.post("/send_message")
+@rate_limit_per_user("30/minute")
 async def send_message(
     request: SendMessageRequest | None = None,
     current_user: User = Depends(get_current_user),
@@ -408,6 +410,7 @@ async def get_messages(db: Session = Depends(get_db)):
 
 
 @router.post("/dm/send")
+@rate_limit_per_user("20/minute")
 async def dm_send(
     payload: dict | None = None,
     current_user: User = Depends(get_current_user),
@@ -619,6 +622,7 @@ async def get_dm_conversations(current_user: User = Depends(get_current_user), d
 
 
 @router.put("/edit_message/{message_id}")
+@rate_limit_per_user("20/minute")
 async def edit_message(
     message_id: int,
     request: EditMessageRequest,
@@ -694,6 +698,7 @@ async def delete_message(
 
 
 @router.post("/add_reaction")
+@rate_limit_per_user("50/minute")
 async def add_reaction(
     request: ReactionRequest,
     current_user: User = Depends(get_current_user),
@@ -761,6 +766,7 @@ async def add_reaction(
 
 
 @router.post("/dm/add_reaction")
+@rate_limit_per_user("50/minute")
 async def add_dm_reaction(
     request: DMReactionRequest,
     current_user: User = Depends(get_current_user),

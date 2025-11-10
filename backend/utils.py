@@ -40,15 +40,28 @@ def get_client_ip(request: Request) -> Optional[str]:
         return None
 
     headers = request.headers
+    
+    # First, check x-real-ip header (set by some proxies, or configured in Caddy)
+    real_ip = headers.get("x-real-ip") or headers.get("X-Real-IP")
+    if real_ip:
+        candidate = real_ip.strip()
+        if candidate:
+            return candidate
+    
+    # Fall back to x-forwarded-for header (Caddy sets this automatically)
     forwarded = headers.get("x-forwarded-for") or headers.get("X-Forwarded-For")
     if forwarded:
+        # X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+        # Take the first one (original client IP)
         candidate = forwarded.split(",")[0].strip()
         if candidate:
             return candidate
 
+    # Fall back to direct client connection (when not behind a proxy)
     if request.client and request.client.host:
         return request.client.host
 
+    # Last resort: check scope
     if isinstance(request.scope, dict):
         client_info = request.scope.get("client")
         if isinstance(client_info, (list, tuple)) and client_info:

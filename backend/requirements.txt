@@ -13,3 +13,4 @@ better-profanity>=0.7.0
 user-agents>=2.2.0
 httpx>=0.27.2
 rich>=13.9.4
+slowapi>=0.1.9

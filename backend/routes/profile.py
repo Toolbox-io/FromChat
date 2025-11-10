@@ -16,6 +16,7 @@ from similarity import is_user_similar_to_verified
 from .messaging import messagingManager
 from security.audit import log_security
 from security.profanity import contains_profanity
+from security.rate_limit import rate_limit_per_user
 
 router = APIRouter()
 
@@ -39,6 +40,7 @@ PROFILE_PICTURES_DIR = Path("data/uploads/pfp")
 os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
 
 @router.post("/upload-profile-picture")
+@rate_limit_per_user("10/minute")
 async def upload_profile_picture(
     profile_picture: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -163,6 +165,7 @@ async def list_users(
     }
 
 @router.put("/user/profile")
+@rate_limit_per_user("10/minute")
 async def update_user_profile(
     request: UpdateProfileRequest,
     current_user: User = Depends(get_current_user),
@@ -239,6 +242,7 @@ async def update_user_profile(
 
 
 @router.put("/user/bio")
+@rate_limit_per_user("10/minute")
 async def update_user_bio(
     request: UpdateBioRequest,
     current_user: User = Depends(get_current_user),

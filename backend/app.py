@@ -14,6 +14,8 @@ from utils import get_client_ip
 from db import POOL_CONFIG, SessionLocal
 from logging_config import access_logger  # noqa: F401 - ensure loggers configured
 from security.audit import log_access
+from security.rate_limit import limiter
+from slowapi.middleware import SlowAPIMiddleware
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -72,6 +74,10 @@ async def lifespan(app: FastAPI):
 
 # Инициализация FastAPI
 app = FastAPI(title="FromChat", lifespan=lifespan)
+
+# Add rate limiting middleware
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 
 @app.middleware("http")

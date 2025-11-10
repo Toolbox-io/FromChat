@@ -189,6 +189,34 @@ def _render_security(action: str, fields: Dict[str, Any]) -> List[str]:
         total = len(fields.get("words") or [])
         lines.append(f"Total entries: {total}")
         return lines
+    if action == "blocked_user_agent":
+        action_type = fields.get("action", "access")
+        lines = [f"Blocked user agent attempted {action_type}"]
+        if fields.get("username"):
+            lines.append(f"Username: {fields['username']}")
+        if fields.get("user_agent"):
+            lines.append(f"User agent: {fields['user_agent']}")
+        if fields.get("ip"):
+            ip_raw = fields["ip"]
+            ip_display = "localhost" if ip_raw in {"127.0.0.1", "::1"} else ip_raw
+            lines.append(f"IP: {ip_display}")
+        return lines
+    if action == "user_agent_blocklist_add":
+        added = fields.get("added") or []
+        lines = [f"User agent blocklist updated by {_format_actor(fields, 'actor')}"]
+        if added:
+            lines.append(f"Added patterns: {', '.join(added)}")
+        total = len(fields.get("patterns") or [])
+        lines.append(f"Total patterns: {total}")
+        return lines
+    if action == "user_agent_blocklist_remove":
+        removed = fields.get("removed") or []
+        lines = [f"User agent blocklist cleaned by {_format_actor(fields, 'actor')}"]
+        if removed:
+            lines.append(f"Removed patterns: {', '.join(removed)}")
+        total = len(fields.get("patterns") or [])
+        lines.append(f"Total patterns: {total}")
+        return lines
     return [f"{action.replace('_', ' ').capitalize()}"] + [
         f"{key.replace('_', ' ').capitalize()}: {value}"
         for key, value in fields.items()
