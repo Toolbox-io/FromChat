@@ -172,21 +172,39 @@ export async function verifyUser(userId: number, token: string): Promise<{verifi
 }
 
 /**
+ * In-memory cache for user similarity results
+ * Key: userId, Value: similarity result
+ */
+const similarityCache = new Map<number, {isSimilar: boolean, similarTo?: string} | null>();
+
+/**
  * Checks if a user is similar to any verified user
+ * Results are cached in memory to avoid redundant API calls
  */
 export async function checkUserSimilarity(userId: number, token: string): Promise<{isSimilar: boolean, similarTo?: string} | null> {
+    // Check cache first
+    if (similarityCache.has(userId)) {
+        return similarityCache.get(userId) ?? null;
+    }
+
     try {
         const response = await fetch(`${API_BASE_URL}/user/check-similarity/${userId}`, {
             headers: getAuthHeaders(token)
         });
 
+        let result: {isSimilar: boolean, similarTo?: string} | null = null;
         if (response.ok) {
-            return await response.json();
+            result = await response.json();
         }
 
-        return null;
+        // Cache the result (even if null/error)
+        similarityCache.set(userId, result);
+        return result;
     } catch (error) {
         console.error('Error checking user similarity:', error);
-        return null;
+        const result: null = null;
+        // Cache null result to avoid retrying on errors
+        similarityCache.set(userId, result);
+        return result;
     }
 }
