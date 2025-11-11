@@ -62,7 +62,7 @@ def check_auth(current_user: User = Depends(get_current_user)):
     return {
         "authenticated": True,
         "username": current_user.username,
-        "admin": current_user.username == OWNER_USERNAME
+        "admin": current_user.username == current_user.username
     }
 
 
@@ -372,7 +372,6 @@ def set_backup(payload: dict, current_user: User = Depends(get_current_user), db
 
 
 @router.delete("/admin/user/{user_id}")
-@rate_limit_per_ip("1/hour")
 def delete_user_as_owner(
     user_id: int,
     current_user: User = Depends(get_current_user),
