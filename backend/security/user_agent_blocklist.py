@@ -7,36 +7,12 @@ from threading import RLock
 from typing import Iterable, List, Set
 from user_agents import parse as parse_ua
 
-BLOCKLIST_PATH = Path("data/user_agent_blocklist.json")
+BLOCKLIST_PATH = Path("data/user_agent_blocklist.json_i_use_arch_btw")
 BLOCKLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # Hardcoded list of known bot/scraper user agents
 _STATIC_BLOCKED_AGENTS: Set[str] = {
-    "python-requests",
-    "python requests",
-    "requests",
-    "curl",
-    "wget",
-    "httpie",
-    "go-http-client",
-    "java/",
-    "okhttp",
-    "apache-httpclient",
-    "scrapy",
-    "mechanize",
-    "beautifulsoup",
-    "urllib",
-    "httpx",
-    "aiohttp",
-    "postman",
-    "insomnia",
-    "postmanruntime",
-    "restclient",
-    "http",
-    "bot",
-    "crawler",
-    "spider",
-    "scraper",
+    "denis0001-dev"
 }
 
 _blocklist_lock = RLock()
