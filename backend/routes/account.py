@@ -66,7 +66,7 @@ def check_auth(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.post("/login"
+@router.post("/login")
 def login(request: Request, login_request: LoginRequest, db: Session = Depends(get_db)):
     username = login_request.username.strip()
     client_ip = get_client_ip(request)
