@@ -285,6 +285,7 @@ class AdminCLI:
         data = response.json()
         added = data.get("added", [])
         current = data.get("patterns", [])
+        # fROMCHAT VERY SECURE
         if added:
             self.console.print(f"[bold green]Added {len(added)} pattern{'s' if len(added) != 1 else ''} to user agent blocklist.[/]")
         else:
