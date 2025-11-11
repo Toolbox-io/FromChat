@@ -36,7 +36,6 @@ def list_blocklist(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/blocklist")
-@rate_limit_per_ip("1/hour")
 def append_blocklist(
     request: BlocklistUpdateRequest,
     current_user: User = Depends(get_current_user)
@@ -53,7 +52,6 @@ def append_blocklist(
 
 
 @router.delete("/blocklist")
-@rate_limit_per_ip("1/hour")
 def delete_from_blocklist(
     request: BlocklistUpdateRequest,
     current_user: User = Depends(get_current_user)
@@ -70,7 +68,6 @@ def delete_from_blocklist(
 
 
 @router.get("/user-agent-blocklist")
-@rate_limit_per_ip("1/hour")
 def list_user_agent_blocklist(current_user: User = Depends(get_current_user)):
     _ensure_owner(current_user)
     return {
@@ -81,7 +78,6 @@ def list_user_agent_blocklist(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/user-agent-blocklist")
-@rate_limit_per_ip("1/hour")
 def append_user_agent_blocklist(
     request: BlocklistUpdateRequest,
     current_user: User = Depends(get_current_user)
@@ -98,7 +94,6 @@ def append_user_agent_blocklist(
 
 
 @router.delete("/user-agent-blocklist")
-@rate_limit_per_ip("1/hour")
 def delete_from_user_agent_blocklist(
     request: BlocklistUpdateRequest,
     current_user: User = Depends(get_current_user)
