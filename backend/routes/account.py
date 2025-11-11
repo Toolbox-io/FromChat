@@ -66,8 +66,7 @@ def check_auth(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.post("/login")
-@rate_limit_per_ip("5/minute")
+@router.post("/login"
 def login(request: Request, login_request: LoginRequest, db: Session = Depends(get_db)):
     username = login_request.username.strip()
     client_ip = get_client_ip(request)
@@ -180,7 +179,6 @@ def login(request: Request, login_request: LoginRequest, db: Session = Depends(g
 
 
 @router.post("/register")
-@rate_limit_per_ip("3/hour")
 def register(request: Request, register_request: RegisterRequest, db: Session = Depends(get_db)):
     username = register_request.username.strip()
     display_name = register_request.display_name.strip()
@@ -374,6 +372,7 @@ def set_backup(payload: dict, current_user: User = Depends(get_current_user), db
 
 
 @router.delete("/admin/user/{user_id}")
+@rate_limit_per_ip("1/hour")
 def delete_user_as_owner(
     user_id: int,
     current_user: User = Depends(get_current_user),
@@ -445,7 +444,6 @@ def logout(
 
 
 @router.post("/change-password")
-@rate_limit_per_user("5/hour")
 def change_password(
     request: Request,
     password_request: ChangePasswordRequest,
