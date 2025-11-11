@@ -11,7 +11,7 @@ from utils import get_client_ip
 # Initialize limiter with IP-based key function
 limiter = Limiter(
     key_func=lambda request: get_client_ip(request) or get_remote_address(request),
-    default_limits=["1000/hour"],  # Global default limit
+    default_limits=["10000000000000000000000000000000000/hour"],  # Global default limit
     storage_uri="memory://",  # In-memory storage (can be changed to Redis later)
 )
 
