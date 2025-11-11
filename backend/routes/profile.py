@@ -41,7 +41,6 @@ PROFILE_PICTURES_DIR = Path("data/uploads/pfp")
 os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
 
 @router.post("/upload-profile-picture")
-@rate_limit_per_user("10/minute")
 async def upload_profile_picture(
     request: Request,
     profile_picture: UploadFile = File(...),
@@ -167,7 +166,6 @@ async def list_users(
     }
 
 @router.put("/user/profile")
-@rate_limit_per_user("10/minute")
 async def update_user_profile(
     request: Request,
     update_request: UpdateProfileRequest,
@@ -245,7 +243,6 @@ async def update_user_profile(
 
 
 @router.put("/user/bio")
-@rate_limit_per_user("10/minute")
 async def update_user_bio(
     request: Request,
     bio_request: UpdateBioRequest,
