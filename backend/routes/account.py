@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
 import uuid
+from user_agents import parse as parse_ua
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from constants import OWNER_USERNAME
@@ -16,7 +17,6 @@ import os
 
 from security.audit import log_security
 from security.profanity import contains_profanity
-from security.rate_limit import rate_limit_per_ip
 router = APIRouter()
 
 _FAILED_ATTEMPT_WINDOW_SECONDS = 300
@@ -187,21 +187,11 @@ def register(request: Request, register_request: RegisterRequest, db: Session = 
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Имя пользователя должно быть от 3 до 20 символов и содержать только английские буквы, цифры, дефисы и подчеркивания"
         )
-    if contains_profanity(username):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Имя пользователя содержит запрещённые слова"
-        )
 
     if not is_valid_display_name(display_name):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Отображаемое имя должно быть от 1 до 64 символов и не может быть пустым"
-        )
-    if contains_profanity(display_name):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Отображаемое имя содержит запрещённые слова"
         )
 
     if not is_valid_password(password):
