@@ -27,7 +27,7 @@ import json
 from better_profanity import profanity as _bp
 from security.audit import log_access, log_dm, log_public_chat, log_security
 from security.profanity import censor_text
-from security.rate_limit import rate_limit_per_user
+from security.rate_limit import rate_limit_per_ip
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -386,7 +386,7 @@ async def _send_message_internal(
 
 
 @router.post("/send_message")
-@rate_limit_per_user("30/minute")
+@rate_limit_per_ip("30/minute")
 async def send_message(
     request: Request,
     message_request: SendMessageRequest | None = None,
@@ -414,7 +414,8 @@ async def send_message(
 
 
 @router.get("/get_messages")
-async def get_messages(db: Session = Depends(get_db)):
+@rate_limit_per_ip("60/minute")  # Per-IP limit to prevent abuse
+async def get_messages(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     messages = db.query(Message).order_by(Message.timestamp.asc()).all()
 
     messages_data = []
@@ -428,7 +429,7 @@ async def get_messages(db: Session = Depends(get_db)):
 
 
 @router.post("/dm/send")
-@rate_limit_per_user("20/minute")
+@rate_limit_per_ip("20/minute")
 async def dm_send(
     request: Request,
     payload: dict | None = None,
@@ -578,7 +579,8 @@ def convert_envelopes(envs: list[DMEnvelope]):
     }
 
 @router.get("/dm/fetch")
-async def dm_fetch(since: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@rate_limit_per_ip("60/minute")  # Per-IP limit to prevent abuse
+async def dm_fetch(request: Request, since: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     q = db.query(DMEnvelope).filter(DMEnvelope.recipient_id == current_user.id)
     if since:
         q = q.filter(DMEnvelope.id > since)
@@ -586,7 +588,8 @@ async def dm_fetch(since: int | None = None, current_user: User = Depends(get_cu
 
 
 @router.get("/dm/history/{other_user_id}")
-async def dm_history(other_user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@rate_limit_per_ip("60/minute")  # Per-IP limit to prevent abuse
+async def dm_history(request: Request, other_user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return convert_envelopes(
         db.query(DMEnvelope)
         .filter(
@@ -599,7 +602,8 @@ async def dm_history(other_user_id: int, current_user: User = Depends(get_curren
 
 
 @router.get("/dm/conversations")
-async def get_dm_conversations(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@rate_limit_per_ip("60/minute")  # Per-IP limit to prevent abuse
+async def get_dm_conversations(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Get all DM conversations where current user is involved
     conversations_query = db.query(DMEnvelope).filter(
         (DMEnvelope.sender_id == current_user.id) | (DMEnvelope.recipient_id == current_user.id)
@@ -641,7 +645,7 @@ async def get_dm_conversations(current_user: User = Depends(get_current_user), d
 
 
 @router.put("/edit_message/{message_id}")
-@rate_limit_per_user("20/minute")
+@rate_limit_per_ip("20/minute")
 async def edit_message(
     request: Request,
     message_id: int,
@@ -718,7 +722,7 @@ async def delete_message(
 
 
 @router.post("/add_reaction")
-@rate_limit_per_user("50/minute")
+@rate_limit_per_ip("50/minute")
 async def add_reaction(
     request: Request,
     reaction_request: ReactionRequest,
@@ -787,7 +791,7 @@ async def add_reaction(
 
 
 @router.post("/dm/add_reaction")
-@rate_limit_per_user("50/minute")
+@rate_limit_per_ip("50/minute")
 async def add_dm_reaction(
     request: Request,
     reaction_request: DMReactionRequest,

@@ -18,7 +18,7 @@ import os
 from security.audit import log_security
 from security.profanity import contains_profanity
 from security.user_agent_blocklist import is_user_agent_blocked
-from security.rate_limit import rate_limit_per_ip, rate_limit_per_user
+from security.rate_limit import rate_limit_per_ip
 router = APIRouter()
 
 _FAILED_ATTEMPT_WINDOW_SECONDS = 300
@@ -445,7 +445,7 @@ def logout(
 
 
 @router.post("/change-password")
-@rate_limit_per_user("5/hour")
+@rate_limit_per_ip("5/hour")
 def change_password(
     request: Request,
     password_request: ChangePasswordRequest,
@@ -487,7 +487,8 @@ def change_password(
 
 
 @router.get("/users")
-def list_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@rate_limit_per_ip("30/minute")  # Per-IP limit to prevent abuse
+def list_users(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.username.asc()).all()
     return {
         "users": [
@@ -497,13 +498,15 @@ def list_users(current_user: User = Depends(get_current_user), db: Session = Dep
 
 
 @router.get("/crypto/public-key/of/{user_id}")
-def get_public_key_of(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@rate_limit_per_ip("100/minute")  # Per-IP limit to prevent abuse
+def get_public_key_of(request: Request, user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = db.query(CryptoPublicKey).filter(CryptoPublicKey.user_id == user_id).first()
     return {"publicKey": row.public_key_b64 if row else None}
 
 
 @router.get("/users/search")
-def search_users(q: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@rate_limit_per_ip("60/minute")  # Per-IP limit to prevent abuse
+def search_users(request: Request, q: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if len(q.strip()) < 2:
         return {"users": []}
     
