@@ -17,7 +17,6 @@ import os
 
 from security.audit import log_security
 from security.profanity import contains_profanity
-from security.user_agent_blocklist import is_user_agent_blocked
 from security.rate_limit import rate_limit_per_ip
 router = APIRouter()
 
@@ -72,20 +71,6 @@ def login(request: Request, login_request: LoginRequest, db: Session = Depends(g
     username = login_request.username.strip()
     client_ip = get_client_ip(request)
     raw_ua = request.headers.get("user-agent")
-
-    if is_user_agent_blocked(raw_ua):
-        log_security(
-            "blocked_user_agent",
-            severity="warning",
-            username=username,
-            ip=client_ip,
-            user_agent=raw_ua or "Unknown",
-            action_type="login",
-        )
-        raise HTTPException(
-            status_code=403,
-            detail="Доступ запрещён"
-        )
 
     user = db.query(User).filter(User.username == username).first()
 
@@ -188,20 +173,6 @@ def register(request: Request, register_request: RegisterRequest, db: Session = 
     confirm_password = register_request.confirm_password.strip()
     client_ip = get_client_ip(request)
     raw_ua = request.headers.get("user-agent")
-
-    if is_user_agent_blocked(raw_ua):
-        log_security(
-            "blocked_user_agent",
-            severity="warning",
-            username=username,
-            ip=client_ip,
-            user_agent=raw_ua or "Unknown",
-            action_type="registration",
-        )
-        raise HTTPException(
-            status_code=403,
-            detail="Доступ запрещён"
-        )
 
     # Determine if owner already exists
     owner_exists = db.query(User).filter(User.username == OWNER_USERNAME).first() is not None
