@@ -276,63 +276,6 @@ class AdminCLI:
             table.add_row(entry)
         self.console.print(table)
 
-    def cmd_block_user_agent(self, args: List[str]) -> None:
-        if not args:
-            raise CLIError("Usage: block-user-agent <pattern> [additional patterns...]")
-        self._require_auth()
-        patterns = args
-        response = self._request("POST", "moderation/user-agent-blocklist", json={"words": patterns})
-        data = response.json()
-        added = data.get("added", [])
-        current = data.get("patterns", [])
-        if added:
-            self.console.print(f"[bold green]Added {len(added)} pattern{'s' if len(added) != 1 else ''} to user agent blocklist.[/]")
-        else:
-            self.console.print("[yellow]No new patterns added.[/]")
-        self.console.print(f"Blocklist size: {len(current)}")
-
-    def cmd_unblock_user_agent(self, args: List[str]) -> None:
-        if not args:
-            raise CLIError("Usage: unblock-user-agent <pattern> [additional patterns...]")
-        self._require_auth()
-        response = self._request("DELETE", "moderation/user-agent-blocklist", json={"words": args})
-        data = response.json()
-        removed = data.get("removed", [])
-        current = data.get("patterns", [])
-        if removed:
-            self.console.print(f"[bold green]Removed {len(removed)} pattern{'s' if len(removed) != 1 else ''} from user agent blocklist.[/]")
-        else:
-            self.console.print("[yellow]No matching patterns removed.[/]")
-        self.console.print(f"Blocklist size: {len(current)}")
-
-    def cmd_list_user_agent_blocklist(self) -> None:
-        self._require_auth()
-        response = self._request("GET", "moderation/user-agent-blocklist")
-        data = response.json()
-        static = data.get("static", [])
-        external = data.get("external", [])
-        
-        if not static and not external:
-            self.console.print("[cyan]User agent blocklist is empty.[/]")
-            return
-        
-        if static:
-            table_static = Table(title="Static Blocked User Agent Patterns", show_lines=True)
-            table_static.add_column("Pattern", style="yellow")
-            for entry in static:
-                table_static.add_row(entry)
-            self.console.print(table_static)
-        
-        if external:
-            table_external = Table(title="External Blocked User Agent Patterns", show_lines=True)
-            table_external.add_column("Pattern", style="cyan")
-            for entry in external:
-                table_external.add_row(entry)
-            self.console.print(table_external)
-        
-        if not external:
-            self.console.print("[dim]No external patterns. Use 'block-user-agent' to add patterns.[/]")
-
     def cmd_help(self) -> None:
         cmds = {
             "login [username]": "Authenticate as owner/admin.",
@@ -344,9 +287,6 @@ class AdminCLI:
             "block-word <words>": "Add words/phrases to chat filter.",
             "unblock-word <words>": "Remove words/phrases from filter.",
             "blocklist": "Show current blocklist.",
-            "block-user-agent <patterns>": "Add user agent patterns to blocklist.",
-            "unblock-user-agent <patterns>": "Remove user agent patterns from blocklist.",
-            "user-agent-blocklist": "Show current user agent blocklist.",
             "list": "List all users.",
             "user <user>": "Show detailed user information.",
             "whoami": "Display current session context.",
@@ -407,12 +347,6 @@ class AdminCLI:
                     self.cmd_unblock_word(args)
                 elif command == "blocklist":
                     self.cmd_list_blocklist()
-                elif command == "block-user-agent":
-                    self.cmd_block_user_agent(args)
-                elif command == "unblock-user-agent":
-                    self.cmd_unblock_user_agent(args)
-                elif command == "user-agent-blocklist":
-                    self.cmd_list_user_agent_blocklist()
                 elif command == "verify":
                     self.cmd_verify(args)
                 elif command == "unverify":
@@ -451,3 +385,4 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
+
