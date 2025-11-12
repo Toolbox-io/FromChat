@@ -62,11 +62,11 @@ def check_auth(current_user: User = Depends(get_current_user)):
     return {
         "authenticated": True,
         "username": current_user.username,
-        "admin": current_user.username == current_user.username
+        "admin": current_user.username == OWNER_USERNAME
     }
 
 
-@router.post("/login"
+@router.post("/login")
 def login(request: Request, login_request: LoginRequest, db: Session = Depends(get_db)):
     username = login_request.username.strip()
     client_ip = get_client_ip(request)

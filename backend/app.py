@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
     # Shutdown (if needed in the future)
 
 # Инициализация FastAPI
-app = FastAPI(title="FromChat", lifespan=lifespan)
+app = FastAPI(title="GayChat", lifespan=lifespan)
 
 # Add rate limiting middleware
 app.state.limiter = limiter

@@ -583,7 +583,7 @@ export function ProfileDialog() {
                             type="verified"
                             icon="verified--filled"
                             label="Верификация:"
-                            value="Этот аккаунт - официальное лицо FromChat."
+                            value="Этот аккаунт - официальный фембой GayChat."
                             readOnly={true}
                         />
                     )}

@@ -6,13 +6,13 @@ import { MaterialButton, MaterialIcon } from "@/utils/material";
 
 function GitHubLink({ children }: { children: React.ReactNode }) {
     return (
-        <a href="https://github.com/denis0001-dev/FromChat" target="_blank">{children}</a>
+        <a href="https://github.com/profernick/FromChat_better" target="_blank">{children}</a>
     );
 }
 
 function SupportLink({ children }: { children: React.ReactNode }) {
     return (
-        <a href="https://t.me/denis0001-dev" target="_blank">{children}</a>
+        <a href="https://github.com/profernick/FromChat_better/discussions" target="_blank">{children}</a>
     );
 }
 
@@ -44,16 +44,13 @@ export default function HomePage() {
                 <div className={styles.container}>
                     <div className={styles.headerContent}>
                         <div className={styles.logo}>
-                            <h1>FromChat</h1>
-                            <span className={styles.tagline}>100% открытый мессенджер</span>
+                            <h1>GayChat</h1>
+                            <span className={styles.tagline}>100% закрытый мессенджер</span>
                         </div>
                         <nav className={styles.headerNav}>
                             <GitHubLink>
                                 <MaterialButton variant="text">GitHub</MaterialButton>
                             </GitHubLink>
-                            <SupportLink>
-                                <MaterialButton variant="text">Поддержка</MaterialButton>
-                            </SupportLink>
 
                             {openBtn}
                         </nav>
@@ -66,11 +63,11 @@ export default function HomePage() {
                     <div className={styles.container}>
                         <div className={styles.heroContent}>
                             <h2 className={styles.heroTitle}>
-                                Безопасный мессенджер с открытым исходным кодом
+                                GayChat - лучше фромчат1!
                             </h2>
                             <p className={styles.heroDescription}>
-                                FromChat — это полностью открытый мессенджер с end-to-end шифрованием,
-                                поддержкой файлов и уведомлений. Создан для тех, кто ценит приватность и свободу.
+                                GayChat — это полностью гейский мессенджер с end-to-end шифрованием(диниска наёбщик),
+                                поддержкой файлов и уведомлений. Создан для тех, кто ценит секс.
                             </p>
                             <div className={styles.heroActions}>
                                 {openBtn}
@@ -87,21 +84,21 @@ export default function HomePage() {
                             <div className={styles.chatPreview}>
                                 <div className={styles.chatWindow}>
                                     <div className={styles.chatHeader}>
-                                        <div className={styles.chatTitle}>Общий чат</div>
+                                        <div className={styles.chatTitle}>Общий чатик UwU</div>
                                         <div className={styles.onlineIndicator}>●</div>
                                     </div>
                                     <div className={styles.chatMessages}>
                                         <div className={`${styles.message} ${styles.received}`}>
                                             <div className={styles.messageAvatar}>А</div>
                                             <div className={styles.messageContent}>
-                                                <div className={styles.messageText}>Привет! Как дела?</div>
-                                                <div className={styles.messageTime}>14:30</div>
+                                                <div className={styles.messageText}>Привет! Как подрочил?</div>
+                                                <div className={styles.messageTime}>4:30</div>
                                             </div>
                                         </div>
                                         <div className={`${styles.message} ${styles.sent}`}>
                                             <div className={styles.messageContent}>
-                                                <div className={styles.messageText}>Всё отлично! А у тебя как?</div>
-                                                <div className={styles.messageTime}>14:32</div>
+                                                <div className={styles.messageText}>Всё прекрасно! А ты?</div>
+                                                <div className={styles.messageTime}>4:30</div>
                                             </div>
                                         </div>
                                         <div className={`${styles.message} ${styles.received}`}>
@@ -129,7 +126,7 @@ export default function HomePage() {
                                 <h4>End-to-End Шифрование</h4>
                                 <p>
                                     Ваши личные сообщения защищены современным шифрованием X25519 + AES-GCM.
-                                    Только вы и получатель можете прочитать сообщения.
+                                    Только вы и получатель можете прочитать сообщения.(Тут нет end to end дениска наёбщик)
                                 </p>
                             </div>
 
@@ -137,10 +134,10 @@ export default function HomePage() {
                                 <div className={styles.featureIcon}>
                                     <MaterialIcon name="code" />
                                 </div>
-                                <h4>100% открытый код</h4>
+                                <h4>100% закрытый код</h4>
                                 <p>
-                                    Весь исходный код доступен на <GitHubLink>GitHub</GitHubLink>. Вы можете проверить безопасность,
-                                    внести изменения или развернуть свой сервер.
+                                    Весь исходный код не доступен на <GitHubLink>GitHub</GitHubLink>. Вы можете проверить безопасность,
+                                    внести изменения или развернуть свой сервер. (Пока кидает на фромчат но когда будет комит GayChat будет изменено)
                                 </p>
                             </div>
 
@@ -196,14 +193,13 @@ export default function HomePage() {
                         <div className={styles.downloadContent}>
                             <h3>Скачайте приложение</h3>
                             <p>
-                                Для лучшего опыта используйте настольное приложение с поддержкой
-                                уведомлений и автономной работы.
+                                Можете сбилдить сами через Github Actions(у меня бан) -_-
                             </p>
                             <div className={styles.downloadButtons}>
                                 {!isMobile ? (
                                     <>
                                         <a
-                                            href="https://github.com/Toolbox-io/FromChat/actions/workflows/build.yml"
+                                            href="https://github.com/profernick/FromChat_better/actions"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                         >
@@ -232,7 +228,7 @@ export default function HomePage() {
                         <div className={styles.ctaContent}>
                             <h3>Готовы начать общение?</h3>
                             <p>
-                                Присоединяйтесь к FromChat и общайтесь безопасно с друзьями и коллегами.
+                                Присоединяйтесь к GayChat и общайтесь безопасно с друзьями и коллегами.
                             </p>
                             <div className={styles.ctaActions}>
                                 {isMobile ? (
@@ -273,7 +269,7 @@ export default function HomePage() {
                         </div>
                     </div>
                     <div className={styles.footerBottom}>
-                        <p>&copy; 2025 FromChat. Сделано программистом denis0001-dev с ❤️ для свободы общения.</p>
+                        <p>&copy; 2025 GayChat. Сделано программистом denis0001-dev Forked By Profernick с ❤️ для свободы общения.</p>
                     </div>
                 </div>
             </footer>
