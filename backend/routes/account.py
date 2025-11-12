@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text
 import uuid
-from user_agents import parse as parse_ua
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from constants import OWNER_USERNAME
@@ -17,8 +16,7 @@ import os
 
 from security.audit import log_security
 from security.profanity import contains_profanity
-from security.user_agent_blocklist import is_user_agent_blocked
-from security.rate_limit import rate_limit_per_ip, rate_limit_per_user
+from security.rate_limit import rate_limit_per_ip
 router = APIRouter()
 
 _FAILED_ATTEMPT_WINDOW_SECONDS = 300
@@ -71,20 +69,6 @@ def login(request: Request, login_request: LoginRequest, db: Session = Depends(g
     username = login_request.username.strip()
     client_ip = get_client_ip(request)
     raw_ua = request.headers.get("user-agent")
-
-    if is_user_agent_blocked(raw_ua):
-        log_security(
-            "blocked_user_agent",
-            severity="warning",
-            username=username,
-            ip=client_ip,
-            user_agent=raw_ua or "Unknown",
-            action_type="login",
-        )
-        raise HTTPException(
-            status_code=403,
-            detail="Доступ запрещён"
-        )
 
     user = db.query(User).filter(User.username == username).first()
 
@@ -186,20 +170,6 @@ def register(request: Request, register_request: RegisterRequest, db: Session = 
     confirm_password = register_request.confirm_password.strip()
     client_ip = get_client_ip(request)
     raw_ua = request.headers.get("user-agent")
-
-    if is_user_agent_blocked(raw_ua):
-        log_security(
-            "blocked_user_agent",
-            severity="warning",
-            username=username,
-            ip=client_ip,
-            user_agent=raw_ua or "Unknown",
-            action_type="registration",
-        )
-        raise HTTPException(
-            status_code=403,
-            detail="Доступ запрещён"
-        )
 
     # Determine if owner already exists
     owner_exists = db.query(User).filter(User.username == OWNER_USERNAME).first() is not None
@@ -484,7 +454,7 @@ def change_password(
 
 
 @router.get("/users")
-def list_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_users(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.username.asc()).all()
     return {
         "users": [
@@ -494,13 +464,13 @@ def list_users(current_user: User = Depends(get_current_user), db: Session = Dep
 
 
 @router.get("/crypto/public-key/of/{user_id}")
-def get_public_key_of(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_public_key_of(request: Request, user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = db.query(CryptoPublicKey).filter(CryptoPublicKey.user_id == user_id).first()
     return {"publicKey": row.public_key_b64 if row else None}
 
 
 @router.get("/users/search")
-def search_users(q: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def search_users(request: Request, q: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if len(q.strip()) < 2:
         return {"users": []}
     
