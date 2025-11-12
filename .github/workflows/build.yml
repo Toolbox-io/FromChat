@@ -6,7 +6,7 @@ on:
       apiBaseUrl:
         description: "API base URL"
         required: false
-        default: "fromchat.ru"
+        default: "https://fuzzy-couscous-x775gprv65g3v4q-8301.app.github.dev/"
         type: string
   push:
     tags: ["v**"]
