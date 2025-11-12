@@ -134,7 +134,7 @@ export const useAppState = create<AppState>((set, get) => ({
     // Chat state
     chat: {
         messages: [],
-        currentChat: "Общий чат",
+        currentChat: "Общий чатик <3 UwU",
         activeTab: "chats",
         dmUsers: [],
         activeDm: null,

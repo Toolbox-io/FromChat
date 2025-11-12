@@ -200,8 +200,8 @@ export class PublicChatPanel extends MessagePanel {
     async getProfile(): Promise<ProfileDialogData | null> {
         return {
             username: "general",
-            display_name: "Общий чат",
-            bio: "Общаемся со всеми пользователями FromChat!",
+            display_name: "Общий чатик <3 UwU",
+            bio: "Общаемся со всеми фембоя GayChat!",
             isOwnProfile: false
         };
     }

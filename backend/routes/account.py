@@ -62,7 +62,7 @@ def check_auth(current_user: User = Depends(get_current_user)):
     return {
         "authenticated": True,
         "username": current_user.username,
-        "admin": current_user.username == current_user.username
+        "admin": current_user.username == OWNER_USERNAME
     }
 
 

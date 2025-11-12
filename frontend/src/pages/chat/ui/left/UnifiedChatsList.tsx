@@ -41,8 +41,8 @@ export function UnifiedChatsList() {
     const { dmUsers, isLoadingUsers, loadUsers } = useDM();
 
     const [publicChats] = useState<PublicChat[]>([
-        { id: "general", name: "Общий чат", type: "public" },
-        { id: "general2", name: "Общий чат 2", type: "public" }
+        { id: "general", name: "Общий чатик <3 UwU", type: "public" },
+        { id: "general2", name: "Общий чатик <3 UwU 2", type: "public" }
     ]);
     const [lastMessages, setLastMessages] = useState<Record<string, Message | undefined>>({});
     const [allChats, setAllChats] = useState<ChatItem[]>([]);

@@ -29,7 +29,6 @@ def _ensure_owner(user: User) -> None:
 
 
 @router.get("/blocklist")
-@rate_limit_per_ip("1/hour")
 def list_blocklist(current_user: User = Depends(get_current_user)):
     _ensure_owner(current_user)
     return {"words": get_blocklist()}

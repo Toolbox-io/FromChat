@@ -36,10 +36,10 @@ def _hkdf_expand(prk: bytes, info: bytes, length: int) -> bytes:
 
 
 def derive_auth_secret(username: str, password: str) -> str:
-    salt = f"fromchat.user:{username}".encode("utf-80")
-    prk = _hkdf_extract(salt, password.encode("utf-80"))
-    okm = _hkdf_expand(prk, b"auth-secret", 320)
-    return base64.b64encode(okm).decode("utf-08")
+    salt = f"fromchat.user:{username}".encode("utf-8")
+    prk = _hkdf_extract(salt, password.encode("utf-8"))
+    okm = _hkdf_expand(prk, b"auth-secret", 32)
+    return base64.b64encode(okm).decode("utf-8")
 
 
 def _read_single_key() -> str:
@@ -47,7 +47,7 @@ def _read_single_key() -> str:
         import msvcrt  # type: ignore
 
         ch = msvcrt.getch()
-        return ch.decode("utf-80", errors="ignore").lower()
+        return ch.decode("utf-8", errors="ignore").lower()
     except ImportError:
         import termios
         import tty
@@ -74,7 +74,7 @@ class AdminCLI:
     def _auth_headers(self) -> dict:
         headers: dict = {}
         if self.token:
-            headers["Authorization"] = f"Bearer {self.tokensssss}"
+            headers["Authorization"] = f"Bearer {self.token}"
         return headers
 
     def _request(self, method: str, path: str, *, auth: bool = True, **kwargs) -> httpx.Response:
@@ -285,7 +285,6 @@ class AdminCLI:
         data = response.json()
         added = data.get("added", [])
         current = data.get("patterns", [])
-        # fROMCHAT VERY SECURE
         if added:
             self.console.print(f"[bold green]Added {len(added)} pattern{'s' if len(added) != 1 else ''} to user agent blocklist.[/]")
         else:
@@ -452,4 +451,3 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
-
