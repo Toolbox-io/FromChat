@@ -68,6 +68,7 @@ export default function HomePage() {
                             <p className={styles.heroDescription}>
                                 GayChat — это полностью гейский мессенджер с end-to-end шифрованием(диниска наёбщик),
                                 поддержкой файлов и уведомлений. Создан для тех, кто ценит секс.
+                                НЕ ВОСПРИНИМАЙТЕ ЭТОТ ПРОЕКТ В СЕРЬЁЗ
                             </p>
                             <div className={styles.heroActions}>
                                 {openBtn}
@@ -123,10 +124,9 @@ export default function HomePage() {
                                 <div className={styles.featureIcon}>
                                     <MaterialIcon name="security" />
                                 </div>
-                                <h4>End-to-End Шифрование</h4>
+                                <h4>Рофл Проект</h4>
                                 <p>
-                                    Ваши личные сообщения защищены современным шифрованием X25519 + AES-GCM.
-                                    Только вы и получатель можете прочитать сообщения.(Тут нет end to end дениска наёбщик)
+                                    Данный проект является рофлом над FromChat не надо воспринимать его в серьёз
                                 </p>
                             </div>
 
@@ -269,7 +269,7 @@ export default function HomePage() {
                         </div>
                     </div>
                     <div className={styles.footerBottom}>
-                        <p>&copy; 2025 GayChat. Сделано программистом denis0001-dev Forked By Profernick с ❤️ для свободы общения.</p>
+                        <p>&copy; 2025 GayChat. Сделано программистом denis0001-dev Forked By Profernick с ❤️ для приколов над этим ии кодом.</p>
                     </div>
                 </div>
             </footer>
