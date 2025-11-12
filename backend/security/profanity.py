@@ -12,74 +12,25 @@ BLOCKLIST_PATH = Path("data/profanity/blocklist.json")
 BLOCKLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 _CUSTOM_RU_TERMS: Set[str] = {
-    "бляд", "блять", "бля", "сука", "суки", "сучка", "мразь", "ебан",
-    "ебать", "ебёт", "ебет", "уёбок", "уебок", "уебище", "пизда",
-    "пиздец", "пизд", "хуй", "хуя", "хуе", "хуё", "хер", "гондон",
-    "долбоёб", "долбоеб", "дебил", "член", "проститутка", "проститутки",
-    "урод", "хуесос", "хуесосы", "хуесосов", "хуесоса", "пидор",
-    "пидоры", "пидорас", "пидорасы", "пидорасов",
+    "",
 }
 
 _ADULT_TERMS: Set[str] = {
-    "порно", "порнуха", "эротика", "эротический", "секс", "сексуальный",
-    "инцест", "порнография", "порностудия", "порновидео", "порносайт",
-    "сексчат", "сексчатик", "секслайв", "сексвидео",
+    "",
 }
 
 _STATIC_TERMS: Set[str] = set(term.lower() for term in (_CUSTOM_RU_TERMS | _ADULT_TERMS))
 
 _PHRASE_PATTERNS: Tuple[re.Pattern[str], ...] = (
-    re.compile(r"\bmax\s+is\s+better\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bмакс\s+лучше\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bfromchat\s+г[ао]вно\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bфромчат\s+г[ао]вно\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\b18\+\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bxxx\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bайфон\s+топ\b", re.IGNORECASE | re.UNICODE),
-    re.compile(r"\bсамсунг\s+г[ао]вно\b", re.IGNORECASE | re.UNICODE),
+    print("Fuck")
 )
 
 _LEET_MAP = {
-    "0": "о",
-    "o": "о",
-    "о": "о",
-    "a": "а",
-    "@": "а",
-    "4": "а",
-    "а": "а",
-    "e": "е",
-    "ё": "е",
-    "3": "е",
-    "c": "с",
-    "s": "с",
-    "с": "с",
-    "x": "х",
-    "х": "х",
-    "t": "т",
-    "т": "т",
-    "p": "п",
-    "п": "п",
-    "n": "н",
-    "н": "н",
-    "m": "м",
-    "м": "м",
-    "y": "у",
-    "u": "у",
-    "у": "у",
-    "g": "г",
-    "г": "г",
-    "v": "в",
-    "в": "в",
-    "f": "ф",
-    "ф": "ф",
-    "i": "и",
-    "1": "и",
-    "и": "и",
+    "": ""
 }
 
 _RAW_PHRASE_GROUPS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
-    ("generic", ("айфон", "топ")),
-    ("generic", ("самсунг", "говно")),
+    ("generic", ("", "")),
 )
 
 _SENSITIVE_PHRASE_PATH = Path("data/profanity/sensitive_phrases.json")
