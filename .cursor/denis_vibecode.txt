@@ -1,0 +1,2 @@
+@Author: Cursor
+More comments english and russian .cursor folder
