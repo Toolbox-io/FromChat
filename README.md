@@ -11,5 +11,5 @@
 Самый простой способ - docker-compose!
 1.Устанавливаем Docker, Docker-Compose смотрите в интернете под вашу систему
 2.Клонируете проект
-\n3.Вам нужно попасть в папку deployment 
-4.docker-compose up
+<br>3.Вам нужно попасть в папку deployment 
+<br>4.docker-compose up
