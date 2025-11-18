@@ -1,11 +1,10 @@
-import { useAppState } from "@/pages/chat/state";
+import { useCallStore } from "@/state/call";
 import useCall from "@/pages/chat/hooks/useCall";
 import defaultAvatar from "@/images/default-avatar.png";
 import { MaterialIconButton } from "@/utils/material";
 
 export function MinimizedCallBar() {
-    const { chat, toggleCallMinimize } = useAppState();
-    const { call } = chat;
+    const { call, toggleCallMinimized } = useCallStore();
     const { endCall, toggleMute } = useCall();
 
     function getGradientClass() {
@@ -39,7 +38,7 @@ export function MinimizedCallBar() {
     }
 
     return (
-        <div className={`minimized-call-bar ${getGradientClass()}`} onClick={toggleCallMinimize}>
+        <div className={`minimized-call-bar ${getGradientClass()}`} onClick={toggleCallMinimized}>
             <div className="call-info">
                 <img src={defaultAvatar} alt="Avatar" className="avatar" />
                 <div className="user-details">

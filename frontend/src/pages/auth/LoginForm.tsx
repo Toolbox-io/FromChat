@@ -2,11 +2,10 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, type Transition, type Variants } from "motion/react";
 import { useImmer } from "use-immer";
-import type { ErrorResponse, LoginRequest, LoginResponse } from "@/core/types";
-import { API_BASE_URL } from "@/core/config";
-import { useAppState } from "@/pages/chat/state";
+import type { LoginRequest } from "@/core/types";
+import { useUserStore } from "@/state/user";
 import { MaterialButton } from "@/utils/material";
-import { ensureKeysOnLogin, deriveAuthSecret } from "@/core/api/authApi";
+import { ensureKeysOnLogin, deriveAuthSecret, login } from "@/core/api/account";
 import { AuthTextField, type AuthTextFieldHandle } from "./AuthTextField";
 import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
@@ -54,7 +53,7 @@ interface LoginFormProps {
 export function LoginForm({ onSwitchMode }: LoginFormProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
-    const setUser = useAppState(state => state.setUser);
+    const setUser = useUserStore(state => state.setUser);
     const navigate = useNavigate();
 
     function showAlert(type: AlertType, message: string) {
@@ -86,16 +85,8 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
                 password: derived
             }
 
-            const response = await fetch(`${API_BASE_URL}/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(request)
-            });
-
-            if (response.ok) {
-                const data: LoginResponse = await response.json();
+            try {
+                const data = await login(request);
                 setUser(data.token, data.user);
 
                 try {
@@ -126,20 +117,16 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
                 } catch (e) {
                     console.error("Notification setup failed:", e);
                 }
-            } else {
-                const data: ErrorResponse = await response.json();
-                
-                if (response.status === 403 && response.headers.get("suspension_reason")) {
-                    const suspensionReason = response.headers.get("suspension_reason");
-                    const setSuspended = useAppState.getState().setSuspended;
-                    setSuspended(suspensionReason || "No reason provided");
+            } catch (error: any) {
+                if (error.message && error.message.includes("suspension")) {
+                    const setSuspended = useUserStore.getState().setSuspended;
+                    setSuspended(error.message || "No reason provided");
                     return;
                 }
-                
-                showAlert("danger", data.message || "Неверное имя пользователя или пароль");
+                showAlert("danger", error.message || "Неверное имя пользователя или пароль");
             }
-        } catch (error) {
-            showAlert("danger", "Ошибка соединения с сервером");
+        } catch (error: any) {
+            showAlert("danger", error.message || "Ошибка соединения с сервером");
         } finally {
             setIsLoading(false);
         }

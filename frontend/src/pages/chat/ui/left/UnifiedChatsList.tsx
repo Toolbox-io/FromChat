@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
+import { useChatStore } from "@/state/chat";
 import { useDM, type DMUser } from "@/pages/chat/hooks/useDM";
-import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/authApi";
-import { fetchUserPublicKey } from "@/core/api/dmApi";
+import { fetchMessages } from "@/core/api/messaging";
+import { fetchUserPublicKey } from "@/core/api/dm";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { Message } from "@/core/types";
 import { websocket } from "@/core/websocket";
@@ -43,7 +43,8 @@ const PUBLIC_CHAT: PublicChat = {
 };
 
 export function UnifiedChatsList() {
-    const { user, switchToPublicChat, switchToDM, chat } = useAppState();
+    const { user } = useUserStore();
+    const { switchToPublicChat, switchToDM, activeTab } = useChatStore();
     const { dmUsers, isLoadingUsers, loadUsers } = useDM();
     const [lastMessages, setLastMessages] = useState<Record<string, Message | undefined>>({});
 
@@ -51,16 +52,10 @@ export function UnifiedChatsList() {
         if (!user.authToken) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/get_messages`, {
-                headers: getAuthHeaders(user.authToken)
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.messages?.length > 0) {
-                    const lastMessage = data.messages[data.messages.length - 1];
-                    setLastMessages({ general: lastMessage });
-                }
+            const messages = await fetchMessages(user.authToken, 1);
+            if (messages?.length > 0) {
+                const lastMessage = messages[messages.length - 1];
+                setLastMessages({ general: lastMessage });
             }
         } catch (error) {
             console.error("Error loading last messages:", error);
@@ -68,11 +63,11 @@ export function UnifiedChatsList() {
     }, [user.authToken]);
 
     useEffect(() => {
-        if (chat.activeTab === "chats") {
+        if (activeTab === "chats") {
             loadUsers();
             loadLastMessages();
         }
-    }, [chat.activeTab, loadUsers, loadLastMessages]);
+    }, [activeTab, loadUsers, loadLastMessages]);
 
     const allChats = useMemo<ChatItem[]>(() => {
         return [
@@ -162,7 +157,7 @@ export function UnifiedChatsList() {
 
     async function handleDMClick(dmConversation: DMConversation) {
         if (!dmConversation.publicKey) {
-            const authToken = useAppState.getState().user.authToken;
+            const authToken = useUserStore.getState().user.authToken;
             if (!authToken) return;
 
             const publicKey = await fetchUserPublicKey(dmConversation.id, authToken);

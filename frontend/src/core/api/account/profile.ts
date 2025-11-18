@@ -1,4 +1,4 @@
-import { getAuthHeaders } from "./account";
+import { getAuthHeaders } from ".";
 import { API_BASE_URL } from "@/core/config";
 import type { UserProfile } from "@/core/types";
 
@@ -19,7 +19,7 @@ export interface UploadResponse {
 export async function loadProfile(token: string): Promise<ProfileData | null> {
     try {
         const response = await fetch(`${API_BASE_URL}/user/profile`, {
-            headers: getAuthHeaders(token)
+            headers: getAuthHeaders(token, true)
         });
 
         if (response.ok) {
@@ -79,7 +79,7 @@ export async function updateProfile(token: string, data: Partial<ProfileData>): 
         const response = await fetch(`${API_BASE_URL}/user/profile`, {
             method: 'PUT',
             headers: {
-                ...getAuthHeaders(token),
+                ...getAuthHeaders(token, true),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(backendData)
@@ -99,7 +99,7 @@ export async function updateBio(token: string, bio: string): Promise<boolean> {
     try {
         const response = await fetch(`${API_BASE_URL}/user/bio`, {
             method: 'PUT',
-            headers: getAuthHeaders(token),
+            headers: getAuthHeaders(token, true),
             body: JSON.stringify({ bio })
         });
 
@@ -116,7 +116,7 @@ export async function updateBio(token: string, bio: string): Promise<boolean> {
 export async function fetchUserProfile(token: string, username: string): Promise<UserProfile | null> {
     try {
         const response = await fetch(`${API_BASE_URL}/user/${username}`, {
-            headers: getAuthHeaders(token)
+            headers: getAuthHeaders(token, true)
         });
 
         if (response.ok) {
@@ -136,7 +136,7 @@ export async function fetchUserProfile(token: string, username: string): Promise
 export async function fetchUserProfileById(token: string, userId: number): Promise<UserProfile | null> {
     try {
         const response = await fetch(`${API_BASE_URL}/user/id/${userId}`, {
-            headers: getAuthHeaders(token)
+            headers: getAuthHeaders(token, true)
         });
 
         if (response.ok) {
@@ -157,7 +157,7 @@ export async function verifyUser(userId: number, token: string): Promise<{verifi
     try {
         const response = await fetch(`${API_BASE_URL}/user/${userId}/verify`, {
             method: 'POST',
-            headers: getAuthHeaders(token)
+            headers: getAuthHeaders(token, true)
         });
 
         if (response.ok) {
@@ -189,7 +189,7 @@ export async function checkUserSimilarity(userId: number, token: string): Promis
 
     try {
         const response = await fetch(`${API_BASE_URL}/user/check-similarity/${userId}`, {
-            headers: getAuthHeaders(token)
+            headers: getAuthHeaders(token, true)
         });
 
         let result: {isSimilar: boolean, similarTo?: string} | null = null;
@@ -216,7 +216,7 @@ export async function suspendUser(userId: number, reason: string, token: string)
     try {
         const response = await fetch(`${API_BASE_URL}/user/${userId}/suspend`, {
             method: 'POST',
-            headers: getAuthHeaders(token),
+            headers: getAuthHeaders(token, true),
             body: JSON.stringify({ reason })
         });
 
@@ -238,7 +238,7 @@ export async function unsuspendUser(userId: number, token: string): Promise<{sta
     try {
         const response = await fetch(`${API_BASE_URL}/user/${userId}/unsuspend`, {
             method: 'POST',
-            headers: getAuthHeaders(token)
+            headers: getAuthHeaders(token, true)
         });
 
         if (response.ok) {
@@ -259,7 +259,7 @@ export async function deleteUser(userId: number, token: string): Promise<{status
     try {
         const response = await fetch(`${API_BASE_URL}/user/${userId}/delete`, {
             method: 'POST',
-            headers: getAuthHeaders(token)
+            headers: getAuthHeaders(token, true)
         });
 
         if (response.ok) {
@@ -272,3 +272,4 @@ export async function deleteUser(userId: number, token: string): Promise<{status
         return null;
     }
 }
+

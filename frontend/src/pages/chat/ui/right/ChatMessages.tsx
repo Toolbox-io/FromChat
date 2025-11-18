@@ -1,5 +1,5 @@
 import { Message } from "./Message";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 import type { Message as MessageType } from "@/core/types";
 import { MessageContextMenu, type ContextMenuState } from "./MessageContextMenu";
 import { useState, type ReactNode } from "react";
@@ -20,7 +20,7 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ messages = [], children, isDm = false, onReplySelect, onEditSelect, onDelete, onRetryMessage, dmRecipientPublicKey }: ChatMessagesProps) {
-    const { user } = useAppState();
+    const { user } = useUserStore();
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({

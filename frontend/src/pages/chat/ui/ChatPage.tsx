@@ -4,15 +4,17 @@ import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 import { CallWindow } from "./right/calls/CallWindow";
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAppState } from "@/pages/chat/state";
-import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
+import { useUserStore } from "@/state/user";
+import { useProfileStore } from "@/state/profile";
+import { fetchUserProfileById, fetchUserProfile } from "@/core/api/account/profile";
 import styles from "@/pages/chat/css/layout.module.scss";
 
 export default function ChatPage() {
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, setProfileDialog } = useAppState();
+    const { user } = useUserStore();
+    const { setProfileDialog } = useProfileStore();
     const processedProfile = useRef<string | null>(null);
 
     // Handle profile links ONLY from navigation state (from SmartCatchAll)
@@ -64,7 +66,7 @@ export default function ChatPage() {
         }
 
         handleProfileLink();
-    }, [location.state, user.authToken, user.currentUser?.id, setProfileDialog, navigate, location.pathname]);
+    }, [location.state, user.authToken, user.currentUser?.id, navigate, location.pathname]);
 
     if (navigateDownloadApp) return navigateDownloadApp;
 

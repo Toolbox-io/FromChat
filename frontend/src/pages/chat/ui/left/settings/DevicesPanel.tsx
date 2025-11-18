@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useImmer } from "use-immer";
 import { MaterialList, MaterialListItem, MaterialButton, MaterialCircularProgress } from "@/utils/material";
-import { useAppState } from "@/pages/chat/state";
-import { listDevices, revokeDevice, logoutAllOtherDevices, type DeviceInfo } from "@/core/api/devicesApi";
+import { useUserStore } from "@/state/user";
+import { listDevices, revokeDevice, logoutAllOtherDevices, type DeviceInfo } from "@/core/api/account/devices";
 import { confirm } from "mdui/functions/confirm";
 import styles from "@/pages/chat/css/settings-dialog.module.scss";
 
 export function DevicesPanel() {
-    const { user } = useAppState();
+    const { user } = useUserStore();
     const authToken = user?.authToken ?? null;
     const [devices, updateDevices] = useImmer<DeviceInfo[]>([]);
     const [devicesLoading, setDevicesLoading] = useState(false);

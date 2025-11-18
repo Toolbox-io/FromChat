@@ -1,4 +1,4 @@
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 import { useRef, useState } from "react";
 import { SettingsDialog } from "./settings/SettingsDialog";
 import { UsernameSearch } from "./UsernameSearch";
@@ -9,7 +9,7 @@ import styles from "@/pages/chat/css/left-panel.module.scss";
 
 function BottomAppBar({ bottomAppBarRef }: { bottomAppBarRef?: React.RefObject<MDUIBottomAppBar | null> }) {
     const [settingsOpen, onSettingsOpenChange] = useState(false);
-    const { logout } = useAppState();
+    const { logout } = useUserStore();
 
     return (
         <>

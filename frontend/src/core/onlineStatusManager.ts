@@ -11,7 +11,7 @@ import type {
     SubscribeStatusWebSocketMessage,
     UnsubscribeStatusWebSocketMessage
 } from "./types";
-import { useAppState } from "@/pages/chat/state";
+import { usePresenceStore } from "@/state/presence";
 
 export interface UserStatus {
     online: boolean;
@@ -96,7 +96,7 @@ export class OnlineStatusManager {
         this.statusCache.set(userId, { online, lastSeen });
 
         // Update the global state
-        const { updateOnlineStatus } = useAppState.getState();
+        const { updateOnlineStatus } = usePresenceStore.getState();
         updateOnlineStatus(userId, online, lastSeen);
     }
 

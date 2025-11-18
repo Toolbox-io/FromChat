@@ -11,7 +11,7 @@ import { delay } from "@/utils/utils";
 import { CallSignalingHandler } from "./calls/signaling";
 import { onlineStatusManager } from "./onlineStatusManager";
 import { typingManager } from "./typingManager";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 
 /**
  * Creates a new WebSocket connection to the chat server
@@ -170,14 +170,14 @@ function setupEventHandlers(): void {
                 typingManager.handleStopDmTyping(response as any);
             } else if (response.type === "suspended") {
                 // Handle account suspension
-                const { setSuspended } = useAppState.getState();
+                const { setSuspended } = useUserStore.getState();
                 const reason = response.data?.reason || "No reason provided";
                 setSuspended(reason);
                 // Close WebSocket connection
                 websocket.close();
             } else if (response.type === "account_deleted") {
                 // Handle account deletion - silent logout
-                const { logout } = useAppState.getState();
+                const { logout } = useUserStore.getState();
                 logout();
                 // Close WebSocket connection
                 websocket.close();

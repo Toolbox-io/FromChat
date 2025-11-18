@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import { useAppState } from "@/pages/chat/state";
-import { loadProfile, updateProfile, uploadProfilePicture, type ProfileData } from "@/core/api/profileApi";
+import { useUserStore } from "@/state/user";
+import { loadProfile, updateProfile, uploadProfilePicture, type ProfileData } from "@/core/api/account/profile";
 import { showSuccess, showError } from "@/utils/notification";
 
 export default function useProfile() {
-    const { user } = useAppState();
+    const { user } = useUserStore();
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);

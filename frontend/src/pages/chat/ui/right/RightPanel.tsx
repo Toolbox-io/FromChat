@@ -1,8 +1,8 @@
-import { useAppState } from "@/pages/chat/state";
+import { useChatStore } from "@/state/chat";
 import { MessagePanelRenderer } from "./MessagePanelRenderer";
 
 export function RightPanel() {
-    const { chat } = useAppState();
+    const { activePanel } = useChatStore();
 
-    return <MessagePanelRenderer panel={chat.activePanel} />
+    return <MessagePanelRenderer panel={activePanel} />
 }

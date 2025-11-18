@@ -1,6 +1,6 @@
 import { MaterialList, MaterialListItem } from "@/utils/material";
-import { useAppState } from "@/pages/chat/state";
-import { deleteAccount } from "@/core/api/securityApi";
+import { useUserStore } from "@/state/user";
+import { deleteAccount } from "@/core/api/account";
 import { confirm } from "mdui/functions/confirm";
 import styles from "@/pages/chat/css/settings-dialog.module.scss";
 
@@ -9,7 +9,7 @@ interface AccountPanelProps {
 }
 
 export function AccountPanel({ onClose }: AccountPanelProps) {
-    const { user, logout } = useAppState();
+    const { user, logout } = useUserStore();
     const authToken = user?.authToken;
 
     async function handleDeleteAccount() {

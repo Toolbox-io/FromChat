@@ -2,11 +2,10 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, type Transition, type Variants } from "motion/react";
 import { useImmer } from "use-immer";
-import type { ErrorResponse, RegisterRequest, LoginResponse } from "@/core/types";
-import { API_BASE_URL } from "@/core/config";
-import { useAppState } from "@/pages/chat/state";
+import type { RegisterRequest } from "@/core/types";
+import { useUserStore } from "@/state/user";
 import { MaterialButton, MaterialIconButton } from "@/utils/material";
-import { ensureKeysOnLogin, deriveAuthSecret } from "@/core/api/authApi";
+import { ensureKeysOnLogin, deriveAuthSecret, register } from "@/core/api/account";
 import { AuthTextField, type AuthTextFieldHandle } from "./AuthTextField";
 import type { Alert, AlertType } from "./Auth";
 import { AuthHeader, AlertsContainer } from "./Auth";
@@ -52,7 +51,7 @@ interface RegisterFormProps {
 export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
-    const setUser = useAppState(state => state.setUser);
+    const setUser = useUserStore(state => state.setUser);
     const navigate = useNavigate();
 
     function showAlert(type: AlertType, message: string) {
@@ -115,16 +114,8 @@ export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
                 confirm_password: derived
             }
 
-            const response = await fetch(`${API_BASE_URL}/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(request)
-            });
-
-            if (response.ok) {
-                const data: LoginResponse = await response.json();
+            try {
+                const data = await register(request);
                 setUser(data.token, data.user);
 
                 try {
@@ -134,12 +125,11 @@ export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
                 }
 
                 navigate("/chat");
-            } else {
-                const data: ErrorResponse = await response.json();
-                showAlert("danger", data.message || "Ошибка при регистрации");
+            } catch (error: any) {
+                showAlert("danger", error.message || "Ошибка при регистрации");
             }
-        } catch (error) {
-            showAlert("danger", "Ошибка соединения с сервером");
+        } catch (error: any) {
+            showAlert("danger", error.message || "Ошибка соединения с сервером");
         } finally {
             setIsLoading(false);
         }

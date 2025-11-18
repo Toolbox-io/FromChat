@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 import styles from "./home.module.scss";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 import { MaterialButton, MaterialIcon } from "@/utils/material";
@@ -18,7 +18,7 @@ function SupportLink({ children }: { children: React.ReactNode }) {
 
 export default function HomePage() {
     const navigate = useNavigate();
-    const { user } = useAppState();
+    const { user } = useUserStore();
     const { isMobile } = useDownloadAppScreen();
     const isLoggedIn = user.authToken && user.currentUser;
 

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { StyledDialog } from "@/core/components/StyledDialog";
 import type { DialogProps } from "@/core/types";
-import { useAppState } from "@/pages/chat/state";
-import { changePassword } from "@/core/api/securityApi";
+import { useUserStore } from "@/state/user";
+import { changePassword } from "@/core/api/account";
 import { MaterialButton, MaterialIconButton, MaterialSwitch, MaterialTextField } from "@/utils/material";
 import styles from "@/pages/chat/css/changePasswordDialog.module.scss";
 
 export default function ChangePasswordDialog({ isOpen, onOpenChange }: DialogProps) {
-    const { user } = useAppState();
+    const { user } = useUserStore();
     
     const [current, setCurrent] = useState("");
     const [next, setNext] = useState("");

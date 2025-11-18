@@ -1,5 +1,5 @@
 import type { Message, WebSocketMessage } from "@/core/types";
-import type { UserState, ProfileDialogData } from "@/pages/chat/state";
+import type { UserState, ProfileDialogData } from "@/state/types";
 
 export interface MessagePanelState {
     id: string;

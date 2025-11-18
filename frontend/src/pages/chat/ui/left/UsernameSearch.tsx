@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { useAppState } from "@/pages/chat/state";
-import { searchUsers, fetchUserPublicKey } from "@/core/api/dmApi";
+import { useUserStore } from "@/state/user";
+import { useChatStore } from "@/state/chat";
+import { searchUsers, fetchUserPublicKey } from "@/core/api/dm";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { User } from "@/core/types";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
@@ -23,7 +24,8 @@ export interface UsernameSearchProps {
 }
 
 export function UsernameSearch({ containerRef, headerRef, bottomAppBarRef }: UsernameSearchProps) {
-    const { user, switchToDM, chat } = useAppState();
+    const { user } = useUserStore();
+    const { switchToDM, activeDm } = useChatStore();
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -68,7 +70,7 @@ export function UsernameSearch({ containerRef, headerRef, bottomAppBarRef }: Use
 
     // Subscribe to online status for all search results
     useEffect(() => {
-        const activeDmUserId = chat.activeDm?.userId;
+        const activeDmUserId = activeDm?.userId;
         const switchingToUserId = switchingToUserIdRef.current;
         const currentSearchResultIds = new Set(searchResults.map(u => u.id));
         const previousSearchResultIds = new Set(previousSearchResultIdsRef.current);
@@ -101,12 +103,12 @@ export function UsernameSearch({ containerRef, headerRef, bottomAppBarRef }: Use
             
             // Clear the ref if the user is now the active DM (state has updated)
             const finalSwitchingToUserId = switchingToUserIdRef.current;
-            const finalActiveDmUserId = chat.activeDm?.userId;
+            const finalActiveDmUserId = activeDm?.userId;
             if (finalSwitchingToUserId && finalSwitchingToUserId === finalActiveDmUserId) {
                 switchingToUserIdRef.current = null;
             }
         };
-    }, [searchResults, chat.activeDm?.userId]);
+    }, [searchResults, activeDm?.userId]);
 
 
     async function handleUserClick(searchUser: SearchUser) {
