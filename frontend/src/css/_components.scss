@@ -53,7 +53,7 @@ button, input {
     }
     
     &.warning {
-        color: #ff9800; // Orange color for warnings
+        color: $color-dark-tertiary; // Purple-themed warning color
     }
     
     &.small mdui-icon {

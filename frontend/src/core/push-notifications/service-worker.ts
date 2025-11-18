@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import logo from "@/images/logo.svg";
+
 declare const self: ServiceWorkerGlobalScope;
 
 interface NotificationPayload {
@@ -36,8 +38,8 @@ self.addEventListener("push", function(event: ExtendableEvent) {
 
         const options: NotificationOptions = {
             body: data.body,
-            icon: data.icon || "/logo.png",
-            badge: "/logo.png",
+            icon: data.icon || logo,
+            badge: logo,
             image: data.image,
             tag: data.tag || "message",
             data: data.data,

@@ -4,7 +4,7 @@ import jwt
 from typing import Optional, Any
 import bcrypt
 
-from constants import *
+from constants import ACCESS_TOKEN_EXPIRE_HOURS, JWT_SECRET_KEY, JWT_ALGORITHM
 
 # JWT Helper Functions
 def create_token(user_id: int, username: str, session_id: str) -> str:

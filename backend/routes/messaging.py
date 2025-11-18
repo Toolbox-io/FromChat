@@ -198,7 +198,7 @@ def convert_message(msg: Message) -> dict:
     }
 
 
-def convert_dm_envelope(envelope: DMEnvelope) -> dict:
+def convert_dm_envelope(db: Session, envelope: DMEnvelope) -> dict:
     # Group reactions by emoji
     reactions_dict = {}
     if envelope.reactions:
@@ -217,9 +217,6 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
             })
 
     # Get sender info for verified status
-    from models import User
-    from dependencies import get_db
-    db = next(get_db())
     sender = db.query(User).filter(User.id == envelope.sender_id).first()
 
     # Handle deleted or suspended users
@@ -454,9 +451,25 @@ async def dm_send(
         if key not in payload:
             raise HTTPException(status_code=400, detail=f"Missing {key}")
 
+    try:
+        recipient_id = int(payload["recipientId"])
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid recipientId")
+    
+    if recipient_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid recipientId")
+    
+    if recipient_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot send DM to yourself")
+    
+    # Verify recipient exists
+    recipient = db.query(User).filter(User.id == recipient_id).first()
+    if not recipient or recipient.deleted or recipient.suspended:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+
     env = DMEnvelope(
         sender_id=current_user.id,
-        recipient_id=int(payload["recipientId"]),
+        recipient_id=recipient_id,
         iv_b64=payload["iv"],
         ciphertext_b64=payload["ciphertext"],
         salt_b64=payload["salt"],
@@ -590,6 +603,17 @@ async def dm_fetch(request: Request, since: int | None = None, current_user: Use
 @router.get("/dm/history/{other_user_id}")
 @rate_limit_per_ip("60/minute")  # Per-IP limit to prevent abuse
 async def dm_history(request: Request, other_user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if other_user_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    if other_user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot get history with yourself")
+    
+    # Verify other user exists
+    other_user = db.query(User).filter(User.id == other_user_id).first()
+    if not other_user or other_user.deleted or other_user.suspended:
+        raise HTTPException(status_code=404, detail="User not found")
+    
     return convert_envelopes(
         db.query(DMEnvelope)
         .filter(
@@ -631,7 +655,7 @@ async def get_dm_conversations(request: Request, current_user: User = Depends(ge
 
             result.append({
                 "user": convert_user(other_user),
-                "lastMessage": convert_dm_envelope(latest_message),
+                "lastMessage": convert_dm_envelope(db, latest_message),
                 "unreadCount": unread_count
             })
 
@@ -833,7 +857,7 @@ async def add_dm_reaction(
     # Refresh envelope to get updated reactions
     db.refresh(envelope)
 
-    envelope_data = convert_dm_envelope(envelope)
+    envelope_data = convert_dm_envelope(db, envelope)
 
     # Broadcast reaction update to both participants
     try:

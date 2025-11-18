@@ -313,6 +313,8 @@ def set_public_key(payload: dict, current_user: User = Depends(get_current_user)
     pk = payload.get("publicKey")
     if not pk:
         raise HTTPException(status_code=400, detail="publicKey required")
+    if not isinstance(pk, str) or len(pk) > 10000 or len(pk) < 10:
+        raise HTTPException(status_code=400, detail="Invalid publicKey format")
     row = db.query(CryptoPublicKey).filter(CryptoPublicKey.user_id == current_user.id).first()
     if row:
         row.public_key_b64 = pk
@@ -334,6 +336,8 @@ def set_backup(payload: dict, current_user: User = Depends(get_current_user), db
     blob = payload.get("blob")
     if not blob:
         raise HTTPException(status_code=400, detail="blob required")
+    if not isinstance(blob, str) or len(blob) > 1000000:  # 1MB limit
+        raise HTTPException(status_code=400, detail="Invalid blob format or size exceeds 1MB")
     row = db.query(CryptoBackup).filter(CryptoBackup.user_id == current_user.id).first()
     if row:
         row.blob_json = blob

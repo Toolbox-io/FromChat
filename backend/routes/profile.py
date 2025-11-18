@@ -275,6 +275,9 @@ async def get_user_by_username(
     """
     Get user profile by username
     """
+    if not username or not is_valid_username(username):
+        raise HTTPException(status_code=400, detail="Invalid username format")
+    
     user = db.query(User).filter(User.username == username).first()
     
     if not user:
@@ -322,6 +325,9 @@ async def get_user_by_id(
     """
     Get user profile by user ID
     """
+    if user_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user:
