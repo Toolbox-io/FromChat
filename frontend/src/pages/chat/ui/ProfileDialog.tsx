@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
-import { useAppState } from "@/pages/chat/state";
-import type { ProfileDialogData } from "@/pages/chat/state";
+import { useProfileStore } from "@/state/profile";
+import { useUserStore } from "@/state/user";
+import type { ProfileDialogData } from "@/state/types";
 import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm";
 import { prompt } from "mdui/functions/prompt";
@@ -70,7 +71,8 @@ function Section({ type, icon, label, error, value, onChange, readOnly, placehol
 }
 
 export function ProfileDialog() {
-    const { chat, user, closeProfileDialog, setUser } = useAppState();
+    const { profileDialog, closeProfileDialog } = useProfileStore();
+    const { user, setUser } = useUserStore();
     const [isOpen, setIsOpen] = useState(false);
     const [originalData, setOriginalData] = useState<ProfileDialogData | null>(null);
     const [currentData, setCurrentData] = useState<ProfileDialogData | null>(null);
@@ -80,13 +82,13 @@ export function ProfileDialog() {
 
     // Handle dialog open/close based on state
     useEffect(() => {
-        if (chat.profileDialog && !isOpen) {
+        if (profileDialog && !isOpen) {
             // Fetch fresh data when opening dialog
-            fetchFreshProfileData(chat.profileDialog);
-        } else if (!chat.profileDialog && isOpen) {
+            fetchFreshProfileData(profileDialog);
+        } else if (!profileDialog && isOpen) {
             setIsOpen(false);
         }
-    }, [chat.profileDialog, isOpen]);
+    }, [profileDialog, isOpen]);
 
     async function fetchFreshProfileData(profileData: ProfileDialogData) {
         if (!user.authToken) return;

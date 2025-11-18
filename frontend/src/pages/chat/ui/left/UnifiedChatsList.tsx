@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
+import { useChatStore } from "@/state/chat";
 import { useDM, type DMUser } from "@/pages/chat/hooks/useDM";
 import { fetchMessages } from "@/core/api/messaging";
 import { fetchUserPublicKey } from "@/core/api/dm";
@@ -42,7 +43,8 @@ const PUBLIC_CHAT: PublicChat = {
 };
 
 export function UnifiedChatsList() {
-    const { user, switchToPublicChat, switchToDM, chat } = useAppState();
+    const { user } = useUserStore();
+    const { switchToPublicChat, switchToDM, activeTab } = useChatStore();
     const { dmUsers, isLoadingUsers, loadUsers } = useDM();
     const [lastMessages, setLastMessages] = useState<Record<string, Message | undefined>>({});
 
@@ -61,11 +63,11 @@ export function UnifiedChatsList() {
     }, [user.authToken]);
 
     useEffect(() => {
-        if (chat.activeTab === "chats") {
+        if (activeTab === "chats") {
             loadUsers();
             loadLastMessages();
         }
-    }, [chat.activeTab, loadUsers, loadLastMessages]);
+    }, [activeTab, loadUsers, loadLastMessages]);
 
     const allChats = useMemo<ChatItem[]>(() => {
         return [
@@ -155,7 +157,7 @@ export function UnifiedChatsList() {
 
     async function handleDMClick(dmConversation: DMConversation) {
         if (!dmConversation.publicKey) {
-            const authToken = useAppState.getState().user.authToken;
+            const authToken = useUserStore.getState().user.authToken;
             if (!authToken) return;
 
             const publicKey = await fetchUserPublicKey(dmConversation.id, authToken);

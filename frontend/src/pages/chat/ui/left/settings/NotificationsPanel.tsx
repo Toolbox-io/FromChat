@@ -1,13 +1,13 @@
 import { useState, useRef } from "react";
 import { MaterialList, MaterialListItem, MaterialSwitch, type MDUISwitch } from "@/utils/material";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 import { initialize, subscribe, unsubscribe, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { unsubscribeFromPush } from "@/core/api/push";
 import styles from "@/pages/chat/css/settings-dialog.module.scss";
 
 export function NotificationsPanel() {
-    const { user } = useAppState();
+    const { user } = useUserStore();
     const authToken = user?.authToken ?? null;
     const [pushEnabled, setPushEnabled] = useState(false);
     const [loading, setLoading] = useState(false);

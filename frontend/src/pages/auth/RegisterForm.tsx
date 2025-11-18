@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, type Transition, type Variants } from "motion/react";
 import { useImmer } from "use-immer";
 import type { RegisterRequest } from "@/core/types";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 import { MaterialButton, MaterialIconButton } from "@/utils/material";
 import { ensureKeysOnLogin, deriveAuthSecret, register } from "@/core/api/account";
 import { AuthTextField, type AuthTextFieldHandle } from "./AuthTextField";
@@ -51,7 +51,7 @@ interface RegisterFormProps {
 export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
-    const setUser = useAppState(state => state.setUser);
+    const setUser = useUserStore(state => state.setUser);
     const navigate = useNavigate();
 
     function showAlert(type: AlertType, message: string) {

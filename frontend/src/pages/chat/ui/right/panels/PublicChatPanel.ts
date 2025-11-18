@@ -1,7 +1,7 @@
 import { MessagePanel } from "./MessagePanel";
 import { request } from "@/core/websocket";
 import type { ChatWebSocketMessage, Message, ReactionUpdateWebSocketMessage } from "@/core/types";
-import type { UserState, ProfileDialogData } from "@/pages/chat/state";
+import type { UserState, ProfileDialogData } from "@/state/types";
 import { fetchMessages, sendMessage, sendMessageWithFiles } from "@/core/api/messaging";
 
 export class PublicChatPanel extends MessagePanel {

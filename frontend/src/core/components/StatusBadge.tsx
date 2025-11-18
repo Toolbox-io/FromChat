@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { checkUserSimilarity } from "@/core/api/account/profile";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 import { MaterialIcon } from "@/utils/material";
 
 interface StatusBadgeProps {
@@ -11,7 +11,7 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ verified, userId, size = "small" }: StatusBadgeProps) {
     const [isSimilarToVerified, setIsSimilarToVerified] = useState(false);
-    const { user } = useAppState();
+    const { user } = useUserStore();
     
     const className = `status-badge ${size}`;
 

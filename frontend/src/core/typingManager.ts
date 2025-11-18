@@ -16,7 +16,7 @@ import type {
     DmTypingRequest,
     StopDmTypingRequest
 } from "./types";
-import { useAppState } from "@/pages/chat/state";
+import { usePresenceStore } from "@/state/presence";
 
 /**
  * Manages typing indicators for public chat and DMs
@@ -133,7 +133,7 @@ export class TypingManager {
      * Handle incoming typing indicator from WebSocket
      */
     handleTyping(message: TypingWebSocketMessage): void {
-        const { addTypingUser } = useAppState.getState();
+        const { addTypingUser } = usePresenceStore.getState();
         addTypingUser(message.data.userId, message.data.username);
     }
 
@@ -141,7 +141,7 @@ export class TypingManager {
      * Handle incoming stop typing indicator from WebSocket
      */
     handleStopTyping(message: StopTypingWebSocketMessage): void {
-        const { removeTypingUser } = useAppState.getState();
+        const { removeTypingUser } = usePresenceStore.getState();
         removeTypingUser(message.data.userId);
     }
 
@@ -149,7 +149,7 @@ export class TypingManager {
      * Handle incoming DM typing indicator from WebSocket
      */
     handleDmTyping(message: DmTypingWebSocketMessage): void {
-        const { setDmTypingUser } = useAppState.getState();
+        const { setDmTypingUser } = usePresenceStore.getState();
         setDmTypingUser(message.data.userId, true);
     }
 
@@ -157,7 +157,7 @@ export class TypingManager {
      * Handle incoming stop DM typing indicator from WebSocket
      */
     handleStopDmTyping(message: StopDmTypingWebSocketMessage): void {
-        const { setDmTypingUser } = useAppState.getState();
+        const { setDmTypingUser } = usePresenceStore.getState();
         setDmTypingUser(message.data.userId, false);
     }
 

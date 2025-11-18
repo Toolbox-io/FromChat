@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, type Transition, type Variants } from "motion/react";
 import { useImmer } from "use-immer";
 import type { LoginRequest } from "@/core/types";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 import { MaterialButton } from "@/utils/material";
 import { ensureKeysOnLogin, deriveAuthSecret, login } from "@/core/api/account";
 import { AuthTextField, type AuthTextFieldHandle } from "./AuthTextField";
@@ -53,7 +53,7 @@ interface LoginFormProps {
 export function LoginForm({ onSwitchMode }: LoginFormProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [alerts, updateAlerts] = useImmer<Alert[]>([]);
-    const setUser = useAppState(state => state.setUser);
+    const setUser = useUserStore(state => state.setUser);
     const navigate = useNavigate();
 
     function showAlert(type: AlertType, message: string) {
@@ -119,7 +119,7 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
                 }
             } catch (error: any) {
                 if (error.message && error.message.includes("suspension")) {
-                    const setSuspended = useAppState.getState().setSuspended;
+                    const setSuspended = useUserStore.getState().setSuspended;
                     setSuspended(error.message || "No reason provided");
                     return;
                 }

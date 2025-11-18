@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useAppState } from "./chat/state";
+import { useUserStore } from "@/state/user";
 import { Navigate } from "react-router-dom";
 
 interface ProtectedRouteProps {
@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { user } = useAppState();
+    const { user } = useUserStore();
 
     return !user.authToken ? <Navigate to="/login" /> : children;
 }

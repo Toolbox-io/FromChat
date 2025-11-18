@@ -1,4 +1,5 @@
-import { useAppState } from "@/pages/chat/state";
+import { useCallStore } from "@/state/call";
+import { useUserStore } from "@/state/user";
 import * as WebRTC from "@/core/calls/webrtc";
 import { CallSignalingHandler } from "@/core/calls/signaling";
 import { setCallSignalingHandler } from "@/core/websocket";
@@ -15,7 +16,7 @@ let globalRemoteScreenShareRef = createRef<HTMLVideoElement>();
 
 export default function useCall() {
     const {
-        chat,
+        call,
         startCall,
         endCall,
         setCallStatus,
@@ -26,8 +27,9 @@ export default function useCall() {
         setCallSessionKeyHash,
         setRemoteVideoEnabled,
         setRemoteScreenSharing,
-        user
-    } = useAppState();
+        receiveCall
+    } = useCallStore();
+    const { user } = useUserStore();
 
     const remoteAudioRef = globalRemoteAudioRef;
     const localVideoRef = globalLocalVideoRef;
@@ -40,8 +42,7 @@ export default function useCall() {
         const signalingHandler = new CallSignalingHandler(() => ({
             receiveCall: (userId: number, username: string) => {
                 // Use the receiveCall function from state
-                const state = useAppState.getState();
-                state.receiveCall(userId, username);
+                receiveCall(userId, username);
             },
             endCall,
             setCallSessionKeyHash,
@@ -52,8 +53,8 @@ export default function useCall() {
 
         // Set up call state change handler
         WebRTC.callbacks.onCallStateChange = (userId: number, state: string) => {
-            const call = chat.call;
-            if (call.remoteUserId === userId) {
+            const currentCall = call;
+            if (currentCall.remoteUserId === userId) {
                 switch (state) {
                     case "connecting":
                         setCallStatus("connecting");
@@ -183,15 +184,15 @@ export default function useCall() {
             WebRTC.cleanup();
             setCallSignalingHandler(null);
         };
-    }, [user.authToken, chat.call.remoteUserId, setCallStatus, endCall, startCall, setRemoteVideoEnabled, setRemoteScreenSharing]);
+    }, [user.authToken, call.remoteUserId, setCallStatus, endCall, startCall, setRemoteVideoEnabled, setRemoteScreenSharing]);
 
     // Watch for session key hash changes and generate emojis
     useEffect(() => {
-        if (chat.call.sessionKeyHash && chat.call.encryptionEmojis.length === 0) {
-            const emojis = generateCallEmojis(chat.call.sessionKeyHash);
-            setCallEncryption(chat.call.sessionKeyHash, emojis);
+        if (call.sessionKeyHash && call.encryptionEmojis.length === 0) {
+            const emojis = generateCallEmojis(call.sessionKeyHash);
+            setCallEncryption(call.sessionKeyHash, emojis);
         }
-    }, [chat.call.sessionKeyHash, chat.call.encryptionEmojis.length, setCallEncryption]);
+    }, [call.sessionKeyHash, call.encryptionEmojis.length, setCallEncryption]);
 
     async function requestAudioPermissions(): Promise<boolean> {
         try {
@@ -249,12 +250,12 @@ export default function useCall() {
     }
 
     async function acceptCall() {
-        if (!chat.call.remoteUserId) {
+        if (!call.remoteUserId) {
             return;
         }
 
         setCallStatus("connecting");
-        const success = await WebRTC.acceptCall(chat.call.remoteUserId);
+        const success = await WebRTC.acceptCall(call.remoteUserId);
 
         if (!success) {
             endCall();
@@ -262,46 +263,46 @@ export default function useCall() {
     }
 
     async function rejectCall() {
-        if (!chat.call.remoteUserId) {
+        if (!call.remoteUserId) {
             return;
         }
 
-        await WebRTC.rejectCall(chat.call.remoteUserId);
+        await WebRTC.rejectCall(call.remoteUserId);
         endCall();
     }
 
     async function handleEndCall() {
-        if (chat.call.remoteUserId) {
-            await WebRTC.endCall(chat.call.remoteUserId);
+        if (call.remoteUserId) {
+            await WebRTC.endCall(call.remoteUserId);
         }
         endCall();
     }
 
     function handleToggleMute() {
-        if (chat.call.remoteUserId) {
-            const isMuted = WebRTC.toggleMute(chat.call.remoteUserId);
+        if (call.remoteUserId) {
+            const isMuted = WebRTC.toggleMute(call.remoteUserId);
             // Update mute state in store
-            if (isMuted !== chat.call.isMuted) {
+            if (isMuted !== call.isMuted) {
                 toggleMute();
             }
         }
     }
 
     async function handleToggleVideo() {
-        if (chat.call.remoteUserId) {
-            const isEnabled = await WebRTC.toggleVideo(chat.call.remoteUserId);
+        if (call.remoteUserId) {
+            const isEnabled = await WebRTC.toggleVideo(call.remoteUserId);
             // Update video state in store
-            if (isEnabled !== chat.call.isVideoEnabled) {
+            if (isEnabled !== call.isVideoEnabled) {
                 toggleVideo();
             }
         }
     }
 
     async function handleToggleScreenShare() {
-        if (chat.call.remoteUserId) {
-            const isEnabled = await WebRTC.toggleScreenShare(chat.call.remoteUserId);
+        if (call.remoteUserId) {
+            const isEnabled = await WebRTC.toggleScreenShare(call.remoteUserId);
             // Update screen share state in store
-            if (isEnabled !== chat.call.isSharingScreen) {
+            if (isEnabled !== call.isSharingScreen) {
                 toggleScreenShare();
             }
         }
@@ -336,7 +337,7 @@ export default function useCall() {
     }
 
     return {
-        call: chat.call,
+        call: call,
         initiateCall,
         acceptCall,
         rejectCall,

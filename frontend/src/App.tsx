@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, matchRoutes, Navigate, type RouteObject } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { ElectronTitleBar } from "./Electron";
-import { useAppState } from "./pages/chat/state";
+import { useUserStore } from "./state/user";
 import { lazy, useEffect, useRef, useState } from "react";
 import { parseProfileLink } from "./core/profileLinks";
 import NotFoundPage from "./pages/not-found/NotFoundPage";
@@ -117,14 +117,14 @@ function AnimatedRoutes() {
 }
 
 export default function App() {
-    const { restoreUserFromStorage, user } = useAppState();
+    const { restoreFromStorage, user } = useUserStore();
     const [authReady, setAuthReady] = useState(false);
 
     useEffect(() => {
-        restoreUserFromStorage().finally(() => {
+        restoreFromStorage().finally(() => {
             setAuthReady(true);
         });
-    }, [restoreUserFromStorage]);
+    }, [restoreFromStorage]);
     
     return authReady && (
         <BrowserRouter>

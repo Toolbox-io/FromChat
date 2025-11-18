@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { useAppState } from "@/pages/chat/state";
+import { useChatStore } from "@/state/chat";
+import { useUserStore } from "@/state/user";
+import { usePresenceStore } from "@/state/presence";
+import { useProfileStore } from "@/state/profile";
 import { MessagePanel, type MessagePanelState } from "./panels/MessagePanel";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInputWrapper } from "./ChatInputWrapper";
@@ -23,19 +26,20 @@ interface MessagePanelRendererProps {
 }
 
 function ChatHeaderText({ panel }: { panel: MessagePanel | null }) {
-    const { chat, user } = useAppState();
+    const { typingUsers, dmTypingUsers } = usePresenceStore();
+    const { user } = useUserStore();
     const otherTypingUsers = useMemo(() => {
         return Array
-            .from(chat.typingUsers.entries())
+            .from(typingUsers.entries())
             .filter(([userId, username]) => userId !== user.currentUser?.id && username)
             .map(([, username]) => username!);
-    }, [chat.typingUsers, user.currentUser?.id]);
+    }, [typingUsers, user.currentUser?.id]);
 
     let content: ReactNode;
 
     if (panel instanceof DMPanel) {
         const recipientId = panel.getRecipientId()!;
-        const isTyping = chat.dmTypingUsers.get(recipientId);
+        const isTyping = dmTypingUsers.get(recipientId);
 
         content = isTyping ? <TypingIndicator typingUsers={[]} /> : <OnlineStatus userId={recipientId} />;
     } else if (panel instanceof PublicChatPanel && otherTypingUsers.length > 0) {
@@ -48,7 +52,8 @@ function ChatHeaderText({ panel }: { panel: MessagePanel | null }) {
 }
 
 export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
-    const { applyPendingPanel, chat, setProfileDialog } = useAppState();
+    const { applyPendingPanel, isSwitching, pendingPanel, activePanel, setIsSwitching } = useChatStore();
+    const { setProfileDialog } = useProfileStore();
     const messagePanelRef = useRef<HTMLDivElement>(null);
     const [panelState, setPanelState] = useState<MessagePanelState | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -121,30 +126,30 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
 
     // Handle chat switching animation
     useEffect(() => {
-        if (chat.isSwitching && chat.pendingPanel) {
+        if (isSwitching && pendingPanel) {
             // Apply pending panel when animation starts
             applyPendingPanel();
             // End switching state after a brief delay to allow animation
             setTimeout(() => {
-                chat.setIsSwitching(false);
+                setIsSwitching(false);
             }, 200);
         }
-    }, [chat.isSwitching, chat.pendingPanel, applyPendingPanel]);
+    }, [isSwitching, pendingPanel, applyPendingPanel, setIsSwitching]);
 
     // Load messages when panel changes and animation is not running
     useEffect(() => {
-        if (!chat.activePanel || chat.isSwitching) return;
+        if (!activePanel || isSwitching) return;
 
-        const panelState = chat.activePanel.getState();
+        const panelState = activePanel.getState();
 
         if (panelState.messages.length === 0 && !panelState.isLoading) {
-            chat.activePanel.loadMessages();
+            activePanel.loadMessages();
         }
-    }, [chat.activePanel, chat.isSwitching]);
+    }, [activePanel, isSwitching]);
 
     // Scroll to bottom only when new messages are added
     useEffect(() => {
-        if (!panelState || chat.isSwitching) return;
+        if (!panelState || isSwitching) return;
 
         const currentMessageCount = panelState.messages.length;
         const previousMessageCount = previousMessageCountRef.current;
@@ -168,7 +173,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
 
         // Update the previous message count
         previousMessageCountRef.current = currentMessageCount;
-    }, [panelState?.messages, panelState?.isLoading, chat.isSwitching]);
+    }, [panelState?.messages, panelState?.isLoading, isSwitching]);
 
     function handleCallClick() {
         if (panel && panelState && panel.isDm()) {
@@ -195,7 +200,7 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
         }
     }
 
-    const panelKey = chat.activePanel?.getState().title || "empty";
+    const panelKey = activePanel?.getState().title || "empty";
 
     return (
         <div className={styles.chatContainer}>

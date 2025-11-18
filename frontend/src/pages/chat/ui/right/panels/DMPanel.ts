@@ -9,7 +9,7 @@ import {
 } from "@/core/api/dm";
 import { fetchUserProfileById } from "@/core/api/account/profile";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
-import type { UserState, ProfileDialogData } from "@/pages/chat/state";
+import type { UserState, ProfileDialogData } from "@/state/types";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { typingManager } from "@/core/typingManager";

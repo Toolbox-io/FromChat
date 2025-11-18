@@ -2,14 +2,16 @@ import { PRODUCT_NAME } from "@/core/config";
 import useProfile from "@/pages/chat/hooks/useProfile";
 import defaultAvatar from "@/images/default-avatar.png";
 import { useState } from "react";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
+import { useProfileStore } from "@/state/profile";
 import { MinimizedCallBar } from "@/pages/chat/ui/right/calls/MinimizedCallBar";
 import styles from "@/pages/chat/css/left-panel.module.scss";
 import logoIcon from "@/images/logo.svg";
 
 export function ChatHeader({ headerRef }: { headerRef?: React.RefObject<HTMLElement | null> }) {
     const { profileData } = useProfile();
-    const { setProfileDialog, user } = useAppState();
+    const { user } = useUserStore();
+    const { setProfileDialog } = useProfileStore();
     const [profilePictureUrl, setProfilePictureUrl] = useState(profileData?.profile_picture || defaultAvatar);
 
     function handleProfileClick() {

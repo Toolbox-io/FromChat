@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
+import { useChatStore } from "@/state/chat";
 import {
     fetchUserPublicKey,
     fetchDMHistory,
@@ -44,7 +45,8 @@ export function formatDMMessageContent(
 }
 
 export function useDM() {
-    const { user, setDmUsers, setActiveDm, addMessage, clearMessages } = useAppState();
+    const { user } = useUserStore();
+    const { setDmUsers, setActiveDm, addMessage, clearMessages } = useChatStore();
     const [dmUsers, setDmUsersState] = useState<DMUser[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -295,7 +297,7 @@ export function useDM() {
                 // If conversation no longer exists, remove the user from the list
                 setDmUsersState(prev => prev.filter(u => u.id !== userId));
                 // Get current dmUsers and filter out the removed user
-                const currentDmUsers = useAppState.getState().chat.dmUsers;
+                const currentDmUsers = useChatStore.getState().dmUsers;
                 setDmUsers(currentDmUsers.filter((u: User) => u.id !== userId));
             }
         } catch (error) {

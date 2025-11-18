@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { verifyUser } from "@/core/api/account/profile";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
 import { MaterialButton } from "@/utils/material";
 
 interface VerifyButtonProps {
@@ -11,7 +11,7 @@ interface VerifyButtonProps {
 
 export function VerifyButton({ userId, verified, onVerificationChange }: VerifyButtonProps) {
     const [isVerifying, setIsVerifying] = useState(false);
-    const { user } = useAppState();
+    const { user } = useUserStore();
 
     // Only show for owner
     if (user.currentUser?.id !== 1) {

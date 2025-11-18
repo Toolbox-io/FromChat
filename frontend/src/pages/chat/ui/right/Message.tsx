@@ -8,7 +8,8 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { getCurrentKeys, getAuthHeaders } from "@/core/api/account";
 import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
-import { useAppState } from "@/pages/chat/state";
+import { useUserStore } from "@/state/user";
+import { useProfileStore } from "@/state/profile";
 import { fetchUserProfileById, fetchUserProfile } from "@/core/api/account/profile";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import { ub64 } from "@/utils/utils";
@@ -25,7 +26,7 @@ interface MessageReactionsProps {
 }
 
 function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsProps) {
-    const { user } = useAppState();
+    const { user } = useUserStore();
     const [visibleReactions, setVisibleReactions] = useState<Reaction[]>([]);
     const [animatingReactions, setAnimatingReactions] = useState<Set<string>>(new Set());
     const [isVisible, setIsVisible] = useState(false);
@@ -162,7 +163,8 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         endRect: Rect;
     } | null>(null);
     const [isAnimatingOpen, setIsAnimatingOpen] = useState(false);
-    const { user, setProfileDialog } = useAppState();
+    const { user } = useUserStore();
+    const { setProfileDialog } = useProfileStore();
     const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
     const dmEnvelope = message.runtimeData?.dmEnvelope;
 
