@@ -4,7 +4,7 @@ import type { ProfileDialogData } from "@/pages/chat/state";
 import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm";
 import { prompt } from "mdui/functions/prompt";
-import { updateProfile, uploadProfilePicture, fetchUserProfileById } from "@/core/api/profileApi";
+import { updateProfile, uploadProfilePicture, fetchUserProfileById, suspendUser, unsuspendUser, deleteUser } from "@/core/api/account/profile";
 import { RichTextArea } from "@/core/components/RichTextArea";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import { VerifyButton } from "@/core/components/VerifyButton";
@@ -349,37 +349,20 @@ export function ProfileDialog() {
                 });
 
                 if (reason) {
-                    const response = await fetch(`/api/user/${currentData.userId}/suspend`, {
-                        method: "POST",
-                        headers: {
-                            "Authorization": `Bearer ${user.authToken}`,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({ reason })
-                    });
-
-                    if (response.ok) {
+                    const result = await suspendUser(currentData.userId, reason, user.authToken!);
+                    if (result) {
                         closeProfileDialog();
                     } else {
-                        const error = await response.json();
-                        console.error("Failed to suspend user:", error);
+                        console.error("Failed to suspend user");
                     }
                 }
             } else {
                 // Unsuspend user
-                const response = await fetch(`/api/user/${currentData.userId}/unsuspend`, {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${user.authToken}`,
-                        "Content-Type": "application/json"
-                    }
-                });
-
-                if (response.ok) {
+                const result = await unsuspendUser(currentData.userId, user.authToken!);
+                if (result) {
                     closeProfileDialog();
                 } else {
-                    const error = await response.json();
-                    console.error("Failed to unsuspend user:", error);
+                    console.error("Failed to unsuspend user");
                 }
             }
         } catch (error) {
@@ -398,19 +381,12 @@ export function ProfileDialog() {
                 cancelText: "Cancel"
             });
 
-            const response = await fetch(`/api/user/${currentData.userId}/delete`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${user.authToken}`,
-                    "Content-Type": "application/json"
-                }
-            });
+            const result = await deleteUser(currentData.userId, user.authToken!);
 
-            if (response.ok) {
+            if (result) {
                 closeProfileDialog();
             } else {
-                const error = await response.json();
-                console.error("Failed to delete user:", error);
+                console.error("Failed to delete user");
             }
         } catch (error) {
             // User cancelled or error occurred

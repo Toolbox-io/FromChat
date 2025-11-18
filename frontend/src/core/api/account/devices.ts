@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/authApi";
+import { getAuthHeaders } from "./index";
 
 export interface DeviceInfo {
     session_id: string;
@@ -18,20 +18,19 @@ export interface DeviceInfo {
 }
 
 export async function listDevices(token: string): Promise<DeviceInfo[]> {
-    const res = await fetch(`${API_BASE_URL}/devices`, { headers: getAuthHeaders(token) });
+    const res = await fetch(`${API_BASE_URL}/devices`, { headers: getAuthHeaders(token, true) });
     if (!res.ok) throw new Error("Failed to fetch devices");
     const data = await res.json();
     return data.devices as DeviceInfo[];
 }
 
 export async function revokeDevice(token: string, sessionId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/devices/${sessionId}`, { method: "DELETE", headers: getAuthHeaders(token) });
+    const res = await fetch(`${API_BASE_URL}/devices/${sessionId}`, { method: "DELETE", headers: getAuthHeaders(token, true) });
     if (!res.ok) throw new Error("Failed to revoke device");
 }
 
 export async function logoutAllOtherDevices(token: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/devices/logout-all`, { method: "POST", headers: getAuthHeaders(token) });
+    const res = await fetch(`${API_BASE_URL}/devices/logout-all`, { method: "POST", headers: getAuthHeaders(token, true) });
     if (!res.ok) throw new Error("Failed to logout all devices");
 }
-
 

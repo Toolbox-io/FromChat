@@ -2,7 +2,7 @@ import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "@/utils/crypto/sy
 import { randomBytes } from "@/utils/crypto/kdf";
 import { b64, ub64 } from "@/utils/utils";
 import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
-import { getCurrentKeys } from "@/core/api/authApi";
+import { getCurrentKeys } from "@/core/api/account";
 import type { WrappedSessionKeyPayload } from "@/core/types";
 
 export interface CallSessionKey {

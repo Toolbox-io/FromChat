@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyledDialog } from "@/core/components/StyledDialog";
 import type { DialogProps } from "@/core/types";
 import { useAppState } from "@/pages/chat/state";
-import { changePassword } from "@/core/api/securityApi";
+import { changePassword } from "@/core/api/account";
 import { MaterialButton, MaterialIconButton, MaterialSwitch, MaterialTextField } from "@/utils/material";
 import styles from "@/pages/chat/css/changePasswordDialog.module.scss";
 

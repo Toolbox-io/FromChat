@@ -5,7 +5,7 @@ import { CallWindow } from "./right/calls/CallWindow";
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppState } from "@/pages/chat/state";
-import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
+import { fetchUserProfileById, fetchUserProfile } from "@/core/api/account/profile";
 import styles from "@/pages/chat/css/layout.module.scss";
 
 export default function ChatPage() {

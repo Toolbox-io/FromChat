@@ -1,9 +1,8 @@
 import { MessagePanel } from "./MessagePanel";
-import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/authApi";
 import { request } from "@/core/websocket";
-import type { ChatWebSocketMessage, Message, SendMessageRequest, ReactionUpdateWebSocketMessage } from "@/core/types";
+import type { ChatWebSocketMessage, Message, ReactionUpdateWebSocketMessage } from "@/core/types";
 import type { UserState, ProfileDialogData } from "@/pages/chat/state";
+import { fetchMessages, sendMessage, sendMessageWithFiles } from "@/core/api/messaging";
 
 export class PublicChatPanel extends MessagePanel {
     private messagesLoaded: boolean = false;
@@ -42,18 +41,12 @@ export class PublicChatPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/get_messages`, {
-                headers: getAuthHeaders(this.currentUser.authToken)
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.messages && data.messages.length > 0) {
-                    this.clearMessages();
-                    data.messages.forEach((msg: Message) => {
-                        this.addMessage(msg);
-                    });
-                }
+            const messages = await fetchMessages(this.currentUser.authToken);
+            if (messages && messages.length > 0) {
+                this.clearMessages();
+                messages.forEach((msg: Message) => {
+                    this.addMessage(msg);
+                });
             }
             this.messagesLoaded = true;
         } catch (error) {
@@ -68,35 +61,9 @@ export class PublicChatPanel extends MessagePanel {
 
         try {
             if (files.length === 0) {
-                const response = await request({
-                    data: {
-                        content: content.trim(),
-                        reply_to_id: replyToId ?? null
-                    },
-                    credentials: {
-                        scheme: "Bearer",
-                        credentials: this.currentUser.authToken
-                    },
-                    type: "sendMessage"
-                } satisfies SendMessageRequest);
-                if (response.error) {
-                    console.error("Error sending message:", response.error);
-                }
+                await sendMessage(content, replyToId ?? null, this.currentUser.authToken);
             } else {
-                const form = new FormData();
-                form.append("payload", JSON.stringify({
-                    content: content.trim(),
-                    reply_to_id: replyToId ?? null
-                } satisfies SendMessageRequest["data"]));
-                for (const f of files) form.append("files", f, f.name);
-                const res = await fetch(`${API_BASE_URL}/send_message`, {
-                    method: "POST",
-                    headers: getAuthHeaders(this.currentUser.authToken, false),
-                    body: form
-                });
-                if (!res.ok) {
-                    console.error("Error sending message with files", await res.text());
-                }
+                await sendMessageWithFiles(content, replyToId ?? null, files, this.currentUser.authToken);
             }
         } catch (error) {
             console.error("Error sending message:", error);

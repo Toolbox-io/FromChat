@@ -1,8 +1,9 @@
-import { getAuthHeaders, getAuthToken } from "@/core/api/authApi";
-import type { CallSignalingMessage, IceServersResponse, WrappedSessionKeyPayload } from "@/core/types";
+import { getAuthToken } from "@/core/api/account";
+import type { CallSignalingMessage, WrappedSessionKeyPayload } from "@/core/types";
+import { getIceServers as fetchIceServers } from "@/core/api/webrtc";
 import { request } from "@/core/websocket";
 import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender, rotateCallSessionKey } from "./encryption";
-import { fetchUserPublicKey } from "@/core/api/dmApi";
+import { fetchUserPublicKey } from "@/core/api/dm";
 import { importAesGcmKey } from "@/utils/crypto/symmetric";
 import E2EEWorker from "./e2eeWorker?worker";
 import { delay } from "@/utils/utils";
@@ -99,16 +100,10 @@ export class WebRTCCall {
      */
     private async getIceServers(): Promise<RTCIceServer[]> {
         try {
-            const response = await fetch("/api/webrtc/ice", {
-                headers: getAuthHeaders(getAuthToken()!)
-            });
-
-            if (response.ok) {
-                const data = await response.json() as IceServersResponse;
-                return data.iceServers || [];
-            } else {
-                console.warn("Failed to fetch ICE servers:", response.status, response.statusText);
-            }
+            const token = getAuthToken();
+            if (!token) throw new Error("No auth token");
+            const data = await fetchIceServers(token);
+            return data.iceServers || [];
         } catch (error) {
             console.warn("Failed to fetch ICE servers:", error);
         }

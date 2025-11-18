@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { useDM, type DMUser } from "@/pages/chat/hooks/useDM";
-import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/authApi";
-import { fetchUserPublicKey } from "@/core/api/dmApi";
+import { fetchMessages } from "@/core/api/messaging";
+import { fetchUserPublicKey } from "@/core/api/dm";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { Message } from "@/core/types";
 import { websocket } from "@/core/websocket";
@@ -51,16 +50,10 @@ export function UnifiedChatsList() {
         if (!user.authToken) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/get_messages`, {
-                headers: getAuthHeaders(user.authToken)
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.messages?.length > 0) {
-                    const lastMessage = data.messages[data.messages.length - 1];
-                    setLastMessages({ general: lastMessage });
-                }
+            const messages = await fetchMessages(user.authToken, 1);
+            if (messages?.length > 0) {
+                const lastMessage = messages[messages.length - 1];
+                setLastMessages({ general: lastMessage });
             }
         } catch (error) {
             console.error("Error loading last messages:", error);

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/core/config";
+import { subscribeToPush } from "@/core/api/push";
 import { isElectron } from "@/core/electron/electron";
 import { websocket } from "@/core/websocket";
 import type { NewMessageWebSocketMessage, WebSocketMessage } from "@/core/types";
@@ -89,16 +89,8 @@ async function sendSubscriptionToServer(token: string): Promise<boolean> {
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}/push/subscribe`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify(subscriptionData)
-        });
-
-        return response.ok;
+        await subscribeToPush(subscriptionData, token);
+        return true;
     } catch (error) {
         console.error("Failed to send subscription to server:", error);
         return false;

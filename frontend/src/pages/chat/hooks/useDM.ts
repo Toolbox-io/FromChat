@@ -7,7 +7,7 @@ import {
     sendDMViaWebSocket,
     fetchDMConversations,
     type DMConversationResponse
-} from "@/core/api/dmApi";
+} from "@/core/api/dm";
 import type { User, Message, DmEncryptedJSON } from "@/core/types";
 import { websocket } from "@/core/websocket";
 

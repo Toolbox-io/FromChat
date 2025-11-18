@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { checkUserSimilarity } from "@/core/api/profileApi";
+import { checkUserSimilarity } from "@/core/api/account/profile";
 import { useAppState } from "@/pages/chat/state";
 import { MaterialIcon } from "@/utils/material";
 

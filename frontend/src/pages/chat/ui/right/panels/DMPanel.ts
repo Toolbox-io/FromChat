@@ -6,8 +6,8 @@ import {
     sendDmWithFiles,
     editDmEnvelope,
     deleteDmEnvelope
-} from "@/core/api/dmApi";
-import { fetchUserProfileById } from "@/core/api/profileApi";
+} from "@/core/api/dm";
+import { fetchUserProfileById } from "@/core/api/account/profile";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
 import type { UserState, ProfileDialogData } from "@/pages/chat/state";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";

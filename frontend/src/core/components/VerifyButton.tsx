@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { verifyUser } from "@/core/api/profileApi";
+import { verifyUser } from "@/core/api/account/profile";
 import { useAppState } from "@/pages/chat/state";
 import { MaterialButton } from "@/utils/material";
 

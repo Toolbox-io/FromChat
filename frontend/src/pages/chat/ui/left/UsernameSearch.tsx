@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAppState } from "@/pages/chat/state";
-import { searchUsers, fetchUserPublicKey } from "@/core/api/dmApi";
+import { searchUsers, fetchUserPublicKey } from "@/core/api/dm";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { User } from "@/core/types";
 import { onlineStatusManager } from "@/core/onlineStatusManager";

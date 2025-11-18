@@ -3,8 +3,7 @@ import { MaterialList, MaterialListItem, MaterialSwitch, type MDUISwitch } from 
 import { useAppState } from "@/pages/chat/state";
 import { initialize, subscribe, unsubscribe, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
-import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/authApi";
+import { unsubscribeFromPush } from "@/core/api/push";
 import styles from "@/pages/chat/css/settings-dialog.module.scss";
 
 export function NotificationsPanel() {
@@ -74,14 +73,7 @@ export function NotificationsPanel() {
                 }
 
                 // Then unsubscribe from server
-                const response = await fetch(`${API_BASE_URL}/push/unsubscribe`, {
-                    method: "DELETE",
-                    headers: getAuthHeaders(authToken)
-                });
-
-                if (!response.ok) {
-                    throw new Error("Failed to unsubscribe from push notifications");
-                }
+                await unsubscribeFromPush(authToken);
 
                 // After unsubscribing, permission is still granted but we're not subscribed
                 // So we keep the state as disabled (false)

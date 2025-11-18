@@ -4,9 +4,9 @@ import { request } from "@/core/websocket";
 import { MessagePanel } from "./ui/right/panels/MessagePanel";
 import { PublicChatPanel } from "./ui/right/panels/PublicChatPanel";
 import { DMPanel, type DMPanelData } from "./ui/right/panels/DMPanel";
-import { getAuthHeaders } from "@/core/api/authApi";
-import { restoreKeys } from "@/core/api/authApi";
+import { restoreKeys } from "@/core/api/account";
 import { API_BASE_URL } from "@/core/config";
+import { getAuthHeaders } from "@/core/api/account";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
@@ -298,12 +298,12 @@ export const useAppState = create<AppState>((set, get) => ({
             const token = localStorage.getItem('authToken');
 
             if (token) {
-                const response = await fetch(`${API_BASE_URL}/user/profile`, {
-                    headers: getAuthHeaders(token)
+                // Fetch full user profile
+                const fullResponse = await fetch(`${API_BASE_URL}/user/profile`, {
+                    headers: getAuthHeaders(token, true)
                 });
-
-                if (response.ok) {
-                    const user: User = await response.json();
+                if (fullResponse.ok) {
+                    const user: User = await fullResponse.json();
                     restoreKeys();
 
                     // Check if user is suspended

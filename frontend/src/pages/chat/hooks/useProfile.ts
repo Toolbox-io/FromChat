@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAppState } from "@/pages/chat/state";
-import { loadProfile, updateProfile, uploadProfilePicture, type ProfileData } from "@/core/api/profileApi";
+import { loadProfile, updateProfile, uploadProfilePicture, type ProfileData } from "@/core/api/account/profile";
 import { showSuccess, showError } from "@/utils/notification";
 
 export default function useProfile() {
