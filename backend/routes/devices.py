@@ -60,6 +60,9 @@ def revoke_device(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    if not session_id or len(session_id) > 64 or len(session_id) < 1:
+        raise HTTPException(status_code=400, detail="Invalid session ID")
+    
     s = (
         db.query(DeviceSession)
         .filter(DeviceSession.user_id == current_user.id, DeviceSession.session_id == session_id)

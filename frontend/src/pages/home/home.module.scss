@@ -58,7 +58,7 @@
                     font-weight: 700;
                     margin: 0;
                     background: linear-gradient(45deg, $color-dark-primary, $color-dark-tertiary);
-                    -webkit-background-clip: text;
+                    background-clip: text;
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
                     text-shadow: 0 0 20px rgba($color-dark-primary, 0.5);
@@ -99,7 +99,7 @@
                 line-height: 1.1;
                 margin-bottom: 1.5rem;
                 background: linear-gradient(45deg, $color-dark-primary, $color-dark-tertiary, $color-dark-secondary);
-                -webkit-background-clip: text;
+                background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 text-shadow: 0 0 30px rgba($color-dark-primary, 0.5);
@@ -246,7 +246,7 @@
             font-weight: 700;
             margin-bottom: 3rem;
             background: linear-gradient(45deg, $color-dark-primary, $color-dark-tertiary);
-            -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             text-shadow: 0 0 20px rgba($color-dark-primary, 0.5);
@@ -348,7 +348,7 @@
                 font-weight: 700;
                 margin-bottom: 1.5rem;
                 background: linear-gradient(45deg, $color-dark-primary, $color-dark-tertiary);
-                -webkit-background-clip: text;
+                background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 text-shadow: 0 0 20px rgba($color-dark-primary, 0.5);
@@ -387,7 +387,7 @@
                 font-weight: 700;
                 margin-bottom: 1.5rem;
                 background: linear-gradient(45deg, $color-dark-primary, $color-dark-tertiary);
-                -webkit-background-clip: text;
+                background-clip: text;
                 -webkit-text-fill-color: transparent;
                 background-clip: text;
                 text-shadow: 0 0 20px rgba($color-dark-primary, 0.5);

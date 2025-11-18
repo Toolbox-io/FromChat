@@ -131,7 +131,7 @@ async def get_user_profile(
         verified=current_user.verified,
         suspended=current_user.suspended or False,
         suspension_reason=current_user.suspension_reason,
-        deleted=current_user.deleted or False,
+        deleted=(current_user.deleted or current_user.suspended) or False,  # Treat suspended as deleted
     )
 
 
@@ -160,7 +160,7 @@ async def list_users(
                 verified=user.verified,
                 suspended=user.suspended or False,
                 suspension_reason=user.suspension_reason,
-                deleted=user.deleted or False,
+                deleted=(user.deleted or user.suspended) or False,  # Treat suspended as deleted
             ).model_dump()
             for user in users
         ]
@@ -275,12 +275,32 @@ async def get_user_by_username(
     """
     Get user profile by username
     """
+    if not username or not is_valid_username(username):
+        raise HTTPException(status_code=400, detail="Invalid username format")
+    
     user = db.query(User).filter(User.username == username).first()
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     _ensure_owner_unsuspended(user, db)
+    
+    # Handle deleted or suspended users
+    if user.deleted or user.suspended:
+        return UserProfileResponse(
+            id=user.id,
+            username="deleted",
+            display_name="Deleted User",
+            profile_picture=None,
+            bio=None,
+            online=False,
+            last_seen=None,  # Clear last seen timestamp
+            created_at=None,  # Clear member since timestamp
+            verified=False,
+            suspended=False,
+            suspension_reason=None,
+            deleted=True
+        )
     
     return UserProfileResponse(
         id=user.id,
@@ -294,7 +314,7 @@ async def get_user_by_username(
         verified=user.verified,
         suspended=user.suspended or False,
         suspension_reason=user.suspension_reason,
-        deleted=user.deleted or False,
+        deleted=(user.deleted or user.suspended) or False,  # Treat suspended as deleted
     )
 
 @router.get("/user/id/{user_id}")
@@ -305,6 +325,9 @@ async def get_user_by_id(
     """
     Get user profile by user ID
     """
+    if user_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user:
@@ -312,8 +335,8 @@ async def get_user_by_id(
 
     _ensure_owner_unsuspended(user, db)
     
-    # Handle deleted users
-    if user.deleted:
+    # Handle deleted or suspended users
+    if user.deleted or user.suspended:
         return UserProfileResponse(
             id=user.id,
             username="deleted",

@@ -1,22 +1,21 @@
 import { useAppState } from "@/pages/chat/state";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { SettingsDialog } from "./settings/SettingsDialog";
 import { UsernameSearch } from "./UsernameSearch";
-import { ChatTabs } from "./ChatTabs";
+import { UnifiedChatsList } from "./UnifiedChatsList";
 import { ChatHeader } from "./ChatHeader";
-import { MaterialBottomAppBar, MaterialFab, MaterialIconButton } from "@/utils/material";
+import { MaterialBottomAppBar, MaterialFab, MaterialIconButton, type MDUIBottomAppBar } from "@/utils/material";
 import styles from "@/pages/chat/css/left-panel.module.scss";
 
-function BottomAppBar() {
+function BottomAppBar({ bottomAppBarRef }: { bottomAppBarRef?: React.RefObject<MDUIBottomAppBar | null> }) {
     const [settingsOpen, onSettingsOpenChange] = useState(false);
     const { logout } = useAppState();
 
     return (
         <>
-            <MaterialBottomAppBar>
+            <MaterialBottomAppBar ref={bottomAppBarRef}>
                 <MaterialIconButton icon="settings--filled" id="settings-open" onClick={() => onSettingsOpenChange(true)} />
-                <MaterialIconButton icon="group_add--filled" />
-                <div style={{ flexGrow: 1 }}></div>
+                <div style={{ flexGrow: 1 }} />
                 <MaterialIconButton
                     icon="logout--filled"
                     id="logout-btn"
@@ -30,14 +29,18 @@ function BottomAppBar() {
 }
 
 export function LeftPanel() {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const headerRef = useRef<HTMLElement>(null);
+    const bottomAppBarRef = useRef<MDUIBottomAppBar>(null);
+    
     return (
-        <div className={styles.chatList} id="chat-list">
-            <ChatHeader />
+        <div className={styles.chatList} ref={containerRef}>
+            <ChatHeader headerRef={headerRef} />
             <div className={styles.searchContainer}>
-                <UsernameSearch />
+                <UsernameSearch containerRef={containerRef} headerRef={headerRef} bottomAppBarRef={bottomAppBarRef} />
             </div>
-            <ChatTabs />
-            <BottomAppBar />
+            <UnifiedChatsList />
+            <BottomAppBar bottomAppBarRef={bottomAppBarRef} />
         </div>
     );
 }

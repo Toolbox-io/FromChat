@@ -107,7 +107,7 @@ class PushNotificationService:
             payload = {
                 "title": title,
                 "body": body,
-                "icon": icon or "/logo.png",
+                "icon": icon or "about:blank",
                 "tag": f"message_{user_id}",
                 "data": data
             }

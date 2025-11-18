@@ -1,8 +1,9 @@
+from datetime import datetime
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from utils import *
-from models import *
+from utils import verify_token
+from models import User, DeviceSession
 from db import SessionLocal
 
 security = HTTPBearer()

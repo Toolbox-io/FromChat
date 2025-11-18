@@ -8,7 +8,7 @@ import { OnlineIndicator } from "@/pages/chat/ui/right/OnlineIndicator";
 import { OnlineStatus } from "@/pages/chat/ui/right/OnlineStatus";
 import defaultAvatar from "@/images/default-avatar.png";
 import SearchBar from "@/core/components/SearchBar";
-import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem } from "@/utils/material";
+import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem, type MDUIBottomAppBar } from "@/utils/material";
 import styles from "@/pages/chat/css/left-panel.module.scss";
 
 interface SearchUser extends User {
@@ -16,7 +16,13 @@ interface SearchUser extends User {
     verified?: boolean;
 }
 
-export function UsernameSearch() {
+export interface UsernameSearchProps {
+    containerRef: React.RefObject<HTMLElement | null>;
+    headerRef?: React.RefObject<HTMLElement | null>;
+    bottomAppBarRef?: React.RefObject<MDUIBottomAppBar | null>;
+}
+
+export function UsernameSearch({ containerRef, headerRef, bottomAppBarRef }: UsernameSearchProps) {
     const { user, switchToDM, chat } = useAppState();
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
@@ -165,6 +171,9 @@ export function UsernameSearch() {
                     icon="arrow_back--outlined"
                 />
             ) : "search--outlined"}
+            containerRef={containerRef}
+            headerRef={headerRef}
+            bottomAppBarRef={bottomAppBarRef}
         >
             {isSearching && (
                 <div className={styles.searchLoading}>

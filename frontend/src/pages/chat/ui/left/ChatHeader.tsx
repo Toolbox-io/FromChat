@@ -5,13 +5,14 @@ import { useState } from "react";
 import { useAppState } from "@/pages/chat/state";
 import { MinimizedCallBar } from "@/pages/chat/ui/right/calls/MinimizedCallBar";
 import styles from "@/pages/chat/css/left-panel.module.scss";
+import logoIcon from "@/images/logo.svg";
 
-export function ChatHeader() {
+export function ChatHeader({ headerRef }: { headerRef?: React.RefObject<HTMLElement | null> }) {
     const { profileData } = useProfile();
     const { setProfileDialog, user } = useAppState();
     const [profilePictureUrl, setProfilePictureUrl] = useState(profileData?.profile_picture || defaultAvatar);
 
-    const handleProfileClick = () => {
+    function handleProfileClick() {
         setProfileDialog({
             userId: user.currentUser?.id,
             username: profileData?.username || "Пользователь",
@@ -26,7 +27,8 @@ export function ChatHeader() {
 
     return (
         <>
-            <header className={styles.chatHeaderLeft}>
+            <header className={styles.chatHeaderLeft} ref={headerRef}>
+                <img src={logoIcon} alt="Logo" className={styles.logo} />
                 <div className={styles.productName}>{PRODUCT_NAME}</div>
                 <div className={styles.profile}>
                     <a href="#" id="profile-open" onClick={handleProfileClick}>

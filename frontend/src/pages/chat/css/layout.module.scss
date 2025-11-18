@@ -4,13 +4,14 @@
 
 .chatInterface {
     height: 100%;
-    background: linear-gradient(135deg, $color-dark-background 0%, $color-dark-surface-container 70%, rgba($color-dark-primary-container, 0.3) 100%);
+    background: $color-dark-background;
+    // background: linear-gradient(135deg, $color-dark-background 0%, $color-dark-surface-container 70%, rgba($color-dark-primary-container, 0.3) 100%);
     position: relative;
     overflow: hidden;
 
     &::before {
         content: '';
-        position: fixed;
+        position: absolute;
         top: 0;
         left: 0;
         right: 0;
@@ -20,7 +21,7 @@
             radial-gradient(circle at 80% 20%, rgba($color-dark-tertiary, 0.15) 0%, transparent 50%),
             radial-gradient(circle at 40% 40%, rgba($color-dark-secondary, 0.1) 0%, transparent 50%);
         pointer-events: none;
-        z-index: 0;
+        z-index: 10;
     }
 
     .allContainer {

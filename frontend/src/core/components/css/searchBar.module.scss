@@ -42,7 +42,7 @@ $font-size: 16px;
         top: 0;
         left: 0;
         right: 0;
-        bottom: 0;
+        // bottom will be set dynamically by React to account for bottom app bar
         border-radius: 0;
         background-color: $color-dark-surface-container;
         // Height will be set dynamically by React

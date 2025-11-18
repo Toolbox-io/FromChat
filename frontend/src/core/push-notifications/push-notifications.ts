@@ -3,6 +3,7 @@ import { isElectron } from "@/core/electron/electron";
 import { websocket } from "@/core/websocket";
 import type { NewMessageWebSocketMessage, WebSocketMessage } from "@/core/types";
 import serviceWorker from "./service-worker?worker&url";
+import logo from "@/images/logo.svg";
 
 export interface PushSubscriptionData {
     endpoint: string;
@@ -111,7 +112,7 @@ async function showMessageNotification(message: any): Promise<void> {
             body: message.content.length > 100
                 ? message.content.substring(0, 100) + "..."
                 : message.content,
-            icon: message.profile_picture || "/logo.png",
+            icon: message.profile_picture || logo,
             tag: `message_${message.id}`,
             data: {
                 type: "public_message",
