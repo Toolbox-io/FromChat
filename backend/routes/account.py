@@ -53,7 +53,7 @@ def convert_user(user: User) -> dict:
         "verified": user.verified,
         "suspended": user.suspended or False,
         "suspension_reason": user.suspension_reason,
-        "deleted": user.deleted or False
+        "deleted": (user.deleted or user.suspended) or False  # Treat suspended as deleted
     }
 
 @router.get("/check_auth")

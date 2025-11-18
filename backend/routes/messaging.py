@@ -164,8 +164,8 @@ def convert_message(msg: Message) -> dict:
                 "username": reaction.user.display_name
             })
 
-    # Handle deleted users
-    if msg.author.deleted:
+    # Handle deleted or suspended users
+    if msg.author.deleted or msg.author.suspended:
         username = f"Deleted User #{msg.author.id}"
         profile_picture = None
         verified = False
@@ -222,8 +222,8 @@ def convert_dm_envelope(envelope: DMEnvelope) -> dict:
     db = next(get_db())
     sender = db.query(User).filter(User.id == envelope.sender_id).first()
 
-    # Handle deleted users
-    if sender and sender.deleted:
+    # Handle deleted or suspended users
+    if sender and (sender.deleted or sender.suspended):
         sender_verified = False
     else:
         sender_verified = sender.verified if sender else False

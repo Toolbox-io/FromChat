@@ -131,7 +131,7 @@ async def get_user_profile(
         verified=current_user.verified,
         suspended=current_user.suspended or False,
         suspension_reason=current_user.suspension_reason,
-        deleted=current_user.deleted or False,
+        deleted=(current_user.deleted or current_user.suspended) or False,  # Treat suspended as deleted
     )
 
 
@@ -160,7 +160,7 @@ async def list_users(
                 verified=user.verified,
                 suspended=user.suspended or False,
                 suspension_reason=user.suspension_reason,
-                deleted=user.deleted or False,
+                deleted=(user.deleted or user.suspended) or False,  # Treat suspended as deleted
             ).model_dump()
             for user in users
         ]
@@ -282,6 +282,23 @@ async def get_user_by_username(
 
     _ensure_owner_unsuspended(user, db)
     
+    # Handle deleted or suspended users
+    if user.deleted or user.suspended:
+        return UserProfileResponse(
+            id=user.id,
+            username="deleted",
+            display_name="Deleted User",
+            profile_picture=None,
+            bio=None,
+            online=False,
+            last_seen=None,  # Clear last seen timestamp
+            created_at=None,  # Clear member since timestamp
+            verified=False,
+            suspended=False,
+            suspension_reason=None,
+            deleted=True
+        )
+    
     return UserProfileResponse(
         id=user.id,
         username=user.username,
@@ -294,7 +311,7 @@ async def get_user_by_username(
         verified=user.verified,
         suspended=user.suspended or False,
         suspension_reason=user.suspension_reason,
-        deleted=user.deleted or False,
+        deleted=(user.deleted or user.suspended) or False,  # Treat suspended as deleted
     )
 
 @router.get("/user/id/{user_id}")
@@ -312,8 +329,8 @@ async def get_user_by_id(
 
     _ensure_owner_unsuspended(user, db)
     
-    # Handle deleted users
-    if user.deleted:
+    # Handle deleted or suspended users
+    if user.deleted or user.suspended:
         return UserProfileResponse(
             id=user.id,
             username="deleted",
