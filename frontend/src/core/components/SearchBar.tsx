@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import styles from "./css/searchBar.module.scss";
-import { MaterialIcon } from "@/utils/material";
+import { MaterialIcon, type MDUIBottomAppBar } from "@/utils/material";
 
 interface SearchBarProps {
     placeholder: string;
@@ -11,6 +11,9 @@ interface SearchBarProps {
     onToggleExpanded: () => void;
     leftIcon?: string | React.ReactNode;
     rightIcon?: string | React.ReactNode;
+    containerRef: React.RefObject<HTMLElement | null>;
+    headerRef?: React.RefObject<HTMLElement | null>;
+    bottomAppBarRef?: React.RefObject<MDUIBottomAppBar | null>;
 }
 
 export default function SearchBar({
@@ -21,9 +24,14 @@ export default function SearchBar({
     isExpanded,
     onToggleExpanded,
     leftIcon = "search--outlined",
-    rightIcon = null
+    rightIcon = null,
+    containerRef,
+    headerRef,
+    bottomAppBarRef
 }: SearchBarProps) {
     const [dynamicHeight, setDynamicHeight] = useState<string>("48px");
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const [showResults, setShowResults] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const parentContainerRef = useRef<HTMLDivElement>(null);
@@ -33,17 +41,46 @@ export default function SearchBar({
     useEffect(() => {
         if (isExpanded && inputRef.current) {
             inputRef.current.focus();
-            // Set expanded height
-            const leftPanel = document.getElementById('chat-list');
-            if (leftPanel) {
-                const panelHeight = leftPanel.offsetHeight;
-                setDynamicHeight(`${panelHeight}px`);
+            // Set expanded height, subtracting both header and bottom app bar heights
+            if (containerRef.current) {
+                const panelHeight = containerRef.current.offsetHeight;
+                let headerHeight = 0;
+                let bottomBarHeight = 0;
+                
+                // Get header height
+                if (headerRef?.current) {
+                    headerHeight = headerRef.current.offsetHeight;
+                }
+                
+                // Get bottom app bar height
+                if (bottomAppBarRef?.current) {
+                    bottomBarHeight = bottomAppBarRef.current.offsetHeight;
+                }
+                
+                // Calculate height by subtracting both header and bottom bar heights
+                const availableHeight = panelHeight - headerHeight - bottomBarHeight;
+                setDynamicHeight(`${availableHeight}px`);
             }
         } else {
             // Set collapsed height
             setDynamicHeight("48px");
         }
-    }, [isExpanded]);
+        
+        // Show/hide results and disable overflow during transition
+        if (isExpanded) {
+            setShowResults(true);
+        }
+        
+        setIsTransitioning(true);
+        const timeout = setTimeout(() => {
+            setIsTransitioning(false);
+            if (!isExpanded) {
+                setShowResults(false);
+            }
+        }, 400); // Match transition duration (0.4s)
+        
+        return () => clearTimeout(timeout);
+    }, [isExpanded, containerRef, headerRef, bottomAppBarRef]);
 
     function handleToggle() {
         onToggleExpanded();
@@ -107,9 +144,12 @@ export default function SearchBar({
                     </div>
                 </div>
 
-                {/* Results Section - Only visible when expanded */}
-                {isExpanded && (
-                    <div className={styles.searchResults}>
+                {/* Results Section - Visible during expansion and collapse transition */}
+                {showResults && (
+                    <div 
+                        className={styles.searchResults}
+                        style={{ overflowY: isTransitioning ? "hidden" : "auto" }}
+                    >
                         {children}
                     </div>
                 )}
