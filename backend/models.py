@@ -71,6 +71,15 @@ class CryptoBackup(Base):
     blob_json = Column(Text, nullable=False)
 
 
+class SignalPreKeyBundle(Base):
+    __tablename__ = "signal_prekey_bundle"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, unique=True)
+    bundle_json = Column(Text, nullable=False)  # JSON string of PreKeyBundleData
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 class DMEnvelope(Base):
     __tablename__ = "dm_envelope"
 

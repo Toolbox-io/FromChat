@@ -127,6 +127,7 @@ export async function deriveAuthSecret(username: string, password: string): Prom
     return b64(derived);
 }
 
+
 export async function ensureKeysOnLogin(password: string, token: string): Promise<UserKeyPairMemory> {
 	// Try to restore from backup
 	const blobJson = await fetchBackupBlob(token);

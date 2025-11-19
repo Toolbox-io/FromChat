@@ -1,27 +1,13 @@
-import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { randomBytes } from "@/utils/crypto/kdf";
 import { b64, ub64 } from "@/utils/utils";
-import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
-import api from "@/core/api";
-import type { WrappedSessionKeyPayload } from "@/core/types";
+import { SignalProtocolService } from "@/utils/crypto/signalProtocol";
+import { useUserStore } from "@/state/user";
+import { fetchPreKeyBundle } from "@/core/api/crypto";
+import { getAuthToken } from "@/core/api/account";
 
 export interface CallSessionKey {
     key: Uint8Array;
     hash: string; // For emoji display
-}
-
-export interface CallKeyExchange {
-    type: "call_key_exchange";
-    sessionKeyHash: string;
-    encryptedSessionKey: EncryptedCallMessage;
-}
-
-export interface EncryptedCallMessage {
-    iv: string;
-    ciphertext: string;
-    salt: string;
-    iv2: string;
-    wrappedSessionKey: string;
 }
 
 /**
@@ -61,97 +47,6 @@ export async function rotateCallSessionKey(): Promise<CallSessionKey> {
 }
 
 /**
- * Create session key from hash (for backward compatibility)
- * @deprecated Use deriveCallSessionKeyFromSharedSecret instead
- */
-export async function createCallSessionKeyFromHash(hash: string): Promise<CallSessionKey> {
-    // For backward compatibility, generate a deterministic key from the hash
-    const hashBytes = ub64(hash);
-    const sessionKey = new Uint8Array(32);
-
-    // Repeat the hash bytes to fill 32 bytes
-    for (let i = 0; i < 32; i++) {
-        sessionKey[i] = hashBytes[i % hashBytes.length];
-    }
-
-    return {
-        key: sessionKey,
-        hash
-    };
-}
-
-/**
- * Derive session key from ECDH shared secret and session key hash
- * This creates a deterministic but cryptographically secure key
- */
-export async function deriveCallSessionKeyFromSharedSecret(
-    sharedSecret: Uint8Array,
-    sessionKeyHash: string,
-    isInitiator: boolean
-): Promise<CallSessionKey> {
-    // Use HKDF to derive the session key from the shared secret
-    // Include the session key hash and role to ensure uniqueness
-    const info = new TextEncoder().encode(`call-session-${sessionKeyHash}-${isInitiator ? 'initiator' : 'receiver'}`);
-    const salt = new Uint8Array(32); // Zero salt for deterministic derivation
-
-    // Import the shared secret as a raw key for HKDF
-    const sharedKey = await crypto.subtle.importKey(
-        'raw',
-        sharedSecret.buffer as ArrayBuffer,
-        { name: 'HKDF' },
-        false,
-        ['deriveKey']
-    );
-
-    // Derive the session key using HKDF
-    const sessionKey = await crypto.subtle.deriveKey(
-        {
-            name: 'HKDF',
-            hash: 'SHA-256',
-            salt: salt,
-            info: info
-        },
-        sharedKey,
-        { name: 'AES-GCM', length: 256 },
-        true, // Make the key extractable so we can export it
-        ['encrypt', 'decrypt']
-    );
-
-    // Export the raw key material
-    const sessionKeyMaterial = await crypto.subtle.exportKey('raw', sessionKey);
-
-    return {
-        key: new Uint8Array(sessionKeyMaterial),
-        hash: sessionKeyHash
-    };
-}
-
-/**
- * Encrypt a call signaling message with the session key
- */
-export async function encryptCallMessage(message: Record<string, unknown>, sessionKey: Uint8Array): Promise<EncryptedCallMessage> {
-    const messageKey = await importAesGcmKey(sessionKey);
-    const encrypted = await aesGcmEncrypt(messageKey, new TextEncoder().encode(JSON.stringify(message)));
-
-    return {
-        iv: b64(encrypted.iv),
-        ciphertext: b64(encrypted.ciphertext),
-        salt: "", // Not used for message encryption, only for key wrapping
-        iv2: "",
-        wrappedSessionKey: ""
-    };
-}
-
-/**
- * Decrypt a call signaling message
- */
-export async function decryptCallMessage(encryptedMessage: EncryptedCallMessage, sessionKey: Uint8Array): Promise<Record<string, unknown>> {
-    const messageKey = await importAesGcmKey(sessionKey);
-    const decrypted = await aesGcmDecrypt(messageKey, ub64(encryptedMessage.iv), ub64(encryptedMessage.ciphertext));
-    return JSON.parse(new TextDecoder().decode(decrypted));
-}
-
-/**
  * Generate 4 emojis representing the call session key
  */
 export function generateCallEmojis(sessionKeyHash: string): string[] {
@@ -176,63 +71,65 @@ export function generateCallEmojis(sessionKeyHash: string): string[] {
     return emojis;
 }
 
-// HKDF info for CALL key wrapping (distinct from DM's info)
-const CALL_INFO = new Uint8Array([2]);
-
 /**
- * Wraps a call session key for a specific recipient using ECDH key exchange
- * @param recipientPublicKeyB64 - The recipient's public key in base64 format
- * @param sessionKey - The session key to wrap
- * @returns Promise that resolves to the wrapped session key payload
+ * Encrypts a call session key using Signal Protocol
+ * @param recipientId - The recipient's user ID
+ * @param sessionKey - The session key to encrypt
+ * @returns Promise that resolves to encrypted session key data
  */
-export async function wrapCallSessionKeyForRecipient(recipientPublicKeyB64: string, sessionKey: Uint8Array): Promise<WrappedSessionKeyPayload> {
-    const keys = api.user.auth.getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
+export async function encryptCallSessionKey(recipientId: number, sessionKey: Uint8Array): Promise<{ type: number; body: string }> {
+    const user = useUserStore.getState().user.currentUser;
+    if (!user?.id) {
+        throw new Error("User not authenticated");
+    }
 
-    const salt = randomBytes(16);
-    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, salt, CALL_INFO);
-    const wk = await importAesGcmKey(wkRaw);
-    const wrap = await aesGcmEncrypt(wk, sessionKey);
-    return {
-        salt: b64(salt),
-        iv2: b64(wrap.iv),
-        wrapped: b64(wrap.ciphertext)
-    };
+    const signalService = new SignalProtocolService(user.id.toString());
+    
+    // Ensure we have a session with the recipient
+    const hasSession = await signalService.hasSession(recipientId);
+    if (!hasSession) {
+        // Fetch prekey bundle and establish session
+        const token = getAuthToken();
+        if (!token) {
+            throw new Error("No auth token");
+        }
+        
+        const bundle = await fetchPreKeyBundle(recipientId, token);
+        if (!bundle) {
+            throw new Error("No prekey bundle available for recipient");
+        }
+        
+        await signalService.processPreKeyBundle(recipientId, bundle);
+    }
+    
+    // Encrypt the session key using Signal Protocol
+    const sessionKeyString = b64(sessionKey);
+    const encrypted = await signalService.encryptMessage(recipientId, sessionKeyString);
+    
+    return encrypted;
 }
 
 /**
- * Create a shared secret and derive session key for the receiver
+ * Decrypts a call session key using Signal Protocol
+ * @param senderId - The sender's user ID
+ * @param encryptedKey - The encrypted session key data
+ * @returns Promise that resolves to the decrypted session key
  */
-export async function createSharedSecretAndDeriveSessionKey(
-    senderPublicKeyB64: string,
-    sessionKeyHash: string,
-    isInitiator: boolean
-): Promise<CallSessionKey> {
-    const keys = api.user.auth.getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
+export async function decryptCallSessionKey(senderId: number, encryptedKey: { type: number; body: string }): Promise<Uint8Array> {
+    const user = useUserStore.getState().user.currentUser;
+    if (!user?.id) {
+        throw new Error("User not authenticated");
+    }
 
-    // Create shared secret using ECDH
-    const sharedSecret = ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
-
-    // Derive the session key from the shared secret
-    return await deriveCallSessionKeyFromSharedSecret(sharedSecret, sessionKeyHash, isInitiator);
-}
-
-/**
- * Unwraps a call session key received from a sender using ECDH key exchange
- * @param senderPublicKeyB64 - The sender's public key in base64 format
- * @param payload - The wrapped session key payload
- * @returns Promise that resolves to the unwrapped session key
- */
-export async function unwrapCallSessionKeyFromSender(senderPublicKeyB64: string, payload: WrappedSessionKeyPayload): Promise<Uint8Array> {
-    const keys = api.user.auth.getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
-
-    const salt = ub64(payload.salt);
-    const shared = ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, salt, CALL_INFO);
-    const wk = await importAesGcmKey(wkRaw);
-    const sessionKey = await aesGcmDecrypt(wk, ub64(payload.iv2), ub64(payload.wrapped));
-    return new Uint8Array(sessionKey);
+    const signalService = new SignalProtocolService(user.id.toString());
+    
+    // Decrypt using Signal Protocol
+    const decryptedString = await signalService.decryptMessage(senderId, encryptedKey);
+    
+    // Convert back to Uint8Array
+    const sessionKey = new Uint8Array(
+        atob(decryptedString).split("").map(c => c.charCodeAt(0))
+    );
+    
+    return sessionKey;
 }

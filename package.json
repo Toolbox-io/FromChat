@@ -68,6 +68,7 @@
         "vite-plugin-sass-dts": "^1.3.34"
     },
     "dependencies": {
+        "@privacyresearch/libsignal-protocol-typescript": "^0.0.16",
         "electron-squirrel-startup": "^1.0.1",
         "escape-string-regexp": "^5.0.0",
         "he": "^1.2.0",

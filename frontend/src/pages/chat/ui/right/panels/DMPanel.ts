@@ -1,5 +1,6 @@
 import { MessagePanel } from "./MessagePanel";
 import api from "@/core/api";
+import { decryptDm, sendDMViaWebSocket, sendDmWithFiles } from "@/core/api/dm";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
 import type { UserState, ProfileDialogData } from "@/state/types";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";
@@ -55,7 +56,7 @@ export class DMPanel extends MessagePanel {
     }
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
-        const plaintext = await api.chats.dm.decrypt(env, this.dmData!.publicKey);
+        const plaintext = await decryptDm(env, env.senderId);
         const username = formatDMUsername(
             env.senderId,
             env.recipientId,
@@ -193,21 +194,24 @@ export class DMPanel extends MessagePanel {
         }
         const json = JSON.stringify(payload);
 
-        if (files.length === 0) {
-            await api.chats.dm.send(
-                this.dmData.userId,
-                this.dmData.publicKey,
-                json,
-                this.currentUser.authToken
-            );
-        } else {
-            await api.chats.dm.sendWithFiles(
-                this.dmData.userId,
-                this.dmData.publicKey,
-                json,
-                files,
-                this.currentUser.authToken
-            );
+        try {
+            if (files.length === 0) {
+                await sendDMViaWebSocket(
+                    this.dmData.userId,
+                    json,
+                    this.currentUser.authToken
+                );
+            } else {
+                await sendDmWithFiles(
+                    this.dmData.userId,
+                    this.dmData.publicKey,
+                    json,
+                    files,
+                    this.currentUser.authToken
+                );
+            }
+        } catch (error) {
+            console.error("Failed to send DM:", error);
         }
     }
 
@@ -259,14 +263,14 @@ export class DMPanel extends MessagePanel {
             }
         }
         if (response.type === "dmEdited" && this.dmData) {
-            const { id, iv, ciphertext, salt, iv2, wrappedMk } = response.data;
+            const { id, senderId, recipientId, iv, ciphertext, salt, iv2, wrappedMk } = response.data;
             try {
                 // Decrypt new content in-place
-                const plaintext = await api.chats.dm.decrypt(
+                const plaintext = await decryptDm(
                     {
                         id,
-                        senderId: 0,
-                        recipientId: 0,
+                        senderId,
+                        recipientId,
                         iv,
                         ciphertext,
                         salt,
@@ -274,7 +278,7 @@ export class DMPanel extends MessagePanel {
                         wrappedMk,
                         timestamp: new Date().toISOString()
                     },
-                    this.dmData.publicKey
+                    senderId
                 );
                 let content = plaintext;
                 let files: Message["files"] | undefined = undefined;

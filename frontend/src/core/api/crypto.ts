@@ -2,6 +2,7 @@ import { API_BASE_URL } from "@/core/config";
 import { getAuthHeaders } from "./account";
 import type { UploadPublicKeyRequest, BackupBlob } from "@/core/types";
 import { b64, ub64 } from "@/utils/utils";
+import type { PreKeyBundleData } from "@/utils/crypto/signalProtocol";
 
 /**
  * Fetches the current user's public key
@@ -72,5 +73,34 @@ export async function uploadBackupBlob(blobJson: string, token: string): Promise
         body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error("Failed to upload backup blob");
+}
+
+/**
+ * Uploads Signal Protocol prekey bundle for the current user
+ */
+export async function uploadPreKeyBundle(bundle: PreKeyBundleData, token: string): Promise<void> {
+    const payload = { bundle };
+
+    const headers = getAuthHeaders(token, true);
+    const res = await fetch(`${API_BASE_URL}/crypto/signal/prekey-bundle`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error("Failed to upload prekey bundle");
+}
+
+/**
+ * Fetches Signal Protocol prekey bundle for another user
+ */
+export async function fetchPreKeyBundle(userId: number, token: string): Promise<any | null> {
+    const headers = getAuthHeaders(token, true);
+    const res = await fetch(`${API_BASE_URL}/crypto/signal/prekey-bundle/of/${userId}`, {
+        method: "GET",
+        headers
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.bundle || null;
 }
 
