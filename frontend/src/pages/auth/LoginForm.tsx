@@ -91,6 +91,16 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
 
                 try {
                     await ensureKeysOnLogin(password, data.token);
+                    
+                    // Initialize Signal Protocol after keys are set up
+                    if (data.user?.id) {
+                        const { SignalProtocolService } = await import("@/utils/crypto/signalProtocol");
+                        const { uploadPreKeyBundle } = await import("@/core/api/crypto");
+                        const signalService = new SignalProtocolService(data.user.id.toString());
+                        await signalService.initialize();
+                        const bundle = await signalService.getPreKeyBundle();
+                        await uploadPreKeyBundle(bundle, data.token);
+                    }
                 } catch (e) {
                     console.error("Key setup failed:", e);
                 }

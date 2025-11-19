@@ -505,7 +505,7 @@ export interface CallEndData {
 }
 
 export interface CallSessionKeyData {
-    wrappedSessionKey?: WrappedSessionKeyPayload;
+    encryptedSessionKey: { type: number; body: string };
 }
 
 export interface CallVideoToggleData {
@@ -524,12 +524,6 @@ export interface CallVideoToggleMessageData {
 export interface CallScreenShareToggleMessageData {
     fromUserId: number;
     data: CallScreenShareToggleData;
-}
-
-export interface WrappedSessionKeyPayload {
-    salt: string;
-    iv2: string;
-    wrapped: string;
 }
 
 export interface CallVideoToggleMessage extends CallSignalingMessage {

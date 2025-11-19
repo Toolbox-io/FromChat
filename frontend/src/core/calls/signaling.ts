@@ -1,4 +1,4 @@
-import type { CallSignalingMessage, CallAcceptData, CallRejectData, CallOfferData, CallAnswerData, CallIceCandidateData, CallEndData, CallVideoToggleData, CallScreenShareToggleData, CallInviteMessageData } from "@/core/types";
+import type { CallSignalingMessage, CallAcceptData, CallRejectData, CallOfferData, CallAnswerData, CallIceCandidateData, CallEndData, CallVideoToggleData, CallScreenShareToggleData, CallInviteMessageData, CallSessionKeyData } from "@/core/types";
 import * as WebRTC from "./webrtc";
 
 export interface CallState {
@@ -133,12 +133,16 @@ export class CallSignalingHandler {
 
     private handleCallSessionKey(message: CallSignalingMessage) {
         const state = this.getState();
-        const { sessionKeyHash, data } = message;
+        const { sessionKeyHash } = message;
+        const data = message.data as CallSessionKeyData;
+
         if (sessionKeyHash) {
             state.setCallSessionKeyHash(sessionKeyHash);
         }
-        if (data && 'wrappedSessionKey' in data && data.wrappedSessionKey && message.fromUserId) {
-            WebRTC.receiveWrappedSessionKey(message.fromUserId, data.wrappedSessionKey, sessionKeyHash);
+        
+        // Check if data is CallSessionKeyData and has encryptedSessionKey
+        if (data && data.encryptedSessionKey && message.fromUserId) {
+            WebRTC.receiveWrappedSessionKey(message.fromUserId, data.encryptedSessionKey);
         }
     }
 

@@ -1,9 +1,8 @@
 import { getAuthToken } from "@/core/api/account";
-import type { CallSignalingMessage, WrappedSessionKeyPayload } from "@/core/types";
+import type { CallSignalingMessage } from "@/core/types";
 import { getIceServers as fetchIceServers } from "@/core/api/webrtc";
 import { request } from "@/core/websocket";
-import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender, rotateCallSessionKey } from "./encryption";
-import { fetchUserPublicKey } from "@/core/api/dm";
+import { encryptCallSessionKey, decryptCallSessionKey, rotateCallSessionKey } from "./encryption";
 import { importAesGcmKey } from "@/utils/crypto/symmetric";
 import E2EEWorker from "./e2eeWorker?worker";
 import { delay } from "@/utils/utils";
@@ -857,21 +856,18 @@ export async function sendCallSessionKey(userId: number, sessionKeyHash: string)
 
 export async function sendWrappedCallSessionKey(userId: number, sessionKey: Uint8Array, sessionKeyHash: string): Promise<void> {
     try {
-        const recipientPublicKey = await fetchUserPublicKey(userId, getAuthToken()!);
-        if (!recipientPublicKey) {
-            console.warn("No recipient public key for", userId);
-            return;
-        }
-        const wrapped = await wrapCallSessionKeyForRecipient(recipientPublicKey, sessionKey);
+        // Encrypt session key using Signal Protocol
+        const encrypted = await encryptCallSessionKey(userId, sessionKey);
+        
         await sendSignalingMessage({
             type: "call_session_key",
             fromUserId: 0,
             toUserId: userId,
             sessionKeyHash,
-            data: { wrappedSessionKey: wrapped }
+            data: { encryptedSessionKey: encrypted }
         });
     } catch (e) {
-        console.error("Failed to send wrapped session key:", e);
+        console.error("Failed to send encrypted session key:", e);
     }
 }
 
@@ -888,31 +884,21 @@ export async function setSessionKey(userId: number, keyBytes: Uint8Array): Promi
 
 export async function receiveWrappedSessionKey(
     fromUserId: number,
-    wrappedPayload: WrappedSessionKeyPayload,
-    sessionKeyHash?: string
+    encryptedKey: { type: number; body: string }
 ): Promise<void> {
     try {
-        const senderPublicKey = await fetchUserPublicKey(fromUserId, getAuthToken()!);
-        if (!senderPublicKey) {
-            console.error("Failed to get sender public key");
-            return;
-        }
-        if (!wrappedPayload || !sessionKeyHash) {
-            console.error("Missing wrapped payload or session key hash");
+        if (!encryptedKey) {
+            console.error("Missing encrypted session key");
             return;
         }
 
-        // Unwrap the session key from the encrypted payload
-        const unwrappedSessionKey = await unwrapCallSessionKeyFromSender(senderPublicKey, {
-            salt: wrappedPayload.salt,
-            iv2: wrappedPayload.iv2,
-            wrapped: wrappedPayload.wrapped
-        });
+        // Decrypt the session key using Signal Protocol
+        const sessionKey = await decryptCallSessionKey(fromUserId, encryptedKey);
 
-        // Use the unwrapped session key directly (both sides should have the same key)
-        await setSessionKey(fromUserId, unwrappedSessionKey);
+        // Use the decrypted session key for media encryption
+        await setSessionKey(fromUserId, sessionKey);
     } catch (e) {
-        console.error("Failed to unwrap session key:", e);
+        console.error("Failed to decrypt session key:", e);
     }
 }
 

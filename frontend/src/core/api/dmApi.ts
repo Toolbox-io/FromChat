@@ -1,28 +1,33 @@
 import { API_BASE_URL } from "@/core/config";
 import { getAuthHeaders } from "./account";
-import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
-import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "@/utils/crypto/symmetric";
+import { importAesGcmKey, aesGcmEncrypt } from "@/utils/crypto/symmetric";
 import { randomBytes } from "@/utils/crypto/kdf";
 import { getCurrentKeys } from "./account";
 import { request } from "@/core/websocket";
 import type { SendDMRequest, DmEnvelope, DMEditRequest, DmEncryptedJSON, BaseDmEnvelope, User } from "@/core/types";
 import { b64, ub64 } from "@/utils/utils";
-import { fetchUserPublicKey } from "./crypto";
+import { fetchUserPublicKey, fetchPreKeyBundle } from "./crypto";
 import { fetchUsers, searchUsers } from "./users";
+import { SignalProtocolService } from "@/utils/crypto/signalProtocol";
+import { useUserStore } from "@/state/user";
+import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 
-export async function decryptDm(envelope: DmEnvelope, senderPublicKeyB64: string): Promise<string> {
-    const keys = getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
+export async function decryptDm(envelope: DmEnvelope, senderId: number): Promise<string> {
+    const user = useUserStore.getState().user.currentUser;
+    if (!user?.id) {
+        throw new Error("User not authenticated");
+    }
 
-    // Obtain the key
-    const shared = ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, ub64(envelope.salt), new Uint8Array([1]));
-    const wk = await importAesGcmKey(wkRaw);
-    const mk = await aesGcmDecrypt(wk, ub64(envelope.iv2), ub64(envelope.wrappedMk));
-
-    // Decrypt
-    const msg = await aesGcmDecrypt(await importAesGcmKey(mk), ub64(envelope.iv), ub64(envelope.ciphertext));
-    return new TextDecoder().decode(msg);
+    const signalService = new SignalProtocolService(user.id.toString());
+    
+    // Parse Signal Protocol message
+    const signalCiphertext = JSON.parse(envelope.ciphertext);
+    if (!signalCiphertext.type || !signalCiphertext.body) {
+        throw new Error("Invalid Signal Protocol message format");
+    }
+    
+    const plaintext = await signalService.decryptMessage(senderId, signalCiphertext);
+    return plaintext;
 }
 
 export async function fetchDMHistory(userId: number, token: string, limit: number = 50): Promise<DmEnvelope[]> {
@@ -34,31 +39,36 @@ export async function fetchDMHistory(userId: number, token: string, limit: numbe
     return data.messages || [];
 }
 
-// Re-export user functions for convenience
-export { fetchUsers, searchUsers, fetchUserPublicKey };
 
-export async function sendDMViaWebSocket(recipientId: number, recipientPublicKeyB64: string, plaintext: string, authToken: string, replyToId?: number): Promise<void> {
-    const keys = getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
+export async function sendDMViaWebSocket(recipientId: number, plaintext: string, authToken: string, replyToId?: number): Promise<void> {
+    const user = useUserStore.getState().user.currentUser;
+    if (!user?.id) {
+        throw new Error("User not authenticated");
+    }
 
-    // Encryption key
-    const mk = randomBytes(32);
-    const wkSalt = randomBytes(16);
-    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
-    const wk = await importAesGcmKey(wkRaw);
-
-    // Encrypt the message
-    const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(plaintext));
-    const wrap = await aesGcmEncrypt(wk, mk);
-
+    const signalService = new SignalProtocolService(user.id.toString());
+    
+    // Check if we have a session, if not, fetch prekey bundle and establish one
+    const hasSession = await signalService.hasSession(recipientId);
+    if (!hasSession) {
+        // Fetch prekey bundle from server
+        const bundle = await fetchPreKeyBundle(recipientId, authToken);
+        if (!bundle) {
+            throw new Error("No Signal Protocol prekey bundle available for recipient");
+        }
+        await signalService.processPreKeyBundle(recipientId, bundle);
+    }
+    
+    // Encrypt with Signal Protocol
+    const ciphertext = await signalService.encryptMessage(recipientId, plaintext);
+    
     const payload: SendDMRequest = {
         recipientId: recipientId,
-        iv: b64(encMsg.iv),
-        ciphertext: b64(encMsg.ciphertext),
-        salt: b64(wkSalt),
-        iv2: b64(wrap.iv),
-        wrappedMk: b64(wrap.ciphertext)
+        iv: "", // Not used for Signal Protocol
+        ciphertext: JSON.stringify(ciphertext), // Store Signal Protocol message as JSON
+        salt: "", // Not used for Signal Protocol
+        iv2: "", // Not used for Signal Protocol
+        wrappedMk: "" // Not used for Signal Protocol
     };
     if (replyToId) payload.replyToId = replyToId;
 
@@ -78,7 +88,7 @@ export async function sendDmWithFiles(recipientId: number, recipientPublicKeyB64
 
     const mk = randomBytes(32);
     const wkSalt = randomBytes(16);
-    const shared = await ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
+    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
     const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
     const wk = await importAesGcmKey(wkRaw);
 
@@ -133,7 +143,7 @@ export async function editDmEnvelope(id: number, recipientPublicKeyB64: string, 
     // We cannot reuse the old mk safely without knowing it; generate a fresh mk and wrap
     const mk = randomBytes(32);
     const wkSalt = randomBytes(16);
-    const shared = await ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
+    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
     const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
     const wk = await importAesGcmKey(wkRaw);
     const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(newPlaintextJson));
@@ -166,6 +176,9 @@ export interface DMConversationResponse {
     lastMessage: DmEnvelope;
     unreadCount: number;
 }
+
+// Re-export for convenience
+export { fetchUsers, searchUsers, fetchUserPublicKey };
 
 export async function fetchDMConversations(token: string): Promise<DMConversationResponse[]> {
     const res = await fetch(`${API_BASE_URL}/dm/conversations`, {

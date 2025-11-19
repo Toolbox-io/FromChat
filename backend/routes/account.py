@@ -479,6 +479,95 @@ def get_public_key_of(request: Request, user_id: int, current_user: User = Depen
     return {"publicKey": row.public_key_b64 if row else None}
 
 
+@router.post("/crypto/signal/prekey-bundle")
+@rate_limit_per_ip("10/minute")
+def upload_prekey_bundle(
+    request: Request,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Upload Signal Protocol prekey bundle for the current user"""
+    from models import SignalPreKeyBundle
+    import json
+    
+    bundle = payload.get("bundle")
+    if not bundle:
+        raise HTTPException(status_code=400, detail="bundle required")
+    
+    # Validate bundle structure
+    if not isinstance(bundle, dict):
+        raise HTTPException(status_code=400, detail="bundle must be a JSON object")
+    
+    # Validate required fields
+    required_fields = ["registrationId", "identityKey", "signedPreKey"]
+    for field in required_fields:
+        if field not in bundle:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+    
+    if not isinstance(bundle["signedPreKey"], dict) or "keyId" not in bundle["signedPreKey"]:
+        raise HTTPException(status_code=400, detail="Invalid signedPreKey format")
+    
+    # Store as JSON string
+    bundle_json = json.dumps(bundle)
+    if len(bundle_json) > 50000:  # 50KB limit
+        raise HTTPException(status_code=400, detail="Bundle too large")
+    
+    row = db.query(SignalPreKeyBundle).filter(SignalPreKeyBundle.user_id == current_user.id).first()
+    if row:
+        row.bundle_json = bundle_json
+        row.updated_at = datetime.now()
+    else:
+        row = SignalPreKeyBundle(user_id=current_user.id, bundle_json=bundle_json)
+        db.add(row)
+    db.commit()
+    
+    return {"status": "ok"}
+
+
+@router.get("/crypto/signal/prekey-bundle")
+def get_prekey_bundle(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get Signal Protocol prekey bundle for the current user"""
+    from models import SignalPreKeyBundle
+    import json
+    
+    row = db.query(SignalPreKeyBundle).filter(SignalPreKeyBundle.user_id == current_user.id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Prekey bundle not found")
+    
+    try:
+        bundle = json.loads(row.bundle_json)
+        return {"bundle": bundle}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid bundle data")
+
+
+@router.get("/crypto/signal/prekey-bundle/of/{user_id}")
+@rate_limit_per_ip("100/minute")
+def get_prekey_bundle_of(
+    request: Request,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get Signal Protocol prekey bundle for another user"""
+    from models import SignalPreKeyBundle
+    import json
+    
+    row = db.query(SignalPreKeyBundle).filter(SignalPreKeyBundle.user_id == user_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Prekey bundle not found")
+    
+    try:
+        bundle = json.loads(row.bundle_json)
+        return {"bundle": bundle}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid bundle data")
+
+
 @router.get("/users/search")
 @rate_limit_per_ip("60/minute")  # Per-IP limit to prevent abuse
 def search_users(request: Request, q: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

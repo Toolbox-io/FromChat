@@ -63,7 +63,7 @@ export class DMPanel extends MessagePanel {
     }
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
-        const plaintext = await decryptDm(env, this.dmData!.publicKey);
+        const plaintext = await decryptDm(env, env.senderId);
         const username = formatDMUsername(
             env.senderId,
             env.recipientId,
@@ -159,7 +159,6 @@ export class DMPanel extends MessagePanel {
             if (files.length === 0) {
                 await sendDMViaWebSocket(
                     this.dmData.userId,
-                    this.dmData.publicKey,
                     json,
                     this.currentUser.authToken
                 );
@@ -225,14 +224,14 @@ export class DMPanel extends MessagePanel {
             }
         }
         if (response.type === "dmEdited" && this.dmData) {
-            const { id, iv, ciphertext, salt, iv2, wrappedMk } = response.data;
+            const { id, senderId, recipientId, iv, ciphertext, salt, iv2, wrappedMk } = response.data;
             try {
                 // Decrypt new content in-place
                 const plaintext = await decryptDm(
                     {
                         id,
-                        senderId: 0,
-                        recipientId: 0,
+                        senderId,
+                        recipientId,
                         iv,
                         ciphertext,
                         salt,
@@ -240,7 +239,7 @@ export class DMPanel extends MessagePanel {
                         wrappedMk,
                         timestamp: new Date().toISOString()
                     },
-                    this.dmData.publicKey
+                    senderId
                 );
                 let content = plaintext;
                 let files: Message["files"] | undefined = undefined;
