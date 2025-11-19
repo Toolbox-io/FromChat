@@ -2,6 +2,9 @@
     "files.exclude": {
         "**/__pycache__": true,
         "**/package-lock.json": true,
-        "**/*.module.scss.d.ts": true
+        "**/*.module.scss.d.ts": true,
+        "**/.husky": true,
+        "**/.venv": true,
+        "**/node_modules": true
     }
 }
