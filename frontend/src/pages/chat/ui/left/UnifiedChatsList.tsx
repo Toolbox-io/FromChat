@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUserStore } from "@/state/user";
 import { useChatStore } from "@/state/chat";
 import { useDM, type DMUser } from "@/pages/chat/hooks/useDM";
-import { fetchMessages } from "@/core/api/messaging";
-import { fetchUserPublicKey } from "@/core/api/dm";
+import api from "@/core/api";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { Message } from "@/core/types";
 import { websocket } from "@/core/websocket";
@@ -52,7 +51,7 @@ export function UnifiedChatsList() {
         if (!user.authToken) return;
 
         try {
-            const messages = await fetchMessages(user.authToken, 1);
+            const { messages } = await api.chats.general.fetchMessages(user.authToken, 1);
             if (messages?.length > 0) {
                 const lastMessage = messages[messages.length - 1];
                 setLastMessages({ general: lastMessage });
@@ -160,7 +159,7 @@ export function UnifiedChatsList() {
             const authToken = useUserStore.getState().user.authToken;
             if (!authToken) return;
 
-            const publicKey = await fetchUserPublicKey(dmConversation.id, authToken);
+            const publicKey = await api.chats.dm.fetchUserPublicKey(dmConversation.id, authToken);
             if (!publicKey) {
                 console.error("Failed to get public key for user:", dmConversation.id);
                 return;

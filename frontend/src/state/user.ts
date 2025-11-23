@@ -1,9 +1,8 @@
 import { create } from "zustand";
 import type { User } from "@/core/types";
 import { request } from "@/core/websocket";
-import { restoreKeys } from "@/core/api/account";
+import api from "@/core/api";
 import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/account";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
@@ -84,11 +83,11 @@ export const useUserStore = create<UserStore>((set) => ({
 
             if (token) {
                 const fullResponse = await fetch(`${API_BASE_URL}/user/profile`, {
-                    headers: getAuthHeaders(token, true)
+                    headers: api.user.auth.getAuthHeaders(token, true)
                 });
                 if (fullResponse.ok) {
                     const user: User = await fullResponse.json();
-                    restoreKeys();
+                    api.user.auth.restoreKeys();
 
                     if (user.suspended) {
                         set({

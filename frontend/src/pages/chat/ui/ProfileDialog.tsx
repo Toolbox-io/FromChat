@@ -5,7 +5,7 @@ import type { ProfileDialogData } from "@/state/types";
 import defaultAvatar from "@/images/default-avatar.png";
 import { confirm } from "mdui/functions/confirm";
 import { prompt } from "mdui/functions/prompt";
-import { updateProfile, uploadProfilePicture, fetchUserProfileById, suspendUser, unsuspendUser, deleteUser } from "@/core/api/account/profile";
+import api from "@/core/api";
 import { RichTextArea } from "@/core/components/RichTextArea";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import { VerifyButton } from "@/core/components/VerifyButton";
@@ -98,7 +98,7 @@ export function ProfileDialog() {
 
             // If it's not the public chat and has a user ID, fetch fresh data
             if (profileData.userId && profileData.username !== "Общий чат") {
-                const userProfile = await fetchUserProfileById(user.authToken, profileData.userId);
+                const userProfile = await api.user.profile.fetchById(user.authToken, profileData.userId);
                 if (userProfile) {
                     freshData = {
                         ...userProfile,
@@ -285,7 +285,7 @@ export function ProfileDialog() {
             }
 
             if (Object.keys(updateData).length > 0) {
-                await updateProfile(user.authToken, updateData);
+                await api.user.profile.update(user.authToken, updateData);
             }
 
             // Update profile picture if changed
@@ -294,7 +294,7 @@ export function ProfileDialog() {
                 if (currentData.profilePicture.startsWith("data:")) {
                     const response = await fetch(currentData.profilePicture);
                     const blob = await response.blob();
-                    await uploadProfilePicture(user.authToken, blob);
+                    await api.user.profile.uploadPicture(user.authToken, blob);
                 }
             }
 
@@ -351,7 +351,7 @@ export function ProfileDialog() {
                 });
 
                 if (reason) {
-                    const result = await suspendUser(currentData.userId, reason, user.authToken!);
+                    const result = await api.moderation.users.suspend(currentData.userId, reason, user.authToken!);
                     if (result) {
                         closeProfileDialog();
                     } else {
@@ -360,7 +360,7 @@ export function ProfileDialog() {
                 }
             } else {
                 // Unsuspend user
-                const result = await unsuspendUser(currentData.userId, user.authToken!);
+                const result = await api.moderation.users.unsuspend(currentData.userId, user.authToken!);
                 if (result) {
                     closeProfileDialog();
                 } else {
@@ -383,7 +383,7 @@ export function ProfileDialog() {
                 cancelText: "Cancel"
             });
 
-            const result = await deleteUser(currentData.userId, user.authToken!);
+            const result = await api.moderation.users.deleteUser(currentData.userId, user.authToken!);
 
             if (result) {
                 closeProfileDialog();

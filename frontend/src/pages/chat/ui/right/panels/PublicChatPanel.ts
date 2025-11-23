@@ -2,7 +2,7 @@ import { MessagePanel } from "./MessagePanel";
 import { request } from "@/core/websocket";
 import type { ChatWebSocketMessage, Message, ReactionUpdateWebSocketMessage } from "@/core/types";
 import type { UserState, ProfileDialogData } from "@/state/types";
-import { fetchMessages, sendMessage, sendMessageWithFiles } from "@/core/api/messaging";
+import api from "@/core/api";
 
 export class PublicChatPanel extends MessagePanel {
     private messagesLoaded: boolean = false;
@@ -41,7 +41,7 @@ export class PublicChatPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
-            const messages = await fetchMessages(this.currentUser.authToken);
+            const { messages } = await api.chats.general.fetchMessages(this.currentUser.authToken);
             if (messages && messages.length > 0) {
                 this.clearMessages();
                 messages.forEach((msg: Message) => {
@@ -61,9 +61,9 @@ export class PublicChatPanel extends MessagePanel {
 
         try {
             if (files.length === 0) {
-                await sendMessage(content, replyToId ?? null, this.currentUser.authToken);
+                await api.chats.general.send(content, replyToId ?? null, this.currentUser.authToken);
             } else {
-                await sendMessageWithFiles(content, replyToId ?? null, files, this.currentUser.authToken);
+                await api.chats.general.sendWithFiles(content, replyToId ?? null, files, this.currentUser.authToken);
             }
         } catch (error) {
             console.error("Error sending message:", error);

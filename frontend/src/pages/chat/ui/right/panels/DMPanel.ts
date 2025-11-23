@@ -1,13 +1,5 @@
 import { MessagePanel } from "./MessagePanel";
-import {
-    fetchDMHistory,
-    decryptDm,
-    sendDMViaWebSocket,
-    sendDmWithFiles,
-    editDmEnvelope,
-    deleteDmEnvelope
-} from "@/core/api/dm";
-import { fetchUserProfileById } from "@/core/api/account/profile";
+import api from "@/core/api";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
 import type { UserState, ProfileDialogData } from "@/state/types";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";
@@ -63,7 +55,7 @@ export class DMPanel extends MessagePanel {
     }
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
-        const plaintext = await decryptDm(env, this.dmData!.publicKey);
+        const plaintext = await api.chats.dm.decrypt(env, this.dmData!.publicKey);
         const username = formatDMUsername(
             env.senderId,
             env.recipientId,
@@ -111,7 +103,7 @@ export class DMPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
-            const messages = await fetchDMHistory(this.dmData.userId, this.currentUser.authToken, 50);
+            const { messages } = await api.chats.dm.fetchMessages(this.dmData.userId, this.currentUser.authToken, 50);
             const decryptedMessages: Message[] = [];
             let maxIncomingId = 0;
 
@@ -157,14 +149,14 @@ export class DMPanel extends MessagePanel {
             const json = JSON.stringify(payload);
 
             if (files.length === 0) {
-                await sendDMViaWebSocket(
+                await api.chats.dm.send(
                     this.dmData.userId,
                     this.dmData.publicKey,
                     json,
                     this.currentUser.authToken
                 );
             } else {
-                await sendDmWithFiles(
+                await api.chats.dm.sendWithFiles(
                     this.dmData.userId,
                     this.dmData.publicKey,
                     json,
@@ -228,7 +220,7 @@ export class DMPanel extends MessagePanel {
             const { id, iv, ciphertext, salt, iv2, wrappedMk } = response.data;
             try {
                 // Decrypt new content in-place
-                const plaintext = await decryptDm(
+                const plaintext = await api.chats.dm.decrypt(
                     {
                         id,
                         senderId: 0,
@@ -330,7 +322,7 @@ export class DMPanel extends MessagePanel {
         this.deleteMessageImmediately(messageId);
 
         // Fire and forget server deletion; UI already updated
-        await deleteDmEnvelope(messageId, this.dmData.userId, this.currentUser.authToken);
+        await api.chats.dm.deleteMessage(messageId, this.dmData.userId, this.currentUser.authToken);
     }
 
     async handleEditMessage(messageId: number, content: string): Promise<void> {
@@ -345,7 +337,7 @@ export class DMPanel extends MessagePanel {
                 reply_to_id: msg?.reply_to?.id ?? undefined
             }
         };
-        editDmEnvelope(messageId, this.dmData.publicKey, JSON.stringify(payload), this.currentUser.authToken).catch((e) => {
+        api.chats.dm.edit(messageId, this.dmData.publicKey, JSON.stringify(payload), this.currentUser.authToken).catch((e) => {
             console.error("Failed to edit DM:", e);
         });
     }
@@ -354,7 +346,7 @@ export class DMPanel extends MessagePanel {
         if (!this.dmData || !this.currentUser.authToken) return null;
 
         try {
-            const userProfile = await fetchUserProfileById(this.currentUser.authToken, this.dmData.userId);
+            const userProfile = await api.user.profile.fetchById(this.currentUser.authToken, this.dmData.userId);
             if (!userProfile) return null;
 
             return {

@@ -5,12 +5,11 @@ import Quote from "@/core/components/Quote";
 import { parse } from "marked";
 import { escape as escapeHtml } from "he";
 import { useEffect, useState, useRef, useMemo } from "react";
-import { getCurrentKeys, getAuthHeaders } from "@/core/api/account";
+import api from "@/core/api";
 import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { useUserStore } from "@/state/user";
 import { useProfileStore } from "@/state/profile";
-import { fetchUserProfileById, fetchUserProfile } from "@/core/api/account/profile";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
@@ -223,14 +222,14 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
             // no-op decrypt indicator removed from UI
             // Fetch encrypted file
             const response = await fetch(file.path, {
-                headers: getAuthHeaders(user.authToken!)
+                headers: api.user.auth.getAuthHeaders(user.authToken!)
             });
             if (!response.ok) throw new Error("Failed to fetch file");
 
             const encryptedData = await response.arrayBuffer();
 
             // Get current user's keys
-            const keys = getCurrentKeys();
+            const keys = api.user.auth.getCurrentKeys();
             if (!keys) throw new Error("Keys not initialized");
 
             // Derive shared secret with the recipient's public key
@@ -343,7 +342,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
             // Fetch with credentials/headers when not a blob URL
             const response = await fetch(src, {
-                headers: user.authToken ? getAuthHeaders(user.authToken) : undefined,
+                headers: user.authToken ? api.user.auth.getAuthHeaders(user.authToken) : undefined,
                 credentials: "include"
             });
             if (!response.ok) throw new Error("Failed to download image");
@@ -381,7 +380,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
             // If not decrypted or public file, fetch with credentials/headers
             const response = await fetch(file.path, {
-                headers: user.authToken ? getAuthHeaders(user.authToken) : undefined,
+                headers: user.authToken ? api.user.auth.getAuthHeaders(user.authToken) : undefined,
                 credentials: "include"
             });
             if (!response.ok) throw new Error("Failed to download file");
@@ -405,7 +404,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         if (!user.authToken || !message.user_id) return;
 
         try {
-            const userProfile = await fetchUserProfileById(user.authToken, message.user_id);
+            const userProfile = await api.user.profile.fetchById(user.authToken, message.user_id);
             if (userProfile) {
                 setProfileDialog({
                     ...userProfile,
@@ -434,9 +433,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                     let userProfile;
 
                     if (profileLink.userId) {
-                        userProfile = await fetchUserProfileById(user.authToken, profileLink.userId);
-                    } else if (profileLink.username) {
-                        userProfile = await fetchUserProfile(user.authToken, profileLink.username);
+                        userProfile = await api.user.profile.fetchById(user.authToken, profileLink.userId);
+                        } else if (profileLink.username) {
+                        userProfile = await api.user.profile.fetchByUsername(user.authToken, profileLink.username);
                     }
 
                     if (userProfile) {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { verifyUser } from "@/core/api/account/profile";
+import api from "@/core/api";
 import { useUserStore } from "@/state/user";
 import { MaterialButton } from "@/utils/material";
 
@@ -23,7 +23,7 @@ export function VerifyButton({ userId, verified, onVerificationChange }: VerifyB
         
         setIsVerifying(true);
         try {
-            const result = await verifyUser(userId, user.authToken);
+            const result = await api.moderation.users.verify(userId, user.authToken);
             if (result) {
                 onVerificationChange?.(result.verified);
             }

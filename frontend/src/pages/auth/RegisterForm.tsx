@@ -5,7 +5,7 @@ import { useImmer } from "use-immer";
 import type { RegisterRequest } from "@/core/types";
 import { useUserStore } from "@/state/user";
 import { MaterialButton, MaterialIconButton } from "@/utils/material";
-import { ensureKeysOnLogin, deriveAuthSecret, register } from "@/core/api/account";
+import api from "@/core/api";
 import { AuthTextField, type AuthTextFieldHandle } from "./AuthTextField";
 import type { Alert, AlertType } from "./Auth";
 import { AuthHeader, AlertsContainer } from "./Auth";
@@ -106,7 +106,7 @@ export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
         setIsLoading(true);
 
         try {
-            const derived = await deriveAuthSecret(username, password);
+            const derived = await api.user.auth.deriveAuthSecret(username, password);
             const request: RegisterRequest = {
                 display_name: displayName,
                 username: username,
@@ -115,11 +115,11 @@ export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
             }
 
             try {
-                const data = await register(request);
+                const data = await api.user.auth.register(request);
                 setUser(data.token, data.user);
 
                 try {
-                    await ensureKeysOnLogin(password, data.token);
+                    await api.user.auth.ensureKeysOnLogin(password, data.token);
                 } catch (e) {
                     console.error("Key setup failed:", e);
                 }
