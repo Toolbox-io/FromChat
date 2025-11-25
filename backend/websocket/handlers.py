@@ -7,11 +7,8 @@ from fastapi import HTTPException, WebSocket
 from sqlalchemy.orm import Session
 
 from websocket.registry import WebSocketHandlerRegistry
-from websocket.utils import authenticate_user
 from routes.messaging import (
     MessaggingSocketManager,
-    convert_message,
-    convert_dm_envelope,
     _send_message_internal,
     get_messages,
     edit_message,
@@ -28,8 +25,7 @@ from models import (
     DMReactionRequest,
     UpdateLog,
 )
-from security.audit import log_access, log_dm, log_public_chat
-from routes.account import convert_user
+from security.audit import log_access, log_dm
 
 logger = logging.getLogger("uvicorn.error")
 
