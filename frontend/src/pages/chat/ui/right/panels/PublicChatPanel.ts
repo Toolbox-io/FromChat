@@ -41,18 +41,49 @@ export class PublicChatPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
-            const { messages } = await api.chats.general.fetchMessages(this.currentUser.authToken);
+            const limit = this.calculateMessageLimit();
+            const { messages, has_more } = await api.chats.general.fetchMessages(this.currentUser.authToken, limit);
             if (messages && messages.length > 0) {
                 this.clearMessages();
                 messages.forEach((msg: Message) => {
                     this.addMessage(msg);
                 });
             }
+            this.setHasMoreMessages(has_more);
             this.messagesLoaded = true;
         } catch (error) {
             console.error("Error loading public chat messages:", error);
         } finally {
             this.setLoading(false);
+        }
+    }
+
+    async loadMoreMessages(): Promise<void> {
+        if (!this.currentUser.authToken || !this.state.hasMoreMessages || this.state.isLoadingMore) return;
+
+        const messages = this.getMessages();
+        if (messages.length === 0) return;
+
+        const oldestMessage = messages[0];
+        this.setLoadingMore(true);
+        try {
+            const limit = this.calculateMessageLimit();
+            const { messages: newMessages, has_more } = await api.chats.general.fetchMessages(
+                this.currentUser.authToken,
+                limit,
+                oldestMessage.id
+            );
+            if (newMessages && newMessages.length > 0) {
+                // Prepend older messages (they come in reverse chronological order)
+                this.updateState({
+                    messages: [...newMessages.reverse(), ...messages]
+                });
+            }
+            this.setHasMoreMessages(has_more);
+        } catch (error) {
+            console.error("Error loading more public chat messages:", error);
+        } finally {
+            this.setLoadingMore(false);
         }
     }
 

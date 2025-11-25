@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from dependencies import get_current_user, get_db
 from .account import convert_user
 from constants import OWNER_USERNAME
-from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile, Reaction, ReactionRequest, ReactionResponse, DMReaction, DMReactionRequest, DMReactionResponse
+from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile, Reaction, ReactionRequest, ReactionResponse, DMReaction, DMReactionRequest, DMReactionResponse, UpdateLog
 from push_service import push_service
 from PIL import Image
 import io
@@ -360,7 +360,7 @@ async def _send_message_internal(
         await messagingManager.broadcast({
             "type": "newMessage",
             "data": convert_message(new_message)
-        })
+        }, db)
     except Exception:
         pass
 
@@ -798,7 +798,7 @@ async def add_reaction(
                 "username": current_user.username,
                 "reactions": message_data["reactions"]
             }
-        })
+        }, db)
     except Exception:
         pass
 
@@ -871,7 +871,7 @@ async def add_dm_reaction(
                 "username": current_user.username,
                 "reactions": envelope_data["reactions"]
             }
-        })
+        }, db)
     except Exception:
         pass
 
@@ -894,11 +894,192 @@ class MessaggingSocketManager:
         self.online_users: set[int] = set()
         self.typing_users: dict[int, float] = {}  # user_id -> timestamp
         self.dm_typing_users: dict[int, dict[int, float]] = {}  # user_id -> {recipient_id -> timestamp}
+        self.typing_state: dict[int, bool] = {}  # user_id -> is_typing (for public chat)
+        self.dm_typing_state: dict[int, dict[int, bool]] = {}  # user_id -> {recipient_id -> is_typing}
         self.ws_subscriptions: dict[WebSocket, set[int]] = {}  # websocket -> set of subscribed user_ids
         self._cleanup_task = None
+        # Update system: sequence numbers and batching
+        self.sequence_numbers: dict[int, int] = {}  # user_id -> current sequence number
+        self.pending_updates: dict[WebSocket, list[dict]] = {}  # websocket -> list of pending updates
+        self.update_batch_tasks: dict[WebSocket, asyncio.Task] = {}  # websocket -> batch task
+        self.last_seq_by_ws: dict[WebSocket, int] = {}  # websocket -> last received sequence number
+        self.stored_sequences: dict[tuple[int, int], bool] = {}  # (user_id, sequence) -> stored flag
+        self.recent_updates: dict[WebSocket, set[str]] = {}  # websocket -> set of recent update signatures
+        self._sequence_lock: dict[int, asyncio.Lock] = {}  # user_id -> lock for sequence generation
 
     async def send_error(self, websocket: WebSocket, type: str, e: HTTPException):
         await websocket.send_json({"type": type, "error": {"code": e.status_code, "detail": e.detail}})
+
+    async def _get_next_sequence(self, user_id: int) -> int:
+        """Get the next sequence number for a user (shared across all their connections) - thread-safe"""
+        if user_id not in self._sequence_lock:
+            self._sequence_lock[user_id] = asyncio.Lock()
+        
+        async with self._sequence_lock[user_id]:
+            if user_id not in self.sequence_numbers:
+                self.sequence_numbers[user_id] = 0
+            self.sequence_numbers[user_id] += 1
+            return self.sequence_numbers[user_id]
+
+    def _get_update_signature(self, update: dict) -> str:
+        """Generate a unique signature for an update to detect duplicates"""
+        import hashlib
+        import json
+        
+        update_type = update.get("type", "")
+        data = update.get("data", {})
+        
+        # Create signature based on update type and key identifying fields
+        if update_type == "newMessage":
+            # Deduplicate by message ID
+            sig_data = {"type": update_type, "id": data.get("id")}
+        elif update_type == "messageEdited":
+            # Deduplicate by message ID
+            sig_data = {"type": update_type, "id": data.get("id")}
+        elif update_type == "messageDeleted":
+            # Deduplicate by message ID
+            sig_data = {"type": update_type, "id": data.get("id") or data.get("message_id")}
+        elif update_type == "dmNew":
+            # Deduplicate by envelope ID
+            sig_data = {"type": update_type, "id": data.get("id")}
+        elif update_type == "dmEdited":
+            # Deduplicate by envelope ID
+            sig_data = {"type": update_type, "id": data.get("id")}
+        elif update_type == "dmDeleted":
+            # Deduplicate by envelope ID
+            sig_data = {"type": update_type, "id": data.get("id")}
+        elif update_type == "reactionUpdate":
+            # Deduplicate by message ID + emoji + user ID
+            sig_data = {"type": update_type, "messageId": data.get("message_id"), "emoji": data.get("emoji"), "userId": data.get("userId")}
+        elif update_type == "dmReactionUpdate":
+            # Deduplicate by envelope ID + emoji + user ID
+            sig_data = {"type": update_type, "dmEnvelopeId": data.get("dm_envelope_id"), "emoji": data.get("emoji"), "userId": data.get("userId")}
+        elif update_type == "typing" or update_type == "stopTyping":
+            # Deduplicate by user ID (state tracking already handles this, but extra protection)
+            sig_data = {"type": update_type, "userId": data.get("userId")}
+        elif update_type == "dmTyping" or update_type == "stopDmTyping":
+            # Deduplicate by user ID (recipient ID is implicit - this update is sent TO the recipient)
+            sig_data = {"type": update_type, "userId": data.get("userId")}
+        elif update_type == "statusUpdate":
+            # Deduplicate by user ID
+            sig_data = {"type": update_type, "userId": data.get("userId")}
+        else:
+            # For unknown types, use full data (less efficient but safe)
+            sig_data = {"type": update_type, "data": data}
+        
+        # Create hash of signature data
+        sig_json = json.dumps(sig_data, sort_keys=True)
+        return hashlib.md5(sig_json.encode()).hexdigest()
+
+    def _add_update(self, websocket: WebSocket, update: dict):
+        """Add an update to the pending batch for a WebSocket (with deduplication)"""
+        if websocket not in self.pending_updates:
+            self.pending_updates[websocket] = []
+        
+        # Check for duplicates
+        signature = self._get_update_signature(update)
+        if websocket not in self.recent_updates:
+            self.recent_updates[websocket] = set()
+        
+        # Skip if this exact update was recently added
+        if signature in self.recent_updates[websocket]:
+            return
+        
+        # Add to pending updates and track signature
+        self.pending_updates[websocket].append(update)
+        self.recent_updates[websocket].add(signature)
+        
+        # Limit recent updates cache size (keep last 100 signatures per websocket)
+        if len(self.recent_updates[websocket]) > 100:
+            # Remove oldest entries (simple FIFO by converting to list and keeping last 100)
+            # Actually, we'll just clear and rebuild on next flush - simpler approach
+            pass
+
+    async def _flush_updates(self, websocket: WebSocket, db: Session | None = None):
+        """Flush pending updates for a WebSocket connection"""
+        if websocket not in self.pending_updates or not self.pending_updates[websocket]:
+            return
+
+        updates = self.pending_updates[websocket]
+        self.pending_updates[websocket] = []
+        
+        # Clear recent updates cache after flushing (updates are now sent, can be re-added if needed)
+        if websocket in self.recent_updates:
+            # Keep only the last 50 signatures to allow some deduplication across batches
+            recent_list = list(self.recent_updates[websocket])
+            if len(recent_list) > 50:
+                self.recent_updates[websocket] = set(recent_list[-50:])
+            else:
+                # Keep all if under limit
+                pass
+
+        if updates:
+            user_id = self.user_by_ws.get(websocket)
+            if not user_id:
+                # No user associated - this shouldn't happen for authenticated connections
+                # Skip sending to avoid seq: 0 issues
+                logger.warning(f"Attempted to flush updates for unauthenticated websocket, skipping")
+                return
+            
+            seq = await self._get_next_sequence(user_id)
+            
+            # Store updates in database for gap detection (only once per user per sequence)
+            if db:
+                sequence_key = (user_id, seq)
+                # Double-check pattern: check again after getting sequence (in case another connection got the same sequence)
+                if sequence_key not in self.stored_sequences:
+                    try:
+                        import json
+                        # Store the entire batch as a single record
+                        update_log = UpdateLog(
+                            user_id=user_id,
+                            sequence=seq,
+                            updates=json.dumps(updates)
+                        )
+                        db.add(update_log)
+                        db.commit()
+                        self.stored_sequences[sequence_key] = True
+                    except Exception as e:
+                        # Always rollback on error to reset session state
+                        try:
+                            db.rollback()
+                        except Exception:
+                            pass  # Ignore rollback errors
+                        
+                        # If we get a UNIQUE constraint error, it means another connection already stored this sequence
+                        if "UNIQUE constraint" in str(e) or "IntegrityError" in str(e.__class__.__name__):
+                            # Mark as stored to prevent future attempts
+                            self.stored_sequences[sequence_key] = True
+                            logger.debug(f"Update sequence {seq} for user {user_id} already stored by another connection")
+                        else:
+                            logger.error(f"Failed to store updates in database: {e}")
+                else:
+                    # Already stored, skip
+                    logger.debug(f"Update sequence {seq} for user {user_id} already marked as stored")
+            
+            await websocket.send_json({
+                "type": "updates",
+                "seq": seq,
+                "updates": updates
+            })
+
+    async def _schedule_batch_flush(self, websocket: WebSocket, db: Session | None = None):
+        """Schedule a batch flush after a delay (50-100ms)"""
+        if websocket in self.update_batch_tasks:
+            self.update_batch_tasks[websocket].cancel()
+        
+        async def flush_after_delay():
+            await asyncio.sleep(0.075)  # 75ms delay for batching
+            await self._flush_updates(websocket, db)
+            if websocket in self.update_batch_tasks:
+                del self.update_batch_tasks[websocket]
+        
+        self.update_batch_tasks[websocket] = asyncio.create_task(flush_after_delay())
+
+    async def _send_update(self, websocket: WebSocket, update_type: str, update_data: dict, db: Session | None = None):
+        """Send an update (will be batched)"""
+        self._add_update(websocket, {"type": update_type, "data": update_data})
+        await self._schedule_batch_flush(websocket, db)
 
     async def handle_connection(self, websocket: WebSocket, db: Session):
         # Initialize subscriptions for this connection
@@ -926,11 +1107,43 @@ class MessaggingSocketManager:
             )
 
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
+            except Exception as e:
+                logger.error(f"Error receiving WebSocket message: {e}")
+                break
+            
             type = data["type"]
 
             def get_current_user_inner() -> User | None:
-                if data["credentials"]:
+                try:
+                    # Ensure session is in a usable state before querying
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    
+                    if data.get("credentials"):
+                        dummy_request = SimpleNamespace()
+                        dummy_request.state = SimpleNamespace()
+                        return get_current_user(
+                            dummy_request,
+                            HTTPAuthorizationCredentials(
+                                scheme=data["credentials"]["scheme"],
+                                credentials=data["credentials"]["credentials"]
+                            ),
+                            db
+                        )
+                    else:
+                        return None
+                except Exception as e:
+                    logger.error(f"Error getting current user: {e}")
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    return None
+                if data.get("credentials"):
                     dummy_request = SimpleNamespace()
                     dummy_request.state = SimpleNamespace()
                     return get_current_user(
@@ -944,7 +1157,63 @@ class MessaggingSocketManager:
                 else:
                     return None
 
-            if type == "ping":
+            if type == "getUpdates":
+                # Handle gap detection - client requests updates from a specific sequence number
+                current_user: User | None = None
+                try:
+                    current_user = get_current_user_inner()
+                    if not current_user:
+                        raise HTTPException(401)
+                    
+                    last_seq = data.get("data", {}).get("lastSeq", 0)
+                    self.last_seq_by_ws[websocket] = last_seq
+                    current_seq = self.sequence_numbers.get(current_user.id, 0)
+                    
+                    # Query database for missed updates
+                    missed_updates = []
+                    if last_seq > 0 and last_seq < current_seq:
+                        try:
+                            import json
+                            # Get all updates between last_seq and current_seq
+                            update_logs = db.query(UpdateLog).filter(
+                                UpdateLog.user_id == current_user.id,
+                                UpdateLog.sequence > last_seq,
+                                UpdateLog.sequence <= current_seq
+                            ).order_by(UpdateLog.sequence.asc()).all()
+                            
+                            # Each log entry contains a batch of updates with the same sequence number
+                            for log in update_logs:
+                                updates = json.loads(log.updates)
+                                missed_updates.append({
+                                    "seq": log.sequence,
+                                    "updates": updates
+                                })
+                        except Exception as e:
+                            logger.error(f"Failed to retrieve missed updates: {e}")
+                    
+                    # Send missed updates
+                    for batch in missed_updates:
+                        await websocket.send_json({
+                            "type": "updates",
+                            "seq": batch["seq"],
+                            "updates": batch["updates"]
+                        })
+                    
+                    await websocket.send_json({
+                        "type": "getUpdates",
+                        "data": {
+                            "status": "ok",
+                            "lastSeq": current_seq,
+                            "missedCount": len(missed_updates)
+                        }
+                    })
+                    # Update the websocket's last sequence tracking
+                    self.last_seq_by_ws[websocket] = current_seq
+                    _log_ws("getUpdates", current_user, last_seq=last_seq, current_seq=current_seq, missed_count=len(missed_updates))
+                except HTTPException as e:
+                    _log_ws("getUpdates_error", current_user, detail=str(getattr(e, "detail", e)))
+                    await self.send_error(websocket, type, e)
+            elif type == "ping":
                 current_user: User | None = None
                 try:
                     current_user = get_current_user_inner()
@@ -957,7 +1226,7 @@ class MessaggingSocketManager:
                         # Add to online users
                         self.online_users.add(current_user.id)
                         # Broadcast status change
-                        await self.broadcast_status_change(current_user.id, True, current_user.last_seen.isoformat())
+                        await self.broadcast_status_change(current_user.id, True, current_user.last_seen.isoformat(), db)
                     else:
                         await websocket.send_json({
                             "type": "ping",
@@ -1012,7 +1281,7 @@ class MessaggingSocketManager:
                     await self.broadcast({
                         "type": "newMessage",
                         "data": response["message"]
-                    })
+                    }, db)
 
                     await websocket.send_json({"type": type, "data": response})
                     _log_ws("sendMessage", current_user, message_id=response["message"]["id"])
@@ -1067,9 +1336,9 @@ class MessaggingSocketManager:
                     except Exception as e:
                         logger.error(f"Failed to send push notification for DM {env.id}: {e}")
 
-                    await self.send_to_user(env.recipient_id, payload);
+                    await self.send_update_to_user(env.recipient_id, "dmNew", payload["data"], db);
                     await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}});
-                    await self.send_to_user(env.sender_id, payload);
+                    await self.send_update_to_user(env.sender_id, "dmNew", payload["data"], db);
 
                     _log_ws("dmSend", current_user, dm_envelope_id=env.id, recipient_id=env.recipient_id)
                     log_dm(
@@ -1097,7 +1366,7 @@ class MessaggingSocketManager:
                     await self.broadcast({
                         "type": "messageEdited",
                         "data": response["message"]
-                    })
+                    }, db)
 
                     await websocket.send_json({"type": type, "data": response})
                     _log_ws("editMessage", current_user, message_id=message_id)
@@ -1142,8 +1411,8 @@ class MessaggingSocketManager:
                             "timestamp": env.timestamp.isoformat(),
                         }
                     }
-                    await self.send_to_user(env.recipient_id, payload_ws)
-                    await self.send_to_user(env.sender_id, payload_ws)
+                    await self.send_update_to_user(env.recipient_id, "dmEdited", payload_ws["data"], db)
+                    await self.send_update_to_user(env.sender_id, "dmEdited", payload_ws["data"], db)
                     await websocket.send_json({"type": type, "data": {"status": "ok", "id": env.id}})
 
                     _log_ws("dmEdit", current_user, dm_envelope_id=env.id)
@@ -1182,9 +1451,9 @@ class MessaggingSocketManager:
                             "recipientId": payload.get("recipientId")
                         }
                     }
-                    await self.send_to_user(env.recipient_id, payload_ws)
+                    await self.send_update_to_user(env.recipient_id, "dmDeleted", payload_ws["data"], db)
                     await websocket.send_json({"type": type, "data": {"status": "ok", "id": env_id}})
-                    await self.send_to_user(env.sender_id, payload_ws)
+                    await self.send_update_to_user(env.sender_id, "dmDeleted", payload_ws["data"], db)
 
                     _log_ws("dmDelete", current_user, dm_envelope_id=env_id)
                     log_dm(
@@ -1209,7 +1478,7 @@ class MessaggingSocketManager:
                     await self.broadcast({
                         "type": "messageDeleted",
                         "data": {"message_id": message_id}
-                    })
+                    }, db)
 
                     await websocket.send_json({"type": type, "data": response})
                     _log_ws("deleteMessage", current_user, message_id=message_id)
@@ -1242,7 +1511,7 @@ class MessaggingSocketManager:
                             "username": current_user.username,
                             "reactions": response["reactions"]
                         }
-                    })
+                    }, db)
 
                     await websocket.send_json({"type": type, "data": response})
                     _log_ws("addReaction", current_user, message_id=request_data["message_id"], emoji=request_data["emoji"], action=response["action"])
@@ -1275,7 +1544,7 @@ class MessaggingSocketManager:
                             "username": current_user.username,
                             "reactions": response["reactions"]
                         }
-                    })
+                    }, db)
 
                     await websocket.send_json({"type": type, "data": response})
                     _log_ws("addDmReaction", current_user, dm_envelope_id=request_data["dm_envelope_id"], emoji=request_data["emoji"], action=response["action"])
@@ -1328,15 +1597,12 @@ class MessaggingSocketManager:
                     # Ensure sender is set by the server
                     payload["fromUserId"] = current_user.id
 
-                    await self.send_to_user(to_user_id, {
-                        "type": "call_signaling",
-                        "data": {
-                            "type": "call_video_toggle",
-                            "fromUserId": current_user.id,
-                            "toUserId": to_user_id,
-                            "data": {"enabled": payload.get("enabled", False)}
-                        }
-                    })
+                    await self.send_update_to_user(to_user_id, "call_signaling", {
+                        "type": "call_video_toggle",
+                        "fromUserId": current_user.id,
+                        "toUserId": to_user_id,
+                        "data": {"enabled": payload.get("enabled", False)}
+                    }, db)
 
                     await websocket.send_json({"type": "call_video_toggle", "data": {"status": "ok"}})
                 except HTTPException as e:
@@ -1361,15 +1627,12 @@ class MessaggingSocketManager:
                     # Ensure sender is set by the server
                     payload["fromUserId"] = current_user.id
 
-                    await self.send_to_user(to_user_id, {
-                        "type": "call_signaling",
-                        "data": {
-                            "type": "call_screen_share_toggle",
-                            "fromUserId": current_user.id,
-                            "toUserId": to_user_id,
-                            "data": {"enabled": payload.get("enabled", False)}
-                        }
-                    })
+                    await self.send_update_to_user(to_user_id, "call_signaling", {
+                        "type": "call_screen_share_toggle",
+                        "fromUserId": current_user.id,
+                        "toUserId": to_user_id,
+                        "data": {"enabled": payload.get("enabled", False)}
+                    }, db)
 
                     await websocket.send_json({"type": "call_screen_share_toggle", "data": {"status": "ok"}})
                 except HTTPException as e:
@@ -1431,18 +1694,23 @@ class MessaggingSocketManager:
                     if not current_user:
                         raise HTTPException(401)
 
+                    was_typing = self.typing_state.get(current_user.id, False)
                     self.typing_users[current_user.id] = time.time()
+                    is_now_typing = True
 
-                    # Broadcast to all connected users
-                    await self.broadcast({
-                        "type": "typing",
-                        "data": {
-                            "userId": current_user.id,
-                            "username": current_user.username
-                        }
-                    })
+                    # Only send update if state changed (started typing)
+                    if not was_typing:
+                        self.typing_state[current_user.id] = True
+                        # Broadcast to all connected users
+                        await self.broadcast({
+                            "type": "typing",
+                            "data": {
+                                "userId": current_user.id,
+                                "username": current_user.username
+                            }
+                        }, db)
 
-                    await websocket.send_json({"type": "typing", "data": {"status": "ok"}})
+                    # No confirmation response - privacy protection
                 except HTTPException as e:
                     _log_ws("typing_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
@@ -1455,19 +1723,23 @@ class MessaggingSocketManager:
                     if not current_user:
                         raise HTTPException(401)
 
+                    was_typing = self.typing_state.get(current_user.id, False)
                     if current_user.id in self.typing_users:
                         del self.typing_users[current_user.id]
 
-                    # Broadcast to all connected users
-                    await self.broadcast({
-                        "type": "stopTyping",
-                        "data": {
-                            "userId": current_user.id,
-                            "username": current_user.username
-                        }
-                    })
+                    # Only send update if state changed (stopped typing)
+                    if was_typing:
+                        self.typing_state[current_user.id] = False
+                        # Broadcast to all connected users
+                        await self.broadcast({
+                            "type": "stopTyping",
+                            "data": {
+                                "userId": current_user.id,
+                                "username": current_user.username
+                            }
+                        }, db)
 
-                    await websocket.send_json({"type": "stopTyping", "data": {"status": "ok"}})
+                    # No confirmation response - privacy protection
                 except HTTPException as e:
                     _log_ws("stopTyping_error", current_user, detail=str(getattr(e, "detail", e)))
                     await self.send_error(websocket, type, e)
@@ -1483,18 +1755,22 @@ class MessaggingSocketManager:
 
                     if current_user.id not in self.dm_typing_users:
                         self.dm_typing_users[current_user.id] = {}
+                    if current_user.id not in self.dm_typing_state:
+                        self.dm_typing_state[current_user.id] = {}
+                    
+                    was_typing = self.dm_typing_state[current_user.id].get(recipient_id, False)
                     self.dm_typing_users[current_user.id][recipient_id] = time.time()
 
-                    # Send only to recipient
-                    await self.send_to_user(recipient_id, {
-                        "type": "dmTyping",
-                        "data": {
+                    # Only send update if state changed (started typing)
+                    if not was_typing:
+                        self.dm_typing_state[current_user.id][recipient_id] = True
+                        # Send only to recipient
+                        await self.send_update_to_user(recipient_id, "dmTyping", {
                             "userId": current_user.id,
                             "username": current_user.username
-                        }
-                    })
+                        }, db)
 
-                    await websocket.send_json({"type": "dmTyping", "data": {"status": "ok"}})
+                    # No confirmation response - privacy protection
                 except HTTPException as e:
                     await self.send_error(websocket, type, e)
             elif type == "stopDmTyping":
@@ -1505,21 +1781,26 @@ class MessaggingSocketManager:
 
                     recipient_id = int(data["data"]["recipientId"])
 
+                    was_typing = False
+                    if current_user.id in self.dm_typing_state:
+                        was_typing = self.dm_typing_state[current_user.id].get(recipient_id, False)
+                    
                     if current_user.id in self.dm_typing_users and recipient_id in self.dm_typing_users[current_user.id]:
                         del self.dm_typing_users[current_user.id][recipient_id]
                         if not self.dm_typing_users[current_user.id]:
                             del self.dm_typing_users[current_user.id]
 
-                    # Send only to recipient
-                    await self.send_to_user(recipient_id, {
-                        "type": "stopDmTyping",
-                        "data": {
+                    # Only send update if state changed (stopped typing)
+                    if was_typing:
+                        if current_user.id in self.dm_typing_state:
+                            self.dm_typing_state[current_user.id][recipient_id] = False
+                        # Send only to recipient
+                        await self.send_update_to_user(recipient_id, "stopDmTyping", {
                             "userId": current_user.id,
                             "username": current_user.username
-                        }
-                    })
+                        }, db)
 
-                    await websocket.send_json({"type": "stopDmTyping", "data": {"status": "ok"}})
+                    # No confirmation response - privacy protection
                 except HTTPException as e:
                     await self.send_error(websocket, type, e)
             else:
@@ -1540,6 +1821,9 @@ class MessaggingSocketManager:
             ip=client_ip,
         )
         self.connections.append(websocket)
+        # Initialize update system for this connection
+        self.pending_updates[websocket] = []
+        self.last_seq_by_ws[websocket] = 0
         try:
             await self.handle_connection(websocket, db)
         except WebSocketDisconnect as e:
@@ -1553,69 +1837,96 @@ class MessaggingSocketManager:
                 reason=e.reason,
             )
         finally:
+            # Flush any pending updates before disconnecting
+            if websocket in self.pending_updates:
+                await self._flush_updates(websocket, db)
+            # Cancel any pending batch tasks
+            if websocket in self.update_batch_tasks:
+                self.update_batch_tasks[websocket].cancel()
+                del self.update_batch_tasks[websocket]
             # Cleanup connection
             self.connections.remove(websocket)
             if websocket in self.user_by_ws:
                 user_id = self.user_by_ws[websocket]
                 # Set user offline in DB
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    user.online = False
-                    user.last_seen = datetime.now()
-                    db.commit()
-                    # Remove from online users
-                    self.online_users.discard(user_id)
-                    # Broadcast status change
-                    await self.broadcast_status_change(user_id, False, user.last_seen.isoformat())
-                del self.user_by_ws[websocket]
+                try:
+                    # Ensure session is in a usable state
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if user:
+                        user.online = False
+                        user.last_seen = datetime.now()
+                        db.commit()
+                        # Remove from online users
+                        self.online_users.discard(user_id)
+                        # Broadcast status change
+                        await self.broadcast_status_change(user_id, False, user.last_seen.isoformat(), db)
+                except Exception as e:
+                    logger.error(f"Failed to set user offline during cleanup: {e}")
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                finally:
+                    del self.user_by_ws[websocket]
             # Cleanup subscriptions
             if websocket in self.ws_subscriptions:
                 del self.ws_subscriptions[websocket]
+            # Cleanup update system
+            if websocket in self.pending_updates:
+                del self.pending_updates[websocket]
+            if websocket in self.last_seq_by_ws:
+                del self.last_seq_by_ws[websocket]
+            if websocket in self.recent_updates:
+                del self.recent_updates[websocket]
 
-    async def broadcast(self, message: dict):
+    async def broadcast(self, message: dict, db: Session | None = None):
+        """Broadcast a message to all authenticated connections as an update (batched)"""
+        message_type = message.get("type", "")
+        update_data = message.get("data", {})
         for websocket in self.connections:
-            await websocket.send_json(message)
+            # Only send to authenticated websockets (those with user_id set)
+            if websocket in self.user_by_ws:
+                await self._send_update(websocket, message_type, update_data, db)
+
+    async def send_update_to_user(self, user_id: int, update_type: str, update_data: dict, db: Session | None = None):
+        """Send an update to a specific user (batched)"""
+        for websocket in self.connections:
+            if self.user_by_ws.get(websocket) == user_id:
+                await self._send_update(websocket, update_type, update_data, db)
 
     async def send_to_user(self, user_id: int, message: dict):
+        """Send a direct WebSocket message to a specific user (not batched)"""
         for websocket in self.connections:
             if self.user_by_ws.get(websocket) == user_id:
                 await websocket.send_json(message)
 
     async def send_suspension_to_user(self, user_id: int, reason: str):
-        """Send suspension message to user's WebSocket connections"""
-        message = {
-            "type": "suspended",
-            "data": {
-                "reason": reason
-            }
-        }
-        await self.send_to_user(user_id, message)
+        """Send suspension message to user's WebSocket connections (as batched update)"""
+        await self.send_update_to_user(user_id, "suspended", {
+            "reason": reason
+        })
 
     async def send_deletion_to_user(self, user_id: int):
-        """Send account deletion message to user's WebSocket connections"""
-        message = {
-            "type": "account_deleted",
-            "data": {}
-        }
-        await self.send_to_user(user_id, message)
+        """Send account deletion message to user's WebSocket connections (as batched update)"""
+        await self.send_update_to_user(user_id, "account_deleted", {})
 
-    async def broadcast_status_change(self, user_id: int, online: bool, last_seen: str):
+    async def broadcast_status_change(self, user_id: int, online: bool, last_seen: str, db: Session | None = None):
         """Broadcast status change to all connections that are subscribed to this user"""
-        message = {
-            "type": "statusUpdate",
-            "data": {
-                "userId": user_id,
-                "online": online,
-                "lastSeen": last_seen
-            }
-        }
-
         # Send to all connections that have this user in their subscriptions
         for websocket in self.connections:
             if websocket in self.ws_subscriptions and user_id in self.ws_subscriptions[websocket]:
-                await websocket.send_json(message)
+                await self._send_update(websocket, "statusUpdate", {
+                    "userId": user_id,
+                    "online": online,
+                    "lastSeen": last_seen
+                }, db)
 
-    async def cleanup_stale_typing_indicators(self):
+    async def cleanup_stale_typing_indicators(self, db: Session):
         """Periodically cleanup typing indicators that haven't been updated in 3+ seconds"""
         while True:
             try:
@@ -1629,15 +1940,23 @@ class MessaggingSocketManager:
                 ]
 
                 for user_id in stale_public_typing:
+                    was_typing = self.typing_state.get(user_id, False)
                     del self.typing_users[user_id]
-                    # Broadcast stop typing
-                    await self.broadcast({
-                        "type": "stopTyping",
-                        "data": {
-                            "userId": user_id,
-                            "username": "Unknown"  # We don't have username here, frontend will handle
-                        }
-                    })
+                    
+                    # Only send update if state changed (stopped typing)
+                    if was_typing:
+                        self.typing_state[user_id] = False
+                        # Get username from database
+                        user = db.query(User).filter(User.id == user_id).first()
+                        username = user.username if user else "Unknown"
+                        # Broadcast stop typing
+                        await self.broadcast({
+                            "type": "stopTyping",
+                            "data": {
+                                "userId": user_id,
+                                "username": username
+                            }
+                        }, db)
 
                 # Cleanup DM typing indicators
                 stale_dm_typing = []
@@ -1647,18 +1966,27 @@ class MessaggingSocketManager:
                             stale_dm_typing.append((user_id, recipient_id))
 
                 for user_id, recipient_id in stale_dm_typing:
+                    was_typing = False
+                    if user_id in self.dm_typing_state:
+                        was_typing = self.dm_typing_state[user_id].get(recipient_id, False)
+                    
                     if user_id in self.dm_typing_users and recipient_id in self.dm_typing_users[user_id]:
                         del self.dm_typing_users[user_id][recipient_id]
                         if not self.dm_typing_users[user_id]:
                             del self.dm_typing_users[user_id]
+                    
+                    # Only send update if state changed (stopped typing)
+                    if was_typing:
+                        if user_id in self.dm_typing_state:
+                            self.dm_typing_state[user_id][recipient_id] = False
+                        # Get username from database
+                        user = db.query(User).filter(User.id == user_id).first()
+                        username = user.username if user else "Unknown"
                         # Send stop typing to recipient
-                        await self.send_to_user(recipient_id, {
-                            "type": "stopDmTyping",
-                            "data": {
-                                "userId": user_id,
-                                "username": "Unknown"  # We don't have username here, frontend will handle
-                            }
-                        })
+                        await self.send_update_to_user(recipient_id, "stopDmTyping", {
+                            "userId": user_id,
+                            "username": username
+                        }, db)
 
                 # Wait 1 second before next cleanup
                 await asyncio.sleep(1.0)
@@ -1669,7 +1997,16 @@ class MessaggingSocketManager:
     def start_cleanup_task(self):
         """Start the cleanup task if not already running"""
         if self._cleanup_task is None or self._cleanup_task.done():
-            self._cleanup_task = asyncio.create_task(self.cleanup_stale_typing_indicators())
+            from db import SessionLocal
+            async def cleanup_with_db():
+                while True:
+                    try:
+                        with SessionLocal() as db:
+                            await self.cleanup_stale_typing_indicators(db)
+                    except Exception as e:
+                        logger.error(f"Error in cleanup task wrapper: {e}")
+                        await asyncio.sleep(1.0)
+            self._cleanup_task = asyncio.create_task(cleanup_with_db())
 
 messagingManager = MessaggingSocketManager()
 

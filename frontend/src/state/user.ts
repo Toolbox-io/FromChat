@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import type { User } from "@/core/types";
-import { request } from "@/core/websocket";
 import api from "@/core/api";
 import { API_BASE_URL } from "@/core/config";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
@@ -44,16 +43,8 @@ export const useUserStore = create<UserStore>((set) => ({
             console.error('Failed to store credentials in localStorage:', error);
         }
 
-        try {
-            request({
-                type: "ping",
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: token
-                },
-                data: {}
-            })
-        } catch {}
+        // Ping will be sent automatically on WebSocket reconnect
+        // No need to send here to avoid duplicate pings
     },
     logout: () => {
         try {
@@ -113,16 +104,8 @@ export const useUserStore = create<UserStore>((set) => ({
                     onlineStatusManager.setAuthToken(token);
                     typingManager.setAuthToken(token);
 
-                    try {
-                        request({
-                            type: "ping",
-                            credentials: {
-                                scheme: "Bearer",
-                                credentials: token
-                            },
-                            data: {}
-                        })
-                    } catch {}
+                    // Ping will be sent automatically on WebSocket reconnect
+                    // No need to send here to avoid duplicate pings
 
                     try {
                         if (isSupported()) {

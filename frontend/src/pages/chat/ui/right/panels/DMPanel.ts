@@ -103,7 +103,8 @@ export class DMPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
-            const { messages } = await api.chats.dm.fetchMessages(this.dmData.userId, this.currentUser.authToken, 50);
+            const limit = this.calculateMessageLimit();
+            const { messages, has_more } = await api.chats.dm.fetchMessages(this.dmData.userId, this.currentUser.authToken, limit);
             const decryptedMessages: Message[] = [];
             let maxIncomingId = 0;
 
@@ -122,6 +123,7 @@ export class DMPanel extends MessagePanel {
 
             this.clearMessages();
             decryptedMessages.forEach(msg => this.addMessage(msg));
+            this.setHasMoreMessages(has_more);
 
             // Update last read ID
             if (maxIncomingId > 0) {
@@ -132,6 +134,50 @@ export class DMPanel extends MessagePanel {
             console.error("Failed to load DM history:", error);
         } finally {
             this.setLoading(false);
+        }
+    }
+
+    async loadMoreMessages(): Promise<void> {
+        if (!this.currentUser.authToken || !this.dmData || !this.state.hasMoreMessages || this.state.isLoadingMore) return;
+
+        const messages = this.getMessages();
+        if (messages.length === 0) return;
+
+        const oldestMessage = messages[0];
+        const oldestEnvelope = oldestMessage.runtimeData?.dmEnvelope;
+        if (!oldestEnvelope) return;
+
+        this.setLoadingMore(true);
+        try {
+            const limit = this.calculateMessageLimit();
+            const { messages: newEnvelopes, has_more } = await api.chats.dm.fetchMessages(
+                this.dmData.userId,
+                this.currentUser.authToken,
+                limit,
+                oldestEnvelope.id
+            );
+            
+            if (newEnvelopes && newEnvelopes.length > 0) {
+                const decryptedMessages: Message[] = [];
+                for (const env of newEnvelopes) {
+                    try {
+                        const dmMsg = await this.parseTextPayload(env, decryptedMessages);
+                        decryptedMessages.push(dmMsg);
+                    } catch (error) {
+                        console.error("Error decrypting message:", error);
+                    }
+                }
+                
+                // Prepend older messages (they come in reverse chronological order)
+                this.updateState({
+                    messages: [...decryptedMessages.reverse(), ...messages]
+                });
+            }
+            this.setHasMoreMessages(has_more);
+        } catch (error) {
+            console.error("Failed to load more DM messages:", error);
+        } finally {
+            this.setLoadingMore(false);
         }
     }
 
