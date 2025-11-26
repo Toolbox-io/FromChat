@@ -9,6 +9,8 @@ export interface MessagePanelState {
     messages: Message[];
     isLoading: boolean;
     isTyping: boolean;
+    hasMoreMessages: boolean;
+    isLoadingMore: boolean;
 }
 
 export interface MessagePanelCallbacks {
@@ -35,7 +37,9 @@ export abstract class MessagePanel {
             online: false,
             messages: [],
             isLoading: false,
-            isTyping: false
+            isTyping: false,
+            hasMoreMessages: false,
+            isLoadingMore: false
         };
         this.currentUser = currentUser;
     }
@@ -106,6 +110,27 @@ export abstract class MessagePanel {
     protected setTyping(typing: boolean): void {
         this.updateState({ isTyping: typing });
     }
+
+    protected setLoadingMore(loading: boolean): void {
+        this.updateState({ isLoadingMore: loading });
+    }
+
+    protected setHasMoreMessages(hasMore: boolean): void {
+        this.updateState({ hasMoreMessages: hasMore });
+    }
+
+    /**
+     * Calculate message limit based on viewport height (5x screen height)
+     */
+    protected calculateMessageLimit(): number {
+        const viewportHeight = window.innerHeight;
+        return Math.ceil((viewportHeight * 5) / 100);
+    }
+
+    /**
+     * Load more messages (to be implemented by subclasses)
+     */
+    abstract loadMoreMessages(): Promise<void>;
 
     // Getters
     getState(): MessagePanelState {

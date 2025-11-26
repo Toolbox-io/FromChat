@@ -1,6 +1,6 @@
 import { MaterialList, MaterialListItem } from "@/utils/material";
 import { useUserStore } from "@/state/user";
-import { deleteAccount } from "@/core/api/account";
+import api from "@/core/api";
 import { confirm } from "mdui/functions/confirm";
 import styles from "@/pages/chat/css/settings-dialog.module.scss";
 
@@ -23,7 +23,7 @@ export function AccountPanel({ onClose }: AccountPanelProps) {
                 cancelText: "Cancel"
             });
 
-            await deleteAccount(authToken);
+            await api.user.auth.deleteAccount(authToken);
             logout();
             onClose();
         } catch (error) {

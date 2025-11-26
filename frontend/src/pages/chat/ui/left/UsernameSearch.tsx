@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useUserStore } from "@/state/user";
 import { useChatStore } from "@/state/chat";
-import { searchUsers, fetchUserPublicKey } from "@/core/api/dm";
+import api from "@/core/api";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { User } from "@/core/types";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
@@ -45,7 +45,7 @@ export function UsernameSearch({ containerRef, headerRef, bottomAppBarRef }: Use
             const newTimeout = setTimeout(async () => {
                 if (user.authToken) {
                     try {
-                        const users = await searchUsers(searchQuery, user.authToken);
+                        const users = await api.user.search.searchUsers(searchQuery, user.authToken);
                         setSearchResults(users);
                     } catch (error) {
                         console.error("Search failed:", error);
@@ -118,7 +118,7 @@ export function UsernameSearch({ containerRef, headerRef, bottomAppBarRef }: Use
 
             let publicKey = searchUser.publicKey;
             if (!publicKey) {
-                const fetchedPublicKey = await fetchUserPublicKey(searchUser.id, user.authToken);
+                const fetchedPublicKey = await api.chats.dm.fetchUserPublicKey(searchUser.id, user.authToken);
                 publicKey = fetchedPublicKey;
             }
 

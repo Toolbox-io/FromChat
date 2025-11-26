@@ -2,7 +2,7 @@ import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "@/utils/crypto/sy
 import { randomBytes } from "@/utils/crypto/kdf";
 import { b64, ub64 } from "@/utils/utils";
 import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
-import { getCurrentKeys } from "@/core/api/account";
+import api from "@/core/api";
 import type { WrappedSessionKeyPayload } from "@/core/types";
 
 export interface CallSessionKey {
@@ -186,7 +186,7 @@ const CALL_INFO = new Uint8Array([2]);
  * @returns Promise that resolves to the wrapped session key payload
  */
 export async function wrapCallSessionKeyForRecipient(recipientPublicKeyB64: string, sessionKey: Uint8Array): Promise<WrappedSessionKeyPayload> {
-    const keys = getCurrentKeys();
+    const keys = api.user.auth.getCurrentKeys();
     if (!keys) throw new Error("Keys not initialized");
 
     const salt = randomBytes(16);
@@ -209,7 +209,7 @@ export async function createSharedSecretAndDeriveSessionKey(
     sessionKeyHash: string,
     isInitiator: boolean
 ): Promise<CallSessionKey> {
-    const keys = getCurrentKeys();
+    const keys = api.user.auth.getCurrentKeys();
     if (!keys) throw new Error("Keys not initialized");
 
     // Create shared secret using ECDH
@@ -226,7 +226,7 @@ export async function createSharedSecretAndDeriveSessionKey(
  * @returns Promise that resolves to the unwrapped session key
  */
 export async function unwrapCallSessionKeyFromSender(senderPublicKeyB64: string, payload: WrappedSessionKeyPayload): Promise<Uint8Array> {
-    const keys = getCurrentKeys();
+    const keys = api.user.auth.getCurrentKeys();
     if (!keys) throw new Error("Keys not initialized");
 
     const salt = ub64(payload.salt);

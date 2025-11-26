@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useUserStore } from "@/state/user";
-import { loadProfile, updateProfile, uploadProfilePicture, type ProfileData } from "@/core/api/account/profile";
+import api from "@/core/api";
+import type { ProfileData } from "@/core/api/user/profile";
 import { showSuccess, showError } from "@/utils/notification";
 
 export default function useProfile() {
@@ -15,7 +16,7 @@ export default function useProfile() {
 
         setIsLoading(true);
         try {
-            const data = await loadProfile(user.authToken);
+            const data = await api.user.profile.get(user.authToken);
             if (data) {
                 setProfileData(data);
             }
@@ -33,7 +34,7 @@ export default function useProfile() {
 
         setIsUpdating(true);
         try {
-            const success = await updateProfile(user.authToken, data);
+            const success = await api.user.profile.update(user.authToken, data);
             if (success) {
                 // Reload profile data to get updated information
                 await loadProfileData();
@@ -58,7 +59,7 @@ export default function useProfile() {
 
         setIsUpdating(true);
         try {
-            const result = await uploadProfilePicture(user.authToken, file);
+            const result = await api.user.profile.uploadPicture(user.authToken, file);
             if (result) {
                 // Update profile data with new picture URL
                 setProfileData(prev => prev ? {

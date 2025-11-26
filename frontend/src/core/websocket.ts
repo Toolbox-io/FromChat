@@ -12,6 +12,8 @@ import { CallSignalingHandler } from "./calls/signaling";
 import { onlineStatusManager } from "./onlineStatusManager";
 import { typingManager } from "./typingManager";
 import { useUserStore } from "@/state/user";
+import { getLastSequence, processBatchedUpdates, requestMissedUpdates } from "./updateManager";
+import { getAuthToken } from "@/core/api/user/auth";
 
 /**
  * Creates a new WebSocket connection to the chat server
@@ -148,55 +150,119 @@ async function reconnect(): Promise<void> {
  */
 function setupEventHandlers(): void {
     // Message handler
-    messageHandler = (e: MessageEvent) => {
+    messageHandler = async (e: MessageEvent) => {
         try {
             const response: WebSocketMessage<any> = JSON.parse(e.data);
+
+            // Handle batched updates
+            if (response.type === "updates" && "seq" in response && "updates" in response) {
+                // Create function to request missed updates with credentials
+                const token = getAuthToken();
+                const requestMissedFn = token ? async (lastSeq: number) => {
+                    await requestMissedUpdates(lastSeq, async (req) => {
+                        await request(req);
+                    }, {
+                        scheme: "Bearer",
+                        credentials: token
+                    });
+                } : undefined;
+                
+                await processBatchedUpdates(response as any, (update) => {
+                    // Route individual updates to appropriate handlers
+                    handleUpdate(update);
+                }, requestMissedFn);
+                return;
+            }
 
             // Handle call signaling messages
             if (callSignalingHandler && response.type === "call_signaling" && response.data) {
                 callSignalingHandler.handleWebSocketMessage(response.data);
             }
 
-            // Handle status and typing messages
-            if (response.type === "statusUpdate") {
-                onlineStatusManager.handleStatusUpdate(response as any);
-            } else if (response.type === "typing") {
-                typingManager.handleTyping(response as any);
-            } else if (response.type === "stopTyping") {
-                typingManager.handleStopTyping(response as any);
-            } else if (response.type === "dmTyping") {
-                typingManager.handleDmTyping(response as any);
-            } else if (response.type === "stopDmTyping") {
-                typingManager.handleStopDmTyping(response as any);
-            } else if (response.type === "suspended") {
-                // Handle account suspension
-                const { setSuspended } = useUserStore.getState();
-                const reason = response.data?.reason || "No reason provided";
-                setSuspended(reason);
-                // Close WebSocket connection
-                websocket.close();
-            } else if (response.type === "account_deleted") {
-                // Handle account deletion - silent logout
-                const { logout } = useUserStore.getState();
-                logout();
-                // Close WebSocket connection
-                websocket.close();
-            }
-
-            // Route message to global handler if set
-            if (globalMessageHandler) {
-                globalMessageHandler(response);
-            }
+            // Handle status and typing messages (these may come as immediate messages or in batches)
+            handleUpdate(response);
         } catch (error) {
             console.error("Error parsing WebSocket message:", error);
         }
     };
+
+    // Helper function to handle individual updates
+    function handleUpdate(response: WebSocketMessage<any>): void {
+        if (response.type === "statusUpdate") {
+            onlineStatusManager.handleStatusUpdate(response as any);
+        } else if (response.type === "typing") {
+            typingManager.handleTyping(response as any);
+        } else if (response.type === "stopTyping") {
+            typingManager.handleStopTyping(response as any);
+        } else if (response.type === "dmTyping") {
+            typingManager.handleDmTyping(response as any);
+        } else if (response.type === "stopDmTyping") {
+            typingManager.handleStopDmTyping(response as any);
+        } else if (response.type === "suspended") {
+            // Handle account suspension
+            const { setSuspended } = useUserStore.getState();
+            const reason = response.data?.reason || "No reason provided";
+            setSuspended(reason);
+            // Close WebSocket connection
+            websocket.close();
+        } else if (response.type === "account_deleted") {
+            // Handle account deletion - silent logout
+            const { logout } = useUserStore.getState();
+            logout();
+            // Close WebSocket connection
+            websocket.close();
+        }
+
+        // Route message to global handler if set
+        if (globalMessageHandler) {
+            globalMessageHandler(response);
+        }
+    }
     websocket.addEventListener("message", messageHandler);
 
     // Open handler
-    openHandler = () => {
+    openHandler = async () => {
         reconnectAttempts = 0; // Reset on successful connection
         isReconnecting = false;
+        
+        // Authenticate by sending ping with credentials and request missed updates
+        try {
+            const token = getAuthToken();
+            if (token) {
+                const credentials = {
+                    scheme: "Bearer",
+                    credentials: token
+                };
+                
+                // Send ping to authenticate and set user_by_ws on the server
+                try {
+                    await request({
+                        type: "ping",
+                        credentials,
+                        data: {}
+                    });
+                } catch (error) {
+                    console.error("Failed to send ping on reconnect:", error);
+                }
+                
+                // Send last sequence number and request missed updates on reconnect
+                // Wait a bit for ping to complete authentication
+                await delay(100);
+                
+                try {
+                    const lastSeq = await getLastSequence();
+                    if (lastSeq > 0) {
+                        await requestMissedUpdates(lastSeq, async (req) => {
+                            await request(req);
+                        }, credentials);
+                    }
+                } catch (error) {
+                    console.error("Failed to request missed updates:", error);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to authenticate on reconnect:", error);
+        }
     };
     websocket.addEventListener("open", openHandler);
 
@@ -275,5 +341,56 @@ export function request<Request, Response = any>(payload: WebSocketMessage<Reque
 // --------------
 // Initialization
 // --------------
+
+/**
+ * Ensure WebSocket is connected and authenticated after login
+ * This should be called after successful authentication
+ */
+export async function ensureAuthenticated(): Promise<void> {
+    const token = getAuthToken();
+    if (!token) {
+        return;
+    }
+
+    // If WebSocket is not connected, wait for it to connect
+    if (websocket.readyState === WebSocket.CONNECTING) {
+        await new Promise<void>((resolve) => {
+            const checkConnection = () => {
+                if (websocket.readyState === WebSocket.OPEN) {
+                    resolve();
+                } else if (websocket.readyState === WebSocket.CLOSED) {
+                    // Connection failed, try to reconnect
+                    reconnect().then(() => {
+                        setTimeout(checkConnection, 100);
+                    });
+                } else {
+                    setTimeout(checkConnection, 100);
+                }
+            };
+            checkConnection();
+        });
+    } else if (websocket.readyState === WebSocket.CLOSED) {
+        // Reconnect if closed
+        await reconnect();
+    }
+
+    // If WebSocket is open, send ping to authenticate
+    if (websocket.readyState === WebSocket.OPEN) {
+        try {
+            const credentials = {
+                scheme: "Bearer",
+                credentials: token
+            };
+            
+            await request({
+                type: "ping",
+                credentials,
+                data: {}
+            });
+        } catch (error) {
+            console.error("Failed to send ping after login:", error);
+        }
+    }
+}
 
 setupEventHandlers();

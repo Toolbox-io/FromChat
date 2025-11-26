@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyledDialog } from "@/core/components/StyledDialog";
 import type { DialogProps } from "@/core/types";
 import { useUserStore } from "@/state/user";
-import { changePassword } from "@/core/api/account";
+import api from "@/core/api";
 import { MaterialButton, MaterialIconButton, MaterialSwitch, MaterialTextField } from "@/utils/material";
 import styles from "@/pages/chat/css/changePasswordDialog.module.scss";
 
@@ -29,7 +29,7 @@ export default function ChangePasswordDialog({ isOpen, onOpenChange }: DialogPro
                         if (!current || !next || next !== confirm) return;
                         setBusy(true);
                         try {
-                            await changePassword(user.authToken, user.currentUser?.username, current, next, logoutAll);
+                            await api.user.auth.changePassword(user.authToken, user.currentUser?.username, current, next, logoutAll);
                             setCurrent("");
                             setNext("");
                             setConfirm("");

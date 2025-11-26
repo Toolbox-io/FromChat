@@ -3,7 +3,7 @@ import { MaterialList, MaterialListItem, MaterialSwitch, type MDUISwitch } from 
 import { useUserStore } from "@/state/user";
 import { initialize, subscribe, unsubscribe, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
-import { unsubscribeFromPush } from "@/core/api/push";
+import api from "@/core/api";
 import styles from "@/pages/chat/css/settings-dialog.module.scss";
 
 export function NotificationsPanel() {
@@ -73,7 +73,7 @@ export function NotificationsPanel() {
                 }
 
                 // Then unsubscribe from server
-                await unsubscribeFromPush(authToken);
+                await api.push.subscription.unsubscribe(authToken);
 
                 // After unsubscribing, permission is still granted but we're not subscribed
                 // So we keep the state as disabled (false)

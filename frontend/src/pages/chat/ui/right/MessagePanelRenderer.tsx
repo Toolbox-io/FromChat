@@ -58,6 +58,8 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
     const [panelState, setPanelState] = useState<MessagePanelState | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const previousMessageCountRef = useRef(0);
+    const messagesContainerRef = useRef<HTMLElement | null>(null);
+    const isLoadingMoreRef = useRef(false);
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [replyToVisible, setReplyToVisible] = useState(Boolean(replyTo));
     const [editMessage, setEditMessage] = useState<Message | null>(null);
@@ -91,6 +93,50 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
             setEditVisible(true);
         }
     }, [editMessage]);
+
+    // Handle scroll detection for infinite loading
+    useEffect(() => {
+        if (!panel || !panelState) return;
+
+        const messagesContainer = document.getElementById("chat-messages");
+        if (!messagesContainer) return;
+
+        messagesContainerRef.current = messagesContainer;
+
+        const handleScroll = async () => {
+            if (!panel || !panelState || isLoadingMoreRef.current) return;
+            
+            const container = messagesContainerRef.current;
+            if (!container) return;
+
+            // Check if scrolled to top (within 100px threshold)
+            if (container.scrollTop <= 100 && panelState.hasMoreMessages && !panelState.isLoadingMore) {
+                isLoadingMoreRef.current = true;
+                const previousScrollHeight = container.scrollHeight;
+                
+                try {
+                    await panel.loadMoreMessages();
+                    
+                    // Preserve scroll position after loading
+                    requestAnimationFrame(() => {
+                        if (container) {
+                            const newScrollHeight = container.scrollHeight;
+                            container.scrollTop = newScrollHeight - previousScrollHeight;
+                        }
+                        isLoadingMoreRef.current = false;
+                    });
+                } catch (error) {
+                    console.error("Error loading more messages:", error);
+                    isLoadingMoreRef.current = false;
+                }
+            }
+        };
+
+        messagesContainer.addEventListener("scroll", handleScroll);
+        return () => {
+            messagesContainer.removeEventListener("scroll", handleScroll);
+        };
+    }, [panel, panelState]);
 
     // Handle panel state changes
     useEffect(() => {
@@ -280,31 +326,43 @@ export function MessagePanelRenderer({ panel }: MessagePanelRendererProps) {
                                 </div>
                             </div>
                         ) : panelState && panel ? (
-                            <ChatMessages
-                                messages={panelState.messages}
-                                isDm={panel.isDm()}
-                                dmRecipientPublicKey={(panel as DMPanel).dmData?.publicKey}
-                                onReplySelect={(message) => {
-                                    if (editMessage || editVisible) {
-                                        setPendingAction({ type: "reply", message: message });
-                                        setEditVisible(false); // onCloseEdit will apply pending
-                                    } else {
-                                        setReplyTo(message);
-                                    }
-                                }}
-                                onEditSelect={(message) => {
-                                    if (replyTo || replyToVisible) {
-                                        setPendingAction({ type: "edit", message: message });
-                                        setReplyToVisible(false); // onCloseReply will apply pending
-                                    } else {
-                                        setEditMessage(message);
-                                    }
-                                }}
-                                onDelete={(id) => panel.handleDeleteMessage(id)}
-                                onRetryMessage={(id) => panel.retryMessage(id)}
-                            >
-                                <div ref={messagesEndRef} />
-                            </ChatMessages>
+                            <>
+                                {panelState.isLoadingMore && (
+                                    <div style={{
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        padding: "8px",
+                                        color: "var(--mdui-color-on-surface-variant)"
+                                    }}>
+                                        Загрузка...
+                                    </div>
+                                )}
+                                <ChatMessages
+                                    messages={panelState.messages}
+                                    isDm={panel.isDm()}
+                                    dmRecipientPublicKey={(panel as DMPanel).dmData?.publicKey}
+                                    onReplySelect={(message) => {
+                                        if (editMessage || editVisible) {
+                                            setPendingAction({ type: "reply", message: message });
+                                            setEditVisible(false); // onCloseEdit will apply pending
+                                        } else {
+                                            setReplyTo(message);
+                                        }
+                                    }}
+                                    onEditSelect={(message) => {
+                                        if (replyTo || replyToVisible) {
+                                            setPendingAction({ type: "edit", message: message });
+                                            setReplyToVisible(false); // onCloseReply will apply pending
+                                        } else {
+                                            setEditMessage(message);
+                                        }
+                                    }}
+                                    onDelete={(id) => panel.handleDeleteMessage(id)}
+                                    onRetryMessage={(id) => panel.retryMessage(id)}
+                                >
+                                    <div ref={messagesEndRef} />
+                                </ChatMessages>
+                            </>
                         ) : (
                             <div className={rightPanelStyles.chatMessages} id="chat-messages">
                                 <div style={{

@@ -5,13 +5,14 @@ import { useImmer } from "use-immer";
 import type { LoginRequest } from "@/core/types";
 import { useUserStore } from "@/state/user";
 import { MaterialButton } from "@/utils/material";
-import { ensureKeysOnLogin, deriveAuthSecret, login } from "@/core/api/account";
+import api from "@/core/api";
 import { AuthTextField, type AuthTextFieldHandle } from "./AuthTextField";
 import { initialize, isSupported, startElectronReceiver, subscribe } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import type { Alert, AlertType } from "./Auth";
 import { AuthHeader, AlertsContainer } from "./Auth";
 import styles from "./auth.module.scss";
+import { ensureAuthenticated } from "@/core/websocket";
 
 const loginFieldVariants: Variants = {
     initial: {
@@ -79,20 +80,27 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
         setIsLoading(true);
 
         try {
-            const derived = await deriveAuthSecret(username, password);
+            const derived = await api.user.auth.deriveAuthSecret(username, password);
             const request: LoginRequest = {
                 username: username,
                 password: derived
             }
 
             try {
-                const data = await login(request);
+                const data = await api.user.auth.login(request);
                 setUser(data.token, data.user);
 
                 try {
-                    await ensureKeysOnLogin(password, data.token);
+                    await api.user.auth.ensureKeysOnLogin(password, data.token);
                 } catch (e) {
                     console.error("Key setup failed:", e);
+                }
+
+                // Ensure WebSocket is connected and authenticated
+                try {
+                    await ensureAuthenticated();
+                } catch (e) {
+                    console.error("WebSocket authentication failed:", e);
                 }
 
                 navigate("/chat");

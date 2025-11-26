@@ -1,9 +1,7 @@
 import { create } from "zustand";
 import type { User } from "@/core/types";
-import { request } from "@/core/websocket";
-import { restoreKeys } from "@/core/api/account";
+import api from "@/core/api";
 import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/account";
 import { initialize, subscribe, startElectronReceiver, isSupported } from "@/core/push-notifications/push-notifications";
 import { isElectron } from "@/core/electron/electron";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
@@ -45,16 +43,8 @@ export const useUserStore = create<UserStore>((set) => ({
             console.error('Failed to store credentials in localStorage:', error);
         }
 
-        try {
-            request({
-                type: "ping",
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: token
-                },
-                data: {}
-            })
-        } catch {}
+        // Ping will be sent automatically on WebSocket reconnect
+        // No need to send here to avoid duplicate pings
     },
     logout: () => {
         try {
@@ -84,11 +74,11 @@ export const useUserStore = create<UserStore>((set) => ({
 
             if (token) {
                 const fullResponse = await fetch(`${API_BASE_URL}/user/profile`, {
-                    headers: getAuthHeaders(token, true)
+                    headers: api.user.auth.getAuthHeaders(token, true)
                 });
                 if (fullResponse.ok) {
                     const user: User = await fullResponse.json();
-                    restoreKeys();
+                    api.user.auth.restoreKeys();
 
                     if (user.suspended) {
                         set({
@@ -114,16 +104,8 @@ export const useUserStore = create<UserStore>((set) => ({
                     onlineStatusManager.setAuthToken(token);
                     typingManager.setAuthToken(token);
 
-                    try {
-                        request({
-                            type: "ping",
-                            credentials: {
-                                scheme: "Bearer",
-                                credentials: token
-                            },
-                            data: {}
-                        })
-                    } catch {}
+                    // Ping will be sent automatically on WebSocket reconnect
+                    // No need to send here to avoid duplicate pings
 
                     try {
                         if (isSupported()) {

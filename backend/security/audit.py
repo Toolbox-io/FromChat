@@ -204,7 +204,16 @@ def _render_public_chat(action: str, fields: Dict[str, Any]) -> List[str]:
         attachments = fields.get("attachments")
         if attachments:
             lines.append(f"Attachments: {_plural('file', attachments)}")
-        if fields.get("content"):
+        
+        # If content was censored, log both raw and censored versions
+        if fields.get("raw_content") is not None:
+            lines.append("Raw content (before censoring):")
+            for line in unescape(fields["raw_content"]).splitlines():
+                lines.append(f"| {line}")
+            lines.append("Censored content (stored):")
+            for line in unescape(fields.get("censored_content", fields.get("content", ""))).splitlines():
+                lines.append(f"| {line}")
+        elif fields.get("content"):
             lines.append("Content:")
             for line in unescape(fields["content"]).splitlines():
                 lines.append(f"| {line}")
@@ -217,7 +226,16 @@ def _render_public_chat(action: str, fields: Dict[str, Any]) -> List[str]:
             lines.append("Previous content:")
             for line in unescape(fields["previous_content"] or "").splitlines() or [""]:
                 lines.append(f"| {line}")
-        if fields.get("content"):
+        
+        # If content was censored, log both raw and censored versions
+        if fields.get("raw_content") is not None:
+            lines.append("Raw content (before censoring):")
+            for line in unescape(fields["raw_content"]).splitlines():
+                lines.append(f"| {line}")
+            lines.append("Censored content (stored):")
+            for line in unescape(fields.get("censored_content", fields.get("content", ""))).splitlines():
+                lines.append(f"| {line}")
+        elif fields.get("content"):
             lines.append("New content:")
             for line in unescape(fields["content"] or "").splitlines() or [""]:
                 lines.append(f"| {line}")

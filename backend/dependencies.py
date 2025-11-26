@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -66,7 +66,20 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Touch last_seen on valid session
+    # Check if session has been inactive for too long (sliding expiration)
+    from constants import TOKEN_INACTIVITY_EXPIRE_HOURS
+    inactivity_threshold = datetime.now() - timedelta(hours=TOKEN_INACTIVITY_EXPIRE_HOURS)
+    if device_session.last_seen < inactivity_threshold:
+        # Session expired due to inactivity - revoke it
+        device_session.revoked = True
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired due to inactivity",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Touch last_seen on valid session (sliding expiration - extends token life)
     device_session.last_seen = datetime.now()
     db.commit()
 

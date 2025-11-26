@@ -4,16 +4,17 @@ import jwt
 from typing import Optional, Any
 import bcrypt
 
-from constants import ACCESS_TOKEN_EXPIRE_HOURS, JWT_SECRET_KEY, JWT_ALGORITHM
+from constants import MAX_TOKEN_LIFETIME_HOURS, JWT_SECRET_KEY, JWT_ALGORITHM
 
 # JWT Helper Functions
 def create_token(user_id: int, username: str, session_id: str) -> str:
-    expire = datetime.now() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    # Set a long expiration as safety net (actual expiration based on inactivity)
+    expire = datetime.now() + timedelta(hours=MAX_TOKEN_LIFETIME_HOURS)
     payload = {
         "user_id": user_id,
         "username": username,
         "session_id": session_id,
-        "exp": expire
+        "exp": int(expire.timestamp())  # JWT exp must be Unix timestamp (int)
     }
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 

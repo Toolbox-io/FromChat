@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUserStore } from "@/state/user";
 import { useProfileStore } from "@/state/profile";
-import { fetchUserProfileById, fetchUserProfile } from "@/core/api/account/profile";
+import api from "@/core/api";
 import styles from "@/pages/chat/css/layout.module.scss";
 
 export default function ChatPage() {
@@ -43,10 +43,10 @@ export default function ChatPage() {
                 
                 if (profileInfo.userId) {
                     // Fetch by user ID
-                    userProfile = await fetchUserProfileById(user.authToken, profileInfo.userId);
+                    userProfile = await api.user.profile.fetchById(user.authToken, profileInfo.userId);
                 } else if (profileInfo.username) {
                     // Fetch by username
-                    userProfile = await fetchUserProfile(user.authToken, profileInfo.username);
+                    userProfile = await api.user.profile.fetchByUsername(user.authToken, profileInfo.username);
                 }
                 
                 if (userProfile) {

@@ -2,7 +2,7 @@ import { MessagePanel } from "./MessagePanel";
 import { request } from "@/core/websocket";
 import type { ChatWebSocketMessage, Message, ReactionUpdateWebSocketMessage } from "@/core/types";
 import type { UserState, ProfileDialogData } from "@/state/types";
-import { fetchMessages, sendMessage, sendMessageWithFiles } from "@/core/api/messaging";
+import api from "@/core/api";
 
 export class PublicChatPanel extends MessagePanel {
     private messagesLoaded: boolean = false;
@@ -41,13 +41,15 @@ export class PublicChatPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
-            const messages = await fetchMessages(this.currentUser.authToken);
+            const limit = this.calculateMessageLimit();
+            const { messages, has_more } = await api.chats.general.fetchMessages(this.currentUser.authToken, limit);
             if (messages && messages.length > 0) {
                 this.clearMessages();
                 messages.forEach((msg: Message) => {
                     this.addMessage(msg);
                 });
             }
+            this.setHasMoreMessages(has_more);
             this.messagesLoaded = true;
         } catch (error) {
             console.error("Error loading public chat messages:", error);
@@ -56,14 +58,43 @@ export class PublicChatPanel extends MessagePanel {
         }
     }
 
+    async loadMoreMessages(): Promise<void> {
+        if (!this.currentUser.authToken || !this.state.hasMoreMessages || this.state.isLoadingMore) return;
+
+        const messages = this.getMessages();
+        if (messages.length === 0) return;
+
+        const oldestMessage = messages[0];
+        this.setLoadingMore(true);
+        try {
+            const limit = this.calculateMessageLimit();
+            const { messages: newMessages, has_more } = await api.chats.general.fetchMessages(
+                this.currentUser.authToken,
+                limit,
+                oldestMessage.id
+            );
+            if (newMessages && newMessages.length > 0) {
+                // Prepend older messages (they come in reverse chronological order)
+                this.updateState({
+                    messages: [...newMessages.reverse(), ...messages]
+                });
+            }
+            this.setHasMoreMessages(has_more);
+        } catch (error) {
+            console.error("Error loading more public chat messages:", error);
+        } finally {
+            this.setLoadingMore(false);
+        }
+    }
+
     protected async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !content.trim()) return;
 
         try {
             if (files.length === 0) {
-                await sendMessage(content, replyToId ?? null, this.currentUser.authToken);
+                await api.chats.general.send(content, replyToId ?? null, this.currentUser.authToken);
             } else {
-                await sendMessageWithFiles(content, replyToId ?? null, files, this.currentUser.authToken);
+                await api.chats.general.sendWithFiles(content, replyToId ?? null, files, this.currentUser.authToken);
             }
         } catch (error) {
             console.error("Error sending message:", error);

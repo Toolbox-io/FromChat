@@ -1,4 +1,4 @@
-import { subscribeToPush } from "@/core/api/push";
+import api from "@/core/api";
 import { isElectron } from "@/core/electron/electron";
 import { websocket } from "@/core/websocket";
 import type { NewMessageWebSocketMessage, WebSocketMessage } from "@/core/types";
@@ -89,7 +89,7 @@ async function sendSubscriptionToServer(token: string): Promise<boolean> {
     };
 
     try {
-        await subscribeToPush(subscriptionData, token);
+        await api.push.subscription.subscribe(subscriptionData, token);
         return true;
     } catch (error) {
         console.error("Failed to send subscription to server:", error);
