@@ -713,54 +713,36 @@ def censor_text(text: str) -> str:
 
 
 def contains_profanity(text: str) -> bool:
+    """
+    Check if text contains profanity that would be censored.
+    Returns True if censor_text would actually censor anything.
+    """
     if not text:
         return False
 
-    _rebuild_dictionary()
+    # Use censor_text to check if anything would be censored
+    # This ensures consistency between contains_profanity and censor_text
+    censored = censor_text(text)
     
-    # Extract only alphanumeric characters and normalize homoglyphs
-    # This removes special characters, emojis, etc. that could be used to bypass the filter
-    normalized_text, _ = _extract_alphanumeric_with_mapping(text)
-    normalized_lower = normalized_text.lower()
+    # Check if any characters were actually censored (changed to asterisks)
+    # by comparing the original text with the censored version
+    # We need to account for the fact that the original might already contain asterisks
+    if censored == text:
+        return False  # No changes, so no profanity
     
-    # Check phrase patterns on normalized text (to handle special characters)
-    for pattern in _PHRASE_PATTERNS:
-        if pattern.search(normalized_lower):
-            return True
-    if _find_fuzzy_phrase_spans(normalized_lower, "generic"):
-        return True
+    # If the text changed, check if any non-asterisk characters were replaced
+    # by comparing character-by-character (excluding positions that were already asterisks)
+    for i, (orig_char, censored_char) in enumerate(zip(text, censored)):
+        if orig_char != "*" and censored_char == "*":
+            return True  # A non-asterisk character was censored
     
-    # Check for profane words as substrings/subsequences (to catch cases like "хуй" in "хууй" or "хуйня")
-    profane_words = _STATIC_TERMS
-    substring_spans = _check_profanity_substrings(normalized_text, profane_words)
-    
-    if substring_spans:
-        # Check if any found profanity is not part of a whitelisted word
-        for span_start, span_end in substring_spans:
-            is_whitelisted = False
-            for whitelist_word in _WHITELIST:
-                normalized_whitelist, _ = _extract_alphanumeric_with_mapping(whitelist_word)
-                normalized_whitelist_lower = normalized_whitelist.lower()
-                wl_pos = normalized_lower.find(normalized_whitelist_lower)
-                if wl_pos != -1:
-                    # Check if profane span is within whitelisted word
-                    if wl_pos <= span_start < wl_pos + len(normalized_whitelist_lower):
-                        is_whitelisted = True
-                        break
-            if not is_whitelisted:
+    # If censored is longer, check the extra characters
+    if len(censored) > len(text):
+        for i in range(len(text), len(censored)):
+            if censored[i] == "*":
                 return True
     
-    # Remove whitelisted words from text before checking profanity
-    # This allows standalone whitelisted words but still blocks them in phrases
-    for whitelist_word in _WHITELIST:
-        # Normalize whitelist word too
-        normalized_whitelist, _ = _extract_alphanumeric_with_mapping(whitelist_word)
-        normalized_whitelist_lower = normalized_whitelist.lower()
-        # Use word boundaries to match whole words only
-        pattern = re.compile(r"\b" + re.escape(normalized_whitelist_lower) + r"\b", re.IGNORECASE)
-        normalized_lower = pattern.sub("", normalized_lower)
-    
-    return _profanity.contains_profanity(normalized_lower)
+    return False
 
 
 def contains_sensitive_phrase(text: str) -> bool:

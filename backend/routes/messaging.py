@@ -26,7 +26,7 @@ import io
 import json
 from better_profanity import profanity as _bp
 from security.audit import log_access, log_dm, log_public_chat, log_security
-from security.profanity import censor_text
+from security.profanity import censor_text, contains_profanity
 from security.rate_limit import rate_limit_per_ip
 from websocket.utils import authenticate_user
 
@@ -277,6 +277,9 @@ async def _send_message_internal(
     # Apply profanity filter before storing
     filtered_content = censor_text(raw_content)
     escaped_content = html.escape(filtered_content, quote=False)
+    
+    # Check if content was censored (use contains_profanity to detect actual profanity)
+    was_censored = contains_profanity(raw_content)
 
     if len(escaped_content) > 4096:
         raise HTTPException(
@@ -368,17 +371,25 @@ async def _send_message_internal(
     _monitor_public_message_activity(current_user, filtered_content, db)
 
     message_payload = convert_message(new_message)
-    log_public_chat(
-        "message_created",
-        message_id=new_message.id,
-        user_id=current_user.id,
-        username=current_user.username,
-        reply_to=new_message.reply_to_id,
-        attachments=len(new_message.files or []),
-        length=len(new_message.content),
-        suspended=current_user.suspended,
-        content=new_message.content,
-    )
+    
+    # Prepare log fields
+    log_fields = {
+        "message_id": new_message.id,
+        "user_id": current_user.id,
+        "username": current_user.username,
+        "reply_to": new_message.reply_to_id,
+        "attachments": len(new_message.files or []),
+        "length": len(new_message.content),
+        "suspended": current_user.suspended,
+        "content": new_message.content,
+    }
+    
+    # If content was censored, log both raw and censored versions
+    if was_censored:
+        log_fields["raw_content"] = raw_content
+        log_fields["censored_content"] = filtered_content
+    
+    log_public_chat("message_created", **log_fields)
 
     return {"status": "success", "message": message_payload}
 
@@ -692,6 +703,10 @@ async def edit_message(
     original_content = message.content
     sanitized_content = censor_text(raw_content)
     escaped_content = html.escape(sanitized_content, quote=False)
+    
+    # Check if content was censored (use contains_profanity to detect actual profanity)
+    was_censored = contains_profanity(raw_content)
+    
     if len(escaped_content) > 4096:
         raise HTTPException(status_code=400, detail="Message too long")
 
@@ -702,15 +717,23 @@ async def edit_message(
     db.refresh(message)
 
     payload = convert_message(message)
-    log_public_chat(
-        "message_edited",
-        message_id=message.id,
-        user_id=current_user.id,
-        username=current_user.username,
-        reply_to=message.reply_to_id,
-        content=message.content,
-        previous_content=original_content,
-    )
+    
+    # Prepare log fields
+    log_fields = {
+        "message_id": message.id,
+        "user_id": current_user.id,
+        "username": current_user.username,
+        "reply_to": message.reply_to_id,
+        "content": message.content,
+        "previous_content": original_content,
+    }
+    
+    # If content was censored, log both raw and censored versions
+    if was_censored:
+        log_fields["raw_content"] = raw_content
+        log_fields["censored_content"] = sanitized_content
+    
+    log_public_chat("message_edited", **log_fields)
 
     return {"status": "success", "message": payload}
 
