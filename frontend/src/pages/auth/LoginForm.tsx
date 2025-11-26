@@ -12,6 +12,7 @@ import { isElectron } from "@/core/electron/electron";
 import type { Alert, AlertType } from "./Auth";
 import { AuthHeader, AlertsContainer } from "./Auth";
 import styles from "./auth.module.scss";
+import { ensureAuthenticated } from "@/core/websocket";
 
 const loginFieldVariants: Variants = {
     initial: {
@@ -93,6 +94,13 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
                     await api.user.auth.ensureKeysOnLogin(password, data.token);
                 } catch (e) {
                     console.error("Key setup failed:", e);
+                }
+
+                // Ensure WebSocket is connected and authenticated
+                try {
+                    await ensureAuthenticated();
+                } catch (e) {
+                    console.error("WebSocket authentication failed:", e);
                 }
 
                 navigate("/chat");

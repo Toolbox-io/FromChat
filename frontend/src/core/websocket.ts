@@ -342,4 +342,55 @@ export function request<Request, Response = any>(payload: WebSocketMessage<Reque
 // Initialization
 // --------------
 
+/**
+ * Ensure WebSocket is connected and authenticated after login
+ * This should be called after successful authentication
+ */
+export async function ensureAuthenticated(): Promise<void> {
+    const token = getAuthToken();
+    if (!token) {
+        return;
+    }
+
+    // If WebSocket is not connected, wait for it to connect
+    if (websocket.readyState === WebSocket.CONNECTING) {
+        await new Promise<void>((resolve) => {
+            const checkConnection = () => {
+                if (websocket.readyState === WebSocket.OPEN) {
+                    resolve();
+                } else if (websocket.readyState === WebSocket.CLOSED) {
+                    // Connection failed, try to reconnect
+                    reconnect().then(() => {
+                        setTimeout(checkConnection, 100);
+                    });
+                } else {
+                    setTimeout(checkConnection, 100);
+                }
+            };
+            checkConnection();
+        });
+    } else if (websocket.readyState === WebSocket.CLOSED) {
+        // Reconnect if closed
+        await reconnect();
+    }
+
+    // If WebSocket is open, send ping to authenticate
+    if (websocket.readyState === WebSocket.OPEN) {
+        try {
+            const credentials = {
+                scheme: "Bearer",
+                credentials: token
+            };
+            
+            await request({
+                type: "ping",
+                credentials,
+                data: {}
+            });
+        } catch (error) {
+            console.error("Failed to send ping after login:", error);
+        }
+    }
+}
+
 setupEventHandlers();
