@@ -7,6 +7,7 @@ import { useImmer } from "use-immer";
 import { EmojiMenu } from "./EmojiMenu";
 import { MaterialIcon, MaterialIconButton } from "@/utils/material";
 import styles from "@/pages/chat/css/ChatInput.module.scss";
+import replyPreviewStyles from "@/pages/chat/css/reply-preview.module.scss";
 import { alert } from "mdui/functions/alert";
 
 interface ChatInputWrapperProps {
@@ -161,9 +162,9 @@ export function ChatInputWrapper(
                         >
                             <div className={styles.contextualPreview}>
                                 <MaterialIcon name="edit" />
-                                <Quote className={`${styles.quote} ${styles.contextualContent}`} background="surfaceContainer">
-                                    <span className={styles.replyUsername}>{editingMessage!.username}</span>
-                                    <span className={styles.replyText}>{editingMessage!.content}</span>
+                                <Quote className={`${replyPreviewStyles.contextualContent}`} background="surfaceContainer">
+                                    <span className={replyPreviewStyles.replyUsername}>{editingMessage!.username}</span>
+                                    <span className={replyPreviewStyles.replyText}>{editingMessage!.content}</span>
                                 </Quote>
                                 <MaterialIconButton icon="close" className={styles.replyCancel} onClick={onClearEdit}></MaterialIconButton>
                             </div>
@@ -181,9 +182,9 @@ export function ChatInputWrapper(
                         >
                             <div className={styles.contextualPreview}>
                                 <MaterialIcon name="reply" />
-                                <Quote className={`${styles.quote} ${styles.contextualContent}`} background="surfaceContainer">
-                                    <span className={styles.replyUsername}>{replyTo!.username}</span>
-                                    <span className={styles.replyText}>{replyTo!.content}</span>
+                                <Quote className={`${replyPreviewStyles.contextualContent}`} background="surfaceContainer">
+                                    <span className={replyPreviewStyles.replyUsername}>{replyTo!.username}</span>
+                                    <span className={replyPreviewStyles.replyText}>{replyTo!.content}</span>
                                 </Quote>
                                 <MaterialIconButton icon="close" className={styles.replyCancel} onClick={onClearReply}></MaterialIconButton>
                             </div>

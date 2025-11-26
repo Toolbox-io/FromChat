@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { parseProfileLink } from "@/core/profileLinks";
 import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem } from "@/utils/material";
 import styles from "@/pages/chat/css/Message.module.scss";
+import replyPreviewStyles from "@/pages/chat/css/reply-preview.module.scss";
 
 interface MessageReactionsProps {
     reactions?: Reaction[];
@@ -483,7 +484,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                 {!isAuthor && !isDm && (
                     <div className={styles.messageProfilePic} onClick={handleProfileClick}>
                         <img
-                            src={message.username?.startsWith("Deleted User #") ? defaultAvatar : (message.profile_picture || defaultAvatar)}
+                            src={message.profile_picture || defaultAvatar}
                             alt={message.username}
                             onError={(e) => {
                                 e.target.src = defaultAvatar;
@@ -507,9 +508,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                     )}
 
                     {message.reply_to && (
-                        <Quote className={`${styles.replyPreview} ${styles.contextualContent}`} background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
-                            <span className={styles.replyUsername}>{message.reply_to.username}</span>
-                            <span className={styles.replyText}>{message.reply_to.content}</span>
+                        <Quote className={`${styles.replyPreview} ${replyPreviewStyles.contextualContent}`} background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
+                            <span className={replyPreviewStyles.replyUsername}>{message.reply_to.username}</span>
+                            <span className={replyPreviewStyles.replyText}>{message.reply_to.content}</span>
                         </Quote>
                     )}
 

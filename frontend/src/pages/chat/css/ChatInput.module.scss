@@ -2,24 +2,6 @@
 @use "../../../css/material" as *;
 @use "sass:color";
 
-// Reply preview styles (shared with Message component)
-.quote.contextualContent > .quoteInner {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    .replyUsername {
-        font-weight: 600;
-        color: $color-dark-on-surface;
-        font-size: 0.85rem;
-    }
-
-    .replyText {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-}
-
 .chatInputWrapper {
     position: relative;
     margin: 0 10px 10px 10px;
