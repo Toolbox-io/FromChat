@@ -8,4 +8,5 @@ cat >> deployment/.env <<EOF
 JWT_SECRET="$(openssl rand -base64 32)"
 TURN_USERNAME=<set>
 TURN_SECRET=<set>
+DEPLOYMENT_SERVER=<set>
 EOF

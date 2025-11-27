@@ -3,7 +3,7 @@
         "**/__pycache__": true,
         "**/package-lock.json": true,
         "**/*.module.scss.d.ts": true,
-        "**/.husky": true,
+        "**/.husky/_": true,
         "**/.venv": true,
         "**/node_modules": true
     }

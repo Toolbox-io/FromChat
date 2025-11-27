@@ -33,7 +33,7 @@
                 "panel": "shared"
             },
             "group": {
-                "kind": "build",
+                "kind": "build"
             },
             "isBackground": true
         },
@@ -87,6 +87,19 @@
                 "focus": false,
                 "panel": "shared"
             }
+        },
+        {
+            "label": "Pre-commit checks",
+            "type": "shell",
+            "command": "npm run frontend:typecheck",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            },
+            "problemMatcher": "$tsc"
         }
     ]
 }
