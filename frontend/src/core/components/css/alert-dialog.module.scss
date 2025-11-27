@@ -1,0 +1,25 @@
+@use "../../../css/colors" as *;
+@use "../../../css/material" as *;
+
+.alertDialog {
+    .alertDialogContent {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .alertDialogMessage {
+        color: $color-dark-on-surface;
+        font-size: 16px;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+
+    .alertDialogActions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+}
+

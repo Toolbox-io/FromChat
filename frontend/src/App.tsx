@@ -8,6 +8,7 @@ import NotFoundPage from "./pages/not-found/NotFoundPage";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import DownloadAppPage from "./pages/download-app/DownloadAppPage";
 import { SuspensionDialog } from "./pages/chat/ui/SuspensionDialog";
+import { AlertDialogProvider } from "./core/components/AlertDialog";
 import { delay } from "./utils/utils";
 
 // Lazy load route components
@@ -129,6 +130,7 @@ export default function App() {
     return authReady && (
         <BrowserRouter>
             <ElectronTitleBar />
+            <AlertDialogProvider />
             <div id="main-wrapper">
                 <AnimatedRoutes />
             </div>

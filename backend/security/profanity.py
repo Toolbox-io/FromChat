@@ -29,7 +29,7 @@ _ADULT_TERMS: Set[str] = {
 
 _STATIC_TERMS: Set[str] = set(term.lower() for term in (_CUSTOM_RU_TERMS | _ADULT_TERMS))
 
-# Words that should never be censored (whitelist)
+# Words that should never be flagged as profanity (whitelist)
 _WHITELIST: Set[str] = {
     "говно",  # Allow this word
 }
@@ -359,85 +359,32 @@ def _check_profanity_substrings(normalized_text: str, profane_words: Set[str]) -
     return spans
 
 
-def _find_profanity_spans_in_original(
-    normalized_text: str,
-    position_map: list[int],
-    original_length: int,
-    original_text: str
-) -> list[tuple[int, int]]:
+def _check_profanity_in_normalized(normalized_text: str) -> bool:
     """
-    Find profanity in normalized text and map the spans back to original text positions.
+    Check if normalized text contains profanity.
     Uses both better_profanity library and substring matching for better detection.
     
-    Returns list of (start, end) tuples in original text coordinates.
+    Returns True if profanity is found.
     """
-    spans = []
-    
-    if not normalized_text or not position_map:
-        return spans
+    if not normalized_text:
+        return False
     
     # Check normalized text for profanity using better_profanity
     censored = _profanity.censor(normalized_text, censor_char="\\*")
+    
+    # Check if better_profanity found anything
+    if "*" in censored:
+        return True
     
     # Also check for profane words as substrings (to catch cases like "хуй" in "хууй" or "хуйня")
     profane_words = _STATIC_TERMS
     substring_spans = _check_profanity_substrings(normalized_text, profane_words)
     
-    # Combine spans from both methods
-    all_spans = set()
+    # If we found any substring matches, there's profanity
+    if substring_spans:
+        return True
     
-    # From better_profanity censoring
-    i = 0
-    while i < len(censored):
-        if censored[i] == "*":
-            span_start = i
-            while i < len(censored) and censored[i] == "*":
-                i += 1
-            span_end = i
-            all_spans.add((span_start, span_end))
-        else:
-            i += 1
-    
-    # From substring matching
-    for start, end in substring_spans:
-        all_spans.add((start, end))
-    
-    # Map all spans to original positions
-    for span_start, span_end in all_spans:
-        if span_start < len(position_map):
-            orig_start = position_map[span_start]
-            # Find the end position - use the last mapped position in the span
-            if span_end > 0 and span_end <= len(position_map):
-                orig_end = position_map[span_end - 1] + 1
-            elif span_end > len(position_map):
-                orig_end = original_length
-            else:
-                orig_end = orig_start + 1
-            
-            # Extend span to include any non-alphanumeric characters between
-            # the mapped positions in the original text
-            # Limit extension to prevent over-censoring (max 50 chars each direction)
-            max_extension = 50
-            extension_count = 0
-            
-            # Extend backwards to include any preceding non-alphanumeric
-            while (orig_start > 0 and 
-                   not original_text[orig_start - 1].isalnum() and
-                   extension_count < max_extension):
-                orig_start -= 1
-                extension_count += 1
-            
-            extension_count = 0
-            # Extend forwards to include any following non-alphanumeric
-            while (orig_end < original_length and 
-                   not original_text[orig_end].isalnum() and
-                   extension_count < max_extension):
-                orig_end += 1
-                extension_count += 1
-            
-            spans.append((orig_start, min(orig_end, original_length)))
-    
-    return spans
+    return False
 
 
 def _tokenize_with_spans(text: str) -> List[Tuple[int, int, str]]:
@@ -604,157 +551,60 @@ def _rebuild_dictionary(force: bool = False) -> None:
         _blocklist_signature = signature
 
 
-def _apply_phrase_filters(text: str) -> str:
+def _check_phrase_patterns(text: str) -> bool:
     """
-    Apply phrase patterns to text. Patterns are applied to normalized text
-    (without special characters) and then mapped back to original positions.
+    Check if text matches any phrase patterns.
+    Returns True if any pattern matches.
     """
     # Normalize text for phrase matching (remove special chars but preserve spaces)
-    normalized_text, position_map = _extract_alphanumeric_with_mapping(text, preserve_spaces=True)
+    normalized_text, _ = _extract_alphanumeric_with_mapping(text, preserve_spaces=True)
     normalized_lower = normalized_text.lower()
     
-    result = list(text)
-    censored_positions = set()
-    
-    # Apply phrase patterns to normalized text
+    # Check phrase patterns
     for pattern in _PHRASE_PATTERNS:
-        for match in pattern.finditer(normalized_lower):
-            # Map back to original positions
-            norm_start = match.start()
-            norm_end = match.end()
-            
-            if norm_start < len(position_map) and norm_end <= len(position_map):
-                orig_start = position_map[norm_start]
-                orig_end = position_map[norm_end - 1] + 1 if norm_end > 0 else orig_start + 1
-                
-                # Extend to include special characters
-                while orig_start > 0 and not text[orig_start - 1].isalnum():
-                    orig_start -= 1
-                while orig_end < len(text) and not text[orig_end].isalnum():
-                    orig_end += 1
-                
-                # Mark positions for censoring
-                for pos in range(orig_start, min(orig_end, len(result))):
-                    censored_positions.add(pos)
+        if pattern.search(normalized_lower):
+            return True
     
-    # Apply fuzzy phrase spans
-    for start, end in sorted(_find_fuzzy_phrase_spans(normalized_lower, "generic"), reverse=True):
-        if start < len(position_map) and end <= len(position_map):
-            orig_start = position_map[start]
-            orig_end = position_map[end - 1] + 1 if end > 0 else orig_start + 1
-            
-            # Extend to include special characters
-            while orig_start > 0 and not text[orig_start - 1].isalnum():
-                orig_start -= 1
-            while orig_end < len(text) and not text[orig_end].isalnum():
-                orig_end += 1
-            
-            for pos in range(orig_start, min(orig_end, len(result))):
-                censored_positions.add(pos)
+    # Check fuzzy phrase spans
+    if _find_fuzzy_phrase_spans(normalized_lower, "generic"):
+        return True
     
-    # Apply censoring
-    for pos in censored_positions:
-        if pos < len(result):
-            result[pos] = "*"
-    
-    return "".join(result)
-
-
-def censor_text(text: str) -> str:
-    if not text:
-        return text
-
-    _rebuild_dictionary()
-    preprocessed = _apply_phrase_filters(text)
-    
-    # Normalize text for whitelist matching (to handle special characters)
-    normalized_for_whitelist, whitelist_position_map = _extract_alphanumeric_with_mapping(preprocessed)
-    normalized_for_whitelist_lower = normalized_for_whitelist.lower()
-    
-    # Identify and protect whitelisted words (using normalized text)
-    whitelist_spans = []
-    for whitelist_word in _WHITELIST:
-        # Normalize whitelist word too
-        normalized_whitelist, _ = _extract_alphanumeric_with_mapping(whitelist_word)
-        normalized_whitelist_lower = normalized_whitelist.lower()
-        
-        # Find in normalized text
-        pattern = re.compile(re.escape(normalized_whitelist_lower), re.IGNORECASE)
-        for match in pattern.finditer(normalized_for_whitelist_lower):
-            # Map back to original positions
-            if match.start() < len(whitelist_position_map) and match.end() <= len(whitelist_position_map):
-                orig_start = whitelist_position_map[match.start()]
-                orig_end = whitelist_position_map[match.end() - 1] + 1 if match.end() > 0 else orig_start + 1
-                # Extend to include any special characters
-                while orig_start > 0 and not preprocessed[orig_start - 1].isalnum():
-                    orig_start -= 1
-                while orig_end < len(preprocessed) and not preprocessed[orig_end].isalnum():
-                    orig_end += 1
-                whitelist_spans.append((orig_start, min(orig_end, len(preprocessed)), preprocessed[orig_start:orig_end]))
-    
-    # Extract only alphanumeric characters and normalize homoglyphs
-    # This removes special characters, emojis, etc. that could be used to bypass the filter
-    normalized_text, position_map = _extract_alphanumeric_with_mapping(preprocessed)
-    normalized_lower = normalized_text.lower()
-    
-    # Check profanity on normalized text (without special characters)
-    profanity_spans = _find_profanity_spans_in_original(
-        normalized_lower,
-        position_map,
-        len(preprocessed),
-        preprocessed
-    )
-    
-    # Apply censoring to original text
-    result = list(preprocessed)
-    for start, end in profanity_spans:
-        # Check if this span overlaps with a whitelisted word
-        is_whitelisted = False
-        for wl_start, wl_end, _ in whitelist_spans:
-            # Check if spans overlap
-            if not (end <= wl_start or start >= wl_end):
-                is_whitelisted = True
-                break
-        
-        if not is_whitelisted:
-            # Censor the entire span (including any special characters within it)
-            for pos in range(start, min(end, len(result))):
-                result[pos] = "*"
-    
-    return "".join(result)
+    return False
 
 
 def contains_profanity(text: str) -> bool:
     """
-    Check if text contains profanity that would be censored.
-    Returns True if censor_text would actually censor anything.
+    Check if text contains profanity.
+    Returns True if profanity is detected.
     """
     if not text:
         return False
 
-    # Use censor_text to check if anything would be censored
-    # This ensures consistency between contains_profanity and censor_text
-    censored = censor_text(text)
+    _rebuild_dictionary()
     
-    # Check if any characters were actually censored (changed to asterisks)
-    # by comparing the original text with the censored version
-    # We need to account for the fact that the original might already contain asterisks
-    if censored == text:
-        return False  # No changes, so no profanity
+    # Check phrase patterns first
+    if _check_phrase_patterns(text):
+        return True
     
-    # If the text changed, check if any non-asterisk characters were replaced
-    # by comparing character-by-character (excluding positions that were already asterisks)
-    for i, (orig_char, censored_char) in enumerate(zip(text, censored)):
-        if orig_char != "*" and censored_char == "*":
-            return True  # A non-asterisk character was censored
+    # Normalize text for whitelist matching (to handle special characters)
+    normalized_for_whitelist, _ = _extract_alphanumeric_with_mapping(text)
+    normalized_for_whitelist_lower = normalized_for_whitelist.lower()
     
-    # If censored is longer, check the extra characters
-    if len(censored) > len(text):
-        for i in range(len(text), len(censored)):
-            if censored[i] == "*":
-                return True
+    # Check if text contains whitelisted words - if the entire text is a whitelisted word, skip profanity check
+    for whitelist_word in _WHITELIST:
+        normalized_whitelist, _ = _extract_alphanumeric_with_mapping(whitelist_word)
+        normalized_whitelist_lower = normalized_whitelist.lower()
+        
+        # Check if the normalized text exactly matches a whitelisted word
+        if normalized_for_whitelist_lower == normalized_whitelist_lower:
+            return False
     
-    return False
+    # Extract only alphanumeric characters and normalize homoglyphs
+    # This removes special characters, emojis, etc. that could be used to bypass the filter
+    normalized_text, _ = _extract_alphanumeric_with_mapping(text)
+    
+    # Check profanity on normalized text (without special characters)
+    return _check_profanity_in_normalized(normalized_text)
 
 
 def contains_sensitive_phrase(text: str) -> bool:

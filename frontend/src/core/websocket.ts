@@ -15,6 +15,11 @@ import { useUserStore } from "@/state/user";
 import { getLastSequence, processBatchedUpdates, requestMissedUpdates } from "./updateManager";
 import { getAuthToken } from "@/core/api/user/auth";
 
+interface HttpError extends Error {
+    status?: number;
+    detail?: string;
+}
+
 /**
  * Creates a new WebSocket connection to the chat server
  * @returns {WebSocket} New WebSocket instance
@@ -303,13 +308,29 @@ export function request<Request, Response = any>(payload: WebSocketMessage<Reque
             }
 
             const listener = (e: MessageEvent) => {
-                clearTimeout(timeoutId);
                 try {
-                    resolve(JSON.parse(e.data));
+                    const response = JSON.parse(e.data);
+                    // Only handle responses that match our request type or have an error
+                    if (response.type === payload.type || response.error) {
+                        clearTimeout(timeoutId);
+                        websocket.removeEventListener("message", listener);
+                        
+                        // Check if the response contains an error field
+                        if (response.error) {
+                            const error = new Error(response.error.detail || "WebSocket request failed");
+                            (error as HttpError).status = response.error.code;
+                            (error as HttpError).detail = response.error.detail || "";
+                            reject(error);
+                        } else {
+                            resolve(response);
+                        }
+                    }
+                    // If it doesn't match, let other handlers process it
                 } catch (error) {
+                    clearTimeout(timeoutId);
+                    websocket.removeEventListener("message", listener);
                     reject(error);
                 }
-                websocket.removeEventListener("message", listener);
             };
 
             websocket.addEventListener("message", listener);

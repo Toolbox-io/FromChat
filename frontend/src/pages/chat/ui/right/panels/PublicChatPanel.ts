@@ -90,14 +90,10 @@ export class PublicChatPanel extends MessagePanel {
     protected async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !content.trim()) return;
 
-        try {
-            if (files.length === 0) {
-                await api.chats.general.send(content, replyToId ?? null, this.currentUser.authToken);
-            } else {
-                await api.chats.general.sendWithFiles(content, replyToId ?? null, files, this.currentUser.authToken);
-            }
-        } catch (error) {
-            console.error("Error sending message:", error);
+        if (files.length === 0) {
+            await api.chats.general.send(content, replyToId ?? null, this.currentUser.authToken);
+        } else {
+            await api.chats.general.sendWithFiles(content, replyToId ?? null, files, this.currentUser.authToken);
         }
     }
 

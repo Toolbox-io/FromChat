@@ -184,34 +184,30 @@ export class DMPanel extends MessagePanel {
     protected async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData || !content.trim()) return;
 
-        try {
-            const payload: DmEncryptedJSON = {
-                type: "text",
-                data: {
-                    content: content.trim(),
-                    reply_to_id: replyToId ?? undefined
-                }
+        const payload: DmEncryptedJSON = {
+            type: "text",
+            data: {
+                content: content.trim(),
+                reply_to_id: replyToId ?? undefined
             }
-            const json = JSON.stringify(payload);
+        }
+        const json = JSON.stringify(payload);
 
-            if (files.length === 0) {
-                await api.chats.dm.send(
-                    this.dmData.userId,
-                    this.dmData.publicKey,
-                    json,
-                    this.currentUser.authToken
-                );
-            } else {
-                await api.chats.dm.sendWithFiles(
-                    this.dmData.userId,
-                    this.dmData.publicKey,
-                    json,
-                    files,
-                    this.currentUser.authToken
-                );
-            }
-        } catch (error) {
-            console.error("Failed to send DM:", error);
+        if (files.length === 0) {
+            await api.chats.dm.send(
+                this.dmData.userId,
+                this.dmData.publicKey,
+                json,
+                this.currentUser.authToken
+            );
+        } else {
+            await api.chats.dm.sendWithFiles(
+                this.dmData.userId,
+                this.dmData.publicKey,
+                json,
+                files,
+                this.currentUser.authToken
+            );
         }
     }
 

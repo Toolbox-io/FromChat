@@ -3,6 +3,18 @@ import { getAuthHeaders } from "./account";
 import type { Message, Messages, SendMessageRequest } from "@/core/types";
 import { request } from "@/core/websocket";
 
+class HttpError extends Error {
+    status: number;
+    detail: string;
+
+    constructor(message: string, status: number, detail: string) {
+        super(message);
+        this.name = "HttpError";
+        this.status = status;
+        this.detail = detail;
+    }
+}
+
 /**
  * Fetches public chat messages
  */
@@ -57,8 +69,15 @@ export async function sendMessageWithFiles(
         body: form
     });
     if (!res.ok) {
-        const error = await res.text();
-        throw new Error(error || "Failed to send message with files");
+        let errorDetail = "Failed to send message with files";
+        try {
+            const errorJson = await res.json();
+            errorDetail = errorJson.detail || errorDetail;
+        } catch {
+            const errorText = await res.text();
+            errorDetail = errorText || errorDetail;
+        }
+        throw new HttpError(errorDetail, res.status, errorDetail);
     }
 }
 
@@ -71,7 +90,17 @@ export async function editMessage(messageId: number, newContent: string, authTok
         headers: getAuthHeaders(authToken, true),
         body: JSON.stringify({ content: newContent })
     });
-    if (!res.ok) throw new Error("Failed to edit message");
+    if (!res.ok) {
+        let errorDetail = "Failed to edit message";
+        try {
+            const errorJson = await res.json();
+            errorDetail = errorJson.detail || errorDetail;
+        } catch {
+            const errorText = await res.text();
+            errorDetail = errorText || errorDetail;
+        }
+        throw new HttpError(errorDetail, res.status, errorDetail);
+    }
 }
 
 /**
