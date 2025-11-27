@@ -48,6 +48,7 @@ export default function AuthPage() {
     const [containerHeight, setContainerHeight] = useState<number | "auto">("auto");
     const currentMode = searchParams.get("mode") || "login";
     const enteringElementRef = useRef<"login" | "register" | null>(null);
+    const [effectActivated, setEffectActivated] = useState(false);
 
     useEffect(() => {
         if (prevMode.current !== currentMode) {
@@ -68,6 +69,11 @@ export default function AuthPage() {
     }, [currentMode, loginFormRef, registerFormRef]);
 
     useLayoutEffect(() => {
+        if (!effectActivated) {
+            setEffectActivated(true);
+            return;
+        }
+        
         // Always measure, but prioritize the entering element during transitions
         // Use double requestAnimationFrame to ensure DOM is fully updated and layout is complete
         let rafId2: number | null = null;
@@ -124,6 +130,12 @@ export default function AuthPage() {
                     height: containerHeight === "auto" ? "auto" : `${containerHeight}px`,
                     transition: "height 0.3s ease"
                 }}
+                onAnimationStart={() => {
+                    
+                }}
+                onAnimationEnd={() => {
+                    setContainerHeight("auto");
+                }}
             >
                 <AnimatePresence mode="sync" custom={direction}>
                     {currentMode === "login" ? (
@@ -138,6 +150,9 @@ export default function AuthPage() {
                             transition={slideTransition}
                             onAnimationComplete={handleAnimationComplete("login", "login", enteringElementRef, loginFormRef, setContainerHeight)}
                             className={styles.formWrapper}
+                            style={{
+                                position: containerHeight === "auto" ? "relative" : "absolute"
+                            }}
                         >
                             <LoginForm onSwitchMode={() => switchMode("register")} />
                         </motion.div>
