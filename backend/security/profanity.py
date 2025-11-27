@@ -15,7 +15,7 @@ BLOCKLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
 _CUSTOM_RU_TERMS: Set[str] = {
     "бляд", "блять", "бля", "сука", "суки", "сучка", "мразь", "ебан",
     "ебать", "ебёт", "ебет", "ебаная", "ебаная", "уёбок", "уебок", "уебище", "пизда",
-    "пиздец", "пизд", "хуй", "хуя", "хуе", "хуё", "хуйня", "хер", "гондон",
+    "пиздец", "хуй", "хуя", "хуе", "хуё", "хуйня", "хер", "гондон",
     "долбоёб", "долбоеб", "дебил", "член", "проститутка", "проститутки",
     "урод", "хуесос", "хуесосы", "хуесосов", "хуесоса", "пидор",
     "пидоры", "пидорас", "пидорасы", "пидорасов",
@@ -317,32 +317,44 @@ def _check_profanity_substrings(normalized_text: str, profane_words: Set[str]) -
         
         # Also check if profane word appears as a subsequence (allowing extra chars)
         # This catches cases like "хуй" in "хууй" or "хU★уй" -> "хууй"
-        word_chars = list(word_lower)
-        text_chars = list(normalized_lower)
-        
-        # Try to find the word as a subsequence
-        i = 0  # position in text
-        j = 0  # position in word
-        seq_start = None
-        
-        while i < len(text_chars) and j < len(word_chars):
-            if text_chars[i] == word_chars[j]:
-                if seq_start is None:
-                    seq_start = i
-                j += 1
-                if j == len(word_chars):
-                    # Found the word as subsequence
-                    seq_end = i + 1
-                    # Only add if it's not already covered by exact match
-                    if (seq_start, seq_end) not in spans:
-                        spans.append((seq_start, seq_end))
-                    # Reset to find next occurrence
-                    seq_start = None
-                    j = 0
-                    # Continue from after the start position
-                    i = seq_start + 1 if seq_start is not None else i + 1
-                    continue
-            i += 1
+        # Only do subsequence matching for words of length 4 or more to avoid false positives
+        # Use stricter span limits for shorter words to prevent false matches in long legitimate words
+        if len(word_lower) >= 4:
+            word_chars = list(word_lower)
+            text_chars = list(normalized_lower)
+            # Stricter ratio for shorter words, more lenient for longer words
+            if len(word_lower) <= 5:
+                max_span_ratio = 1.5  # Very strict for short words
+            else:
+                max_span_ratio = 2.0  # Slightly more lenient for longer words
+            
+            # Try to find the word as a subsequence
+            i = 0  # position in text
+            j = 0  # position in word
+            seq_start = None
+            
+            while i < len(text_chars) and j < len(word_chars):
+                if text_chars[i] == word_chars[j]:
+                    if seq_start is None:
+                        seq_start = i
+                    j += 1
+                    if j == len(word_chars):
+                        # Found the word as subsequence
+                        seq_end = i + 1
+                        # Check if the span is reasonable (not too long)
+                        span_length = seq_end - seq_start
+                        max_allowed_span = int(len(word_lower) * max_span_ratio)
+                        if span_length <= max_allowed_span:
+                            # Only add if it's not already covered by exact match
+                            if (seq_start, seq_end) not in spans:
+                                spans.append((seq_start, seq_end))
+                        # Reset to find next occurrence - continue from after the end of this match
+                        next_start = seq_start + 1
+                        seq_start = None
+                        j = 0
+                        i = next_start
+                        continue
+                i += 1
     
     return spans
 
