@@ -19,7 +19,7 @@ BOLD='\033[1m'
 info() { echo -e "${BLUE}ℹ${NC} $1"; }
 success() { echo -e "${GREEN}✓${NC} $1"; }
 warning() { echo -e "${YELLOW}⚠${NC} $1"; }
-error() { echo -e "${RED}✗${NC} $1"; exit 1; }
+error() { echo -e "${RED}✗${NC} $1"; }
 step() { echo -e "${CYAN}${BOLD}→${NC} ${BOLD}$1${NC}"; }
 substep() { 
     if [ "$2" = "-n" ]; then
@@ -27,6 +27,44 @@ substep() {
     else
         echo -e "  ${GREEN}•${NC} $1"
     fi
+}
+
+echo -e "${MAGENTA}${BOLD}🚀 Deployment${NC}\n"
+
+# Read password with asterisks
+read_password() {
+    local password=""
+    local char
+    local old_stty
+    
+    # Save current terminal settings
+    old_stty=$(stty -g 2>/dev/null)
+    
+    # Disable echo
+    stty -echo 2>/dev/null
+    
+    # Read characters one by one
+    while IFS= read -rs -n 1 char; do
+        # Check for Enter key (empty means Enter was pressed)
+        if [ -z "$char" ]; then
+            break
+        fi
+        # Check for backspace/delete (ASCII 127)
+        if [ "$char" = $'\177' ] || [ "$char" = $'\b' ]; then
+            if [ ${#password} -gt 0 ]; then
+                password="${password%?}"
+                printf "\b \b" >&2
+            fi
+        else
+            password+="$char"
+            printf "*" >&2
+        fi
+    done
+    
+    # Restore terminal settings
+    stty "$old_stty" 2>/dev/null
+    echo "" >&2
+    echo "$password"
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,8 +91,9 @@ fi
 
 # Read server from environment variable (from .env), command line argument, or fallback
 SERVER="${1:-${DEPLOYMENT_SERVER:-}}"
-DEPLOY_PATH="${2:-${DEPLOY_PATH:-/home/denis0001-dev/actions-runner/_work/FromChat/FromChat}}"
-PLATFORM="${3:-linux/arm64}"
+REPO_NAME="FromChat"
+DEPLOY_PATH="~/actions-runner/_work/$REPO_NAME/$REPO_NAME"
+PLATFORM="linux/arm64"
 
 # Check if server is provided
 if [ -z "$SERVER" ]; then
@@ -68,13 +107,68 @@ if [ -z "$SERVER" ]; then
     exit 1
 fi
 
-echo -e "${MAGENTA}${BOLD}🚀 Deployment${NC}\n"
+# ============================================================================
+# SSH AUTHENTICATION
+# ============================================================================
+
+step "Authentication"
+SSH_KEY_FILE="$HOME/.ssh/id_rsa"
+
+# Ensure ssh-agent is running
+if [ -z "$SSH_AUTH_SOCK" ]; then
+    eval "$(ssh-agent -s)" > /dev/null 2>&1
+fi
+
+# Add SSH key to agent if not already loaded
+if [ -f "$SSH_KEY_FILE" ]; then
+    # Check if key is already loaded
+    KEY_LOADED=false
+    if ssh-add -l > /dev/null 2>&1; then
+        # Check if this specific key is loaded by trying to match the public key
+        KEY_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY_FILE" 2>/dev/null | awk '{print $2}')
+        if [ -n "$KEY_FINGERPRINT" ] && ssh-add -l 2>/dev/null | grep -q "$KEY_FINGERPRINT"; then
+            KEY_LOADED=true
+        fi
+    fi
+    
+    if [ "$KEY_LOADED" = false ]; then
+        substep "Adding SSH key to agent..."
+        ssh-add "$SSH_KEY_FILE" 2>/dev/null || true
+    fi
+else
+    warning "SSH key not found at $SSH_KEY_FILE"
+fi
+
+# Test SSH connection once to cache the key (this will prompt for passphrase if needed)
+ssh -o ConnectTimeout=5 "$SERVER" "echo" > /dev/null 2>&1 || true
+
+# ============================================================================
+# SUDO AUTHENTICATION
+# ============================================================================
+
+SUDO_PASSWORD=""
+while true; do
+    substep "Sudo password: " -n
+    SUDO_PASSWORD=$(read_password)
+    
+    if [ -z "$SUDO_PASSWORD" ]; then
+        warning "No password provided - assuming passwordless sudo"
+        break
+    fi
+    
+    if echo "$SUDO_PASSWORD" | ssh "$SERVER" "sudo -S -v" > /dev/null 2>&1; then
+        export SUDO_PASSWORD
+        break
+    else
+        echo -n "  " && error "Invalid password, please try again"
+    fi
+done
 
 # ============================================================================
 # BUILD PHASE
 # ============================================================================
 
-echo -e "${MAGENTA}${BOLD}🔨 Building Docker images${NC}"
+echo -e "\n${MAGENTA}${BOLD}🔨 Building Docker images${NC}\n"
 
 # Determine project name
 if [ -n "$SERVER" ]; then
@@ -84,9 +178,46 @@ else
     PROJECT_NAME=$(basename "$DEPLOYMENT_DIR")
 fi
 
+# Check if Docker daemon is running
+check_docker_daemon() {
+    docker info > /dev/null 2>&1
+}
+
+# Start Docker Desktop
+start_docker_desktop() {
+    substep "Starting Docker Desktop..."
+    if ! docker desktop start > /dev/null 2>&1; then
+        return 1
+    fi
+    
+    # Wait for Docker to be ready (max 60 seconds)
+    substep "Waiting for Docker to start..." -n
+    local max_wait=60
+    local waited=0
+    while [ $waited -lt $max_wait ]; do
+        if check_docker_daemon; then
+            echo ""
+            return 0
+        fi
+        sleep 2
+        waited=$((waited + 2))
+        echo -n "."
+    done
+    echo ""
+    return 1
+}
+
 # Check buildx
 if ! docker buildx version > /dev/null 2>&1; then
     error "Docker buildx not available. Install Docker Desktop."
+fi
+
+# Check Docker daemon
+if ! check_docker_daemon; then
+    warning "Docker daemon is not running"
+    if ! start_docker_desktop; then
+        error "Failed to start Docker Desktop. Please start it manually and try again."
+    fi
 fi
 
 # Setup buildx builder
@@ -209,31 +340,6 @@ success "Build complete! ${#BUILT_IMAGES[@]} image(s) ready"
 
 echo -e "\n${MAGENTA}${BOLD}🚀 Deploying to ${SERVER}${NC}\n"
 
-# Ask for sudo password at the beginning
-step "Authentication"
-SUDO_PASSWORD=""
-while true; do
-    substep "Sudo password: " -n
-    read -sp "" SUDO_PASSWORD
-    echo ""
-    
-    if [ -z "$SUDO_PASSWORD" ]; then
-        warning "No password provided - assuming passwordless sudo"
-        break
-    fi
-    
-    if echo "$SUDO_PASSWORD" | ssh "$SERVER" "sudo -S -v" > /dev/null 2>&1; then
-        export SUDO_PASSWORD
-        break
-    else
-        error "Invalid password, please try again"
-    fi
-done
-
-# Check SSH connection (silent)
-if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "$SERVER" "echo" > /dev/null 2>&1; then
-    warning "SSH key auth not available, will prompt when needed"
-fi
 
 # Check docker pussh
 if ! docker pussh --help > /dev/null 2>&1; then
@@ -275,42 +381,51 @@ fi
 
 # Transfer files
 step "Transferring deployment files"
-TEMP_DIR="/tmp/fromchat-deploy-$$"
-ssh "$SERVER" "mkdir -p $TEMP_DIR" > /dev/null 2>&1
 
-# Copy docker-compose.yml
-if scp "$DEPLOYMENT_DIR/docker-compose.yml" "$SERVER:$TEMP_DIR/docker-compose.yml" > /dev/null 2>&1; then
-    if [ -n "$SUDO_PASSWORD" ]; then
-        ssh "$SERVER" bash << REMOTE_SUDO_SCRIPT > /dev/null 2>&1
-set -e
-echo '$SUDO_PASSWORD' | sudo -S -p '' mkdir -p $DEPLOY_PATH/deployment 2>/dev/null || true
-echo '$SUDO_PASSWORD' | sudo -S -p '' cp $TEMP_DIR/docker-compose.yml $DEPLOY_PATH/deployment/ 2>/dev/null || true
-echo '$SUDO_PASSWORD' | sudo -S -p '' chown \$(whoami):\$(whoami) $DEPLOY_PATH/deployment/docker-compose.yml 2>/dev/null || true
-REMOTE_SUDO_SCRIPT
-    else
-        ssh "$SERVER" "sudo mkdir -p $DEPLOY_PATH/deployment && sudo cp $TEMP_DIR/docker-compose.yml $DEPLOY_PATH/deployment/ && sudo chown \$(whoami):\$(whoami) $DEPLOY_PATH/deployment/docker-compose.yml" > /dev/null 2>&1 || true
-    fi
-fi
-
-# Copy service file
-scp "$DEPLOYMENT_DIR/fromchat.service" "$SERVER:$TEMP_DIR/fromchat.service" > /dev/null 2>&1 || {
-    error "Failed to copy fromchat.service"
-}
-
+# Ensure destination directory exists with proper permissions
 if [ -n "$SUDO_PASSWORD" ]; then
     ssh "$SERVER" bash << REMOTE_SUDO_SCRIPT > /dev/null 2>&1
 set -e
-echo '$SUDO_PASSWORD' | sudo -S -p '' mkdir -p $DEPLOY_PATH/deployment 2>/dev/null
-echo '$SUDO_PASSWORD' | sudo -S -p '' cp $TEMP_DIR/fromchat.service $DEPLOY_PATH/deployment/ 2>/dev/null
-echo '$SUDO_PASSWORD' | sudo -S -p '' chown \$(whoami):\$(whoami) $DEPLOY_PATH/deployment/fromchat.service 2>/dev/null
+echo '$SUDO_PASSWORD' | sudo -S -p '' mkdir -p $DEPLOY_PATH/deployment 2>/dev/null || true
+echo '$SUDO_PASSWORD' | sudo -S -p '' chown -R \$(whoami):\$(whoami) $DEPLOY_PATH/deployment 2>/dev/null || true
 REMOTE_SUDO_SCRIPT
 else
-    ssh "$SERVER" "sudo mkdir -p $DEPLOY_PATH/deployment && sudo cp $TEMP_DIR/fromchat.service $DEPLOY_PATH/deployment/ && sudo chown \$(whoami):\$(whoami) $DEPLOY_PATH/deployment/fromchat.service" > /dev/null 2>&1 || {
-        error "Failed to copy fromchat.service"
-    }
+    ssh "$SERVER" "sudo mkdir -p $DEPLOY_PATH/deployment && sudo chown -R \$(whoami):\$(whoami) $DEPLOY_PATH/deployment" > /dev/null 2>&1 || true
 fi
 
-ssh "$SERVER" "rm -rf $TEMP_DIR" > /dev/null 2>&1 || true
+# Copy deployment directory excluding gitignored files
+cd "$PROJECT_ROOT"
+substep "Copying deployment directory..."
+
+# Generate exclude file for rsync using git ls-files to list ignored files
+EXCLUDE_FILE="/tmp/fromchat-rsync-exclude-$$"
+RSYNC_ERROR="/tmp/fromchat-rsync-error-$$"
+
+# Get ignored files in deployment directory and convert to rsync exclude patterns
+git ls-files --others --ignored --exclude-standard deployment/ 2>/dev/null | \
+    sed 's|^deployment/||' > "$EXCLUDE_FILE" || true
+
+# Use rsync with native --exclude-from option
+if rsync -avz --delete --exclude-from="$EXCLUDE_FILE" \
+    "$DEPLOYMENT_DIR/" \
+    "$SERVER:$DEPLOY_PATH/deployment/" > "$RSYNC_ERROR" 2>&1; then
+    rm -f "$EXCLUDE_FILE" "$RSYNC_ERROR"
+else
+    echo -e "  ${RED}✗${NC} Rsync failed. Error output:"
+    cat "$RSYNC_ERROR" | sed 's/^/    /'
+    rm -f "$EXCLUDE_FILE" "$RSYNC_ERROR"
+    echo -n "  " && error "Failed to copy deployment directory"
+fi
+
+# Copy .env.prod to .env on server (bypassing gitignore)
+if [ -f "$DEPLOYMENT_DIR/.env.prod" ]; then
+    substep "Copying .env.prod to .env..."
+    if ! scp "$DEPLOYMENT_DIR/.env.prod" "$SERVER:$DEPLOY_PATH/deployment/.env" > /dev/null 2>&1; then
+        warning "Failed to copy .env.prod to .env"
+    fi
+else
+    warning ".env.prod not found in deployment directory"
+fi
 
 # Deploy on server
 step "Deploying on server"
@@ -352,13 +467,12 @@ sudo_cmd systemctl daemon-reload
 sudo_cmd systemctl restart fromchat
 
 sleep 3
-if systemctl is-active --quiet fromchat; then
-    echo "✅ Service started"
-else
+if ! systemctl is-active --quiet fromchat; then
     echo "❌ Service failed to start"
     sudo_cmd journalctl --no-pager -xeu fromchat -n 30
     exit 1
 fi
 REMOTE_SCRIPT
 
+echo
 success "Deployment complete!"
