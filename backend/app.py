@@ -1,3 +1,4 @@
+import asyncio
 import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,9 +69,34 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to start messaging cleanup task: {e}")
     
+    # Reset all rate limits on startup to ensure clean state
+    # This prevents rate limits from persisting across restarts
+    try:
+        from security.rate_limit import reset_all_rate_limits
+        cleared = reset_all_rate_limits()
+        if cleared > 0:
+            logger.info(f"Cleared {cleared} rate limit entries on startup")
+    except Exception as e:
+        logger.warning(f"Failed to reset rate limits on startup: {e}")
+    
+    # Start the rate limit cleanup task
+    try:
+        from security.rate_limit import start_rate_limit_cleanup_task
+        cleanup_task = asyncio.create_task(start_rate_limit_cleanup_task())
+        logger.info("Rate limit cleanup task started")
+    except Exception as e:
+        logger.error(f"Failed to start rate limit cleanup task: {e}")
+        cleanup_task = None
+    
     yield
     
-    # Shutdown (if needed in the future)
+    # Shutdown - cancel cleanup task if it exists
+    if cleanup_task:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
 
 # Инициализация FastAPI
 app = FastAPI(title="FromChat", lifespan=lifespan)

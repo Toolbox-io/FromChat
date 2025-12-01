@@ -7,10 +7,15 @@ from dependencies import get_current_user
 from models import User
 from security.audit import log_security
 from security.profanity import add_to_blocklist, get_blocklist, remove_from_blocklist
+from security.rate_limit import reset_rate_limit_for_ip, clear_all_rate_limits
 
 
 class BlocklistUpdateRequest(BaseModel):
     words: List[str] = Field(default_factory=list, min_items=1)
+
+
+class UnblockIPRequest(BaseModel):
+    ip: str = Field(..., min_length=1)
 
 
 router = APIRouter(prefix="/moderation", tags=["moderation"])
@@ -57,6 +62,53 @@ def delete_from_blocklist(
         removed=removed,
     )
     return {"removed": removed, "words": updated}
+
+
+@router.post("/unblock-ip")
+def unblock_ip(
+    request: UnblockIPRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Unblock an IP address from rate limiting."""
+    _ensure_owner(current_user)
+    ip = request.ip.strip()
+    
+    if not ip:
+        raise HTTPException(status_code=400, detail="IP address is required")
+    
+    cleared = reset_rate_limit_for_ip(ip)
+    
+    log_security(
+        "rate_limit_unblock",
+        actor=current_user.username,
+        actor_id=current_user.id,
+        ip=ip,
+        success=cleared,
+    )
+    
+    if cleared:
+        return {"status": "success", "message": f"Rate limit cleared for IP: {ip}"}
+    else:
+        return {"status": "success", "message": f"No rate limit entries found for IP: {ip}"}
+
+
+@router.post("/clear-all-rate-limits")
+def clear_all_rate_limits_endpoint(
+    current_user: User = Depends(get_current_user)
+):
+    """Clear all rate limit entries. Use with caution."""
+    _ensure_owner(current_user)
+    
+    cleared = clear_all_rate_limits()
+    
+    log_security(
+        "rate_limit_clear_all",
+        actor=current_user.username,
+        actor_id=current_user.id,
+        entries_cleared=cleared,
+    )
+    
+    return {"status": "success", "message": f"Cleared {cleared} rate limit entries"}
 
 
 
