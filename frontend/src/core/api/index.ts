@@ -7,6 +7,7 @@ import * as userSearch from "./user/search";
 import * as cryptoPrekeys from "./crypto/prekeys";
 import * as cryptoIdentity from "./crypto/identity";
 import * as cryptoBackup from "./crypto/backup";
+import * as cryptoSessions from "./crypto/sessions";
 import * as moderationBlocklist from "./moderation/blocklist";
 import * as moderationUsers from "./moderation/users";
 import * as callsModule from "./calls";
@@ -27,7 +28,8 @@ const api = {
     crypto: {
         prekeys: cryptoPrekeys,
         identity: cryptoIdentity,
-        backup: cryptoBackup
+        backup: cryptoBackup,
+        sessions: cryptoSessions
     },
     moderation: {
         blocklist: moderationBlocklist,

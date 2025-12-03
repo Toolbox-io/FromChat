@@ -295,16 +295,17 @@ export class SignalProtocolService {
      * Encrypt a message for a recipient
      */
     async encryptMessage(recipientId: number, plaintext: string): Promise<{ type: number; body: string }> {
-        const address = new SignalProtocolAddress(recipientId.toString(), 1);
+        try {
+            const address = new SignalProtocolAddress(recipientId.toString(), 1);
 
-        const sessionCipher = new SessionCipher(this.storage, address);
-        const plaintextBuffer = toArrayBuffer(new TextEncoder().encode(plaintext).buffer);
-        const encryptResult = await sessionCipher.encrypt(plaintextBuffer);
-        const { type, body } = encryptResult;
+            const sessionCipher = new SessionCipher(this.storage, address);
+            const plaintextBuffer = toArrayBuffer(new TextEncoder().encode(plaintext).buffer);
+            const encryptResult = await sessionCipher.encrypt(plaintextBuffer);
+            const { type, body } = encryptResult;
 
-        if (!body) {
-            throw new Error("Encryption failed: no body in ciphertext");
-        }
+            if (!body) {
+                throw new Error("Encryption failed: no body in ciphertext");
+            }
 
         // The library returns body as ArrayBuffer or Uint8Array, we need to convert it to base64 string
         // Always convert to Uint8Array first, then to base64, regardless of input type
@@ -351,6 +352,16 @@ export class SignalProtocolService {
         }
 
         return { type, body: bodyBase64 };
+        } catch (error) {
+            // Log detailed error information for debugging
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error("Signal Protocol encryption failed:", {
+                recipientId,
+                plaintextLength: plaintext.length,
+                error: errorMessage
+            });
+            throw new Error(`Failed to encrypt message: ${errorMessage}`);
+        }
     }
 
     /**
@@ -412,8 +423,14 @@ export class SignalProtocolService {
                 } catch (resetError) {
                     console.error("Failed to remove session:", resetError);
                 }
-            } else if (errorMessage.includes("Tried to decrypt on a sending chain") || errorMessage.includes("No record for device")) {
-                // These errors indicate the session state is corrupted or missing
+            } else if (
+                errorMessage.includes("Tried to decrypt on a sending chain") || 
+                errorMessage.includes("No record for device") ||
+                errorMessage.includes("Message key not found") ||
+                errorMessage.includes("counter was repeated") ||
+                errorMessage.includes("key was not filled")
+            ) {
+                // These errors indicate the session state is corrupted, missing, or out of sync
                 // Remove the session so it can be re-established
                 console.warn(`Session state error for sender ${senderId}: ${errorMessage}. Removing session.`);
                 try {

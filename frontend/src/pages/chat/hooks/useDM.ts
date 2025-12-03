@@ -166,8 +166,21 @@ export function useDM() {
 
             for (const env of messages) {
                 try {
-                    const text = await decryptDm(env, env.senderId);
-                    const isAuthor = env.senderId !== userId;
+                    // Check if this is a message sent by the current user
+                    const isAuthor = env.senderId === user.currentUser?.id;
+                    let text: string;
+                    
+                    if (isAuthor) {
+                        // For sent messages, we can't decrypt them in Signal Protocol
+                        // The plaintext should be stored when sending, but for now we'll skip them
+                        // or try to get it from the envelope if available
+                        // Skip this message for now - we'll need to store plaintext when sending
+                        continue; // Skip sent messages - they'll be handled by the send flow
+                    } else {
+                        // Decrypt incoming messages
+                        text = await decryptDm(env, env.senderId);
+                    }
+                    
                     const username = isAuthor ? (user.currentUser?.username || "Unknown") : "Other User";
 
                     decryptedMessages.push({

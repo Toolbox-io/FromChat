@@ -132,8 +132,17 @@ export async function decrypt(envelope: DmEnvelope, senderId: number): Promise<s
         throw new Error(`Invalid base64 in ciphertext body: ${error instanceof Error ? error.message : String(error)}`);
     }
     
-    const plaintext = await signalService.decryptMessage(senderId, signalCiphertext);
-    return plaintext;
+    try {
+        const plaintext = await signalService.decryptMessage(senderId, signalCiphertext);
+        return plaintext;
+    } catch (error) {
+        // If decryption fails, check if it's a session issue
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("No session exists") || errorMessage.includes("No record for device")) {
+            console.warn(`Session missing for sender ${senderId} (envelope ID: ${envelope.id}). This may happen after page reload if the session was not properly restored.`);
+        }
+        throw error;
+    }
 }
 
 export async function fetchMessages(userId: number, token: string, limit: number = 50, beforeId?: number): Promise<{ messages: DmEnvelope[]; has_more: boolean }> {
@@ -158,7 +167,13 @@ export async function send(recipientId: number, plaintext: string, authToken: st
     const signalService = new SignalProtocolService(user.id.toString());
     
     // Check if we have a session, if not, fetch prekey bundle and establish one
-    const hasSession = await signalService.hasSession(recipientId);
+    let hasSession = false;
+    try {
+        hasSession = await signalService.hasSession(recipientId);
+    } catch (error) {
+        console.warn("Failed to check session, will attempt to establish new one:", error);
+    }
+    
     if (!hasSession) {
         try {
             const bundle = await api.crypto.prekeys.fetchPreKeyBundle(recipientId, authToken);
@@ -168,13 +183,27 @@ export async function send(recipientId: number, plaintext: string, authToken: st
             if (error instanceof api.crypto.prekeys.PrekeyExhaustedError) {
                 throw error;
             }
+            // Log other errors for debugging
+            console.error("Failed to establish session:", {
+                recipientId,
+                error: error instanceof Error ? error.message : String(error)
+            });
             // Re-throw other errors
             throw error;
         }
     }
     
     // Encrypt with Signal Protocol
-    const ciphertext = await signalService.encryptMessage(recipientId, plaintext);
+    let ciphertext: { type: number; body: string };
+    try {
+        ciphertext = await signalService.encryptMessage(recipientId, plaintext);
+    } catch (error) {
+        console.error("Failed to encrypt message:", {
+            recipientId,
+            error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+    }
     
     // Verify the body is valid base64 before stringifying
     if (ciphertext.body && typeof ciphertext.body === "string") {
@@ -214,7 +243,7 @@ export async function send(recipientId: number, plaintext: string, authToken: st
     
     // Add padding to obfuscate message size (anti-censorship)
     const paddedCiphertext = addPadding(ciphertextJson);
-    
+
     const payload: SendDMRequest = {
         recipientId: recipientId,
         iv: "", // Not used for Signal Protocol

@@ -10,7 +10,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
-from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
+from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession, SignalSession
 from utils import create_token, get_password_hash, verify_password, get_client_ip
 from validation import is_valid_password, is_valid_username, is_valid_display_name
 import os
@@ -705,6 +705,89 @@ def get_prekey_bundle_of(
         return {"bundle": bundle}
     except json.JSONDecodeError:
         raise HTTPException(status_code=500, detail="Invalid bundle data")
+
+
+@router.post("/crypto/signal/sessions")
+@rate_limit_per_ip("100/minute")
+def upload_signal_sessions(
+    request: Request,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Upload encrypted Signal Protocol sessions for the current user"""
+    import json
+    from datetime import datetime
+    
+    sessions = payload.get("sessions")
+    if not isinstance(sessions, list):
+        raise HTTPException(status_code=400, detail="sessions must be a list")
+    
+    uploaded_count = 0
+    for session_data in sessions:
+        if not isinstance(session_data, dict):
+            continue
+        
+        recipient_id = session_data.get("recipientId")
+        device_id = session_data.get("deviceId", 1)
+        encrypted_data = session_data.get("encryptedData")
+        
+        if not recipient_id or not encrypted_data:
+            continue
+        
+        try:
+            # Validate encrypted_data is valid JSON
+            json.loads(encrypted_data)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        
+        # Store or update session
+        existing = db.query(SignalSession).filter(
+            SignalSession.user_id == current_user.id,
+            SignalSession.recipient_id == recipient_id,
+            SignalSession.device_id == device_id
+        ).first()
+        
+        if existing:
+            existing.encrypted_session_data = encrypted_data
+            existing.updated_at = datetime.now()
+        else:
+            new_session = SignalSession(
+                user_id=current_user.id,
+                recipient_id=recipient_id,
+                device_id=device_id,
+                encrypted_session_data=encrypted_data
+            )
+            db.add(new_session)
+        uploaded_count += 1
+    
+    db.commit()
+    return {"status": "ok", "uploaded_count": uploaded_count}
+
+
+@router.get("/crypto/signal/sessions")
+@rate_limit_per_ip("60/minute")
+def get_signal_sessions(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all encrypted Signal Protocol sessions for the current user"""
+    sessions = db.query(SignalSession).filter(
+        SignalSession.user_id == current_user.id
+    ).all()
+    
+    return {
+        "sessions": [
+            {
+                "recipientId": s.recipient_id,
+                "deviceId": s.device_id,
+                "encryptedData": s.encrypted_session_data,
+                "updatedAt": s.updated_at.isoformat()
+            }
+            for s in sessions
+        ]
+    }
 
 
 @router.get("/users/search")

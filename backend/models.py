@@ -93,6 +93,19 @@ class SignalPreKey(Base):
     __table_args__ = (UniqueConstraint('user_id', 'prekey_id', name='_user_prekey_uc'),)
 
 
+class SignalSession(Base):
+    __tablename__ = "signal_session"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    recipient_id = Column(Integer, nullable=False, index=True)  # The other user in the session
+    device_id = Column(Integer, default=1, nullable=False)  # Device ID (always 1 for now)
+    encrypted_session_data = Column(Text, nullable=False)  # Encrypted session record (JSON with salt, iv, ciphertext)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    __table_args__ = (UniqueConstraint('user_id', 'recipient_id', 'device_id', name='_user_recipient_device_uc'),)
+
+
 class DMEnvelope(Base):
     __tablename__ = "dm_envelope"
 

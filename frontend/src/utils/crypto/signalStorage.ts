@@ -46,7 +46,9 @@ function openDB(): Promise<IDBDatabase> {
                 db.createObjectStore("signedPreKeys", { keyPath: "userId" });
             }
 
-            // Sessions store: key = userId + deviceId, value = { userId, deviceId, record }
+            // Sessions store: key = userId + recipientId, value = { userId, recipientId, deviceId, record }
+            // Note: recipientId is stored in the deviceId field for backward compatibility
+            // The actual deviceId is always 1 for now
             if (!db.objectStoreNames.contains("sessions")) {
                 const sessionsStore = db.createObjectStore("sessions", { keyPath: ["userId", "deviceId"] });
                 sessionsStore.createIndex("userId", "userId", { unique: false });
@@ -113,6 +115,19 @@ function toArrayBuffer(u8: Uint8Array | ArrayBuffer | ArrayBufferLike): ArrayBuf
 function toUint8Array(ab: ArrayBuffer | Uint8Array): Uint8Array {
     if (ab instanceof Uint8Array) return ab;
     return new Uint8Array(ab);
+}
+
+// Global session sync callback - set by sessionSync service
+let sessionSyncCallback: ((address: string, record: string) => Promise<void>) | null = null;
+// Flag to prevent sync callback during restoration (to avoid re-uploading restored sessions)
+let isRestoring = false;
+
+export function setSessionSyncCallback(callback: ((address: string, record: string) => Promise<void>) | null): void {
+    sessionSyncCallback = callback;
+}
+
+export function setRestoring(restoring: boolean): void {
+    isRestoring = restoring;
 }
 
 export class SignalProtocolStorage implements StorageType {
@@ -322,49 +337,140 @@ export class SignalProtocolStorage implements StorageType {
 
     // Session Management
     async loadSession(encodedAddress: string): Promise<string | undefined> {
-        // encodedAddress format: "userId.deviceId"
+        // encodedAddress format: "recipientId.deviceId" (from Signal Protocol)
+        // recipientId is the other user's ID, deviceId is always 1 for now
         const parts = encodedAddress.split(".");
-        const deviceId = parts.length > 1 ? parts[1] : encodedAddress;
+        const recipientId = parts[0]; // First part is the recipient's user ID
         
+        // Load using recipientId as the key (stored in deviceId field for backward compatibility)
+        // Ensure we search with string to match how we stored it
         const store = await getStore("sessions");
         const result = await new Promise<string | undefined>((resolve, reject) => {
-            const request = store.get([this.userId, deviceId]);
+            const request = store.get([this.userId, String(recipientId)]);
             request.onsuccess = () => {
                 const data = request.result;
-                resolve(data ? data.record : undefined);
+                if (data && data.record && typeof data.record === "string" && data.record.length > 0) {
+                    resolve(data.record);
+                } else {
+                    // Try with number if string didn't work (backward compatibility)
+                    if (!data && !isNaN(Number(recipientId))) {
+                        const numRequest = store.get([this.userId, Number(recipientId)]);
+                        numRequest.onsuccess = () => {
+                            const numData = numRequest.result;
+                            if (numData && numData.record && typeof numData.record === "string" && numData.record.length > 0) {
+                                resolve(numData.record);
+                            } else {
+                                console.warn(`Session record missing or invalid for recipient ${recipientId} (address: ${encodedAddress})`);
+                                resolve(undefined);
+                            }
+                        };
+                        numRequest.onerror = () => {
+                            console.warn(`Session record missing for recipient ${recipientId} (address: ${encodedAddress})`);
+                            resolve(undefined);
+                        };
+                    } else {
+                        console.warn(`Session record missing or invalid for recipient ${recipientId} (address: ${encodedAddress})`);
+                        resolve(undefined);
+                    }
+                }
             };
-            request.onerror = () => reject(request.error);
+            request.onerror = () => {
+                console.error(`Failed to load session for recipient ${recipientId}:`, request.error);
+                reject(request.error);
+            };
         });
 
         return result;
     }
 
     async storeSession(encodedAddress: string, record: string): Promise<void> {
-        // encodedAddress format: "userId.deviceId"
+        // encodedAddress format: "recipientId.deviceId" (from Signal Protocol)
+        // recipientId is the other user's ID, deviceId is always 1 for now
         const parts = encodedAddress.split(".");
-        const deviceId = parts.length > 1 ? parts[1] : encodedAddress;
+        const recipientId = parts[0]; // First part is the recipient's user ID
         
+        // Validate record
+        if (!record || typeof record !== "string" || record.length === 0) {
+            console.warn(`Invalid session record for address ${encodedAddress}`);
+            return;
+        }
+        
+        // Store with recipientId as the key (using deviceId field for backward compatibility)
+        // Ensure recipientId is stored as string to match how we load it
         const store = await getStore("sessions", "readwrite");
         await new Promise<void>((resolve, reject) => {
             const request = store.put({
                 userId: this.userId,
-                deviceId: deviceId,
+                deviceId: String(recipientId), // Store recipientId as string in deviceId field
                 record: record
             });
-            request.onsuccess = () => resolve();
+            request.onsuccess = () => {
+                resolve();
+                // If session sync callback is set and we're not restoring, upload to server in background (non-blocking)
+                // Do this AFTER resolve() to ensure storage completes even if sync fails
+                if (sessionSyncCallback && !isRestoring) {
+                    // Use setTimeout to make it truly async and non-blocking
+                    setTimeout(() => {
+                        sessionSyncCallback!(encodedAddress, record).then(() => {
+                            console.log(`Session synced to server for ${encodedAddress}`);
+                        }).catch(err => {
+                            console.error(`Failed to sync session to server for ${encodedAddress}:`, err);
+                        });
+                    }, 0);
+                }
+            };
             request.onerror = () => reject(request.error);
         });
     }
 
     async removeSession(encodedAddress: string): Promise<void> {
-        // encodedAddress format: "userId.deviceId"
+        // encodedAddress format: "recipientId.deviceId" (from Signal Protocol)
+        // recipientId is the other user's ID, deviceId is always 1 for now
         const parts = encodedAddress.split(".");
-        const deviceId = parts.length > 1 ? parts[1] : encodedAddress;
+        const recipientId = parts[0]; // First part is the recipient's user ID
         
+        // Remove using recipientId as the key (stored in deviceId field for backward compatibility)
         const store = await getStore("sessions", "readwrite");
         await new Promise<void>((resolve, reject) => {
-            const request = store.delete([this.userId, deviceId]);
+            const request = store.delete([this.userId, recipientId]);
             request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Get all sessions for this user
+     * Returns array of { address, record } where address is "recipientId.deviceId"
+     * Note: In IndexedDB, deviceId field actually stores the recipientId from the Signal Protocol address
+     */
+    async getAllSessions(): Promise<Array<{ address: string; record: string }>> {
+        const store = await getStore("sessions");
+        const sessions: Array<{ address: string; record: string }> = [];
+        
+        return new Promise((resolve, reject) => {
+            const request = store.index("userId").openCursor(IDBKeyRange.only(this.userId));
+            request.onsuccess = () => {
+                const cursor = request.result;
+                if (cursor) {
+                    const data = cursor.value;
+                    // In Signal Protocol, address format is "recipientId.deviceId"
+                    // We stored it with recipientId in the deviceId field (for backward compatibility)
+                    // The actual deviceId is always 1 for now
+                    const recipientId = data.deviceId; // This is actually the recipientId from the address
+                    const deviceId = 1; // Always 1 for now
+                    const address = `${recipientId}.${deviceId}`;
+                    
+                    // Validate that record exists and is a string
+                    if (data.record && typeof data.record === "string" && data.record.length > 0) {
+                        sessions.push({ address, record: data.record });
+                    } else {
+                        console.warn(`Invalid session record for recipient ${recipientId}:`, data);
+                    }
+                    cursor.continue();
+                } else {
+                    resolve(sessions);
+                }
+            };
             request.onerror = () => reject(request.error);
         });
     }

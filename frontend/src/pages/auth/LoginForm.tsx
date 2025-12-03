@@ -98,10 +98,22 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
                         // Run Signal Protocol initialization in background to avoid blocking navigation
                         (async () => {
                             try {
+                                console.log("Starting Signal Protocol initialization...");
                                 const { SignalProtocolService } = await import("@/utils/crypto/signalProtocol");
                                 const { uploadPreKeyBundle, uploadAllPreKeys } = await import("@/core/api/crypto/prekeys");
+                                const { restoreSessionsFromServer, uploadAllSessionsToServer, initializeSessionSync } = await import("@/utils/crypto/sessionSync");
+                                
                                 const signalService = new SignalProtocolService(data.user!.id.toString());
                                 await signalService.initialize();
+                                console.log("Signal Protocol initialized");
+                                
+                                // Initialize session sync (enables automatic upload of new sessions)
+                                console.log("Initializing session sync...");
+                                initializeSessionSync(data.user!.id.toString(), password, data.token);
+                                console.log("Session sync initialized");
+                                
+                                // Restore sessions from server (encrypted with password)
+                                await restoreSessionsFromServer(data.user!.id.toString(), password, data.token);
                                 
                                 // Upload base bundle with one prekey (for backward compatibility)
                                 const bundle = await signalService.getPreKeyBundle();
@@ -111,6 +123,9 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
                                 const baseBundle = await signalService.getBaseBundle();
                                 const prekeys = await signalService.getAllPreKeys();
                                 await uploadAllPreKeys(baseBundle, prekeys, data.token);
+                                
+                                // Upload all current sessions to server (backup)
+                                await uploadAllSessionsToServer(data.user!.id.toString(), password, data.token);
                                 
                                 console.log(`Uploaded ${prekeys.length} prekeys to server`);
                             } catch (e) {

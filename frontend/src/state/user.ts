@@ -7,6 +7,7 @@ import { isElectron } from "@/core/electron/electron";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { typingManager } from "@/core/typingManager";
 import type { UserState } from "./types";
+import { clearSessionSync } from "@/utils/crypto/sessionSync";
 
 interface UserStore {
     user: UserState;
@@ -58,6 +59,9 @@ export const useUserStore = create<UserStore>((set) => ({
         typingManager.setAuthToken(null);
         onlineStatusManager.cleanup();
         typingManager.cleanup();
+        
+        // Clear session sync
+        clearSessionSync();
 
         set({
             user: {
@@ -103,6 +107,22 @@ export const useUserStore = create<UserStore>((set) => ({
 
                     onlineStatusManager.setAuthToken(token);
                     typingManager.setAuthToken(token);
+
+                    // Initialize Signal Protocol after restoring user (non-blocking)
+                    // Note: We can't restore sessions without the password, but we can initialize
+                    // Signal Protocol so new sessions can be created when needed
+                    if (user.id) {
+                        (async () => {
+                            try {
+                                const { SignalProtocolService } = await import("@/utils/crypto/signalProtocol");
+                                const signalService = new SignalProtocolService(user.id.toString());
+                                await signalService.initialize();
+                                console.log("Signal Protocol initialized after restore (sessions will be re-established when needed)");
+                            } catch (e) {
+                                console.error("Signal Protocol initialization failed (restored):", e);
+                            }
+                        })();
+                    }
 
                     // Ping will be sent automatically on WebSocket reconnect
                     // No need to send here to avoid duplicate pings

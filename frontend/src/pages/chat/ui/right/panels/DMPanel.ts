@@ -58,7 +58,20 @@ export class DMPanel extends MessagePanel {
     }
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
-        const plaintext = await decryptDm(env, env.senderId);
+        // Check if this is a message sent by the current user
+        const isSentByUs = env.senderId === this.currentUser.currentUser?.id;
+        
+        let plaintext: string;
+        if (isSentByUs) {
+            // Can't decrypt our own sent messages in Signal Protocol
+            // The plaintext should be stored when sending, but for now we'll skip it
+            // This message should have been displayed immediately when sent
+            throw new Error("Cannot decrypt own sent message - should be displayed from send flow");
+        } else {
+            // Decrypt incoming messages
+            plaintext = await decryptDm(env, env.senderId);
+        }
+        
         const username = formatDMUsername(
             env.senderId,
             env.recipientId,
