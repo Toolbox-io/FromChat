@@ -12,7 +12,7 @@ import { CallSignalingHandler } from "./calls/signaling";
 import { onlineStatusManager } from "./onlineStatusManager";
 import { typingManager } from "./typingManager";
 import { useUserStore } from "@/state/user";
-import { getLastSequence, processBatchedUpdates, requestMissedUpdates } from "./updateManager";
+import { processBatchedUpdates } from "./updateManager";
 import { getAuthToken } from "@/core/api/user/auth";
 
 interface HttpError extends Error {
@@ -161,21 +161,10 @@ function setupEventHandlers(): void {
 
             // Handle batched updates
             if (response.type === "updates" && "seq" in response && "updates" in response) {
-                // Create function to request missed updates with credentials
-                const token = getAuthToken();
-                const requestMissedFn = token ? async (lastSeq: number) => {
-                    await requestMissedUpdates(lastSeq, async (req) => {
-                        await request(req);
-                    }, {
-                        scheme: "Bearer",
-                        credentials: token
-                    });
-                } : undefined;
-                
                 await processBatchedUpdates(response as any, (update) => {
                     // Route individual updates to appropriate handlers
                     handleUpdate(update);
-                }, requestMissedFn);
+                });
                 return;
             }
 
@@ -250,20 +239,9 @@ function setupEventHandlers(): void {
                     console.error("Failed to send ping on reconnect:", error);
                 }
                 
-                // Send last sequence number and request missed updates on reconnect
-                // Wait a bit for ping to complete authentication
-                await delay(100);
-                
-                try {
-                    const lastSeq = await getLastSequence();
-                    if (lastSeq > 0) {
-                        await requestMissedUpdates(lastSeq, async (req) => {
-                            await request(req);
-                        }, credentials);
-                    }
-                } catch (error) {
-                    console.error("Failed to request missed updates:", error);
-                }
+                // Note: We don't request missed updates on reconnect because getUpdates
+                // doesn't properly return updates (they're sent directly via WebSocket
+                // but the client can't handle them). Gaps will be logged but not recovered.
             }
         } catch (error) {
             console.error("Failed to authenticate on reconnect:", error);
@@ -357,6 +335,22 @@ export function request<Request, Response = any>(payload: WebSocketMessage<Reque
             reject(new Error("WebSocket is closed"));
         }
     });
+}
+
+/**
+ * Send a WebSocket message without waiting for a response (fire-and-forget)
+ * Useful for typing indicators and other non-critical messages
+ */
+export function send<T = unknown>(payload: WebSocketMessage<T>): void {
+    if (websocket.readyState !== WebSocket.OPEN) {
+        console.warn("WebSocket is not open, cannot send message");
+        return;
+    }
+    try {
+        websocket.send(JSON.stringify(payload));
+    } catch (error) {
+        console.error("Failed to send WebSocket message:", error);
+    }
 }
 
 // --------------

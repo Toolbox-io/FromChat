@@ -6,11 +6,12 @@ import { parse } from "marked";
 import { escape as escapeHtml } from "he";
 import { useEffect, useState, useRef, useMemo } from "react";
 import api from "@/core/api";
-import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
 import { useUserStore } from "@/state/user";
 import { useProfileStore } from "@/state/profile";
 import { StatusBadge } from "@/core/components/StatusBadge";
+import { SignalProtocolService } from "@/utils/crypto/signalProtocol";
+import { removePadding } from "@/utils/crypto/obfuscation";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
 import { createPortal } from "react-dom";
@@ -212,7 +213,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
     }, [message.files, isDm, decryptedFiles]);
 
     async function decryptFile(file: Attachment): Promise<string | null> {
-        if (!file.encrypted || !isDm || !user.authToken || !dmRecipientPublicKey || !dmEnvelope) return null;
+        if (!file.encrypted || !isDm || !user.authToken || !dmEnvelope || !user.currentUser?.id) return null;
 
         // Check if already decrypted
         if (decryptedFiles.has(file.path)) {
@@ -220,7 +221,6 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         }
 
         try {
-            // no-op decrypt indicator removed from UI
             // Fetch encrypted file
             const response = await fetch(file.path, {
                 headers: api.user.auth.getAuthHeaders(user.authToken!)
@@ -229,19 +229,36 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
             const encryptedData = await response.arrayBuffer();
 
-            // Get current user's keys
-            const keys = api.user.auth.getCurrentKeys();
-            if (!keys) throw new Error("Keys not initialized");
-
-            // Derive shared secret with the recipient's public key
-            const shared = await ecdhSharedSecret(keys.privateKey, ub64(dmRecipientPublicKey));
-
-            // Derive wrapping key using the salt from the DM envelope
-            const wkRaw = await deriveWrappingKey(shared, ub64(dmEnvelope.salt), new Uint8Array([1]));
-            const wk = await importAesGcmKey(wkRaw);
-
-            // Unwrap the message key
-            const mk = await aesGcmDecrypt(wk, ub64(dmEnvelope.iv2), ub64(dmEnvelope.wrappedMk));
+            // Decrypt the master key using Signal Protocol
+            const signalService = new SignalProtocolService(user.currentUser.id.toString());
+            const senderId = dmEnvelope.senderId;
+            
+            // Remove padding from wrappedMk (backward compatible)
+            let wrappedMkStr: string;
+            try {
+                wrappedMkStr = removePadding(dmEnvelope.wrappedMk);
+            } catch {
+                // If padding removal fails, assume it's an old message without padding
+                wrappedMkStr = dmEnvelope.wrappedMk;
+            }
+            
+            // Parse wrappedMk - it's a JSON string containing Signal Protocol encrypted data
+            let mk: Uint8Array;
+            try {
+                const encryptedMk = JSON.parse(wrappedMkStr);
+                if (encryptedMk.type && encryptedMk.body) {
+                    // Signal Protocol encrypted
+                    const mkBase64 = await signalService.decryptMessage(senderId, encryptedMk);
+                    mk = new Uint8Array(
+                        atob(mkBase64).split("").map(c => c.charCodeAt(0))
+                    );
+                } else {
+                    throw new Error("Invalid Signal Protocol message format");
+                }
+            } catch (error) {
+                console.error("Failed to decrypt master key with Signal Protocol:", error);
+                throw error;
+            }
 
             // Decrypt the file using the message key
             const iv = new Uint8Array(encryptedData, 0, 12);

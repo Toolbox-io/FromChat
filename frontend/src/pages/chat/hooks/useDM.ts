@@ -124,7 +124,9 @@ export function useDM() {
                                 lastMessageContent = formatDMMessageContent(decryptedData.data.content, conv.lastMessage.senderId, user.currentUser?.id!);
                             }
                         } catch (error) {
-                            console.error("Failed to decrypt last message for user", conv.user.id, error);
+                            // Silently fail for last message decryption - it's not critical
+                            // The message will just show "No messages" instead
+                            console.debug("Failed to decrypt last message for user", conv.user.id, error);
                         }
                     }
 

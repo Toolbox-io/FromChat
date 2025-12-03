@@ -93,14 +93,30 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
                 try {
                     await api.user.auth.ensureKeysOnLogin(password, data.token);
                     
-                    // Initialize Signal Protocol after keys are set up
+                    // Initialize Signal Protocol after keys are set up (non-blocking)
                     if (data.user?.id) {
-                        const { SignalProtocolService } = await import("@/utils/crypto/signalProtocol");
-                        const { uploadPreKeyBundle } = await import("@/core/api/crypto");
-                        const signalService = new SignalProtocolService(data.user.id.toString());
-                        await signalService.initialize();
-                        const bundle = await signalService.getPreKeyBundle();
-                        await uploadPreKeyBundle(bundle, data.token);
+                        // Run Signal Protocol initialization in background to avoid blocking navigation
+                        (async () => {
+                            try {
+                                const { SignalProtocolService } = await import("@/utils/crypto/signalProtocol");
+                                const { uploadPreKeyBundle, uploadAllPreKeys } = await import("@/core/api/crypto/prekeys");
+                                const signalService = new SignalProtocolService(data.user!.id.toString());
+                                await signalService.initialize();
+                                
+                                // Upload base bundle with one prekey (for backward compatibility)
+                                const bundle = await signalService.getPreKeyBundle();
+                                await uploadPreKeyBundle(bundle, data.token);
+                                
+                                // Upload all prekeys for server-side rotation
+                                const baseBundle = await signalService.getBaseBundle();
+                                const prekeys = await signalService.getAllPreKeys();
+                                await uploadAllPreKeys(baseBundle, prekeys, data.token);
+                                
+                                console.log(`Uploaded ${prekeys.length} prekeys to server`);
+                            } catch (e) {
+                                console.error("Key setup failed:", e);
+                            }
+                        })();
                     }
                 } catch (e) {
                     console.error("Key setup failed:", e);

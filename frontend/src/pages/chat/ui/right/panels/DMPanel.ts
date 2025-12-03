@@ -53,6 +53,8 @@ export class DMPanel extends MessagePanel {
     clearMessages(): void {
         super.clearMessages();
         this.messagesLoaded = false;
+        this.processedMessageIds.clear();
+        this.failedDecryptionIds.clear();
     }
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
@@ -111,6 +113,10 @@ export class DMPanel extends MessagePanel {
 
             for (const env of messages) {
                 try {
+                    // Mark as processed to prevent duplicates
+                    if (env.id) {
+                        this.processedMessageIds.add(env.id);
+                    }
                     const dmMsg = await this.parseTextPayload(env, decryptedMessages);
                     decryptedMessages.push(dmMsg);
 
@@ -118,7 +124,15 @@ export class DMPanel extends MessagePanel {
                         maxIncomingId = env.id;
                     }
                 } catch (error) {
-                    console.error("Error decrypting message:", error);
+                    // Log warning with deduplication to avoid console spam
+                    if (env.id && !this.failedDecryptionIds.has(env.id)) {
+                        this.failedDecryptionIds.add(env.id);
+                        console.warn(`Failed to decrypt DM ${env.id}:`, error instanceof Error ? error.message : String(error));
+                    }
+                    // Remove from processed set if decryption failed
+                    if (env.id) {
+                        this.processedMessageIds.delete(env.id);
+                    }
                 }
             }
 
@@ -165,7 +179,7 @@ export class DMPanel extends MessagePanel {
                         const dmMsg = await this.parseTextPayload(env, decryptedMessages);
                         decryptedMessages.push(dmMsg);
                     } catch (error) {
-                        console.error("Error decrypting message:", error);
+                        // Silently skip messages that can't be decrypted
                     }
                 }
                 
@@ -204,7 +218,6 @@ export class DMPanel extends MessagePanel {
             } else {
                 await sendDmWithFiles(
                     this.dmData.userId,
-                    this.dmData.publicKey,
                     json,
                     files,
                     this.currentUser.authToken
@@ -212,6 +225,16 @@ export class DMPanel extends MessagePanel {
             }
         } catch (error) {
             console.error("Failed to send DM:", error);
+            
+            // Check if it's a prekey exhaustion error
+            const { PrekeyExhaustedError } = await import("@/core/api/crypto/prekeys");
+            if (error instanceof PrekeyExhaustedError) {
+                const { alert } = await import("@/core/components/AlertDialog");
+                await alert({
+                    headline: "Cannot Send Message",
+                    description: "The recipient's encryption keys are temporarily unavailable. They need to come online to refresh their keys. This ensures maximum privacy and security."
+                });
+            }
         }
     }
 
@@ -228,14 +251,33 @@ export class DMPanel extends MessagePanel {
     }
 
 
+    // Track processed message IDs to prevent duplicates
+    private processedMessageIds: Set<number> = new Set();
+    private failedDecryptionIds: Set<number> = new Set(); // Track messages that failed decryption to avoid spam
+
     // Handle incoming WebSocket DM messages
     async handleWebSocketMessage(response: DMWebSocketMessage): Promise<void> {
+        // Only process actual DM messages, not typing indicators or other events
         if (response.type === "dmNew" && this.dmData) {
             const envelope = response.data;
+
+            // Validate envelope has required fields
+            if (!envelope || !envelope.ciphertext || !envelope.senderId || !envelope.id) {
+                console.warn("Invalid DM envelope received, skipping");
+                return;
+            }
+
+            // Skip if we've already processed this message
+            if (this.processedMessageIds.has(envelope.id)) {
+                return;
+            }
 
             // If this is for the active DM conversation
             if (envelope.senderId === this.dmData.userId || envelope.recipientId === this.dmData.userId) {
                 try {
+                    // Mark as processed before attempting decryption
+                    this.processedMessageIds.add(envelope.id);
+                    
                     const dmMsg = await this.parseTextPayload(envelope, this.getMessages());
 
                     // Check if this is a confirmation of a message we sent
@@ -258,7 +300,15 @@ export class DMPanel extends MessagePanel {
                         this.setLastReadId(this.dmData.userId, Math.max(this.getLastReadId(this.dmData.userId), envelope.id));
                     }
                 } catch (error) {
-                    console.error("Failed to decrypt incoming DM:", error);
+                    // Only log each failed message once to avoid console spam
+                    if (envelope.id && !this.failedDecryptionIds.has(envelope.id)) {
+                        this.failedDecryptionIds.add(envelope.id);
+                        console.warn(`Failed to decrypt DM ${envelope.id}:`, error instanceof Error ? error.message : String(error));
+                    }
+                    // Remove from processed set so we can retry if needed
+                    if (envelope.id) {
+                        this.processedMessageIds.delete(envelope.id);
+                    }
                 }
             }
         }
@@ -315,6 +365,7 @@ export class DMPanel extends MessagePanel {
         this.dmData = null;
         this.messagesLoaded = false;
         this.clearMessages();
+        this.failedDecryptionIds.clear(); // Clear failed decryption tracking
         this.updateState({
             id: "dm",
             title: "Select a user",
@@ -383,7 +434,7 @@ export class DMPanel extends MessagePanel {
                 reply_to_id: msg?.reply_to?.id ?? undefined
             }
         };
-        api.chats.dm.edit(messageId, this.dmData.publicKey, JSON.stringify(payload), this.currentUser.authToken).catch((e) => {
+        api.chats.dm.edit(messageId, this.dmData.userId, JSON.stringify(payload), this.currentUser.authToken).catch((e) => {
             console.error("Failed to edit DM:", e);
         });
     }

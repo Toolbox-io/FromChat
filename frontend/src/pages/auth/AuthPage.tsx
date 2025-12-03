@@ -1,12 +1,13 @@
 import { AuthContainer } from "./Auth";
 import { useState, useEffect, useRef, useLayoutEffect, useCallback, type RefObject } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 import { LoginForm } from "./LoginForm";
 import { RegisterForm } from "./RegisterForm";
 import type { Variants, Transition } from "motion/react";
 import styles from "./auth.module.scss";
+import { useUserStore } from "@/state/user";
 
 const slideVariants: Variants = {
     enter: (direction: number) => ({
@@ -37,9 +38,9 @@ const slideTransition: Transition = {
 export default function AuthPage() {
     const [searchParams] = useSearchParams();
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();
-    if (navigateDownloadApp) return navigateDownloadApp;
     const navigate = useNavigate();
-
+    const { user } = useUserStore();
+    
     const [direction, setDirection] = useState(0);
     const prevMode = useRef(searchParams.get("mode") || "login");
     const containerRef = useRef<HTMLDivElement>(null);
@@ -90,6 +91,12 @@ export default function AuthPage() {
             }
         };
     }, [currentMode]);
+
+    // Now we can do conditional returns after all hooks are called
+    if (navigateDownloadApp) return navigateDownloadApp;
+    if (user.authToken && user.currentUser) {
+        return <Navigate to="/chat" replace />;
+    }
     
     function switchMode(newMode: "login" | "register") {
         navigate(`/auth?mode=${newMode}`, { replace: true });

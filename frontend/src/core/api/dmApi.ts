@@ -1,16 +1,13 @@
 import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "./account";
+import api from "@/core/api";
 import { importAesGcmKey, aesGcmEncrypt } from "@/utils/crypto/symmetric";
 import { randomBytes } from "@/utils/crypto/kdf";
-import { getCurrentKeys } from "./account";
 import { request } from "@/core/websocket";
 import type { SendDMRequest, DmEnvelope, DMEditRequest, DmEncryptedJSON, BaseDmEnvelope, User } from "@/core/types";
-import { b64, ub64 } from "@/utils/utils";
-import { fetchUserPublicKey, fetchPreKeyBundle } from "./crypto";
-import { fetchUsers, searchUsers } from "./users";
+import { b64 } from "@/utils/utils";
 import { SignalProtocolService } from "@/utils/crypto/signalProtocol";
 import { useUserStore } from "@/state/user";
-import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
+import { addPadding, removePadding } from "@/utils/crypto/obfuscation";
 
 export async function decryptDm(envelope: DmEnvelope, senderId: number): Promise<string> {
     const user = useUserStore.getState().user.currentUser;
@@ -18,21 +15,110 @@ export async function decryptDm(envelope: DmEnvelope, senderId: number): Promise
         throw new Error("User not authenticated");
     }
 
+    if (!envelope.ciphertext) {
+        throw new Error("DM envelope missing ciphertext");
+    }
+
     const signalService = new SignalProtocolService(user.id.toString());
     
-    // Parse Signal Protocol message
-    const signalCiphertext = JSON.parse(envelope.ciphertext);
-    if (!signalCiphertext.type || !signalCiphertext.body) {
-        throw new Error("Invalid Signal Protocol message format");
+    // Remove padding (backward compatible with old messages)
+    // Check if ciphertext is base64 (padded messages are base64)
+    let ciphertextStr: string = envelope.ciphertext;
+    
+    // Check if it's base64 (padded messages are base64)
+    const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
+    const isBase64 = base64Pattern.test(envelope.ciphertext) && envelope.ciphertext.length > 0;
+    
+    if (isBase64) {
+        // Try to remove padding
+        try {
+            const unpadded = removePadding(envelope.ciphertext);
+            // Verify it's valid JSON before using it
+            JSON.parse(unpadded);
+            ciphertextStr = unpadded;
+        } catch {
+            // If padding removal fails, try using the base64 directly as JSON (shouldn't happen, but handle gracefully)
+            try {
+                JSON.parse(envelope.ciphertext);
+                ciphertextStr = envelope.ciphertext;
+            } catch {
+                // If both fail, throw an error
+                throw new Error(`Failed to process ciphertext: not valid base64 padded data and not valid JSON. Length: ${envelope.ciphertext.length}`);
+            }
+        }
+    } else {
+        // Not base64, assume it's already JSON (unpadded message)
+        ciphertextStr = envelope.ciphertext;
     }
     
-    const plaintext = await signalService.decryptMessage(senderId, signalCiphertext);
-    return plaintext;
+    // Parse Signal Protocol message
+    let signalCiphertext: { type: number; body: string };
+    try {
+        signalCiphertext = JSON.parse(ciphertextStr);
+    } catch (error) {
+        throw new Error(`Failed to parse Signal Protocol message: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    
+    if (!signalCiphertext || typeof signalCiphertext !== "object") {
+        throw new Error("Invalid Signal Protocol message format: not an object");
+    }
+    
+    if (typeof signalCiphertext.type !== "number") {
+        throw new Error("Invalid Signal Protocol message format: type is not a number");
+    }
+    
+    if (!signalCiphertext.body || typeof signalCiphertext.body !== "string") {
+        throw new Error("Invalid Signal Protocol message format: body is missing or not a string");
+    }
+    
+    // Validate that body is valid base64 before attempting decryption
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(signalCiphertext.body)) {
+        // Check if body contains non-printable characters (corrupted binary data)
+        const hasNonPrintable = /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]/.test(signalCiphertext.body);
+        if (hasNonPrintable) {
+            // This is a corrupted message from before the base64 conversion fix
+            // It cannot be decrypted - the body contains raw binary data instead of base64
+            console.warn(`Message corrupted: body contains binary data instead of base64 (envelope ID: ${envelope.id}). This message was encrypted before the encryption fix and cannot be decrypted.`);
+            
+            return "_This message is corrupted and cannot be displayed._";
+        }
+        
+        console.error("Invalid base64 in body:", {
+            bodyType: typeof signalCiphertext.body,
+            bodyLength: signalCiphertext.body.length,
+            first50: signalCiphertext.body.substring(0, 50),
+            last50: signalCiphertext.body.substring(Math.max(0, signalCiphertext.body.length - 50)),
+            envelopeId: envelope.id
+        });
+        throw new Error(`Invalid base64 format in ciphertext body`);
+    }
+    
+    try {
+        // Try to decode a small portion to validate base64
+        atob(signalCiphertext.body.substring(0, Math.min(4, signalCiphertext.body.length)));
+    } catch (error) {
+        console.error("Base64 decode failed:", {
+            bodyLength: signalCiphertext.body.length,
+            first50: signalCiphertext.body.substring(0, 50),
+            last50: signalCiphertext.body.substring(Math.max(0, signalCiphertext.body.length - 50)),
+            envelopeId: envelope.id,
+            error: error instanceof Error ? error.message : String(error)
+        });
+        throw new Error(`Invalid base64 in ciphertext body: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    
+    try {
+        const plaintext = await signalService.decryptMessage(senderId, signalCiphertext);
+        return plaintext;
+    } catch (error) {
+        throw new Error(`Failed to decrypt DM: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }
 
 export async function fetchDMHistory(userId: number, token: string, limit: number = 50): Promise<DmEnvelope[]> {
     const response = await fetch(`${API_BASE_URL}/dm/history/${userId}?limit=${limit}`, {
-        headers: getAuthHeaders(token, true)
+        headers: api.user.auth.getAuthHeaders(token, true)
     });
     if (!response.ok) return [];
     const data = await response.json();
@@ -52,9 +138,9 @@ export async function sendDMViaWebSocket(recipientId: number, plaintext: string,
     const hasSession = await signalService.hasSession(recipientId);
     if (!hasSession) {
         // Fetch prekey bundle from server
-        const bundle = await fetchPreKeyBundle(recipientId, authToken);
+        const bundle = await api.crypto.prekeys.fetchPreKeyBundle(recipientId, authToken);
         if (!bundle) {
-            throw new Error("No Signal Protocol prekey bundle available for recipient");
+            throw new Error(`Recipient (user ID: ${recipientId}) has not set up encryption. They need to log in to initialize their encryption keys.`);
         }
         await signalService.processPreKeyBundle(recipientId, bundle);
     }
@@ -62,10 +148,13 @@ export async function sendDMViaWebSocket(recipientId: number, plaintext: string,
     // Encrypt with Signal Protocol
     const ciphertext = await signalService.encryptMessage(recipientId, plaintext);
     
+    // Add padding to obfuscate message size (anti-censorship)
+    const paddedCiphertext = addPadding(JSON.stringify(ciphertext));
+    
     const payload: SendDMRequest = {
         recipientId: recipientId,
         iv: "", // Not used for Signal Protocol
-        ciphertext: JSON.stringify(ciphertext), // Store Signal Protocol message as JSON
+        ciphertext: paddedCiphertext, // Padded Signal Protocol message
         salt: "", // Not used for Signal Protocol
         iv2: "", // Not used for Signal Protocol
         wrappedMk: "" // Not used for Signal Protocol
@@ -82,17 +171,33 @@ export async function sendDMViaWebSocket(recipientId: number, plaintext: string,
     });
 }
 
-export async function sendDmWithFiles(recipientId: number, recipientPublicKeyB64: string, plaintextJson: string, files: File[], token: string): Promise<void> {
-    const keys = getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
+export async function sendDmWithFiles(recipientId: number, plaintextJson: string, files: File[], token: string): Promise<void> {
+    const user = useUserStore.getState().user.currentUser;
+    if (!user?.id) {
+        throw new Error("User not authenticated");
+    }
 
+    const signalService = new SignalProtocolService(user.id.toString());
+    
+    // Check if we have a session, if not, fetch prekey bundle and establish one
+    const hasSession = await signalService.hasSession(recipientId);
+    if (!hasSession) {
+        const bundle = await api.crypto.prekeys.fetchPreKeyBundle(recipientId, token);
+        if (!bundle) {
+            throw new Error(`Recipient (user ID: ${recipientId}) has not set up encryption. They need to log in to initialize their encryption keys.`);
+        }
+        await signalService.processPreKeyBundle(recipientId, bundle);
+    }
+
+    // Generate master key for file encryption
     const mk = randomBytes(32);
-    const wkSalt = randomBytes(16);
-    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
-    const wk = await importAesGcmKey(wkRaw);
-
-    const wrap = await aesGcmEncrypt(wk, mk);
+    
+    // Encrypt the master key using Signal Protocol
+    const mkBase64 = b64(mk);
+    const encryptedMk = await signalService.encryptMessage(recipientId, mkBase64);
+    
+    // Add padding to obfuscate master key size
+    const paddedMk = addPadding(JSON.stringify(encryptedMk));
 
     const form = new FormData();
     const names: string[] = [];
@@ -124,30 +229,48 @@ export async function sendDmWithFiles(recipientId: number, recipientPublicKeyB64
         recipientId: recipientId,
         iv: b64(encMsg.iv),
         ciphertext: b64(encMsg.ciphertext),
-        salt: b64(wkSalt),
-        iv2: b64(wrap.iv),
-        wrappedMk: b64(wrap.ciphertext)
+        salt: "", // Not used for Signal Protocol
+        iv2: "", // Not used for Signal Protocol
+        wrappedMk: paddedMk // Padded Signal Protocol encrypted master key
     } satisfies BaseDmEnvelope));
 
     await fetch(`${API_BASE_URL}/dm/send`, {
         method: "POST",
-        headers: getAuthHeaders(token, false),
+        headers: api.user.auth.getAuthHeaders(token, false),
         body: form
     });
 }
 
-export async function editDmEnvelope(id: number, recipientPublicKeyB64: string, newPlaintextJson: string, authToken: string): Promise<void> {
-    const keys = getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
+export async function editDmEnvelope(id: number, recipientId: number, newPlaintextJson: string, authToken: string): Promise<void> {
+    const user = useUserStore.getState().user.currentUser;
+    if (!user?.id) {
+        throw new Error("User not authenticated");
+    }
 
-    // We cannot reuse the old mk safely without knowing it; generate a fresh mk and wrap
+    const signalService = new SignalProtocolService(user.id.toString());
+    
+    // Check if we have a session, if not, fetch prekey bundle and establish one
+    const hasSession = await signalService.hasSession(recipientId);
+    if (!hasSession) {
+        const bundle = await api.crypto.prekeys.fetchPreKeyBundle(recipientId, authToken);
+        if (!bundle) {
+            throw new Error("No Signal Protocol prekey bundle available for recipient");
+        }
+        await signalService.processPreKeyBundle(recipientId, bundle);
+    }
+
+    // Generate fresh master key for the edited message
     const mk = randomBytes(32);
-    const wkSalt = randomBytes(16);
-    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
-    const wk = await importAesGcmKey(wkRaw);
+    
+    // Encrypt the master key using Signal Protocol
+    const mkBase64 = b64(mk);
+    const encryptedMk = await signalService.encryptMessage(recipientId, mkBase64);
+    
+    // Add padding to obfuscate master key size
+    const paddedMk = addPadding(JSON.stringify(encryptedMk));
+    
+    // Encrypt the message content with the master key
     const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(newPlaintextJson));
-    const wrap = await aesGcmEncrypt(wk, mk);
 
     await request({
         type: "dmEdit",
@@ -156,9 +279,9 @@ export async function editDmEnvelope(id: number, recipientPublicKeyB64: string, 
             id,
             iv: b64(encMsg.iv),
             ciphertext: b64(encMsg.ciphertext),
-            iv2: b64(wrap.iv),
-            wrappedMk: b64(wrap.ciphertext),
-            salt: b64(wkSalt)
+            iv2: "", // Not used for Signal Protocol
+            wrappedMk: paddedMk, // Padded Signal Protocol encrypted master key
+            salt: "" // Not used for Signal Protocol
         }
     } as DMEditRequest);
 }
@@ -178,11 +301,12 @@ export interface DMConversationResponse {
 }
 
 // Re-export for convenience
-export { fetchUsers, searchUsers, fetchUserPublicKey };
+export { fetchUsers, searchUsers } from "./users";
+export { fetchUserPublicKey } from "./crypto/identity";
 
 export async function fetchDMConversations(token: string): Promise<DMConversationResponse[]> {
     const res = await fetch(`${API_BASE_URL}/dm/conversations`, {
-        headers: getAuthHeaders(token, true)
+        headers: api.user.auth.getAuthHeaders(token, true)
     });
     if (!res.ok) return [];
     const data = await res.json();

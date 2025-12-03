@@ -6,7 +6,6 @@
  */
 
 import { openDB, type IDBPDatabase } from "idb";
-import type { WebSocketCredentials, WebSocketMessage } from "./types";
 
 interface UpdateMessage<T = any> {
     type: string;
@@ -72,28 +71,18 @@ export async function setLastSequence(seq: number): Promise<void> {
  * Process a batched updates message
  * @param message - The batched updates message from the server
  * @param handler - Function to handle individual updates
- * @param requestMissedFn - Optional function to request missed updates (for gap detection)
  */
 export async function processBatchedUpdates(
     message: BatchedUpdatesMessage,
-    handler: (update: UpdateMessage) => void,
-    requestMissedFn?: (lastSeq: number) => Promise<void>
+    handler: (update: UpdateMessage) => void
 ): Promise<void> {
     const { seq, updates } = message;
     const lastSeq = await getLastSequence();
     
-    // Check for gap
+    // Log gap for debugging, but don't try to recover (getUpdates doesn't work properly)
     if (seq !== lastSeq + 1 && lastSeq > 0) {
-        console.warn(`Update gap detected: expected ${lastSeq + 1}, got ${seq}`);
-        
-        // Request missing updates if function provided
-        if (requestMissedFn) {
-            try {
-                await requestMissedFn(lastSeq);
-            } catch (error) {
-                console.error("Failed to request missed updates for gap:", error);
-            }
-        }
+        const gapSize = seq - (lastSeq + 1);
+        console.warn(`Update gap detected: expected ${lastSeq + 1}, got ${seq} (gap size: ${gapSize}). Skipping ${gapSize} updates.`);
     }
     
     // Process all updates in the batch
@@ -103,24 +92,4 @@ export async function processBatchedUpdates(
     
     // Update last sequence number
     await setLastSequence(seq);
-}
-
-/**
- * Request missed updates from the server
- * @param lastSeq - The last sequence number we received
- * @param requestFn - Function to send the request to the server
- * @param credentials - Optional WebSocket credentials for authentication
- */
-export async function requestMissedUpdates(
-    lastSeq: number,
-    requestFn: (request: WebSocketMessage<{ lastSeq: number }>) => Promise<void>,
-    credentials?: WebSocketCredentials
-): Promise<void> {
-    if (lastSeq > 0) {
-        await requestFn({
-            type: "getUpdates",
-            data: { lastSeq },
-            credentials
-        });
-    }
 }

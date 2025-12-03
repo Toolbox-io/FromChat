@@ -79,15 +79,22 @@ export async function uploadBackupBlob(blobJson: string, token: string): Promise
  * Uploads Signal Protocol prekey bundle for the current user
  */
 export async function uploadPreKeyBundle(bundle: PreKeyBundleData, token: string): Promise<void> {
-    const payload = { bundle };
+    // Re-export from prekeys.ts
+    const { uploadPreKeyBundle: upload } = await import("./crypto/prekeys");
+    return upload(bundle, token);
+}
 
-    const headers = getAuthHeaders(token, true);
-    const res = await fetch(`${API_BASE_URL}/crypto/signal/prekey-bundle`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error("Failed to upload prekey bundle");
+/**
+ * Uploads all available prekeys to the server for rotation
+ */
+export async function uploadAllPreKeys(
+    baseBundle: Omit<PreKeyBundleData, "preKey">,
+    prekeys: Array<{ keyId: number; publicKey: string }>,
+    token: string
+): Promise<void> {
+    // Re-export from prekeys.ts
+    const { uploadAllPreKeys: upload } = await import("./crypto/prekeys");
+    return upload(baseBundle, prekeys, token);
 }
 
 /**

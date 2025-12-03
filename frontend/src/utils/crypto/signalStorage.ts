@@ -69,9 +69,44 @@ async function getStore(storeName: keyof SignalDB, mode: IDBTransactionMode = "r
 }
 
 // Helper to convert Uint8Array to ArrayBuffer
-function toArrayBuffer(u8: Uint8Array | ArrayBuffer): ArrayBuffer {
+function toArrayBuffer(u8: Uint8Array | ArrayBuffer | ArrayBufferLike): ArrayBuffer {
     if (u8 instanceof ArrayBuffer) return u8;
-    return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+    
+    // Check if SharedArrayBuffer is available (requires COOP/COEP headers)
+    const SharedArrayBufferConstructor = typeof SharedArrayBuffer !== "undefined" ? SharedArrayBuffer : null;
+    
+    if (SharedArrayBufferConstructor && u8 instanceof SharedArrayBufferConstructor) {
+        // Convert SharedArrayBuffer to ArrayBuffer by copying
+        const view = new Uint8Array(u8);
+        const copy = new Uint8Array(view.length);
+        copy.set(view);
+        // copy.buffer is always ArrayBuffer for a newly created Uint8Array
+        return copy.buffer as ArrayBuffer;
+    }
+    
+    // Uint8Array case - buffer might be SharedArrayBuffer, so copy it
+    if (u8 instanceof Uint8Array) {
+        const buffer = u8.buffer;
+        if (SharedArrayBufferConstructor && buffer instanceof SharedArrayBufferConstructor) {
+            const copy = new Uint8Array(u8.length);
+            copy.set(u8);
+            // copy.buffer is always ArrayBuffer for a newly created Uint8Array
+            return copy.buffer as ArrayBuffer;
+        }
+        const sliced = buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+        // Ensure we return ArrayBuffer, not SharedArrayBuffer
+        if (SharedArrayBufferConstructor && sliced instanceof SharedArrayBufferConstructor) {
+            const copy = new Uint8Array(sliced);
+            // copy.buffer is always ArrayBuffer for a newly created Uint8Array
+            return copy.buffer as unknown as ArrayBuffer;
+        }
+        // TypeScript doesn't know that slice() returns ArrayBuffer when buffer is ArrayBuffer
+        // But we've already checked it's not SharedArrayBuffer, so it must be ArrayBuffer
+        return sliced as unknown as ArrayBuffer;
+    }
+    
+    // Fallback: treat as ArrayBuffer
+    return u8 as unknown as ArrayBuffer;
 }
 
 // Helper to convert ArrayBuffer to Uint8Array
@@ -90,7 +125,7 @@ export class SignalProtocolStorage implements StorageType {
     // Identity Key Management
     async getIdentityKeyPair(): Promise<KeyPairType | undefined> {
         const store = await getStore("identityKeys");
-        const result = await new Promise<{ publicKey: ArrayBuffer; privateKey: ArrayBuffer } | undefined>((resolve, reject) => {
+        const result = await new Promise<KeyPairType | undefined>((resolve, reject) => {
             const request = store.get(this.userId);
             request.onsuccess = () => {
                 const data = request.result;
@@ -165,7 +200,7 @@ export class SignalProtocolStorage implements StorageType {
     async loadPreKey(encodedAddress: string | number): Promise<KeyPairType | undefined> {
         const preKeyId = typeof encodedAddress === "number" ? encodedAddress : parseInt(encodedAddress, 10);
         const store = await getStore("preKeys");
-        const result = await new Promise<{ publicKey: ArrayBuffer; privateKey: ArrayBuffer } | undefined>((resolve, reject) => {
+        const result = await new Promise<KeyPairType | undefined>((resolve, reject) => {
             const request = store.get([this.userId, preKeyId]);
             request.onsuccess = () => {
                 const data = request.result;
@@ -213,7 +248,7 @@ export class SignalProtocolStorage implements StorageType {
     async loadSignedPreKey(keyId: number | string): Promise<KeyPairType | undefined> {
         const signedPreKeyId = typeof keyId === "number" ? keyId : parseInt(keyId, 10);
         const store = await getStore("signedPreKeys");
-        const result = await new Promise<{ publicKey: ArrayBuffer; privateKey: ArrayBuffer; keyId: number } | undefined>((resolve, reject) => {
+        const result = await new Promise<KeyPairType | undefined>((resolve, reject) => {
             const request = store.get(this.userId);
             request.onsuccess = () => {
                 const data = request.result;
@@ -232,19 +267,48 @@ export class SignalProtocolStorage implements StorageType {
         return result;
     }
 
-    async storeSignedPreKey(keyId: number | string, keyPair: KeyPairType): Promise<void> {
+    async storeSignedPreKey(keyId: number | string, keyPair: KeyPairType, signature?: Uint8Array): Promise<void> {
         const signedPreKeyId = typeof keyId === "number" ? keyId : parseInt(keyId, 10);
         const store = await getStore("signedPreKeys", "readwrite");
         await new Promise<void>((resolve, reject) => {
-            const request = store.put({
+            interface SignedPreKeyData {
+                userId: string;
+                keyId: number;
+                publicKey: Uint8Array;
+                privateKey: Uint8Array;
+                signature?: Uint8Array;
+            }
+            const data: SignedPreKeyData = {
                 userId: this.userId,
                 keyId: signedPreKeyId,
                 publicKey: toUint8Array(keyPair.pubKey),
                 privateKey: toUint8Array(keyPair.privKey)
-            });
+            };
+            if (signature) {
+                data.signature = toUint8Array(signature);
+            }
+            const request = store.put(data);
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
+    }
+    
+    async loadSignedPreKeySignature(keyId: number | string): Promise<Uint8Array | undefined> {
+        const signedPreKeyId = typeof keyId === "number" ? keyId : parseInt(keyId, 10);
+        const store = await getStore("signedPreKeys");
+        const result = await new Promise<{ signature?: Uint8Array } | undefined>((resolve, reject) => {
+            const request = store.get(this.userId);
+            request.onsuccess = () => {
+                const data = request.result;
+                if (!data || data.keyId !== signedPreKeyId) {
+                    resolve(undefined);
+                    return;
+                }
+                resolve(data.signature ? { signature: toUint8Array(data.signature) } : undefined);
+            };
+            request.onerror = () => reject(request.error);
+        });
+        return result?.signature;
     }
 
     async removeSignedPreKey(keyId: number | string): Promise<void> {
@@ -263,7 +327,7 @@ export class SignalProtocolStorage implements StorageType {
         const deviceId = parts.length > 1 ? parts[1] : encodedAddress;
         
         const store = await getStore("sessions");
-        const result = await new Promise<{ record: string } | undefined>((resolve, reject) => {
+        const result = await new Promise<string | undefined>((resolve, reject) => {
             const request = store.get([this.userId, deviceId]);
             request.onsuccess = () => {
                 const data = request.result;
@@ -287,6 +351,19 @@ export class SignalProtocolStorage implements StorageType {
                 deviceId: deviceId,
                 record: record
             });
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async removeSession(encodedAddress: string): Promise<void> {
+        // encodedAddress format: "userId.deviceId"
+        const parts = encodedAddress.split(".");
+        const deviceId = parts.length > 1 ? parts[1] : encodedAddress;
+        
+        const store = await getStore("sessions", "readwrite");
+        await new Promise<void>((resolve, reject) => {
+            const request = store.delete([this.userId, deviceId]);
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });

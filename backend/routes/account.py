@@ -488,7 +488,7 @@ def upload_prekey_bundle(
     db: Session = Depends(get_db)
 ):
     """Upload Signal Protocol prekey bundle for the current user"""
-    from models import SignalPreKeyBundle
+    from models import SignalPreKeyBundle, SignalPreKey
     import json
     
     bundle = payload.get("bundle")
@@ -508,11 +508,17 @@ def upload_prekey_bundle(
     if not isinstance(bundle["signedPreKey"], dict) or "keyId" not in bundle["signedPreKey"]:
         raise HTTPException(status_code=400, detail="Invalid signedPreKey format")
     
-    # Store as JSON string
-    bundle_json = json.dumps(bundle)
+    # Store bundle (identity key, signed prekey, registration ID) - without the one-time prekey
+    bundle_without_prekey = {
+        "registrationId": bundle["registrationId"],
+        "identityKey": bundle["identityKey"],
+        "signedPreKey": bundle["signedPreKey"]
+    }
+    bundle_json = json.dumps(bundle_without_prekey)
     if len(bundle_json) > 50000:  # 50KB limit
         raise HTTPException(status_code=400, detail="Bundle too large")
     
+    # Store or update the bundle
     row = db.query(SignalPreKeyBundle).filter(SignalPreKeyBundle.user_id == current_user.id).first()
     if row:
         row.bundle_json = bundle_json
@@ -520,9 +526,119 @@ def upload_prekey_bundle(
     else:
         row = SignalPreKeyBundle(user_id=current_user.id, bundle_json=bundle_json)
         db.add(row)
+    
+    # Store the one-time prekey if provided
+    if "preKey" in bundle and bundle["preKey"]:
+        prekey = bundle["preKey"]
+        if isinstance(prekey, dict) and "keyId" in prekey and "publicKey" in prekey:
+            # Check if this prekey already exists
+            existing = db.query(SignalPreKey).filter(
+                SignalPreKey.user_id == current_user.id,
+                SignalPreKey.prekey_id == prekey["keyId"]
+            ).first()
+            
+            if existing:
+                # Update existing prekey (mark as unused if it was used)
+                existing.public_key = prekey["publicKey"]
+                existing.used = False
+                existing.created_at = datetime.now()
+            else:
+                # Add new prekey
+                new_prekey = SignalPreKey(
+                    user_id=current_user.id,
+                    prekey_id=prekey["keyId"],
+                    public_key=prekey["publicKey"],
+                    used=False
+                )
+                db.add(new_prekey)
+    
     db.commit()
     
     return {"status": "ok"}
+
+
+@router.post("/crypto/signal/prekeys/bulk")
+@rate_limit_per_ip("10/minute")
+def upload_prekeys_bulk(
+    request: Request,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Upload multiple Signal Protocol prekeys in one request"""
+    from models import SignalPreKeyBundle, SignalPreKey
+    import json
+    
+    base_bundle = payload.get("baseBundle")
+    prekeys = payload.get("prekeys", [])
+    
+    if not base_bundle:
+        raise HTTPException(status_code=400, detail="baseBundle required")
+    
+    if not isinstance(prekeys, list):
+        raise HTTPException(status_code=400, detail="prekeys must be an array")
+    
+    # Validate base bundle structure
+    if not isinstance(base_bundle, dict):
+        raise HTTPException(status_code=400, detail="baseBundle must be a JSON object")
+    
+    # Validate required fields
+    required_fields = ["registrationId", "identityKey", "signedPreKey"]
+    for field in required_fields:
+        if field not in base_bundle:
+            raise HTTPException(status_code=400, detail=f"Missing required field in baseBundle: {field}")
+    
+    if not isinstance(base_bundle["signedPreKey"], dict) or "keyId" not in base_bundle["signedPreKey"]:
+        raise HTTPException(status_code=400, detail="Invalid signedPreKey format")
+    
+    # Store or update the base bundle (identity key, signed prekey, registration ID)
+    bundle_without_prekey = {
+        "registrationId": base_bundle["registrationId"],
+        "identityKey": base_bundle["identityKey"],
+        "signedPreKey": base_bundle["signedPreKey"]
+    }
+    bundle_json = json.dumps(bundle_without_prekey)
+    if len(bundle_json) > 50000:  # 50KB limit
+        raise HTTPException(status_code=400, detail="Bundle too large")
+    
+    # Store or update the bundle
+    row = db.query(SignalPreKeyBundle).filter(SignalPreKeyBundle.user_id == current_user.id).first()
+    if row:
+        row.bundle_json = bundle_json
+        row.updated_at = datetime.now()
+    else:
+        row = SignalPreKeyBundle(user_id=current_user.id, bundle_json=bundle_json)
+        db.add(row)
+    
+    # Store all prekeys
+    for prekey in prekeys:
+        if not isinstance(prekey, dict) or "keyId" not in prekey or "publicKey" not in prekey:
+            continue  # Skip invalid prekeys
+        
+        # Check if this prekey already exists
+        existing = db.query(SignalPreKey).filter(
+            SignalPreKey.user_id == current_user.id,
+            SignalPreKey.prekey_id == prekey["keyId"]
+        ).first()
+        
+        if existing:
+            # Update existing prekey (mark as unused if it was used)
+            existing.public_key = prekey["publicKey"]
+            existing.used = False
+            existing.created_at = datetime.now()
+        else:
+            # Add new prekey
+            new_prekey = SignalPreKey(
+                user_id=current_user.id,
+                prekey_id=prekey["keyId"],
+                public_key=prekey["publicKey"],
+                used=False
+            )
+            db.add(new_prekey)
+    
+    db.commit()
+    
+    return {"status": "ok", "uploaded": len(prekeys)}
 
 
 @router.get("/crypto/signal/prekey-bundle")
@@ -553,16 +669,39 @@ def get_prekey_bundle_of(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get Signal Protocol prekey bundle for another user"""
-    from models import SignalPreKeyBundle
+    """Get Signal Protocol prekey bundle for another user with prekey rotation"""
+    from models import SignalPreKeyBundle, SignalPreKey
     import json
     
+    # Get the base bundle (identity key, signed prekey, registration ID)
     row = db.query(SignalPreKeyBundle).filter(SignalPreKeyBundle.user_id == user_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Prekey bundle not found")
     
     try:
         bundle = json.loads(row.bundle_json)
+        
+        # Find an unused prekey for this user
+        unused_prekey = db.query(SignalPreKey).filter(
+            SignalPreKey.user_id == user_id,
+            SignalPreKey.used == False
+        ).order_by(SignalPreKey.created_at.asc()).first()
+        
+        if unused_prekey:
+            # Mark this prekey as used (atomic operation)
+            unused_prekey.used = True
+            db.commit()
+            
+            # Add the prekey to the bundle
+            bundle["preKey"] = {
+                "keyId": unused_prekey.prekey_id,
+                "publicKey": unused_prekey.public_key
+            }
+        else:
+            # No unused prekeys available - return bundle without prekey
+            # The client will need to establish a session using the signed prekey only
+            pass
+        
         return {"bundle": bundle}
     except json.JSONDecodeError:
         raise HTTPException(status_code=500, detail="Invalid bundle data")

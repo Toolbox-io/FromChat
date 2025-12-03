@@ -76,8 +76,21 @@ class SignalPreKeyBundle(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False, unique=True)
-    bundle_json = Column(Text, nullable=False)  # JSON string of PreKeyBundleData
+    bundle_json = Column(Text, nullable=False)  # JSON string of PreKeyBundleData (identity, signed prekey, registration ID)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class SignalPreKey(Base):
+    __tablename__ = "signal_prekey"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    prekey_id = Column(Integer, nullable=False)  # The prekey ID from the client
+    public_key = Column(Text, nullable=False)  # Base64 encoded public key
+    used = Column(Boolean, default=False, nullable=False, index=True)  # Whether this prekey has been used
+    created_at = Column(DateTime, default=datetime.now)
+    
+    __table_args__ = (UniqueConstraint('user_id', 'prekey_id', name='_user_prekey_uc'),)
 
 
 class DMEnvelope(Base):

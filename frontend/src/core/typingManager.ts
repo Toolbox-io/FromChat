@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { request } from "./websocket";
+import { send } from "./websocket";
 import type {
     TypingWebSocketMessage,
     StopTypingWebSocketMessage,
@@ -39,21 +39,18 @@ export class TypingManager {
     async sendTyping(): Promise<void> {
         if (!this.authToken) return;
 
-        try {
-            const message: TypingRequest = {
-                type: "typing",
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: this.authToken
-                },
-                data: {}
-            };
+        const message: TypingRequest = {
+            type: "typing",
+            credentials: {
+                scheme: "Bearer",
+                credentials: this.authToken
+            },
+            data: {}
+        };
 
-            await request(message);
-            this.scheduleStopTyping("public");
-        } catch (error) {
-            console.error("Failed to send typing indicator:", error);
-        }
+        // Fire-and-forget - don't wait for response
+        send(message);
+        this.scheduleStopTyping("public");
     }
 
     /**
@@ -62,21 +59,18 @@ export class TypingManager {
     async sendStopTyping(): Promise<void> {
         if (!this.authToken) return;
 
-        try {
-            const message: StopTypingRequest = {
-                type: "stopTyping",
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: this.authToken
-                },
-                data: {}
-            };
+        const message: StopTypingRequest = {
+            type: "stopTyping",
+            credentials: {
+                scheme: "Bearer",
+                credentials: this.authToken
+            },
+            data: {}
+        };
 
-            await request(message);
-            this.clearStopTypingTimeout("public");
-        } catch (error) {
-            console.error("Failed to send stop typing indicator:", error);
-        }
+        // Fire-and-forget - don't wait for response
+        send(message);
+        this.clearStopTypingTimeout("public");
     }
 
     /**
@@ -85,23 +79,20 @@ export class TypingManager {
     async sendDmTyping(recipientId: number): Promise<void> {
         if (!this.authToken) return;
 
-        try {
-            const message: DmTypingRequest = {
-                type: "dmTyping",
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: this.authToken
-                },
-                data: {
-                    recipientId
-                }
-            };
+        const message: DmTypingRequest = {
+            type: "dmTyping",
+            credentials: {
+                scheme: "Bearer",
+                credentials: this.authToken
+            },
+            data: {
+                recipientId
+            }
+        };
 
-            await request(message);
-            this.scheduleStopDmTyping(recipientId);
-        } catch (error) {
-            console.error("Failed to send DM typing indicator:", error);
-        }
+        // Fire-and-forget - don't wait for response
+        send(message);
+        this.scheduleStopDmTyping(recipientId);
     }
 
     /**
@@ -110,23 +101,20 @@ export class TypingManager {
     async sendStopDmTyping(recipientId: number): Promise<void> {
         if (!this.authToken) return;
 
-        try {
-            const message: StopDmTypingRequest = {
-                type: "stopDmTyping",
-                credentials: {
-                    scheme: "Bearer",
-                    credentials: this.authToken
-                },
-                data: {
-                    recipientId
-                }
-            };
+        const message: StopDmTypingRequest = {
+            type: "stopDmTyping",
+            credentials: {
+                scheme: "Bearer",
+                credentials: this.authToken
+            },
+            data: {
+                recipientId
+            }
+        };
 
-            await request(message);
-            this.clearStopTypingTimeout(`dm_${recipientId}`);
-        } catch (error) {
-            console.error("Failed to send stop DM typing indicator:", error);
-        }
+        // Fire-and-forget - don't wait for response
+        send(message);
+        this.clearStopTypingTimeout(`dm_${recipientId}`);
     }
 
     /**

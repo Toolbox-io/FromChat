@@ -33,7 +33,17 @@ export function delay(ms: number): Promise<void> {
 }
 
 
-export function b64(a: Uint8Array): string { return btoa(String.fromCharCode(...a)); }
+export function b64(a: Uint8Array): string {
+    // Use chunked approach to avoid "Maximum call stack size exceeded" for large arrays
+    // Process in chunks and use apply to avoid spreading large arrays
+    const chunkSize = 8192;
+    let binary = '';
+    for (let i = 0; i < a.length; i += chunkSize) {
+        const chunk = a.slice(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    return btoa(binary);
+}
 export function ub64(s: string): Uint8Array {
 	const bin = atob(s);
 	const arr = new Uint8Array(bin.length);
