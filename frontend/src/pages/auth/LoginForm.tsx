@@ -79,7 +79,14 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
 
         setIsLoading(true);
 
+        console.log("========================================");
+        console.log("[LoginForm] 🚀 LOGIN FORM SUBMITTED");
+        console.log("[LoginForm] Username:", username);
+        console.log("[LoginForm] Has password:", !!password);
+        console.log("========================================");
+
         try {
+            console.log("[LoginForm] Deriving auth secret...");
             const derived = await api.user.auth.deriveAuthSecret(username, password);
             const request: LoginRequest = {
                 username: username,
@@ -87,54 +94,52 @@ export function LoginForm({ onSwitchMode }: LoginFormProps) {
             }
 
             try {
+                console.log("[LoginForm] Calling login API...");
                 const data = await api.user.auth.login(request);
+                console.log("[LoginForm] Login successful, user ID:", data.user?.id);
+                
                 setUser(data.token, data.user);
 
                 try {
+                    console.log("[LoginForm] Ensuring keys on login...");
                     await api.user.auth.ensureKeysOnLogin(password, data.token);
+                    console.log("[LoginForm] Keys ensured");
                     
                     // Initialize Signal Protocol after keys are set up (non-blocking)
                     if (data.user?.id) {
+                        console.log("[LoginForm] ✅ User ID exists, scheduling Signal Protocol initialization");
                         // Run Signal Protocol initialization in background to avoid blocking navigation
-                        (async () => {
+                        // Use setTimeout to ensure it runs even if navigation happens
+                        setTimeout(async () => {
                             try {
-                                console.log("Starting Signal Protocol initialization...");
-                                const { SignalProtocolService } = await import("@/utils/crypto/signalProtocol");
-                                const { uploadPreKeyBundle, uploadAllPreKeys } = await import("@/core/api/crypto/prekeys");
-                                const { restoreSessionsFromServer, uploadAllSessionsToServer, initializeSessionSync } = await import("@/utils/crypto/sessionSync");
-                                
-                                const signalService = new SignalProtocolService(data.user!.id.toString());
-                                await signalService.initialize();
-                                console.log("Signal Protocol initialized");
-                                
-                                // Initialize session sync (enables automatic upload of new sessions)
-                                console.log("Initializing session sync...");
-                                initializeSessionSync(data.user!.id.toString(), password, data.token);
-                                console.log("Session sync initialized");
-                                
-                                // Restore sessions from server (encrypted with password)
-                                await restoreSessionsFromServer(data.user!.id.toString(), password, data.token);
-                                
-                                // Upload base bundle with one prekey (for backward compatibility)
-                                const bundle = await signalService.getPreKeyBundle();
-                                await uploadPreKeyBundle(bundle, data.token);
-                                
-                                // Upload all prekeys for server-side rotation
-                                const baseBundle = await signalService.getBaseBundle();
-                                const prekeys = await signalService.getAllPreKeys();
-                                await uploadAllPreKeys(baseBundle, prekeys, data.token);
-                                
-                                // Upload all current sessions to server (backup)
-                                await uploadAllSessionsToServer(data.user!.id.toString(), password, data.token);
-                                
-                                console.log(`Uploaded ${prekeys.length} prekeys to server`);
+                                console.log("[LoginForm] 🚀 Starting Signal Protocol initialization...");
+                                const { initializeSignalProtocol } = await import("@/utils/crypto/signalProtocolInit");
+                                await initializeSignalProtocol({
+                                    userId: data.user!.id.toString(),
+                                    password,
+                                    token: data.token,
+                                    restoreSessions: true,
+                                    uploadSessions: true
+                                });
+                                console.log("[LoginForm] ✅ Signal Protocol initialization completed");
                             } catch (e) {
-                                console.error("Key setup failed:", e);
+                                console.error("[LoginForm] ❌ Signal Protocol initialization failed:", e);
+                                console.error("[LoginForm] Error details:", {
+                                    message: e instanceof Error ? e.message : String(e),
+                                    stack: e instanceof Error ? e.stack : undefined
+                                });
                             }
-                        })();
+                        }, 0);
+                        console.log("[LoginForm] ✅ Signal Protocol initialization scheduled");
+                    } else {
+                        console.warn("[LoginForm] ⚠️ No user ID, skipping Signal Protocol initialization");
                     }
                 } catch (e) {
-                    console.error("Key setup failed:", e);
+                    console.error("[LoginForm] ❌ Key setup failed:", e);
+                    console.error("[LoginForm] Error details:", {
+                        message: e instanceof Error ? e.message : String(e),
+                        stack: e instanceof Error ? e.stack : undefined
+                    });
                 }
 
                 // Ensure WebSocket is connected and authenticated

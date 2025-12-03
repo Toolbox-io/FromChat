@@ -3,13 +3,13 @@ export async function importPassword(password: string): Promise<CryptoKey> {
 	return crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey", "deriveBits"]);
 }
 
-export async function deriveKEK(passwordKey: CryptoKey, salt: Uint8Array | ArrayBuffer, iterations = 210_000): Promise<CryptoKey> {
+export async function deriveKEK(passwordKey: CryptoKey, salt: Uint8Array | ArrayBuffer, iterations = 210_000, extractable = false): Promise<CryptoKey> {
 	const saltBuffer = salt instanceof Uint8Array ? salt.buffer as ArrayBuffer : salt;
 	return crypto.subtle.deriveKey(
 		{ name: "PBKDF2", salt: saltBuffer, iterations, hash: "SHA-256" },
 		passwordKey,
 		{ name: "AES-GCM", length: 256 },
-		false,
+		extractable,
 		["encrypt", "decrypt"]
 	);
 }

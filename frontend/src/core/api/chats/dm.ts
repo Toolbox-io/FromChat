@@ -262,6 +262,9 @@ export async function send(recipientId: number, plaintext: string, authToken: st
         },
         data: payload
     });
+    
+    // Note: We'll cache the message when we receive the dmNew confirmation via WebSocket
+    // which contains the actual message ID
 }
 
 export async function sendWithFiles(recipientId: number, plaintextJson: string, files: File[], token: string): Promise<void> {

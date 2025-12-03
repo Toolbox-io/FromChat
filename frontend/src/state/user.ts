@@ -8,6 +8,7 @@ import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { typingManager } from "@/core/typingManager";
 import type { UserState } from "./types";
 import { clearSessionSync } from "@/utils/crypto/sessionSync";
+import { clearMessagePlaintextSync } from "@/utils/crypto/messagePlaintextSync";
 
 interface UserStore {
     user: UserState;
@@ -51,8 +52,9 @@ export const useUserStore = create<UserStore>((set) => ({
         try {
             localStorage.removeItem('authToken');
             localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('sessionPassword');
         } catch (error) {
-            console.error('Failed to clear localStorage:', error);
+            console.error('Failed to clear storage:', error);
         }
 
         onlineStatusManager.setAuthToken(null);
@@ -62,6 +64,7 @@ export const useUserStore = create<UserStore>((set) => ({
         
         // Clear session sync
         clearSessionSync();
+        clearMessagePlaintextSync();
 
         set({
             user: {
@@ -109,17 +112,47 @@ export const useUserStore = create<UserStore>((set) => ({
                     typingManager.setAuthToken(token);
 
                     // Initialize Signal Protocol after restoring user (non-blocking)
-                    // Note: We can't restore sessions without the password, but we can initialize
-                    // Signal Protocol so new sessions can be created when needed
+                    // Note: We can't restore sessions without password, but we can initialize Signal Protocol
                     if (user.id) {
                         (async () => {
                             try {
                                 const { SignalProtocolService } = await import("@/utils/crypto/signalProtocol");
+                                const { uploadAllPreKeys } = await import("@/core/api/crypto/prekeys");
+                                const { getStoredSessionKey } = await import("@/utils/crypto/sessionKeyStorage");
+                                const { restoreSessionsFromServer } = await import("@/utils/crypto/sessionSync");
+                                
+                                console.log("[RestoreFromStorage] Starting Signal Protocol setup...");
+                                
                                 const signalService = new SignalProtocolService(user.id.toString());
                                 await signalService.initialize();
-                                console.log("Signal Protocol initialized after restore (sessions will be re-established when needed)");
+                                console.log("[RestoreFromStorage] Signal Protocol initialized");
+                                
+                                // Check if we have a stored session key (derived from password)
+                                const storedKey = getStoredSessionKey(user.id.toString());
+                                if (storedKey) {
+                                    console.log("[RestoreFromStorage] Stored session key found, restoring sessions from server...");
+                                    // We can restore sessions using the stored key (password not needed)
+                                    try {
+                                        await restoreSessionsFromServer(user.id.toString(), null, token);
+                                        console.log("[RestoreFromStorage] Sessions restored from server using stored key");
+                                    } catch (error) {
+                                        console.error("[RestoreFromStorage] Failed to restore sessions:", error);
+                                    }
+                                } else {
+                                    console.warn("[RestoreFromStorage] No stored session key - user needs to log in to derive key");
+                                }
+                                
+                                // Re-upload prekeys to ensure they are fresh
+                                try {
+                                    const baseBundle = await signalService.getBaseBundle();
+                                    const prekeys = await signalService.getAllPreKeys();
+                                    await uploadAllPreKeys(baseBundle, prekeys, token);
+                                    console.log(`[RestoreFromStorage] Uploaded ${prekeys.length} prekeys to server`);
+                                } catch (error) {
+                                    console.error("[RestoreFromStorage] Failed to upload prekeys:", error);
+                                }
                             } catch (e) {
-                                console.error("Signal Protocol initialization failed (restored):", e);
+                                console.error("[RestoreFromStorage] Signal Protocol setup failed:", e);
                             }
                         })();
                     }

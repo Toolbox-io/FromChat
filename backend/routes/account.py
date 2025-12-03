@@ -10,7 +10,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from constants import OWNER_USERNAME
 from dependencies import get_current_user, get_db
-from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession, SignalSession
+from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession, SignalSession, SentMessagePlaintext
 from utils import create_token, get_password_hash, verify_password, get_client_ip
 from validation import is_valid_password, is_valid_username, is_valid_display_name
 import os
@@ -786,6 +786,93 @@ def get_signal_sessions(
                 "updatedAt": s.updated_at.isoformat()
             }
             for s in sessions
+        ]
+    }
+
+
+@router.post("/crypto/signal/message-plaintexts")
+@rate_limit_per_ip("100/minute")
+def upload_message_plaintexts(
+    request: Request,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Upload encrypted plaintexts of sent messages"""
+    import json
+    from datetime import datetime
+    
+    messages = payload.get("messages")
+    if not isinstance(messages, list):
+        raise HTTPException(status_code=400, detail="messages must be a list")
+    
+    uploaded_count = 0
+    for msg_data in messages:
+        if not isinstance(msg_data, dict):
+            continue
+        
+        message_id = msg_data.get("messageId")
+        recipient_id = msg_data.get("recipientId")
+        encrypted_data = msg_data.get("encryptedData")
+        
+        if not message_id or not recipient_id or not encrypted_data:
+            continue
+        
+        try:
+            # Validate encrypted_data is valid JSON
+            json.loads(encrypted_data)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        
+        # Store or update plaintext
+        existing = db.query(SentMessagePlaintext).filter(
+            SentMessagePlaintext.user_id == current_user.id,
+            SentMessagePlaintext.message_id == message_id
+        ).first()
+        
+        if existing:
+            existing.encrypted_data = encrypted_data
+        else:
+            new_plaintext = SentMessagePlaintext(
+                user_id=current_user.id,
+                message_id=message_id,
+                recipient_id=recipient_id,
+                encrypted_data=encrypted_data
+            )
+            db.add(new_plaintext)
+        uploaded_count += 1
+    
+    db.commit()
+    return {"status": "ok", "uploaded_count": uploaded_count}
+
+
+@router.get("/crypto/signal/message-plaintexts")
+@rate_limit_per_ip("60/minute")
+def get_message_plaintexts(
+    request: Request,
+    recipient_id: int | None = None,  # Optional filter by recipient
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get encrypted plaintexts of sent messages for the current user"""
+    query = db.query(SentMessagePlaintext).filter(
+        SentMessagePlaintext.user_id == current_user.id
+    )
+    
+    if recipient_id is not None:
+        query = query.filter(SentMessagePlaintext.recipient_id == recipient_id)
+    
+    plaintexts = query.all()
+    
+    return {
+        "messages": [
+            {
+                "messageId": p.message_id,
+                "recipientId": p.recipient_id,
+                "encryptedData": p.encrypted_data,
+                "createdAt": p.created_at.isoformat()
+            }
+            for p in plaintexts
         ]
     }
 

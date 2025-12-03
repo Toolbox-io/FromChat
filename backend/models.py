@@ -106,6 +106,20 @@ class SignalSession(Base):
     __table_args__ = (UniqueConstraint('user_id', 'recipient_id', 'device_id', name='_user_recipient_device_uc'),)
 
 
+class SentMessagePlaintext(Base):
+    """Stores encrypted plaintexts of sent messages for history display"""
+    __tablename__ = "sent_message_plaintext"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    message_id = Column(Integer, nullable=False, index=True)  # DM envelope ID
+    recipient_id = Column(Integer, nullable=False, index=True)  # The recipient of the message
+    encrypted_data = Column(Text, nullable=False)  # Encrypted plaintext (JSON with salt, iv, ciphertext)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    
+    __table_args__ = (UniqueConstraint('user_id', 'message_id', name='_user_message_uc'),)
+
+
 class DMEnvelope(Base):
     __tablename__ = "dm_envelope"
 

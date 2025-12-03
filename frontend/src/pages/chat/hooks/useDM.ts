@@ -172,10 +172,16 @@ export function useDM() {
                     
                     if (isAuthor) {
                         // For sent messages, we can't decrypt them in Signal Protocol
-                        // The plaintext should be stored when sending, but for now we'll skip them
-                        // or try to get it from the envelope if available
-                        // Skip this message for now - we'll need to store plaintext when sending
-                        continue; // Skip sent messages - they'll be handled by the send flow
+                        // Try to get the plaintext from the server (encrypted)
+                        const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+                        const plaintexts = await fetchMessagePlaintextsForRecipient(userId);
+                        const cached = plaintexts.get(env.id);
+                        if (cached) {
+                            text = cached;
+                        } else {
+                            // Not on server - skip this message
+                            continue;
+                        }
                     } else {
                         // Decrypt incoming messages
                         text = await decryptDm(env, env.senderId);

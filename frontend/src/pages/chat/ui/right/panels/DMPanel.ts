@@ -6,6 +6,7 @@ import type { UserState, ProfileDialogData } from "@/state/types";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { typingManager } from "@/core/typingManager";
+import { SignalProtocolService } from "@/utils/crypto/signalProtocol";
 
 export interface DMPanelData {
     userId: number;
@@ -18,11 +19,16 @@ export interface DMPanelData {
 export class DMPanel extends MessagePanel {
     public dmData: DMPanelData | null = null;
     private messagesLoaded: boolean = false;
+    private signalService: SignalProtocolService | null = null;
 
     constructor(
         user: UserState
     ) {
         super("dm", user);
+        // Initialize Signal Protocol service if user is available
+        if (user.currentUser?.id) {
+            this.signalService = new SignalProtocolService(user.currentUser.id.toString());
+        }
     }
 
     isDm(): boolean {
@@ -64,9 +70,9 @@ export class DMPanel extends MessagePanel {
         let plaintext: string;
         if (isSentByUs) {
             // Can't decrypt our own sent messages in Signal Protocol
-            // The plaintext should be stored when sending, but for now we'll skip it
-            // This message should have been displayed immediately when sent
-            throw new Error("Cannot decrypt own sent message - should be displayed from send flow");
+            // The plaintext should be passed in from loadMessages (fetched from server)
+            // For now, throw an error - the caller should handle this by fetching plaintexts first
+            throw new Error("Cannot decrypt own sent message - plaintext must be fetched from server first");
         } else {
             // Decrypt incoming messages
             plaintext = await decryptDm(env, env.senderId);
@@ -119,6 +125,28 @@ export class DMPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
+            // Ensure Signal Protocol session is established before fetching messages
+            if (!this.signalService && this.currentUser.currentUser?.id) {
+                this.signalService = new SignalProtocolService(this.currentUser.currentUser.id.toString());
+            }
+            if (this.signalService) {
+                const hasSession = await this.signalService.hasSession(this.dmData.userId);
+                if (!hasSession) {
+                    try {
+                        const bundle = await api.crypto.prekeys.fetchPreKeyBundle(this.dmData.userId, this.currentUser.authToken);
+                        await this.signalService.processPreKeyBundle(this.dmData.userId, bundle);
+                        console.log(`Established new Signal Protocol session for user ${this.dmData.userId} during history load.`);
+                    } catch (error) {
+                        console.warn(`Failed to establish Signal Protocol session for user ${this.dmData.userId} during history load:`, error);
+                        // Continue loading history, but decryption will likely fail for new messages
+                    }
+                }
+            }
+            
+            // Fetch encrypted plaintexts from server for sent messages
+            const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+            const plaintexts = await fetchMessagePlaintextsForRecipient(this.dmData.userId);
+            
             const limit = this.calculateMessageLimit();
             const { messages, has_more } = await api.chats.dm.fetchMessages(this.dmData.userId, this.currentUser.authToken, limit);
             const decryptedMessages: Message[] = [];
@@ -130,7 +158,53 @@ export class DMPanel extends MessagePanel {
                     if (env.id) {
                         this.processedMessageIds.add(env.id);
                     }
-                    const dmMsg = await this.parseTextPayload(env, decryptedMessages);
+                    
+                    // For sent messages, use plaintext from server
+                    const isSentByUs = env.senderId === this.currentUser.currentUser?.id;
+                    let dmMsg: Message;
+                    if (isSentByUs) {
+                        const cachedPlaintext = plaintexts.get(env.id);
+                        if (!cachedPlaintext) {
+                            // Not on server - skip this message
+                            continue;
+                        }
+                        // Parse the plaintext as if it came from parseTextPayload
+                        const username = formatDMUsername(
+                            env.senderId,
+                            env.recipientId,
+                            this.currentUser.currentUser?.id!,
+                            this.dmData!.username
+                        );
+                        let content = cachedPlaintext;
+                        let reply_to_id: number | undefined = undefined;
+                        try {
+                            const obj = JSON.parse(cachedPlaintext) as DmEncryptedJSON;
+                            if (obj && obj.type === "text" && obj.data) {
+                                content = obj.data.content;
+                                reply_to_id = Number(obj.data.reply_to_id) || undefined;
+                            }
+                        } catch {}
+                        dmMsg = {
+                            id: env.id,
+                            user_id: env.senderId,
+                            content: content,
+                            username: username,
+                            timestamp: env.timestamp,
+                            is_read: false,
+                            is_edited: false,
+                            files: env.files?.map(file => { return {"name": file.name, "encrypted": true, "path": file.path} }) || [],
+                            reactions: env.reactions || [],
+                            runtimeData: {
+                                dmEnvelope: env
+                            }
+                        };
+                        if (reply_to_id) {
+                            const referenced = decryptedMessages.find(m => m.id === reply_to_id);
+                            if (referenced) dmMsg.reply_to = referenced;
+                        }
+                    } else {
+                        dmMsg = await this.parseTextPayload(env, decryptedMessages);
+                    }
                     decryptedMessages.push(dmMsg);
 
                     if (env.senderId === this.dmData!.userId && env.id > maxIncomingId) {
@@ -177,6 +251,28 @@ export class DMPanel extends MessagePanel {
 
         this.setLoadingMore(true);
         try {
+            // Ensure Signal Protocol session is established before fetching messages
+            if (!this.signalService && this.currentUser.currentUser?.id) {
+                this.signalService = new SignalProtocolService(this.currentUser.currentUser.id.toString());
+            }
+            if (this.signalService) {
+                const hasSession = await this.signalService.hasSession(this.dmData.userId);
+                if (!hasSession) {
+                    try {
+                        const bundle = await api.crypto.prekeys.fetchPreKeyBundle(this.dmData.userId, this.currentUser.authToken);
+                        await this.signalService.processPreKeyBundle(this.dmData.userId, bundle);
+                        console.log(`Established new Signal Protocol session for user ${this.dmData.userId} during more history load.`);
+                    } catch (error) {
+                        console.warn(`Failed to establish Signal Protocol session for user ${this.dmData.userId} during more history load:`, error);
+                        // Continue loading history, but decryption will likely fail for new messages
+                    }
+                }
+            }
+            
+            // Fetch encrypted plaintexts from server for sent messages
+            const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+            const plaintexts = await fetchMessagePlaintextsForRecipient(this.dmData.userId);
+            
             const limit = this.calculateMessageLimit();
             const { messages: newEnvelopes, has_more } = await api.chats.dm.fetchMessages(
                 this.dmData.userId,
@@ -189,7 +285,57 @@ export class DMPanel extends MessagePanel {
                 const decryptedMessages: Message[] = [];
                 for (const env of newEnvelopes) {
                     try {
-                        const dmMsg = await this.parseTextPayload(env, decryptedMessages);
+                        // Mark as processed to prevent duplicates
+                        if (env.id) {
+                            this.processedMessageIds.add(env.id);
+                        }
+                        
+                        // For sent messages, use plaintext from server
+                        const isSentByUs = env.senderId === this.currentUser.currentUser?.id;
+                        let dmMsg: Message;
+                        if (isSentByUs) {
+                            const cachedPlaintext = plaintexts.get(env.id);
+                            if (!cachedPlaintext) {
+                                // Not on server - skip this message
+                                continue;
+                            }
+                            // Parse the plaintext as if it came from parseTextPayload
+                            const username = formatDMUsername(
+                                env.senderId,
+                                env.recipientId,
+                                this.currentUser.currentUser?.id!,
+                                this.dmData!.username
+                            );
+                            let content = cachedPlaintext;
+                            let reply_to_id: number | undefined = undefined;
+                            try {
+                                const obj = JSON.parse(cachedPlaintext) as DmEncryptedJSON;
+                                if (obj && obj.type === "text" && obj.data) {
+                                    content = obj.data.content;
+                                    reply_to_id = Number(obj.data.reply_to_id) || undefined;
+                                }
+                            } catch {}
+                            dmMsg = {
+                                id: env.id,
+                                user_id: env.senderId,
+                                content: content,
+                                username: username,
+                                timestamp: env.timestamp,
+                                is_read: false,
+                                is_edited: false,
+                                files: env.files?.map(file => { return {"name": file.name, "encrypted": true, "path": file.path} }) || [],
+                                reactions: env.reactions || [],
+                                runtimeData: {
+                                    dmEnvelope: env
+                                }
+                            };
+                            if (reply_to_id) {
+                                const referenced = decryptedMessages.find(m => m.id === reply_to_id);
+                                if (referenced) dmMsg.reply_to = referenced;
+                            }
+                        } else {
+                            dmMsg = await this.parseTextPayload(env, decryptedMessages);
+                        }
                         decryptedMessages.push(dmMsg);
                     } catch (error) {
                         // Silently skip messages that can't be decrypted
@@ -243,10 +389,7 @@ export class DMPanel extends MessagePanel {
             const { PrekeyExhaustedError } = await import("@/core/api/crypto/prekeys");
             if (error instanceof PrekeyExhaustedError) {
                 const { alert } = await import("@/core/components/AlertDialog");
-                await alert({
-                    headline: "Cannot Send Message",
-                    description: "The recipient's encryption keys are temporarily unavailable. They need to come online to refresh their keys. This ensures maximum privacy and security."
-                });
+                await alert("Cannot Send Message: The recipient's encryption keys are temporarily unavailable. They need to come online to refresh their keys. This ensures maximum privacy and security.");
             }
         }
     }
@@ -298,11 +441,26 @@ export class DMPanel extends MessagePanel {
                     if (isOurMessage) {
                         // This is our message being confirmed, find the temp message and replace it
                         const tempMessages = this.getMessages().filter(m => m.id === -1 && m.runtimeData?.sendingState?.tempId);
+                        let tempMsgContent: string | null = null;
                         for (const tempMsg of tempMessages) {
                             if (tempMsg.runtimeData?.sendingState?.retryData?.content === dmMsg.content) {
+                                tempMsgContent = tempMsg.content; // Get plaintext from temp message
                                 this.handleMessageConfirmed(tempMsg.runtimeData.sendingState.tempId!, dmMsg);
+                                
+                                // Upload the plaintext to server (encrypted) so we can display it in history
+                                const { uploadMessagePlaintext } = await import("@/utils/crypto/messagePlaintextSync");
+                                if (tempMsgContent) {
+                                    await uploadMessagePlaintext(envelope.id, this.dmData.userId, tempMsgContent);
+                                }
                                 return;
                             }
+                        }
+                        
+                        // If we didn't find a temp message, try to upload from dmMsg content
+                        // (this might happen if the page was reloaded)
+                        if (!tempMsgContent && dmMsg.content) {
+                            const { uploadMessagePlaintext } = await import("@/utils/crypto/messagePlaintextSync");
+                            await uploadMessagePlaintext(envelope.id, this.dmData.userId, dmMsg.content);
                         }
                     }
 

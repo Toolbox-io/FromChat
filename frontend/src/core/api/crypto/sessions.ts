@@ -36,6 +36,9 @@ export async function uploadSessions(sessions: SessionData[], token: string): Pr
  * Fetch all encrypted Signal Protocol sessions from the server
  */
 export async function fetchSessions(token: string): Promise<SessionData[]> {
+    console.log("[Session API] Fetching sessions from server...");
+    console.log("[Session API] URL:", `${API_BASE_URL}/crypto/signal/sessions`);
+    
     const headers = getAuthHeaders(token, true);
     
     const res = await fetch(`${API_BASE_URL}/crypto/signal/sessions`, {
@@ -43,11 +46,24 @@ export async function fetchSessions(token: string): Promise<SessionData[]> {
         headers
     });
     
+    console.log("[Session API] Response status:", res.status, res.statusText);
+    
     if (!res.ok) {
-        throw new Error(`Failed to fetch sessions: ${res.statusText}`);
+        const errorText = await res.text().catch(() => "Unknown error");
+        console.error("[Session API] Failed to fetch sessions:", {
+            status: res.status,
+            statusText: res.statusText,
+            errorText
+        });
+        throw new Error(`Failed to fetch sessions: ${res.status} ${res.statusText}`);
     }
     
     const data = await res.json();
+    console.log("[Session API] Response data:", {
+        hasSessions: !!data.sessions,
+        sessionCount: data.sessions?.length || 0
+    });
+    
     return data.sessions || [];
 }
 

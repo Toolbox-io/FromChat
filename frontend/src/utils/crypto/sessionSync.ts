@@ -41,7 +41,7 @@ export function initializeSessionSync(userId: string, password: string, token: s
             }
             
             console.log(`Encrypting session for recipient ${recipientId}...`);
-            const encryptedBlob = await encryptSessionWithPassword(syncPassword, record);
+            const encryptedBlob = await encryptSessionWithPassword(syncPassword, syncUserId, record);
             const encryptedData = encodeSessionBlob(encryptedBlob);
             
             console.log(`Uploading session for recipient ${recipientId} to server...`);
@@ -81,17 +81,20 @@ export async function restoreSessionsFromServer(
     token: string
 ): Promise<void> {
     try {
-        console.log("Restoring sessions from server...");
+        console.log("[Session Sync] Restoring sessions from server...");
+        console.log("[Session Sync] Making API request to fetch sessions...");
         
         // Fetch encrypted sessions from server
         const encryptedSessions = await fetchSessions(token);
         
+        console.log(`[Session Sync] API response received: ${encryptedSessions.length} sessions found`);
+        
         if (encryptedSessions.length === 0) {
-            console.log("No sessions to restore from server");
+            console.log("[Session Sync] No sessions to restore from server");
             return; // No sessions to restore
         }
         
-        console.log(`Found ${encryptedSessions.length} sessions on server, restoring...`);
+        console.log(`[Session Sync] Found ${encryptedSessions.length} sessions on server, restoring...`);
         
         const storage = new SignalProtocolStorage(userId);
         
@@ -116,7 +119,8 @@ export async function restoreSessionsFromServer(
                     }
                     
                     const encryptedBlob = decodeSessionBlob(sessionData.encryptedData);
-                    const sessionRecord = await decryptSessionWithPassword(password, encryptedBlob);
+                    // Use stored key if available, otherwise use password to derive it
+                    const sessionRecord = await decryptSessionWithPassword(password, userId, encryptedBlob);
                     
                     // Store in IndexedDB (sync callback won't fire because isRestoring is true)
                     await storage.storeSession(address, sessionRecord);
@@ -133,9 +137,13 @@ export async function restoreSessionsFromServer(
             setRestoring(false);
         }
         
-        console.log(`Restored ${restoredCount}/${encryptedSessions.length} sessions from server${failedCount > 0 ? ` (${failedCount} failed)` : ""}`);
+        console.log(`[Session Sync] Restored ${restoredCount}/${encryptedSessions.length} sessions from server${failedCount > 0 ? ` (${failedCount} failed)` : ""}`);
     } catch (error) {
-        console.error("Failed to restore sessions from server:", error);
+        console.error("[Session Sync] Failed to restore sessions from server:", error);
+        console.error("[Session Sync] Error details:", {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined
+        });
         // Don't throw - allow login to continue even if session restore fails
     }
 }
@@ -181,8 +189,8 @@ export async function uploadAllSessionsToServer(
                     continue;
                 }
                 
-                // Encrypt session record
-                const encryptedBlob = await encryptSessionWithPassword(password, record);
+                // Encrypt session record (use stored key if available)
+                const encryptedBlob = await encryptSessionWithPassword(password, userId, record);
                 const encryptedData = encodeSessionBlob(encryptedBlob);
                 
                 sessionData.push({
@@ -235,9 +243,9 @@ export async function storeSessionWithSync(
         return;
     }
     
-    // Encrypt and upload to server
+    // Encrypt and upload to server (use stored key if available)
     try {
-        const encryptedBlob = await encryptSessionWithPassword(password, record);
+        const encryptedBlob = await encryptSessionWithPassword(password, userId, record);
         const encryptedData = encodeSessionBlob(encryptedBlob);
         
         await uploadSessions([

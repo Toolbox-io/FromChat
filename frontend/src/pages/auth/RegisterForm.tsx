@@ -114,45 +114,30 @@ export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
                 confirm_password: derived
             }
 
-            try {
-                const data = await api.user.auth.register(request);
-                setUser(data.token, data.user);
+                    try {
+                        const data = await api.user.auth.register(request);
+                        
+                        setUser(data.token, data.user);
 
                 try {
                     await api.user.auth.ensureKeysOnLogin(password, data.token);
                     
                     // Initialize Signal Protocol after keys are set up (non-blocking)
                     if (data.user?.id) {
-                        // Run Signal Protocol initialization in background to avoid blocking navigation
-                        (async () => {
+                        setTimeout(async () => {
                             try {
-                                const { SignalProtocolService } = await import("@/utils/crypto/signalProtocol");
-                                const { uploadPreKeyBundle, uploadAllPreKeys } = await import("@/core/api/crypto/prekeys");
-                                const { uploadAllSessionsToServer, initializeSessionSync } = await import("@/utils/crypto/sessionSync");
-                                
-                                const signalService = new SignalProtocolService(data.user!.id.toString());
-                                await signalService.initialize();
-                                
-                                // Initialize session sync (enables automatic upload of new sessions)
-                                initializeSessionSync(data.user!.id.toString(), password, data.token);
-                                
-                                // Upload base bundle with one prekey (for backward compatibility)
-                                const bundle = await signalService.getPreKeyBundle();
-                                await uploadPreKeyBundle(bundle, data.token);
-                                
-                                // Upload all prekeys for server-side rotation
-                                const baseBundle = await signalService.getBaseBundle();
-                                const prekeys = await signalService.getAllPreKeys();
-                                await uploadAllPreKeys(baseBundle, prekeys, data.token);
-                                
-                                // Upload all current sessions to server (backup - will be empty on registration)
-                                await uploadAllSessionsToServer(data.user!.id.toString(), password, data.token);
-                                
-                                console.log(`Uploaded ${prekeys.length} prekeys to server`);
+                                const { initializeSignalProtocol } = await import("@/utils/crypto/signalProtocolInit");
+                                await initializeSignalProtocol({
+                                    userId: data.user!.id.toString(),
+                                    password,
+                                    token: data.token,
+                                    restoreSessions: false,
+                                    uploadSessions: true
+                                });
                             } catch (e) {
-                                console.error("Key setup failed:", e);
+                                console.error("[RegisterForm] Signal Protocol initialization failed:", e);
                             }
-                        })();
+                        }, 0);
                     }
                 } catch (e) {
                     console.error("Key setup failed:", e);
