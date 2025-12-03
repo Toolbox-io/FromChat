@@ -1,5 +1,5 @@
 import { AuthContainer } from "./Auth";
-import { useState, useEffect, useRef, useLayoutEffect, useCallback, type RefObject } from "react";
+import { useState, useRef, useLayoutEffect, useCallback, type RefObject } from "react";
 import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
@@ -50,12 +50,33 @@ export default function AuthPage() {
     const currentMode = searchParams.get("mode") || "login";
     const enteringElementRef = useRef<"login" | "register" | null>(null);
     const [effectActivated, setEffectActivated] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (prevMode.current !== currentMode) {
-            setDirection(currentMode === "register" ? 1 : -1);
+            const previousMode = prevMode.current;
+            
+            // Measure the exiting form's height BEFORE changing anything
+            // This works whether it's relative or absolute
+            const exitingComponent = previousMode === "login" ? loginFormRef.current : registerFormRef.current;
+            let measuredHeight: number | null = null;
+            if (exitingComponent) {
+                const height = exitingComponent.scrollHeight;
+                if (height > 0) {
+                    measuredHeight = height;
+                }
+            }
+            
+            // Update mode and direction first
             prevMode.current = currentMode;
+            setDirection(currentMode === "register" ? 1 : -1);
             enteringElementRef.current = currentMode as "login" | "register";
+            
+            // Set height and transition state together
+            if (measuredHeight !== null) {
+                setContainerHeight(measuredHeight);
+            }
+            setIsTransitioning(true);
         }
     }, [currentMode]);
 
@@ -112,6 +133,7 @@ export default function AuthPage() {
         return () => {
             if (currentMode === mode && enteringElementRef.current === mode) {
                 enteringElementRef.current = null;
+                setIsTransitioning(false);
 
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
@@ -137,9 +159,6 @@ export default function AuthPage() {
                     height: containerHeight === "auto" ? "auto" : `${containerHeight}px`,
                     transition: "height 0.3s ease"
                 }}
-                onAnimationStart={() => {
-                    
-                }}
                 onAnimationEnd={() => {
                     setContainerHeight("auto");
                 }}
@@ -158,7 +177,7 @@ export default function AuthPage() {
                             onAnimationComplete={handleAnimationComplete("login", "login", enteringElementRef, loginFormRef, setContainerHeight)}
                             className={styles.formWrapper}
                             style={{
-                                position: containerHeight === "auto" ? "relative" : "absolute"
+                                position: (containerHeight === "auto" && !isTransitioning) ? "relative" : "absolute"
                             }}
                         >
                             <LoginForm onSwitchMode={() => switchMode("register")} />
@@ -175,6 +194,9 @@ export default function AuthPage() {
                             transition={slideTransition}
                             onAnimationComplete={handleAnimationComplete("register", "register", enteringElementRef, registerFormRef, setContainerHeight)}
                             className={styles.formWrapper}
+                            style={{
+                                position: (containerHeight === "auto" && !isTransitioning) ? "relative" : "absolute"
+                            }}
                         >
                             <RegisterForm onSwitchMode={() => switchMode("login")} />
                         </motion.div>
