@@ -50,8 +50,8 @@ _BURST_COUNT_THRESHOLD = 20
 _SHORT_MESSAGE_LENGTH = 8
 _SHORT_MESSAGE_REPEAT_LIMIT = 4
 
-_recent_message_cache: dict[int, deque[tuple[str, str, float]]] = defaultdict(deque)
-_message_rate_cache: dict[int, deque[float]] = defaultdict(deque)
+_recent_message_cache: dict[int, deque[tuple[str, str, float, int]]] = defaultdict(deque)  # (normalized, content, timestamp, message_id)
+_message_rate_cache: dict[int, deque[tuple[float, int]]] = defaultdict(deque)  # (timestamp, message_id)
 _burst_last_logged: dict[int, float] = {}
 
 
@@ -62,12 +62,23 @@ def _normalize_for_spam(text: str) -> str:
     return cleaned
 
 
-def _monitor_public_message_activity(user: User, content: str, db: Session) -> None:
+def _monitor_public_message_activity(user: User, content: str, message_id: int, db: Session) -> None:
     now = time.time()
 
-    def suspend(reason: str, event: str, **extra: Any) -> None:
+    def suspend(reason: str, event: str, message_ids_to_delete: list[int] = None, **extra: Any) -> None:
         if user.suspended or user.id == 1:
             return
+        
+        # Delete spam messages that triggered the ban
+        if message_ids_to_delete:
+            try:
+                deleted_count = db.query(Message).filter(Message.id.in_(message_ids_to_delete)).delete(synchronize_session=False)
+                db.commit()
+                logger.info(f"Deleted {deleted_count} spam messages for user {user.id}")
+            except Exception as e:
+                logger.error(f"Failed to delete spam messages: {e}")
+                db.rollback()
+        
         user.suspended = True
         user.suspension_reason = reason
         db.commit()
@@ -77,6 +88,7 @@ def _monitor_public_message_activity(user: User, content: str, db: Session) -> N
             user_id=user.id,
             username=user.username,
             reason=reason,
+            deleted_messages=len(message_ids_to_delete) if message_ids_to_delete else 0,
             **extra,
         )
         try:
@@ -86,8 +98,8 @@ def _monitor_public_message_activity(user: User, content: str, db: Session) -> N
 
     # Rate tracking for burst detection
     rate_bucket = _message_rate_cache[user.id]
-    rate_bucket.append(now)
-    while rate_bucket and now - rate_bucket[0] > _BURST_WINDOW_SECONDS:
+    rate_bucket.append((now, message_id))
+    while rate_bucket and now - rate_bucket[0][0] > _BURST_WINDOW_SECONDS:
         rate_bucket.popleft()
 
     burst_count = len(rate_bucket)
@@ -103,12 +115,17 @@ def _monitor_public_message_activity(user: User, content: str, db: Session) -> N
                 window_seconds=_BURST_WINDOW_SECONDS,
             )
             _burst_last_logged[user.id] = now
+        
+        # Get all message IDs from the burst window
+        burst_message_ids = [msg_id for _, msg_id in rate_bucket]
         suspend(
             "Automatic suspension: excessive message rate",
             "auto_suspension_public_burst",
+            message_ids_to_delete=burst_message_ids,
             count=burst_count,
             window_seconds=_BURST_WINDOW_SECONDS,
         )
+        return
 
     # Similarity-based spam detection
     normalized = _normalize_for_spam(content)
@@ -116,21 +133,25 @@ def _monitor_public_message_activity(user: User, content: str, db: Session) -> N
     while history and now - history[0][2] > _SPAM_WINDOW_SECONDS:
         history.popleft()
 
-    prior_same = sum(1 for prev_norm, _, _ in history if prev_norm == normalized)
+    prior_same = sum(1 for prev_norm, _, _, _ in history if prev_norm == normalized)
     prior_similar = sum(
         1
-        for prev_norm, _, _ in history
+        for prev_norm, _, _, _ in history
         if prev_norm and normalized and prev_norm != normalized and SequenceMatcher(None, normalized, prev_norm).ratio() >= _SPAM_SIMILARITY_THRESHOLD
     )
 
-    history.append((normalized, content, now))
+    history.append((normalized, content, now, message_id))
 
     total_matches = prior_same + prior_similar + 1
 
     if len(normalized) <= _SHORT_MESSAGE_LENGTH and prior_same + 1 >= _SHORT_MESSAGE_REPEAT_LIMIT:
+        # Get message IDs of all matching short messages
+        spam_message_ids = [msg_id for prev_norm, _, _, msg_id in history if prev_norm == normalized]
+        spam_message_ids.append(message_id)  # Include current message
         suspend(
             "Automatic suspension: repeated short messages",
             "auto_suspension_public_spam",
+            message_ids_to_delete=spam_message_ids,
             occurrences=prior_same + 1,
             window_seconds=_SPAM_WINDOW_SECONDS,
             match_type="short",
@@ -138,9 +159,20 @@ def _monitor_public_message_activity(user: User, content: str, db: Session) -> N
         return
 
     if total_matches >= _SPAM_MESSAGE_LIMIT:
+        # Get message IDs of all matching similar messages
+        spam_message_ids = []
+        for prev_norm, _, _, msg_id in history:
+            if prev_norm == normalized:
+                spam_message_ids.append(msg_id)
+            elif prev_norm and normalized and prev_norm != normalized:
+                similarity = SequenceMatcher(None, normalized, prev_norm).ratio()
+                if similarity >= _SPAM_SIMILARITY_THRESHOLD:
+                    spam_message_ids.append(msg_id)
+        spam_message_ids.append(message_id)  # Include current message
         suspend(
             "Automatic suspension: repeated similar public messages",
             "auto_suspension_public_spam",
+            message_ids_to_delete=spam_message_ids,
             similar_messages=total_matches,
             window_seconds=_SPAM_WINDOW_SECONDS,
             match_type="similar",
@@ -371,7 +403,7 @@ async def _send_message_internal(
     except Exception:
         pass
 
-    _monitor_public_message_activity(current_user, raw_content, db)
+    _monitor_public_message_activity(current_user, raw_content, new_message.id, db)
 
     message_payload = convert_message(new_message)
     
