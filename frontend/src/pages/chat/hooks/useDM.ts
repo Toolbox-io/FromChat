@@ -52,6 +52,10 @@ export function useDM() {
         if (!user.authToken) return;
 
         try {
+            // Wait for session restoration to complete (if in progress)
+            const { waitForSessionRestore } = await import("@/utils/crypto/sessionRestoreState");
+            await waitForSessionRestore();
+            
             // Get public key
             const publicKey = await api.chats.dm.fetchUserPublicKey(dmUser.id, user.authToken);
             if (!publicKey) return;
@@ -63,11 +67,22 @@ export function useDM() {
             // Find last message
             const lastMessage = messages[messages.length - 1];
             let lastPlaintext: string | null = null;
-
+            const isAuthor = lastMessage.senderId === user.currentUser?.id;
             try {
-                lastPlaintext = (JSON.parse(await decryptDm(lastMessage, lastMessage.senderId)) as DmEncryptedJSON).data.content;
+                if (isAuthor) {
+                    // For our own messages, fetch plaintexts from server (encrypted at rest)
+                    const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+                    const plaintexts = await fetchMessagePlaintextsForRecipient(dmUser.id);
+                    const cached = plaintexts.get(lastMessage.id);
+                    if (cached) {
+                        lastPlaintext = (JSON.parse(cached) as DmEncryptedJSON).data.content;
+                    }
+                } else {
+                    // Incoming message - decrypt via Signal
+                    lastPlaintext = (JSON.parse(await decryptDm(lastMessage, lastMessage.senderId)) as DmEncryptedJSON).data.content;
+                }
             } catch (error) {
-                console.error("Failed to decrypt last message:", error);
+                console.error("Failed to get last message preview:", error);
             }
 
             // Calculate unread count
@@ -102,6 +117,10 @@ export function useDM() {
         usersLoadedRef.current = true;
         setIsLoadingUsers(true);
         try {
+            // Wait for session restoration to complete (if in progress)
+            const { waitForSessionRestore } = await import("@/utils/crypto/sessionRestoreState");
+            await waitForSessionRestore();
+            
             const conversations = await api.chats.dm.conversations(user.authToken);
 
             // Process conversations and decrypt last messages
@@ -111,17 +130,25 @@ export function useDM() {
 
                     if (conv.lastMessage) {
                         try {
-                            // Get the public key for the other user
-                            const otherUserId = conv.lastMessage.senderId === user.currentUser?.id
-                                ? conv.lastMessage.recipientId
-                                : conv.lastMessage.senderId;
-
-                            const publicKey = await api.chats.dm.fetchUserPublicKey(otherUserId, user.authToken!);
-                            if (publicKey) {
-                                // Decrypt the last message
-                                const decryptedJson = await decryptDm(conv.lastMessage, conv.lastMessage.senderId);
-                                const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
-                                lastMessageContent = formatDMMessageContent(decryptedData.data.content, conv.lastMessage.senderId, user.currentUser?.id!);
+                            const isAuthor = conv.lastMessage.senderId === user.currentUser?.id;
+                            const otherUserId = conv.user.id; // the other party in the conversation
+                            if (isAuthor) {
+                                // Fetch plaintext of our own last message from server
+                                const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+                                const plaintexts = await fetchMessagePlaintextsForRecipient(otherUserId);
+                                const cached = plaintexts.get(conv.lastMessage.id);
+                                if (cached) {
+                                    const data = JSON.parse(cached) as DmEncryptedJSON;
+                                    lastMessageContent = formatDMMessageContent(data.data.content, conv.lastMessage.senderId, user.currentUser!.id);
+                                }
+                            } else {
+                                // Incoming message - decrypt
+                                const publicKey = await api.chats.dm.fetchUserPublicKey(otherUserId, user.authToken!);
+                                if (publicKey) {
+                                    const decryptedJson = await decryptDm(conv.lastMessage, conv.lastMessage.senderId);
+                                    const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
+                                    lastMessageContent = formatDMMessageContent(decryptedData.data.content, conv.lastMessage.senderId, user.currentUser!.id);
+                                }
                             }
                         } catch (error) {
                             // Silently fail for last message decryption - it's not critical
@@ -160,6 +187,11 @@ export function useDM() {
 
         setIsLoadingHistory(true);
         try {
+            // Wait for session restoration to complete (if in progress)
+            const { waitForSessionRestore } = await import("@/utils/crypto/sessionRestoreState");
+            await waitForSessionRestore();
+            console.log(`[useDM] Session restoration complete, proceeding with message load for user ${userId}`);
+            
             const { messages } = await api.chats.dm.fetchMessages(userId, user.authToken, 50);
             const decryptedMessages: Message[] = [];
             let maxIncomingId = 0;
@@ -276,23 +308,29 @@ export function useDM() {
             const conversations = await api.chats.dm.conversations(user.authToken);
             const userConversation = conversations.find(conv => conv.user.id === userId);
 
-            if (userConversation) {
+                if (userConversation) {
                 let lastMessageContent: string | undefined = undefined;
 
                 if (userConversation.lastMessage) {
                     try {
-                        // Get the public key for the other user
-                        const otherUserId = userConversation.lastMessage.senderId === user.currentUser?.id
-                            ? userConversation.lastMessage.recipientId
-                            : userConversation.lastMessage.senderId;
-
-                        const publicKey = await api.chats.dm.fetchUserPublicKey(otherUserId, user.authToken!);
-                        if (publicKey) {
-                            // Decrypt the last message
-                            const decryptedJson = await decryptDm(userConversation.lastMessage, userConversation.lastMessage.senderId);
-                            const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
-                            lastMessageContent = formatDMMessageContent(decryptedData.data.content, userConversation.lastMessage.senderId, user.currentUser?.id!);
-                        }
+                            const isAuthor = userConversation.lastMessage.senderId === user.currentUser?.id;
+                            const otherUserId = userId;
+                            if (isAuthor) {
+                                const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+                                const plaintexts = await fetchMessagePlaintextsForRecipient(otherUserId);
+                                const cached = plaintexts.get(userConversation.lastMessage.id);
+                                if (cached) {
+                                    const data = JSON.parse(cached) as DmEncryptedJSON;
+                                    lastMessageContent = formatDMMessageContent(data.data.content, userConversation.lastMessage.senderId, user.currentUser!.id);
+                                }
+                            } else {
+                                const publicKey = await api.chats.dm.fetchUserPublicKey(otherUserId, user.authToken!);
+                                if (publicKey) {
+                                    const decryptedJson = await decryptDm(userConversation.lastMessage, userConversation.lastMessage.senderId);
+                                    const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
+                                    lastMessageContent = formatDMMessageContent(decryptedData.data.content, userConversation.lastMessage.senderId, user.currentUser!.id);
+                                }
+                            }
                     } catch (error) {
                         console.error("Failed to decrypt last message for user", userId, error);
                     }
@@ -335,23 +373,33 @@ export function useDM() {
                         return;
                     }
                     const otherUserId = senderId === user.currentUser.id ? recipientId : senderId;
-
+                    
                     // Update unread count and last message preview
                     try {
-                        const publicKey = await api.chats.dm.fetchUserPublicKey(otherUserId, user.authToken!);
-                        if (publicKey) {
-                            const decryptedJson = await decryptDm(envelope, senderId);
-                            const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
-                            const messageContent = decryptedData.data.content;
+                        let messageContent: string | null = null;
+                        if (senderId === user.currentUser.id) {
+                            const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+                            const plaintexts = await fetchMessagePlaintextsForRecipient(otherUserId);
+                            const cached = plaintexts.get(envelope.id);
+                            if (cached) {
+                                messageContent = (JSON.parse(cached) as DmEncryptedJSON).data.content;
+                            }
+                        } else {
+                            const publicKey = await api.chats.dm.fetchUserPublicKey(otherUserId, user.authToken!);
+                            if (publicKey) {
+                                const decryptedJson = await decryptDm(envelope, senderId);
+                                const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
+                                messageContent = decryptedData.data.content;
+                            }
+                        }
+                        if (messageContent !== null) {
                             const formattedMessage = formatDMMessageContent(messageContent, senderId, user.currentUser.id);
-
                             setDmUsersState(prev => prev.map(u =>
                                 u.id === otherUserId
                                     ? {
                                         ...u,
                                         unreadCount: senderId !== user.currentUser?.id ? u.unreadCount + 1 : u.unreadCount,
-                                        lastMessage: formattedMessage,
-                                        publicKey
+                                        lastMessage: formattedMessage
                                     }
                                     : u
                             ));
@@ -368,18 +416,29 @@ export function useDM() {
                     }
                     const otherUserId = senderId === user.currentUser.id ? recipientId : senderId;
                     try {
-                        const publicKey = await api.chats.dm.fetchUserPublicKey(otherUserId, user.authToken!);
-                        if (publicKey) {
-                            const decryptedJson = await decryptDm(envelope, senderId);
-                            const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
-                            const messageContent = decryptedData.data.content;
+                        let messageContent: string | null = null;
+                        if (senderId === user.currentUser.id) {
+                            const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+                            const plaintexts = await fetchMessagePlaintextsForRecipient(otherUserId);
+                            const cached = plaintexts.get(id);
+                            if (cached) {
+                                messageContent = (JSON.parse(cached) as DmEncryptedJSON).data.content;
+                            }
+                        } else {
+                            const publicKey = await api.chats.dm.fetchUserPublicKey(otherUserId, user.authToken!);
+                            if (publicKey) {
+                                const decryptedJson = await decryptDm(envelope, senderId);
+                                const decryptedData = JSON.parse(decryptedJson) as DmEncryptedJSON;
+                                messageContent = decryptedData.data.content;
+                            }
+                        }
+                        if (messageContent !== null) {
                             const formattedMessage = formatDMMessageContent(messageContent, senderId, user.currentUser.id);
                             setDmUsersState(prev => prev.map(u =>
                                 u.id === otherUserId
                                     ? {
                                         ...u,
-                                        lastMessage: formattedMessage,
-                                        publicKey
+                                        lastMessage: formattedMessage
                                     }
                                     : u
                             ));

@@ -73,8 +73,11 @@ export async function initializeSignalProtocol({
             console.log("========================================");
             console.log("[Signal Protocol Init] Step 5: ⚠️ RESTORING SESSIONS FROM SERVER");
             console.log("========================================");
+            const { setRestoringSessions } = await import("./sessionRestoreState");
+            const restorePromise = restoreSessionsFromServer(userId, password, token);
+            setRestoringSessions(restorePromise);
             try {
-                await restoreSessionsFromServer(userId, password, token);
+                await restorePromise;
                 console.log("========================================");
                 console.log("[Signal Protocol Init] Step 5: ✅ SESSIONS RESTORED FROM SERVER");
                 console.log("========================================");
@@ -85,6 +88,10 @@ export async function initializeSignalProtocol({
                 console.error("========================================");
                 // Continue even if restoration fails
             }
+        } else {
+            // Mark restore as complete if we're not restoring (to avoid blocking message loading)
+            const { setRestoringSessions } = await import("./sessionRestoreState");
+            setRestoringSessions(Promise.resolve());
         }
 
         // Step 6: Upload prekey bundle

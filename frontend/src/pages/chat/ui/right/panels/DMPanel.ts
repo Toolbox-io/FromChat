@@ -63,7 +63,7 @@ export class DMPanel extends MessagePanel {
         this.failedDecryptionIds.clear();
     }
 
-    private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
+    private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[], plaintextOverride?: string) {
         // Check if this is a message sent by the current user
         const isSentByUs = env.senderId === this.currentUser.currentUser?.id;
         
@@ -71,8 +71,24 @@ export class DMPanel extends MessagePanel {
         if (isSentByUs) {
             // Can't decrypt our own sent messages in Signal Protocol
             // The plaintext should be passed in from loadMessages (fetched from server)
-            // For now, throw an error - the caller should handle this by fetching plaintexts first
-            throw new Error("Cannot decrypt own sent message - plaintext must be fetched from server first");
+            if (plaintextOverride) {
+                plaintext = plaintextOverride;
+            } else {
+                // Try to fetch from server as fallback
+                try {
+                    const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+                    const plaintexts = await fetchMessagePlaintextsForRecipient(this.dmData!.userId);
+                    const cached = plaintexts.get(env.id);
+                    if (cached) {
+                        plaintext = cached;
+                    } else {
+                        // Not on server - skip this message
+                        throw new Error("Cannot decrypt own sent message - plaintext not available on server");
+                    }
+                } catch (error) {
+                    throw new Error("Cannot decrypt own sent message - plaintext must be fetched from server first");
+                }
+            }
         } else {
             // Decrypt incoming messages
             plaintext = await decryptDm(env, env.senderId);
@@ -125,6 +141,11 @@ export class DMPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
+            // Wait for session restoration to complete (if in progress)
+            const { waitForSessionRestore } = await import("@/utils/crypto/sessionRestoreState");
+            await waitForSessionRestore();
+            console.log(`[DMPanel] Session restoration complete, proceeding with message load for user ${this.dmData.userId}`);
+            
             // Ensure Signal Protocol session is established before fetching messages
             if (!this.signalService && this.currentUser.currentUser?.id) {
                 this.signalService = new SignalProtocolService(this.currentUser.currentUser.id.toString());
@@ -140,6 +161,8 @@ export class DMPanel extends MessagePanel {
                         console.warn(`Failed to establish Signal Protocol session for user ${this.dmData.userId} during history load:`, error);
                         // Continue loading history, but decryption will likely fail for new messages
                     }
+                } else {
+                    console.log(`[DMPanel] Signal Protocol session exists for user ${this.dmData.userId}`);
                 }
             }
             
@@ -223,8 +246,13 @@ export class DMPanel extends MessagePanel {
                 }
             }
 
-            this.clearMessages();
-            decryptedMessages.forEach(msg => this.addMessage(msg));
+            // Only clear and replace if we actually decrypted something
+            if (decryptedMessages.length > 0) {
+                this.clearMessages();
+                decryptedMessages.forEach(msg => this.addMessage(msg));
+            } else {
+                console.warn("[DMPanel] No messages decrypted; keeping existing messages to avoid empty state after reload.");
+            }
             this.setHasMoreMessages(has_more);
 
             // Update last read ID
@@ -434,23 +462,56 @@ export class DMPanel extends MessagePanel {
                     // Mark as processed before attempting decryption
                     this.processedMessageIds.add(envelope.id);
                     
-                    const dmMsg = await this.parseTextPayload(envelope, this.getMessages());
-
                     // Check if this is a confirmation of a message we sent
-                    const isOurMessage = envelope.senderId !== this.dmData.userId;
+                    const isOurMessage = envelope.senderId === this.currentUser.currentUser?.id;
+                    
+                    let dmMsg: Message;
+                    if (isOurMessage) {
+                        // For sent messages, fetch plaintext from server
+                        const { fetchMessagePlaintextsForRecipient } = await import("@/utils/crypto/messagePlaintextSync");
+                        const plaintexts = await fetchMessagePlaintextsForRecipient(this.dmData.userId);
+                        const cachedPlaintext = plaintexts.get(envelope.id);
+                        if (cachedPlaintext) {
+                            // Parse the plaintext and create message
+                            dmMsg = await this.parseTextPayload(envelope, this.getMessages(), cachedPlaintext);
+                        } else {
+                            // Plaintext not available yet - this might be a new message confirmation
+                            // Try to get it from temp message content
+                            const tempMessages = this.getMessages().filter(m => m.id === -1 && m.runtimeData?.sendingState?.tempId);
+                            let tempMsgContent: string | null = null;
+                            for (const tempMsg of tempMessages) {
+                                if (tempMsg.runtimeData?.sendingState?.retryData?.content) {
+                                    tempMsgContent = tempMsg.content;
+                                    break;
+                                }
+                            }
+                            if (tempMsgContent) {
+                                dmMsg = await this.parseTextPayload(envelope, this.getMessages(), tempMsgContent);
+                            } else {
+                                // Can't display without plaintext - skip
+                                console.warn(`Cannot display sent message ${envelope.id} - plaintext not available`);
+                                return;
+                            }
+                        }
+                    } else {
+                        // Incoming message - decrypt normally
+                        dmMsg = await this.parseTextPayload(envelope, this.getMessages());
+                    }
+                    
                     if (isOurMessage) {
                         // This is our message being confirmed, find the temp message and replace it
                         const tempMessages = this.getMessages().filter(m => m.id === -1 && m.runtimeData?.sendingState?.tempId);
                         let tempMsgContent: string | null = null;
                         for (const tempMsg of tempMessages) {
-                            if (tempMsg.runtimeData?.sendingState?.retryData?.content === dmMsg.content) {
+                            if ((tempMsg.runtimeData?.sendingState?.retryData?.content === dmMsg.content || 
+                                tempMsg.content === dmMsg.content) && tempMsg.runtimeData?.sendingState?.tempId) {
                                 tempMsgContent = tempMsg.content; // Get plaintext from temp message
-                                this.handleMessageConfirmed(tempMsg.runtimeData.sendingState.tempId!, dmMsg);
+                                this.handleMessageConfirmed(tempMsg.runtimeData.sendingState.tempId, dmMsg);
                                 
                                 // Upload the plaintext to server (encrypted) so we can display it in history
                                 const { uploadMessagePlaintext } = await import("@/utils/crypto/messagePlaintextSync");
                                 if (tempMsgContent) {
-                                    await uploadMessagePlaintext(envelope.id, this.dmData.userId, tempMsgContent);
+                                    await uploadMessagePlaintext(this.dmData.userId, envelope.id, tempMsgContent);
                                 }
                                 return;
                             }
@@ -460,9 +521,16 @@ export class DMPanel extends MessagePanel {
                         // (this might happen if the page was reloaded)
                         if (!tempMsgContent && dmMsg.content) {
                             const { uploadMessagePlaintext } = await import("@/utils/crypto/messagePlaintextSync");
-                            await uploadMessagePlaintext(envelope.id, this.dmData.userId, dmMsg.content);
+                            await uploadMessagePlaintext(this.dmData.userId, envelope.id, dmMsg.content);
                         }
+                        
+                        // Add the message to the chat
+                        this.addMessage(dmMsg);
+                        return;
                     }
+                    
+                    // Incoming message - add to chat
+                    this.addMessage(dmMsg);
 
                     this.addMessage(dmMsg);
 

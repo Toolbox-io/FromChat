@@ -350,6 +350,7 @@ export class SignalProtocolStorage implements StorageType {
             request.onsuccess = () => {
                 const data = request.result;
                 if (data && data.record && typeof data.record === "string" && data.record.length > 0) {
+                    console.log(`[SignalStorage] ✅ Loaded session for recipient ${recipientId} (address: ${encodedAddress})`);
                     resolve(data.record);
                 } else {
                     // Try with number if string didn't work (backward compatibility)
@@ -358,18 +359,19 @@ export class SignalProtocolStorage implements StorageType {
                         numRequest.onsuccess = () => {
                             const numData = numRequest.result;
                             if (numData && numData.record && typeof numData.record === "string" && numData.record.length > 0) {
+                                console.log(`[SignalStorage] ✅ Loaded session for recipient ${recipientId} (address: ${encodedAddress}, using number key)`);
                                 resolve(numData.record);
                             } else {
-                                console.warn(`Session record missing or invalid for recipient ${recipientId} (address: ${encodedAddress})`);
+                                console.warn(`[SignalStorage] ⚠️ Session record missing or invalid for recipient ${recipientId} (address: ${encodedAddress}) - checked both string and number keys`);
                                 resolve(undefined);
                             }
                         };
                         numRequest.onerror = () => {
-                            console.warn(`Session record missing for recipient ${recipientId} (address: ${encodedAddress})`);
+                            console.warn(`[SignalStorage] ⚠️ Session record missing for recipient ${recipientId} (address: ${encodedAddress}) - IndexedDB error`);
                             resolve(undefined);
                         };
                     } else {
-                        console.warn(`Session record missing or invalid for recipient ${recipientId} (address: ${encodedAddress})`);
+                        console.warn(`[SignalStorage] ⚠️ Session record missing or invalid for recipient ${recipientId} (address: ${encodedAddress}) - no data found`);
                         resolve(undefined);
                     }
                 }
@@ -391,7 +393,7 @@ export class SignalProtocolStorage implements StorageType {
         
         // Validate record
         if (!record || typeof record !== "string" || record.length === 0) {
-            console.warn(`Invalid session record for address ${encodedAddress}`);
+            console.warn(`[SignalStorage] Invalid session record for address ${encodedAddress}`);
             return;
         }
         
@@ -405,6 +407,7 @@ export class SignalProtocolStorage implements StorageType {
                 record: record
             });
             request.onsuccess = () => {
+                console.log(`[SignalStorage] ✅ Stored session for recipient ${recipientId} (address: ${encodedAddress}, record length: ${record.length})`);
                 resolve();
                 // If session sync callback is set and we're not restoring, upload to server in background (non-blocking)
                 // Do this AFTER resolve() to ensure storage completes even if sync fails

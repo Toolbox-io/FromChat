@@ -4,7 +4,7 @@
  */
 
 import { encryptMessagePlaintext, decryptMessagePlaintext } from "./messagePlaintextEncryption";
-import { uploadMessagePlaintexts, fetchMessagePlaintexts, type MessagePlaintextData } from "@/core/api/crypto/messagePlaintexts";
+import { uploadMessagePlaintexts, fetchMessagePlaintexts } from "@/core/api/crypto/messagePlaintexts";
 
 // Global state for message plaintext sync
 let syncPassword: string | null = null;
@@ -75,21 +75,42 @@ export async function fetchMessagePlaintextsForRecipient(
 ): Promise<Map<number, string>> {
     const plaintexts = new Map<number, string>();
     
-    if (!syncToken || !syncUserId) {
-        console.warn("Message plaintext sync not initialized (missing token/userId)");
-        return plaintexts; // Return empty map if not initialized
+    // Try to get token and userId from global state if sync isn't initialized
+    let token = syncToken;
+    let userId = syncUserId;
+    let password = syncPassword;
+    
+    if (!token || !userId) {
+        // Fallback: try to get from user store
+        try {
+            const { useUserStore } = await import("@/state/user");
+            const userState = useUserStore.getState().user;
+            if (userState.authToken && userState.currentUser?.id) {
+                token = userState.authToken;
+                userId = userState.currentUser.id.toString();
+                console.log(`[MessagePlaintextSync] Using token/userId from user store (sync not initialized)`);
+            } else {
+                console.warn("Message plaintext sync not initialized (missing token/userId)");
+                return plaintexts; // Return empty map if not initialized
+            }
+        } catch (error) {
+            console.warn("Message plaintext sync not initialized (missing token/userId)");
+            return plaintexts; // Return empty map if not initialized
+        }
     }
+    
+    // Password can be null - decryptMessagePlaintext will use stored session key if password is null
 
     try {
         console.log(`Fetching encrypted plaintexts for recipient ${recipientId}...`);
-        const encryptedMessages = await fetchMessagePlaintexts(syncToken, recipientId);
+        const encryptedMessages = await fetchMessagePlaintexts(token, recipientId);
         
         console.log(`Found ${encryptedMessages.length} encrypted plaintexts, decrypting...`);
         
         for (const msg of encryptedMessages) {
             try {
                 // Use stored key if available, otherwise use password to derive it
-                const plaintext = await decryptMessagePlaintext(syncPassword, syncUserId, msg.encryptedData);
+                const plaintext = await decryptMessagePlaintext(password, userId, msg.encryptedData);
                 plaintexts.set(msg.messageId, plaintext);
             } catch (error) {
                 console.warn(`Failed to decrypt plaintext for message ${msg.messageId}:`, error);

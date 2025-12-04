@@ -9,6 +9,7 @@ import { typingManager } from "@/core/typingManager";
 import type { UserState } from "./types";
 import { clearSessionSync } from "@/utils/crypto/sessionSync";
 import { clearMessagePlaintextSync } from "@/utils/crypto/messagePlaintextSync";
+import { resetSessionRestoreState } from "@/utils/crypto/sessionRestoreState";
 
 interface UserStore {
     user: UserState;
@@ -65,6 +66,13 @@ export const useUserStore = create<UserStore>((set) => ({
         // Clear session sync
         clearSessionSync();
         clearMessagePlaintextSync();
+        
+        // Reset session restore state
+        try {
+            resetSessionRestoreState();
+        } catch (error) {
+            console.error("Failed to reset session restore state:", error);
+        }
 
         set({
             user: {
@@ -132,14 +140,20 @@ export const useUserStore = create<UserStore>((set) => ({
                                 if (storedKey) {
                                     console.log("[RestoreFromStorage] Stored session key found, restoring sessions from server...");
                                     // We can restore sessions using the stored key (password not needed)
+                                    const { setRestoringSessions } = await import("@/utils/crypto/sessionRestoreState");
+                                    const restorePromise = restoreSessionsFromServer(user.id.toString(), null, token);
+                                    setRestoringSessions(restorePromise);
                                     try {
-                                        await restoreSessionsFromServer(user.id.toString(), null, token);
+                                        await restorePromise;
                                         console.log("[RestoreFromStorage] Sessions restored from server using stored key");
                                     } catch (error) {
                                         console.error("[RestoreFromStorage] Failed to restore sessions:", error);
                                     }
                                 } else {
                                     console.warn("[RestoreFromStorage] No stored session key - user needs to log in to derive key");
+                                    // Mark restore as complete even if we couldn't restore (to avoid blocking message loading)
+                                    const { setRestoringSessions } = await import("@/utils/crypto/sessionRestoreState");
+                                    setRestoringSessions(Promise.resolve());
                                 }
                                 
                                 // Re-upload prekeys to ensure they are fresh

@@ -110,14 +110,19 @@ export async function restoreSessionsFromServer(
                 try {
                     const address = `${sessionData.recipientId}.${sessionData.deviceId}`;
                     
-                    // Check if we already have a local session - if so, skip restoration
-                    // This prevents overwriting a newer session with an older one
-                    const existingSession = await storage.loadSession(address);
-                    if (existingSession) {
-                        console.log(`Skipping restoration for recipient ${sessionData.recipientId} - local session already exists`);
-                        continue;
+                    // Always restore from server to ensure we have a valid session
+                    // Local sessions might be corrupted, so we restore from server on every reload
+                    // The server has the authoritative copy encrypted with password-derived key
+                    try {
+                        const existingSession = await storage.loadSession(address);
+                        if (existingSession) {
+                            console.log(`[Session Sync] Local session exists for recipient ${sessionData.recipientId}, but restoring from server to ensure validity`);
+                        }
+                    } catch (error) {
+                        console.log(`[Session Sync] Local session for recipient ${sessionData.recipientId} failed to load, restoring from server`);
                     }
                     
+                    // Always restore from server (don't skip)
                     const encryptedBlob = decodeSessionBlob(sessionData.encryptedData);
                     // Use stored key if available, otherwise use password to derive it
                     const sessionRecord = await decryptSessionWithPassword(password, userId, encryptedBlob);
@@ -125,7 +130,7 @@ export async function restoreSessionsFromServer(
                     // Store in IndexedDB (sync callback won't fire because isRestoring is true)
                     await storage.storeSession(address, sessionRecord);
                     restoredCount++;
-                    console.log(`Restored session for recipient ${sessionData.recipientId}`);
+                    console.log(`[Session Sync ✅] Restored session for recipient ${sessionData.recipientId} from server`);
                 } catch (error) {
                     failedCount++;
                     console.warn(`Failed to restore session for recipient ${sessionData.recipientId}:`, error);
