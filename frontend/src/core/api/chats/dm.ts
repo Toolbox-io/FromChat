@@ -1,28 +1,19 @@
 import { API_BASE_URL } from "@/core/config";
 import { getAuthHeaders } from "../user/auth";
-import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
-import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "@/utils/crypto/symmetric";
-import { randomBytes } from "@/utils/crypto/kdf";
 import { getCurrentKeys } from "../user/auth";
 import { request } from "@/core/websocket";
-import type { SendDMRequest, DmEnvelope, DMEditRequest, DmEncryptedJSON, BaseDmEnvelope, User } from "@/core/types";
+import type { SendDMRequest, DmEnvelope, DMEditRequest, BaseDmEnvelope, User } from "@/core/types";
 import { b64, ub64 } from "@/utils/utils";
 import { fetchUserPublicKey } from "../crypto/identity";
 import { fetchUsers, searchUsers } from "../user/search";
+import { getOrInitProtocol } from "@/utils/crypto/fromchatInit";
+import { ecdhSharedSecret, deriveWrappingKey, importAesGcmKey, aesGcmEncrypt, randomBytes } from "@fromchat/protocol";
 
 export async function decrypt(envelope: DmEnvelope, senderPublicKeyB64: string): Promise<string> {
-    const keys = getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
-
-    // Obtain the key
-    const shared = ecdhSharedSecret(keys.privateKey, ub64(senderPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, ub64(envelope.salt), new Uint8Array([1]));
-    const wk = await importAesGcmKey(wkRaw);
-    const mk = await aesGcmDecrypt(wk, ub64(envelope.iv2), ub64(envelope.wrappedMk));
-
-    // Decrypt
-    const msg = await aesGcmDecrypt(await importAesGcmKey(mk), ub64(envelope.iv), ub64(envelope.ciphertext));
-    return new TextDecoder().decode(msg);
+    const protocol = getOrInitProtocol();
+    const senderPublicKey = ub64(senderPublicKeyB64);
+    
+    return await protocol.decryptMessage(senderPublicKey, envelope);
 }
 
 export async function fetchMessages(userId: number, token: string, limit: number = 50, beforeId?: number): Promise<{ messages: DmEnvelope[]; has_more: boolean }> {
@@ -39,27 +30,14 @@ export async function fetchMessages(userId: number, token: string, limit: number
 }
 
 export async function send(recipientId: number, recipientPublicKeyB64: string, plaintext: string, authToken: string, replyToId?: number): Promise<void> {
-    const keys = getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
-
-    // Encryption key
-    const mk = randomBytes(32);
-    const wkSalt = randomBytes(16);
-    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
-    const wk = await importAesGcmKey(wkRaw);
-
-    // Encrypt the message
-    const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(plaintext));
-    const wrap = await aesGcmEncrypt(wk, mk);
-
+    const protocol = getOrInitProtocol();
+    const recipientPublicKey = ub64(recipientPublicKeyB64);
+    
+    const encrypted = await protocol.encryptMessage(recipientPublicKey, plaintext);
+    
     const payload: SendDMRequest = {
         recipientId: recipientId,
-        iv: b64(encMsg.iv),
-        ciphertext: b64(encMsg.ciphertext),
-        salt: b64(wkSalt),
-        iv2: b64(wrap.iv),
-        wrappedMk: b64(wrap.ciphertext)
+        ...encrypted
     };
     if (replyToId) payload.replyToId = replyToId;
 
@@ -74,15 +52,16 @@ export async function send(recipientId: number, recipientPublicKeyB64: string, p
 }
 
 export async function sendWithFiles(recipientId: number, recipientPublicKeyB64: string, plaintextJson: string, files: File[], token: string): Promise<void> {
+    // For files, we need to use the same message key for both the message and files
+    // So we'll do the encryption manually here to reuse the mk
     const keys = getCurrentKeys();
     if (!keys) throw new Error("Keys not initialized");
 
     const mk = randomBytes(32);
     const wkSalt = randomBytes(16);
-    const shared = await ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
+    const shared = ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
     const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
     const wk = await importAesGcmKey(wkRaw);
-
     const wrap = await aesGcmEncrypt(wk, mk);
 
     const form = new FormData();
@@ -96,21 +75,14 @@ export async function sendWithFiles(recipientId: number, recipientPublicKeyB64: 
         const data = new Uint8Array(await f.arrayBuffer());
         const enc = await aesGcmEncrypt(await importAesGcmKey(mk), data);
         const blob = new Blob([sliceBuffer(enc.iv), sliceBuffer(enc.ciphertext)], { type: "application/octet-stream" });
-        const serverName = f.name; // server uses provided name
+        const serverName = f.name;
         names.push(serverName);
         form.append("files", new File([blob], serverName));
     }
     form.append("fileNames", JSON.stringify(names));
 
-    // Merge files metadata into plaintext JSON and encrypt
-    let obj: DmEncryptedJSON;
-    try {
-        obj = JSON.parse(plaintextJson);
-    } catch {
-        obj = { type: "text", data: { content: String(plaintextJson) } };
-    }
-
-    const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(JSON.stringify(obj)));
+    // Encrypt the plaintext JSON with the same mk
+    const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(plaintextJson));
     form.append("dm_payload", JSON.stringify({
         recipientId: recipientId,
         iv: b64(encMsg.iv),
@@ -128,28 +100,17 @@ export async function sendWithFiles(recipientId: number, recipientPublicKeyB64: 
 }
 
 export async function edit(id: number, recipientPublicKeyB64: string, newPlaintextJson: string, authToken: string): Promise<void> {
-    const keys = getCurrentKeys();
-    if (!keys) throw new Error("Keys not initialized");
-
-    // We cannot reuse the old mk safely without knowing it; generate a fresh mk and wrap
-    const mk = randomBytes(32);
-    const wkSalt = randomBytes(16);
-    const shared = await ecdhSharedSecret(keys.privateKey, ub64(recipientPublicKeyB64));
-    const wkRaw = await deriveWrappingKey(shared, wkSalt, new Uint8Array([1]));
-    const wk = await importAesGcmKey(wkRaw);
-    const encMsg = await aesGcmEncrypt(await importAesGcmKey(mk), new TextEncoder().encode(newPlaintextJson));
-    const wrap = await aesGcmEncrypt(wk, mk);
+    const protocol = getOrInitProtocol();
+    const recipientPublicKey = ub64(recipientPublicKeyB64);
+    
+    const encrypted = await protocol.encryptMessage(recipientPublicKey, newPlaintextJson);
 
     await request({
         type: "dmEdit",
         credentials: { scheme: "Bearer", credentials: authToken },
         data: {
             id,
-            iv: b64(encMsg.iv),
-            ciphertext: b64(encMsg.ciphertext),
-            iv2: b64(wrap.iv),
-            wrappedMk: b64(wrap.ciphertext),
-            salt: b64(wkSalt)
+            ...encrypted
         }
     } as DMEditRequest);
 }
@@ -190,5 +151,3 @@ export async function markRead(id: number, authToken: string): Promise<void> {
 
 // Re-export user functions for convenience
 export { fetchUsers, searchUsers, fetchUserPublicKey };
-
-

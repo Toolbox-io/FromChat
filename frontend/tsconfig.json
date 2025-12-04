@@ -14,10 +14,11 @@
         "noEmit": true,
 
         /* Path mapping */
-        "baseUrl": ".",
-        "paths": {
-            "@/*": ["src/*"]
-        },
+          "baseUrl": ".",
+          "paths": {
+              "@/*": ["src/*"],
+              "@fromchat/protocol": ["./packages/fromchat-protocol/src"]
+          },
 
         /* Linting */
         "strict": true,
@@ -31,6 +32,6 @@
         "jsx": "react-jsx",
         "jsxImportSource": "react"
     },
-    "include": ["src", "electron.d.ts"],
+      "include": ["src", "electron.d.ts", "packages/fromchat-protocol/src"],
     "exclude": ["**/__*/**", "__*"]
 }

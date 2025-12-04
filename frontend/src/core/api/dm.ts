@@ -1,8 +1,6 @@
 import { API_BASE_URL } from "@/core/config";
 import { getAuthHeaders } from "./account";
-import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
-import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "@/utils/crypto/symmetric";
-import { randomBytes } from "@/utils/crypto/kdf";
+import { ecdhSharedSecret, deriveWrappingKey, importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt, randomBytes } from "@fromchat/protocol";
 import { getCurrentKeys } from "./account";
 import { request } from "@/core/websocket";
 import type { SendDMRequest, DmEnvelope, DMEditRequest, DmEncryptedJSON, BaseDmEnvelope, User } from "@/core/types";

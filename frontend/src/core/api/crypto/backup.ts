@@ -1,12 +1,12 @@
 import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "../user/auth";
 import type { BackupBlob } from "@/core/types";
+import api from "@/core/api";
 
 /**
  * Fetches the current user's backup blob
  */
 export async function fetchBackupBlob(token: string): Promise<string | null> {
-    const headers = getAuthHeaders(token, true);
+    const headers = api.user.auth.getAuthHeaders(token, true);
     const res = await fetch(`${API_BASE_URL}/crypto/backup`, {
         method: "GET",
         headers
@@ -25,7 +25,7 @@ export async function fetchBackupBlob(token: string): Promise<string | null> {
 export async function uploadBackupBlob(blobJson: string, token: string): Promise<void> {
     const payload: BackupBlob = { blob: blobJson }
 
-    const headers = getAuthHeaders(token, true);
+    const headers = api.user.auth.getAuthHeaders(token, true);
     const res = await fetch(`${API_BASE_URL}/crypto/backup`, {
         method: "POST",
         headers,

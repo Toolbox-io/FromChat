@@ -67,7 +67,11 @@
         "vite-plugin-html": "^3.2.2",
         "vite-plugin-sass-dts": "^1.3.34"
     },
+    "workspaces": [
+        "frontend/packages/fromchat-protocol"
+    ],
     "dependencies": {
+        "@fromchat/protocol": "workspace:*",
         "electron-squirrel-startup": "^1.0.1",
         "escape-string-regexp": "^5.0.0",
         "he": "^1.2.0",

@@ -1,9 +1,7 @@
 import { API_BASE_URL } from "@/core/config";
 import type { LoginRequest, RegisterRequest, LoginResponse, Headers } from "@/core/types";
-import { generateX25519KeyPair } from "@/utils/crypto/asymmetric";
-import { encodeBlob, encryptBackupWithPassword, decryptBackupWithPassword, decodeBlob } from "@/utils/crypto/backup";
+import { generateX25519KeyPair, hkdfExtractAndExpand, encodeBlob, encryptBackupWithPassword, decryptBackupWithPassword, decodeBlob } from "@fromchat/protocol";
 import { b64, ub64 } from "@/utils/utils";
-import { hkdfExtractAndExpand } from "@/utils/crypto/kdf";
 import { fetchPublicKey, uploadPublicKey } from "../crypto/identity";
 import { fetchBackupBlob, uploadBackupBlob } from "../crypto/backup";
 

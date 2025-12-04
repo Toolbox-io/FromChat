@@ -1,5 +1,4 @@
-import { aesGcmDecrypt, aesGcmEncrypt } from "./symmetric";
-import { importPassword, deriveKEK, randomBytes } from "./kdf";
+import { aesGcmDecrypt, aesGcmEncrypt, importPassword, deriveKEK, randomBytes } from "../crypto/index";
 
 export interface PrivateKeyBundle {
 	version: 1;
@@ -64,5 +63,4 @@ export function decodeBlob(json: string): EncryptedBackupBlob {
 	const obj = JSON.parse(json);
 	return { salt: ub64(obj.salt), iv: ub64(obj.iv), ciphertext: ub64(obj.ciphertext) };
 }
-
 

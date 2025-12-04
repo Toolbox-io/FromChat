@@ -70,7 +70,8 @@ export default defineConfig({
     plugins: plugins,
     resolve: {
         alias: {
-            "@": path.resolve(__dirname, "./src")
+            "@": path.resolve(__dirname, "./src"),
+            "@fromchat/protocol": path.resolve(__dirname, "./packages/fromchat-protocol/src/index.ts")
         }
     },
     server: {
@@ -89,6 +90,7 @@ export default defineConfig({
     },
     appType: "spa",
     optimizeDeps: {
+        exclude: ["@fromchat/protocol"],
         esbuildOptions: {
             target: "es2022"
         }

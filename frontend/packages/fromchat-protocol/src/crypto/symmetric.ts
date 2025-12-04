@@ -11,12 +11,10 @@ export async function aesGcmEncrypt(key: CryptoKey, plaintext: Uint8Array | Arra
 }
 
 export async function aesGcmDecrypt(key: CryptoKey, iv: Uint8Array | ArrayBuffer, ciphertext: Uint8Array | ArrayBuffer): Promise<Uint8Array> {
-	// Normalize IV to ArrayBuffer (12 bytes for AES-GCM)
 	const ivBuf: ArrayBuffer = iv instanceof Uint8Array
 		? (iv.buffer as ArrayBuffer).slice(iv.byteOffset, iv.byteOffset + iv.byteLength)
 		: (iv as ArrayBuffer);
 
-	// Normalize ciphertext to a contiguous ArrayBuffer slice
 	const ctBuf: ArrayBuffer = ciphertext instanceof Uint8Array
 		? (ciphertext.buffer as ArrayBuffer).slice(ciphertext.byteOffset, ciphertext.byteOffset + ciphertext.byteLength)
 		: (ciphertext as ArrayBuffer);
@@ -26,7 +24,6 @@ export async function aesGcmDecrypt(key: CryptoKey, iv: Uint8Array | ArrayBuffer
 }
 
 export async function importAesGcmKey(rawKey: Uint8Array | ArrayBuffer): Promise<CryptoKey> {
-	// Normalize to a contiguous ArrayBuffer slice to avoid offset/length issues
 	const keyBuffer = rawKey instanceof Uint8Array
 		? (rawKey.buffer as ArrayBuffer).slice(rawKey.byteOffset, rawKey.byteOffset + rawKey.byteLength)
 		: (rawKey as ArrayBuffer);

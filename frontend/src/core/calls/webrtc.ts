@@ -2,7 +2,7 @@ import api from "@/core/api";
 import type { CallSignalingMessage, WrappedSessionKeyPayload } from "@/core/types";
 import { request } from "@/core/websocket";
 import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender, rotateCallSessionKey } from "./encryption";
-import { importAesGcmKey } from "@/utils/crypto/symmetric";
+import { importAesGcmKey } from "@fromchat/protocol";
 import E2EEWorker from "./e2eeWorker?worker";
 import { delay } from "@/utils/utils";
 

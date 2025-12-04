@@ -1,7 +1,5 @@
-import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt } from "@/utils/crypto/symmetric";
-import { randomBytes } from "@/utils/crypto/kdf";
+import { importAesGcmKey, aesGcmEncrypt, aesGcmDecrypt, randomBytes, ecdhSharedSecret, deriveWrappingKey } from "@fromchat/protocol";
 import { b64, ub64 } from "@/utils/utils";
-import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
 import api from "@/core/api";
 import type { WrappedSessionKeyPayload } from "@/core/types";
 
