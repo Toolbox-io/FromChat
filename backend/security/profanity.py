@@ -17,7 +17,7 @@ _CUSTOM_RU_TERMS: Set[str] = {
     "ебать", "ебёт", "ебет", "ебаная", "ебаная", "уёбок", "уебок", "уебище", "пизда",
     "пиздец", "хуй", "хуя", "хуе", "хуё", "хуйня", "хер", "гондон",
     "долбоёб", "долбоеб", "дебил", "член", "проститутка", "проститутки",
-    "урод", "хуесос", "хуесосы", "хуесосов", "хуесоса", "пидор",
+    "урод", "хуесос", "хуесосы", "хуесосов", "хуесоса", "сос", "пидор",
     "пидоры", "пидорас", "пидорасы", "пидорасов",
 }
 
@@ -44,6 +44,18 @@ _PHRASE_PATTERNS: Tuple[re.Pattern[str], ...] = (
     re.compile(r"\bxxx\b", re.IGNORECASE | re.UNICODE),
     re.compile(r"\bайфон\s+топ\b", re.IGNORECASE | re.UNICODE),
     re.compile(r"\bсамсунг\s+г[ао]вно\b", re.IGNORECASE | re.UNICODE),
+)
+
+# Patterns to check in original text (before normalization) to catch visual bypasses
+# These patterns check for special character combinations that visually form letters
+_ORIGINAL_TEXT_PATTERNS: Tuple[re.Pattern[str], ...] = (
+    # Catch "}{" used to visually form "х" followed by "С0С" or similar patterns
+    # This catches "хуесос" written as "}{¥€С0С" or variations
+    # Matches: }{ + any characters (including special chars) + С/с + 0 + С/с
+    # The pattern allows any characters between to catch special chars like ¥€
+    re.compile(r"}\{.*?[сcСC].*?[0оoОO].*?[сcСC]", re.IGNORECASE | re.UNICODE),
+    # Also catch "}{" followed by "уесос" with 0 instead of о
+    re.compile(r"}\{.*?[уyУY].*?[еeЕE].*?[сcСC].*?[0оoОO].*?[сcСC]", re.IGNORECASE | re.UNICODE),
 )
 
 # Map for normalizing homoglyphs (similar-looking characters)
@@ -182,6 +194,8 @@ _LEET_MAP = {
     "н": "н",  # Already mapped, but explicit
     # Special characters
     "@": "а",
+    # Multi-character visual bypasses (handled separately in preprocessing)
+    # "}{" visually forms "х" - handled in _preprocess_visual_bypasses
 }
 
 _RAW_PHRASE_GROUPS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
@@ -191,6 +205,18 @@ _RAW_PHRASE_GROUPS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
 
 _SENSITIVE_PHRASE_PATH = Path("data/profanity/sensitive_phrases.json")
 _PHRASE_CACHE: dict[str, Tuple[Tuple[str, ...], ...]] = {}
+
+
+def _preprocess_visual_bypasses(text: str) -> str:
+    """
+    Preprocess text to convert multi-character visual bypasses to their intended letters.
+    This handles cases like "}{" visually forming "х".
+    """
+    result = text
+    # Convert "}{" to "х" (visual bypass for Cyrillic х)
+    # The curly braces visually form the letter х when placed together
+    result = result.replace("}{", "х")
+    return result
 
 
 def _normalize_char(ch: str) -> str:
@@ -257,7 +283,10 @@ def _extract_alphanumeric_with_mapping(text: str, preserve_spaces: bool = False)
         (normalized_text, position_map) where position_map[i] is the original
         position of the i-th character in normalized_text
     """
-    # First normalize Unicode (composed vs decomposed)
+    # First preprocess visual bypasses (like "}{" -> "х")
+    text = _preprocess_visual_bypasses(text)
+    
+    # Then normalize Unicode (composed vs decomposed)
     normalized_unicode = unicodedata.normalize('NFKC', text)
     
     # For phrase matching, convert zero-width chars to spaces instead of stripping
@@ -316,45 +345,49 @@ def _check_profanity_substrings(normalized_text: str, profane_words: Set[str]) -
             start = pos + 1
         
         # Also check if profane word appears as a subsequence (allowing extra chars)
-        # This catches cases like "хуй" in "хууй" or "хU★уй" -> "хууй"
-        # Only do subsequence matching for words of length 4 or more to avoid false positives
-        # Use stricter span limits for shorter words to prevent false matches in long legitimate words
-        if len(word_lower) >= 4:
-            word_chars = list(word_lower)
-            text_chars = list(normalized_lower)
-            # Stricter ratio for shorter words, more lenient for longer words
-            if len(word_lower) <= 5:
-                max_span_ratio = 1.5  # Very strict for short words
-            else:
-                max_span_ratio = 2.0  # Slightly more lenient for longer words
-            
-            # Try to find the word as a subsequence
-            i = 0  # position in text
-            j = 0  # position in word
-            seq_start = None
-            
-            while i < len(text_chars) and j < len(word_chars):
-                if text_chars[i] == word_chars[j]:
-                    if seq_start is None:
-                        seq_start = i
-                    j += 1
-                    if j == len(word_chars):
-                        # Found the word as subsequence
-                        seq_end = i + 1
-                        # Check if the span is reasonable (not too long)
-                        span_length = seq_end - seq_start
-                        max_allowed_span = int(len(word_lower) * max_span_ratio)
-                        if span_length <= max_allowed_span:
-                            # Only add if it's not already covered by exact match
-                            if (seq_start, seq_end) not in spans:
-                                spans.append((seq_start, seq_end))
-                        # Reset to find next occurrence - continue from after the end of this match
-                        next_start = seq_start + 1
-                        seq_start = None
-                        j = 0
-                        i = next_start
-                        continue
-                i += 1
+        # This catches cases like "хуй" in "хууй" or "х}{¥€уй" -> "хууй"
+        # Now applies to ALL words, not just length >= 4, to prevent bypasses
+        word_chars = list(word_lower)
+        text_chars = list(normalized_lower)
+        
+        # Stricter span limits based on word length to prevent false positives
+        # Shorter words get much stricter limits
+        if len(word_lower) <= 3:
+            max_span_ratio = 1.3  # Very strict for 3-char words (e.g., "хуй")
+        elif len(word_lower) == 4:
+            max_span_ratio = 1.4  # Strict for 4-char words
+        elif len(word_lower) <= 5:
+            max_span_ratio = 1.5  # Moderate for 5-char words
+        else:
+            max_span_ratio = 1.8  # Slightly more lenient for longer words
+        
+        # Try to find the word as a subsequence
+        i = 0  # position in text
+        j = 0  # position in word
+        seq_start = None
+        
+        while i < len(text_chars) and j < len(word_chars):
+            if text_chars[i] == word_chars[j]:
+                if seq_start is None:
+                    seq_start = i
+                j += 1
+                if j == len(word_chars):
+                    # Found the word as subsequence
+                    seq_end = i + 1
+                    # Check if the span is reasonable (not too long)
+                    span_length = seq_end - seq_start
+                    max_allowed_span = int(len(word_lower) * max_span_ratio)
+                    if span_length <= max_allowed_span:
+                        # Only add if it's not already covered by exact match
+                        if (seq_start, seq_end) not in spans:
+                            spans.append((seq_start, seq_end))
+                    # Reset to find next occurrence - continue from after the end of this match
+                    next_start = seq_start + 1
+                    seq_start = None
+                    j = 0
+                    i = next_start
+                    continue
+            i += 1
     
     return spans
 
@@ -582,7 +615,13 @@ def contains_profanity(text: str) -> bool:
 
     _rebuild_dictionary()
     
-    # Check phrase patterns first
+    # Check original text patterns first (before normalization) to catch visual bypasses
+    # like "}{" used to form "х"
+    for pattern in _ORIGINAL_TEXT_PATTERNS:
+        if pattern.search(text):
+            return True
+    
+    # Check phrase patterns
     if _check_phrase_patterns(text):
         return True
     
