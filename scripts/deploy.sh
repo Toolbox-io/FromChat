@@ -329,6 +329,7 @@ for SERVICE in $SERVICES; do
         echo ""
     else
         error "Build failed for $SERVICE"
+        exit 1
     fi
 done
 
