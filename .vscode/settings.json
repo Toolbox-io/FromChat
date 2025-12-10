@@ -6,5 +6,6 @@
         "**/.husky/_": true,
         "**/.venv": true,
         "**/node_modules": true
-    }
+    },
+    "python.REPL.enableREPLSmartSend": false
 }

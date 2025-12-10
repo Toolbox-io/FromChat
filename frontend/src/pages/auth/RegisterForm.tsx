@@ -136,104 +136,108 @@ export function RegisterForm({ onSwitchMode }: RegisterFormProps) {
     }
 
     return (
-        <>
-            <AuthHeader 
-                icon="person_add"
-                title="Регистрация"
-                subtitle="Создайте новый аккаунт"
-            />
-            <div className={styles.authBody}>
-                <AlertsContainer alerts={alerts} />
-                <motion.form onSubmit={handleSubmit}>
-                    <motion.div
-                        initial="initial"
-                        animate="animate"
-                        variants={registerFieldVariants}
-                        transition={registerFieldTransition}
-                    >
-                        <AuthTextField
-                            label="Отображаемое имя"
-                            name="display_name"
-                            icon="badge--filled"
-                            autocomplete="name"
-                            maxlength={64}
-                            counter
-                            required
-                            ref={displayNameElement} />
-                    </motion.div>
-                    <motion.div
-                        initial="initial"
-                        animate="animate"
-                        variants={registerFieldVariants}
-                        transition={registerFieldTransition}
-                    >
-                        <AuthTextField
-                            label="@Имя пользователя"
-                            name="username"
-                            icon="person--filled"
-                            autocomplete="username"
-                            maxlength={20}
-                            counter
-                            required
-                            ref={usernameElement} />
-                    </motion.div>
-                    <motion.div
-                        initial="initial"
-                        animate="animate"
-                        variants={registerFieldVariants}
-                        transition={registerFieldTransition}
-                    >
-                        <AuthTextField
-                            label="Пароль"
-                            name="password"
-                            type="password"
-                            toggle-password
-                            icon="password--filled"
-                            autocomplete="new-password"
-                            required
-                            ref={passwordElement} />
-                    </motion.div>
-                    <motion.div
-                        initial="initial"
-                        animate="animate"
-                        variants={registerFieldVariants}
-                        transition={registerFieldTransition}
-                    >
-                        <AuthTextField
-                            label="Подтвердите пароль"
-                            name="confirm_password"
-                            type="password"
-                            toggle-password
-                            icon="password--filled"
-                            autocomplete="new-password"
-                            required
-                            ref={confirmPasswordElement} />
-                    </motion.div>
+        <div className={styles.authContainer}>
+            <div className={styles.gradientBackground}></div>
+            <div className={styles.authCard}>
+                <div className={styles.formWrapper}>
+                    <AuthHeader 
+                        icon="person_add"
+                        title="Регистрация"
+                        subtitle="Создайте новый аккаунт"
+                    />
+                    <div className={styles.authBody}>
+                        <AlertsContainer alerts={alerts} />
+                        <motion.form onSubmit={handleSubmit}>
+                            <motion.div
+                                initial="initial"
+                                animate="animate"
+                                variants={registerFieldVariants}
+                                transition={registerFieldTransition}
+                            >
+                                <AuthTextField
+                                    label="Отображаемое имя"
+                                    name="display_name"
+                                    icon="badge--filled"
+                                    autocomplete="name"
+                                    maxlength={64}
+                                    counter
+                                    required
+                                    ref={displayNameElement} />
+                            </motion.div>
+                            <motion.div
+                                initial="initial"
+                                animate="animate"
+                                variants={registerFieldVariants}
+                                transition={registerFieldTransition}
+                            >
+                                <AuthTextField
+                                    label="@Имя пользователя"
+                                    name="username"
+                                    icon="person--filled"
+                                    autocomplete="username"
+                                    maxlength={20}
+                                    counter
+                                    required
+                                    ref={usernameElement} />
+                            </motion.div>
+                            <motion.div
+                                initial="initial"
+                                animate="animate"
+                                variants={registerFieldVariants}
+                                transition={registerFieldTransition}
+                            >
+                                <AuthTextField
+                                    label="Пароль"
+                                    name="password"
+                                    type="password"
+                                    toggle-password
+                                    icon="password--filled"
+                                    autocomplete="new-password"
+                                    required
+                                    ref={passwordElement} />
+                            </motion.div>
+                            <motion.div
+                                initial="initial"
+                                animate="animate"
+                                variants={registerFieldVariants}
+                                transition={registerFieldTransition}
+                            >
+                                <AuthTextField
+                                    label="Подтвердите пароль"
+                                    name="confirm_password"
+                                    type="password"
+                                    toggle-password
+                                    icon="password--filled"
+                                    autocomplete="new-password"
+                                    required
+                                    ref={confirmPasswordElement} />
+                            </motion.div>
 
-                    <div className={styles.authButtons}>
-                        <motion.div
-                            initial="initial"
-                            animate="animate"
-                            variants={registerButtonVariants}
-                            transition={registerButtonTransition}
-                        >
-                            <MaterialIconButton icon="arrow_back" onClick={onSwitchMode} />
-                        </motion.div>
-                        <motion.div
-                            initial="initial"
-                            animate="animate"
-                            variants={registerButtonVariants}
-                            transition={registerButtonTransition}
-                        >
-                            <MaterialButton type="submit" disabled={isLoading} loading={isLoading} icon="person_add">
-                                {isLoading ? "Регистрация..." : "Зарегистрироваться"}
-                            </MaterialButton>
-                        </motion.div>
+                            <div className={styles.authButtons}>
+                                <motion.div
+                                    initial="initial"
+                                    animate="animate"
+                                    variants={registerButtonVariants}
+                                    transition={registerButtonTransition}
+                                >
+                                    <MaterialIconButton icon="arrow_back" onClick={onSwitchMode} />
+                                </motion.div>
+                                <motion.div
+                                    initial="initial"
+                                    animate="animate"
+                                    variants={registerButtonVariants}
+                                    transition={registerButtonTransition}
+                                >
+                                    <MaterialButton type="submit" disabled={isLoading} loading={isLoading} icon="person_add">
+                                        {isLoading ? "Регистрация..." : "Зарегистрироваться"}
+                                    </MaterialButton>
+                                </motion.div>
+                            </div>
+                            
+                        </motion.form>
                     </div>
-                    
-                </motion.form>
+                </div>
             </div>
-        </>
+        </div>
     );
 }
-
