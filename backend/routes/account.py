@@ -39,6 +39,9 @@ def _record_failed_login(identifier: str) -> bool:
 def _reset_failed_logins(identifier: str) -> None:
     _failed_login_attempts.pop(identifier, None)
 
+def _is_admin(user: User) -> bool:
+    return user.id == 1
+
 def convert_user(user: User) -> dict:
     return {
         "id": user.id,
@@ -49,7 +52,7 @@ def convert_user(user: User) -> dict:
         "display_name": user.display_name,
         "profile_picture": user.profile_picture,
         "bio": user.bio,
-        "admin": user.username == OWNER_USERNAME,
+        "admin": _is_admin(user),
         "verified": user.verified,
         "suspended": user.suspended or False,
         "suspension_reason": user.suspension_reason,
@@ -61,7 +64,7 @@ def check_auth(current_user: User = Depends(get_current_user)):
     return {
         "authenticated": True,
         "username": current_user.username,
-        "admin": current_user.username == OWNER_USERNAME
+        "admin": _is_admin(current_user)
     }
 
 
@@ -177,13 +180,6 @@ def register(request: Request, register_request: RegisterRequest, db: Session = 
     # Determine if owner already exists
     owner_exists = db.query(User).filter(User.username == OWNER_USERNAME).first() is not None
 
-    # If owner not yet registered, only allow the owner to register
-    if not owner_exists and username != OWNER_USERNAME:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Регистрация временно закрыта до регистрации владельца"
-        )
-
     # Validate input
     if not is_valid_username(username):
         raise HTTPException(
@@ -217,13 +213,6 @@ def register(request: Request, register_request: RegisterRequest, db: Session = 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Пароли не совпадают"
-        )
-
-    # After owner exists, disallow registering the reserved owner username via public registration
-    if owner_exists and username == OWNER_USERNAME:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Это имя пользователя зарезервировано"
         )
 
     existing_user = db.query(User).filter(User.username == username).first()
@@ -355,7 +344,7 @@ def delete_user_as_owner(
     db: Session = Depends(get_db)
 ):
     # Only owner can delete users
-    if current_user.username != OWNER_USERNAME:
+    if _is_admin(current_user):
         raise HTTPException(status_code=403, detail="Only owner can perform this action")
 
     user = db.query(User).filter(User.id == user_id).first()
@@ -363,7 +352,7 @@ def delete_user_as_owner(
         raise HTTPException(status_code=404, detail="User not found")
 
     # Prevent deleting the owner account via API
-    if user.username == OWNER_USERNAME:
+    if _is_admin(user):
         raise HTTPException(status_code=400, detail="Cannot delete owner account")
 
     # Manually delete user's messages to satisfy FK constraints
@@ -567,7 +556,7 @@ async def delete_account(
     Delete the current user's own account - preserves messages/DMs/reactions/files
     """
     # Prevent admin/owner account self-deletion
-    if current_user.username == OWNER_USERNAME or current_user.id == 1:
+    if _is_admin(current_user):
         raise HTTPException(status_code=400, detail="Cannot delete admin/owner account")
     
     await _delete_user_data(current_user, db)
