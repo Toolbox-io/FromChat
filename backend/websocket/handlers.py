@@ -3,13 +3,14 @@ import json
 import logging
 import time
 from typing import Any
-from fastapi import HTTPException, WebSocket
+from fastapi import HTTPException, WebSocket, Request
 from sqlalchemy.orm import Session
 
 from websocket.registry import WebSocketHandlerRegistry
 from routes.messaging import (
     MessaggingSocketManager,
     _send_message_internal,
+    _edit_message_internal,
     get_messages,
     edit_message,
     delete_message,
@@ -211,14 +212,11 @@ async def dmSend(manager: MessaggingSocketManager, websocket: WebSocket, db: Ses
 @websocket_handler("editMessage", authRequired=True)
 async def editMessage(manager: MessaggingSocketManager, websocket: WebSocket, db: Session, user: User, data: dict) -> dict | None:
     """Edit a public chat message."""
-    from types import SimpleNamespace
     
     message_id = data["message_id"]
-    request: EditMessageRequest = EditMessageRequest.model_validate(data)
+    edit_request: EditMessageRequest = EditMessageRequest.model_validate(data)
     
-    # Create a dummy request object for the HTTP endpoint function
-    dummy_request = SimpleNamespace()
-    response = await edit_message(dummy_request, message_id, request, user, db)
+    response = await _edit_message_internal(message_id, edit_request, user, db)
     await manager.broadcast({
         "type": "messageEdited",
         "data": response["message"]

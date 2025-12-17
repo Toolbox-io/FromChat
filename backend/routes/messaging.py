@@ -710,15 +710,16 @@ async def get_dm_conversations(request: Request, current_user: User = Depends(ge
     }
 
 
-@router.put("/edit_message/{message_id}")
-@rate_limit_per_ip("20/minute")
-async def edit_message(
-    request: Request,
+async def _edit_message_internal(
     message_id: int,
     edit_request: EditMessageRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+    current_user: User,
+    db: Session
+) -> dict:
+    """Internal function to edit a message without requiring a Request object.
+
+    This can be called from both HTTP endpoints and WebSocket handlers.
+    """
     message = db.query(Message).filter(Message.id == message_id).first()
 
     if not message:
@@ -765,6 +766,18 @@ async def edit_message(
     log_public_chat("message_edited", **log_fields)
 
     return {"status": "success", "message": payload}
+
+
+@router.put("/edit_message/{message_id}")
+@rate_limit_per_ip("20/minute")
+async def edit_message(
+    request: Request,
+    message_id: int,
+    edit_request: EditMessageRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return await _edit_message_internal(message_id, edit_request, current_user, db)
 
 
 @router.delete("/delete_message/{message_id}")
