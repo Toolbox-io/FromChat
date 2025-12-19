@@ -1049,6 +1049,7 @@ class MessaggingSocketManager:
         
         # Skip if this exact update was recently added
         if signature in self.recent_updates[websocket]:
+            logger.warning(f"Update was skipped due to duplicate signature {signature}")
             return
         
         # Add to pending updates and track signature
@@ -1056,10 +1057,8 @@ class MessaggingSocketManager:
         self.recent_updates[websocket].add(signature)
         
         # Limit recent updates cache size (keep last 100 signatures per websocket)
-        if len(self.recent_updates[websocket]) > 100:
-            # Remove oldest entries (simple FIFO by converting to list and keeping last 100)
-            # Actually, we'll just clear and rebuild on next flush - simpler approach
-            pass
+        if len(self.recent_updates[websocket]) > 1:
+            self.recent_updates[websocket] = set(list(self.recent_updates[websocket])[-1])
 
     async def _flush_updates(self, websocket: WebSocket, db: Session | None = None):
         """Flush pending updates for a WebSocket connection"""
