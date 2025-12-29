@@ -108,6 +108,16 @@ app.add_middleware(SlowAPIMiddleware)
 
 @app.middleware("http")
 async def access_logging_middleware(request: Request, call_next):
+    # Log incoming request and Authorization header presence for debugging auth issues
+    try:
+        auth_header = request.headers.get("authorization")
+        if auth_header:
+            short = auth_header[:20] + "..." if len(auth_header) > 20 else auth_header
+            logger.info("Incoming request %s %s Authorization=%s", request.method, request.url.path, short)
+        else:
+            logger.info("Incoming request %s %s Authorization=NONE", request.method, request.url.path)
+    except Exception:
+        pass
     start = time.perf_counter()
     try:
         response = await call_next(request)

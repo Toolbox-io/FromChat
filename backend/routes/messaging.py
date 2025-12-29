@@ -24,11 +24,14 @@ from push_service import push_service
 from PIL import Image
 import io
 import json
+from pydantic import BaseModel
 from better_profanity import profanity as _bp
 from security.audit import log_access, log_dm, log_public_chat, log_security
 from security.profanity import contains_profanity
 from security.rate_limit import rate_limit_per_ip
 from websocket.utils import authenticate_user
+
+from models import FcmToken
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -452,6 +455,97 @@ async def send_message(
     return await _send_message_internal(message_request, current_user, db, files)
 
 
+class RegisterFcmRequest(BaseModel):
+    token: str
+
+
+@router.post("/push/register")
+async def register_fcm_token(request: Request, body: RegisterFcmRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Register or update an FCM token for the authenticated user.
+    """
+    token = body.token.strip() if body and body.token else None
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing token")
+
+    try:
+        # If token already exists (from another device), reassign it to this user.
+        token_row = db.query(FcmToken).filter(FcmToken.token == token).first()
+        if token_row:
+            token_row.user_id = current_user.id
+        else:
+            # Create new token record (allow multiple tokens per user)
+            new = FcmToken(user_id=current_user.id, token=token)
+            db.add(new)
+        db.commit()
+        logger.info(f"Registered FCM token for user {current_user.id}: {token}")
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail="Failed to save token")
+
+    return {"status": "success"}
+
+
+@router.post("/push/unregister")
+async def unregister_fcm_token(request: Request, body: RegisterFcmRequest | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Unregister an FCM token. If `body.token` provided, remove only that token for the user.
+    If no token provided, remove all tokens for the user.
+    """
+    try:
+        if body and body.token:
+            db.query(FcmToken).filter(FcmToken.user_id == current_user.id, FcmToken.token == body.token.strip()).delete()
+        else:
+            db.query(FcmToken).filter(FcmToken.user_id == current_user.id).delete()
+        db.commit()
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail="Failed to remove token")
+
+    return {"status": "success"}
+
+
+@router.post("/push/test")
+async def push_test(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Send a test push to the current user's registered FCM token (for manual testing).
+    """
+    try:
+        fcm_rows = db.query(FcmToken).filter(FcmToken.user_id == current_user.id).all()
+        if not fcm_rows:
+            raise HTTPException(status_code=404, detail="No FCM token registered for user")
+
+        title = "FromChat test"
+        body = "This is a test push from the server"
+        data = {"type": "test", "timestamp": datetime.utcnow().isoformat()}
+
+        # Use push_service which uses Admin SDK internally; attempt to send to all tokens
+        failures = []
+        for fcm in fcm_rows:
+            try:
+                push_service._send_fcm_to_token(fcm.token, title, body, data)
+            except Exception as e:
+                logger.error(f"Failed to send test push to user {current_user.id} token {fcm.token}: {e}")
+                failures.append(str(e))
+
+        if failures and len(failures) == len(fcm_rows):
+            # All failed
+            raise HTTPException(status_code=500, detail=f"Failed to send push to any token: {failures}")
+
+        return {"status": "success", "sent": len(fcm_rows) - len(failures), "failed": len(failures)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"push_test error: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
+
+
 @router.get("/get_messages")
 @rate_limit_per_ip("60/minute")  # Per-IP limit to prevent abuse
 async def get_messages(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -465,6 +559,43 @@ async def get_messages(request: Request, current_user: User = Depends(get_curren
         "status": "success",
         "messages": messages_data
     }
+
+
+class MarkReadRequest(BaseModel):
+    messageIds: list[int]
+
+
+@router.get("/messages/new")
+@rate_limit_per_ip("60/minute")
+async def get_new_messages(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Return unread public messages (Message.is_read == False).
+    """
+    new_messages = db.query(Message).filter(Message.is_read == False).order_by(Message.timestamp.asc()).all()
+    messages_data = [convert_message(msg) for msg in new_messages]
+    return {"status": "success", "messages": messages_data}
+
+
+@router.post("/messages/read")
+@rate_limit_per_ip("60/minute")
+async def mark_messages_read(request: Request, read_request: MarkReadRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Mark specified message IDs as read (set Message.is_read = True).
+    """
+    if not read_request or not isinstance(read_request.messageIds, list) or len(read_request.messageIds) == 0:
+        return {"status": "success", "updated": 0}
+
+    try:
+        updated_count = db.query(Message).filter(Message.id.in_(read_request.messageIds)).update({Message.is_read: True}, synchronize_session=False)
+        db.commit()
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail="Failed to mark messages as read")
+
+    return {"status": "success", "updated": int(updated_count)}
 
 
 @router.post("/dm/send")

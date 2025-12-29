@@ -9,4 +9,5 @@ JWT_SECRET="$(openssl rand -base64 32)"
 TURN_USERNAME=<set>
 TURN_SECRET=<set>
 DEPLOYMENT_SERVER=<set>
+FIREBASE_CERT=<set>
 EOF

@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session
 from utils import verify_token
 from models import User, DeviceSession
 from db import SessionLocal
+import logging
 
 security = HTTPBearer()
+logger = logging.getLogger("uvicorn.error")
 
 # Зависимость для получения сессии БД
 def get_db():
@@ -23,8 +25,17 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     token = credentials.credentials
-    payload = verify_token(token)
+    try:
+        payload = verify_token(token)
+    except Exception as e:
+        logger.warning("get_current_user: token verification error: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     if not payload:
+        logger.info("get_current_user: verify_token returned empty payload")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -32,6 +43,7 @@ def get_current_user(
         )
     user = db.query(User).filter(User.id == payload["user_id"]).first()
     if not user:
+        logger.info("get_current_user: user not found for user_id=%s", payload.get("user_id"))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -60,6 +72,7 @@ def get_current_user(
     )
 
     if not device_session or device_session.revoked:
+        logger.info("get_current_user: session missing/revoked for user_id=%s session_id=%s", user.id, session_id)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session revoked or not found",
@@ -73,6 +86,7 @@ def get_current_user(
         # Session expired due to inactivity - revoke it
         device_session.revoked = True
         db.commit()
+        logger.info("get_current_user: session expired due to inactivity for user_id=%s session_id=%s", user.id, session_id)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired due to inactivity",
@@ -85,6 +99,7 @@ def get_current_user(
 
     # Check if user is suspended
     if user.suspended:
+        logger.info("get_current_user: account suspended for user_id=%s reason=%s", user.id, user.suspension_reason)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account suspended",
@@ -93,6 +108,7 @@ def get_current_user(
 
     # Check if user is deleted
     if user.deleted:
+        logger.info("get_current_user: account deleted for user_id=%s", user.id)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account deleted",
