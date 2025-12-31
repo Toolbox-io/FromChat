@@ -8,6 +8,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      FIREBASE_CERT: ${FIREBASE_CERT}
     volumes:
       - data:/app/data
       - logs:/app/logs

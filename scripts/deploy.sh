@@ -113,56 +113,115 @@ fi
 
 step "Authentication"
 SSH_KEY_FILE="$HOME/.ssh/id_rsa"
+SSH_KEY_PUB_FILE="$SSH_KEY_FILE.pub"
 
 # Ensure ssh-agent is running
 if [ -z "$SSH_AUTH_SOCK" ]; then
     eval "$(ssh-agent -s)" > /dev/null 2>&1
 fi
 
-# Add SSH key to agent if not already loaded
-if [ -f "$SSH_KEY_FILE" ]; then
-    # Check if key is already loaded
-    KEY_LOADED=false
-    if ssh-add -l > /dev/null 2>&1; then
-        # Check if this specific key is loaded by trying to match the public key
-        KEY_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY_FILE" 2>/dev/null | awk '{print $2}')
-        if [ -n "$KEY_FINGERPRINT" ] && ssh-add -l 2>/dev/null | grep -q "$KEY_FINGERPRINT"; then
-            KEY_LOADED=true
-        fi
-    fi
-    
-    if [ "$KEY_LOADED" = false ]; then
-        substep "Adding SSH key to agent..."
-        ssh-add "$SSH_KEY_FILE" 2>/dev/null || true
-    fi
-else
-    warning "SSH key not found at $SSH_KEY_FILE"
+# Check if SSH key exists
+if [ ! -f "$SSH_KEY_FILE" ]; then
+    error "SSH key not found at $SSH_KEY_FILE"
+    echo "   Please generate an SSH key pair first:"
+    echo "   ssh-keygen -t rsa -b 4096 -C 'your_email@example.com'"
+    exit 1
 fi
 
-# Test SSH connection once to cache the key (this will prompt for passphrase if needed)
-ssh -o ConnectTimeout=5 "$SERVER" "echo" > /dev/null 2>&1 || true
+# Add SSH key to agent if not already loaded
+KEY_LOADED=false
+if ssh-add -l > /dev/null 2>&1; then
+    # Check if this specific key is loaded by trying to match the public key
+    KEY_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY_FILE" 2>/dev/null | awk '{print $2}')
+    if [ -n "$KEY_FINGERPRINT" ] && ssh-add -l 2>/dev/null | grep -q "$KEY_FINGERPRINT"; then
+        KEY_LOADED=true
+    fi
+fi
+
+if [ "$KEY_LOADED" = false ]; then
+    substep "Adding SSH key to agent..."
+    if ! ssh-add "$SSH_KEY_FILE" 2>/dev/null; then
+        error "Failed to add SSH key to agent. Check your key passphrase."
+        exit 1
+    fi
+fi
+
+# Check if SSH key authentication already works
+if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$SERVER" "echo 'SSH key works'" >/dev/null 2>&1; then
+    # SSH key already works, no need to copy
+    true
+else
+    # Check if our public key is already on the server
+    KEY_CONTENT=$(cat "$SSH_KEY_PUB_FILE")
+    if ssh -o BatchMode=no -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$SERVER" "
+        grep -q '$KEY_CONTENT' ~/.ssh/authorized_keys 2>/dev/null
+    " >/dev/null 2>&1; then
+        # Key exists but authentication failed - might be permissions issue
+        error "SSH key found on server but authentication failed. Check server SSH configuration."
+        exit 1
+    else
+        # Key not on server, need to copy it
+        substep "SSH password: " -n
+        SSH_PASSWORD=$(read_password)
+
+        if [ -z "$SSH_PASSWORD" ]; then
+            error "No SSH password provided"
+            exit 1
+        fi
+
+        substep "Copying SSH key to server..."
+        if command -v expect >/dev/null 2>&1; then
+            expect << EOF >/dev/null 2>&1
+spawn ssh-copy-id -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i "$SSH_KEY_PUB_FILE" "$SERVER"
+expect "password:"
+send "$SSH_PASSWORD\r"
+expect eof
+EOF
+            if [ $? -eq 0 ]; then
+                true
+            else
+                error "Failed to copy SSH key to server"
+                exit 1
+            fi
+        else
+            error "expect not available - cannot copy SSH key"
+            exit 1
+        fi
+    fi
+fi
 
 # ============================================================================
 # SUDO AUTHENTICATION
 # ============================================================================
 
 SUDO_PASSWORD=""
-while true; do
-    substep "Sudo password: " -n
-    SUDO_PASSWORD=$(read_password)
-    
-    if [ -z "$SUDO_PASSWORD" ]; then
-        warning "No password provided - assuming passwordless sudo"
-        break
-    fi
-    
-    if echo "$SUDO_PASSWORD" | ssh "$SERVER" "sudo -S -v" > /dev/null 2>&1; then
+# If SSH password was provided, try using it for sudo first
+if [ -n "$SSH_PASSWORD" ]; then
+    if echo "$SSH_PASSWORD" | ssh "$SERVER" "sudo -S -v" > /dev/null 2>&1; then
+        SUDO_PASSWORD="$SSH_PASSWORD"
         export SUDO_PASSWORD
-        break
-    else
-        echo -n "  " && error "Invalid password, please try again"
     fi
-done
+fi
+
+# If we don't have a working sudo password yet, prompt for it
+if [ -z "$SUDO_PASSWORD" ]; then
+    while true; do
+        substep "Sudo password: " -n
+        SUDO_PASSWORD=$(read_password)
+
+        if [ -z "$SUDO_PASSWORD" ]; then
+            warning "No password provided - assuming passwordless sudo"
+            break
+        fi
+
+        if echo "$SUDO_PASSWORD" | ssh "$SERVER" "sudo -S -v" > /dev/null 2>&1; then
+            export SUDO_PASSWORD
+            break
+        else
+            echo -n "  " && error "Invalid password, please try again"
+        fi
+    done
+fi
 
 # ============================================================================
 # BUILD PHASE

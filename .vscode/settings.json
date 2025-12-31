@@ -6,5 +6,6 @@
         "**/.husky/_": true,
         "**/.venv": true,
         "**/node_modules": true
-    }
+    },
+    "python.terminal.activateEnvironment": false
 }

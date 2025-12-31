@@ -31,7 +31,7 @@
         "install:pussh": "bash ./scripts/install:pussh.sh",
         "prepare": "husky",
         "generate:env": "bash ./scripts/generate:env.sh",
-        "deploy": "bash ./scripts/deploy.sh"
+        "deploy": "dotenv -e deployment/.env -- bash ./scripts/deploy.sh"
     },
     "files": [
         "frontend/build/electron"
