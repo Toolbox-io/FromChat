@@ -20,18 +20,33 @@ def run_migrations():
     Fully automated - handles all scenarios automatically.
     """
     try:
+        # FIRST: Check if database has any application tables (excluding alembic_version)
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as connection:
+            from sqlalchemy import inspect
+            inspector = inspect(connection)
+            existing_tables = [table for table in inspector.get_table_names()
+                             if not table.startswith('sqlite_') and table != 'alembic_version']
+
+        # If no application tables exist, create them directly from models
+        if not existing_tables:
+            logger.info("No application tables found. Creating all tables directly from models...")
+            from models import Base
+            Base.metadata.create_all(bind=engine)
+            logger.info("All tables created successfully from models.")
+
         # Get the directory where this script is located
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        
+
         # Create Alembic configuration
         alembic_cfg = Config(os.path.join(current_dir, "alembic.ini"))
-        
+
         # Disable Alembic's logging configuration to avoid interfering with FastAPI
         alembic_cfg.set_main_option("configure_logging", "false")
-        
+
         # Set the database URL in the config
         alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
-        
+
         # Check if any migration files exist
         versions_dir = os.path.join(current_dir, "alembic", "versions")
 

@@ -20,9 +20,10 @@ from slowapi.middleware import SlowAPIMiddleware
 
 logger = logging.getLogger("uvicorn.error")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup - run migration in separate process to avoid logging interference
+    # Startup - run migration in subprocess to avoid logging interference
     try:
         logger.info("Starting database migration check...")
         # Run migration in a separate process
@@ -37,10 +38,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to run database migrations: {e}")
         raise
-    
+
     try:
         with SessionLocal() as db:
-            owner = db.query(User).filter(User.username == OWNER_USERNAME).first()
+            owner = db.query(User).filter(User.id == 1).first()
             if owner and not owner.verified:
                 owner.verified = True
                 db.commit()
