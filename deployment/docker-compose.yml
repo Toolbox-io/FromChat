@@ -1,6 +1,6 @@
 services:
   backend:
-    build: 
+    build:
       dockerfile: deployment/Dockerfile.backend
       context: ..
     environment:
@@ -22,7 +22,7 @@ services:
           path: ../backend/requirements.txt
 
   frontend:
-    build: 
+    build:
       dockerfile: deployment/frontend/Dockerfile
       context: ..
     environment:
@@ -47,7 +47,6 @@ services:
       context: ./caddy
       dockerfile: Dockerfile
     restart: unless-stopped
-    profiles: ["prod"]
     ports:
       - "80:80"
       - "443:443"
@@ -64,3 +63,5 @@ volumes:
     name: fromchat-data
   logs:
     name: fromchat-logs
+  certs:
+    name: fromchat-certs
