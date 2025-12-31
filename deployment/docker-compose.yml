@@ -42,6 +42,23 @@ services:
         - action: rebuild
           path: package.json
 
+  caddy:
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    profiles: ["prod"]
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - certs:/root/site/certs
+    environment:
+      XDG_DATA_HOME: /root/site/certs
+      XDG_CONFIG_HOME: /root/site/certs
+
 volumes:
   data:
     name: fromchat-data
