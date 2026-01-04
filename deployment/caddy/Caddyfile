@@ -78,3 +78,11 @@ beta.fromchat.ru {
 		}
 	}
 }
+
+api.getgadgets.toolbox-io.ru {
+    reverse_proxy 95.165.0.162:8400
+}
+
+getgadgets.toolbox-io.ru {
+    reverse_proxy 95.165.0.162:8401
+}
