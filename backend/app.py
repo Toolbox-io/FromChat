@@ -8,11 +8,11 @@ import sys
 import os
 from routes import account, messaging, profile, push, webrtc, devices, moderation
 import logging
-from models import User
-from constants import OWNER_USERNAME
-from utils import get_client_ip
+from backend.shared.models import User
+from backend.shared.constants import OWNER_USERNAME
+from backend.shared.utils import get_client_ip
 
-from db import POOL_CONFIG, SessionLocal
+from backend.shared.db import POOL_CONFIG, SessionLocal
 from logging_config import access_logger  # noqa: F401 - ensure loggers configured
 from security.audit import log_access
 from security.rate_limit import limiter

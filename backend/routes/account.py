@@ -8,16 +8,16 @@ import uuid
 from user_agents import parse as parse_ua
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from constants import OWNER_USERNAME
-from dependencies import get_current_user, get_db
-from models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
-from utils import create_token, get_password_hash, verify_password, get_client_ip
-from validation import is_valid_password, is_valid_username, is_valid_display_name
+from backend.shared.constants import OWNER_USERNAME
+from backend.shared.dependencies import get_current_user, get_db
+from backend.shared.models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
+from backend.shared.utils import create_token, get_password_hash, verify_password, get_client_ip
+from backend.shared.validation import is_valid_password, is_valid_username, is_valid_display_name
 import os
 
-from security.audit import log_security
-from security.profanity import contains_profanity
-from security.rate_limit import rate_limit_per_ip
+from backend.security.audit import log_security
+from backend.security.profanity import contains_profanity
+from backend.security.rate_limit import rate_limit_per_ip
 router = APIRouter()
 
 _FAILED_ATTEMPT_WINDOW_SECONDS = 300
@@ -356,7 +356,7 @@ def delete_user_as_owner(
         raise HTTPException(status_code=400, detail="Cannot delete owner account")
 
     # Manually delete user's messages to satisfy FK constraints
-    from models import Message  # local import to avoid circular
+    from backend.shared.models import Message  # local import to avoid circular
     db.query(Message).filter(Message.user_id == user.id).delete()
 
     db.delete(user)
@@ -381,7 +381,7 @@ def logout(
     db: Session = Depends(get_db)
 ):
     # Revoke current session
-    from utils import verify_token as _verify_token
+    from backend.shared.utils import verify_token as _verify_token
     payload = _verify_token(credentials.credentials)
     if payload and payload.get("session_id"):
         db.query(DeviceSession).filter(
@@ -427,7 +427,7 @@ def change_password(
 
     # Optionally revoke all other sessions, keeping the current one
     if password_request.logoutAllExceptCurrent:
-        from utils import verify_token as _verify_token
+        from backend.shared.utils import verify_token as _verify_token
         payload = _verify_token(credentials.credentials)
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")

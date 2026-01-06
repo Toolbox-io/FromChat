@@ -16,29 +16,29 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from dependencies import get_current_user, get_db
-from .account import convert_user
-from constants import OWNER_USERNAME
-from models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile, Reaction, ReactionRequest, ReactionResponse, DMReaction, DMReactionRequest, DMReactionResponse, UpdateLog
-from push_service import push_service
+from backend.shared.dependencies import get_current_user, get_db
+from backend.shared.utils import convert_user
+from backend.shared.constants import OWNER_USERNAME
+from backend.shared.models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile, Reaction, ReactionRequest, ReactionResponse, DMReaction, DMReactionRequest, DMReactionResponse, UpdateLog
+import backend.push_service as push_service
 from PIL import Image
 import io
 import json
 from pydantic import BaseModel
 from better_profanity import profanity as _bp
-from security.audit import log_access, log_dm, log_public_chat, log_security
-from security.profanity import contains_profanity
-from security.rate_limit import rate_limit_per_ip
-from websocket.utils import authenticate_user
+from backend.security.audit import log_access, log_dm, log_public_chat, log_security
+from backend.security.profanity import contains_profanity
+from backend.security.rate_limit import rate_limit_per_ip
+from backend.websocket.utils import authenticate_user
 
-from models import FcmToken
+from backend.shared.models import FcmToken
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
 
 MAX_TOTAL_SIZE = 4 * 1024 * 1024 * 1024  # 4 GB
 
-FILES_BASE_DIR = Path("data/uploads/files")
+FILES_BASE_DIR = Path(__file__).resolve().parent.parent / "data" / "uploads" / "files"
 FILES_NORMAL_DIR = FILES_BASE_DIR / "normal"
 FILES_ENCRYPTED_DIR = FILES_BASE_DIR / "encrypted"
 

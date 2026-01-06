@@ -9,7 +9,7 @@ from typing import Iterable, List, Set, Tuple
 
 from better_profanity import Profanity
 
-BLOCKLIST_PATH = Path("data/profanity/blocklist.json")
+BLOCKLIST_PATH = Path(__file__).resolve().parent.parent / "data" / "profanity" / "blocklist.json"
 BLOCKLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 _CUSTOM_RU_TERMS: Set[str] = {

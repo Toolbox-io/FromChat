@@ -2,8 +2,8 @@ from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from types import SimpleNamespace
-from dependencies import get_current_user
-from models import User
+from backend.shared.dependencies import get_current_user
+from backend.shared.models import User
 
 
 def extract_token_from_data(data: dict) -> str | None:

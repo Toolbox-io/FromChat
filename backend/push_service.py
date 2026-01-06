@@ -4,8 +4,7 @@ import os
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from pywebpush import webpush, WebPushException
-from models import PushSubscription, User, Message, DMEnvelope
-from models import FcmToken
+from backend.shared.models import PushSubscription, User, Message, DMEnvelope, FcmToken
 import firebase_admin
 from firebase_admin import credentials as firebase_credentials
 from firebase_admin import messaging as firebase_messaging

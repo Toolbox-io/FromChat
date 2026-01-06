@@ -314,6 +314,8 @@ step "Detecting services"
 cd "$DEPLOYMENT_DIR"
 SERVICES=$(docker compose -f docker-compose.yml config --services 2>/dev/null)
 
+# Note: Using multi-stage Dockerfile - no separate base image build needed
+
 if [ -z "$SERVICES" ]; then
     error "No services found in docker-compose.yml"
 fi
@@ -340,7 +342,11 @@ for SERVICE in $SERVICES; do
     DOCKERFILE_REL=$(echo "$BUILD_OUTPUT" | grep "dockerfile:" | \
         sed 's/.*dockerfile:[[:space:]]*\(.*\)/\1/' | \
         tr -d '"' | tr -d "'" | xargs)
-    
+
+    TARGET=$(echo "$BUILD_OUTPUT" | grep "target:" | \
+        sed 's/.*target:[[:space:]]*\(.*\)/\1/' | \
+        tr -d '"' | tr -d "'" | xargs)
+
     CONTEXT_REL=$(echo "$BUILD_OUTPUT" | grep "context:" | \
         sed 's/.*context:[[:space:]]*\(.*\)/\1/' | \
         tr -d '"' | tr -d "'" | xargs)
@@ -377,12 +383,18 @@ for SERVICE in $SERVICES; do
         fi
     fi
     
-    if docker buildx build \
-        --platform "$PLATFORM" \
-        --file "$DOCKERFILE" \
-        --tag "$IMAGE_TAG" \
-        --load \
-        "$BUILD_CONTEXT"; then
+    # Safety check: ensure no sqlite in DATABASE_URL for Docker services
+    if grep -q "DATABASE_URL.*sqlite" "$DEPLOYMENT_DIR/docker-compose.yml" 2>/dev/null; then
+        error "Found sqlite DATABASE_URL in docker-compose.yml - SQLite not allowed in Docker"
+        exit 1
+    fi
+
+    BUILD_ARGS="--platform \"$PLATFORM\" --file \"$DOCKERFILE\" --tag \"$IMAGE_TAG\" --load"
+    if [ -n "$TARGET" ]; then
+        BUILD_ARGS="$BUILD_ARGS --target \"$TARGET\""
+    fi
+
+    if docker buildx build $BUILD_ARGS "$BUILD_CONTEXT"; then
         echo -e "  ${GREEN}✓${NC} Built ${CYAN}$SERVICE${NC}"
         BUILT_IMAGES+=("$IMAGE_TAG")
         echo ""

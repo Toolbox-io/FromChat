@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import List
 
-from constants import OWNER_USERNAME
-from dependencies import get_current_user
-from models import User
-from security.audit import log_security
-from security.profanity import add_to_blocklist, get_blocklist, remove_from_blocklist
-from security.rate_limit import reset_rate_limit_for_ip, clear_all_rate_limits
+from backend.shared.constants import OWNER_USERNAME
+from backend.shared.dependencies import get_current_user
+from backend.shared.models import User
+from backend.security.audit import log_security
+from backend.security.profanity import add_to_blocklist, get_blocklist, remove_from_blocklist
+from backend.security.rate_limit import reset_rate_limit_for_ip, clear_all_rate_limits
 
 
 class BlocklistUpdateRequest(BaseModel):

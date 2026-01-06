@@ -1,0 +1,122 @@
+# Multi-stage Dockerfile for all FromChat microservices
+# This combines the base image and all services in one file
+
+# Base stage - common setup for all services
+FROM python:3.11-slim AS base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash fromchat
+
+# Set working directory
+WORKDIR /app
+
+# Create logs and data directories with proper permissions
+RUN mkdir -p /app/backend/logs /app/backend/data /app/backend/data/profanity /app/backend/data/uploads /app/backend/data/uploads/pfp && \
+    chown -R fromchat:fromchat /app/backend/logs /app/backend/data && \
+    chmod -R 755 /app/backend/logs /app/backend/data
+
+# Copy requirements first for better caching
+COPY backend/requirements.txt /app/requirements.txt
+
+# Install Python dependencies with cache mounts
+RUN --mount=type=cache,target=/home/fromchat/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy shared modules
+COPY backend/shared /app/backend/shared/
+
+# Copy entrypoint script
+COPY docker/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Switch to non-root user
+USER fromchat
+
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Account service - minimal files only
+FROM base AS account_service
+COPY backend/routes/account.py /app/backend/routes/account.py
+COPY backend/security /app/backend/security/
+COPY backend/logging_config.py /app/backend/logging_config.py
+COPY backend/services/account/main.py /app/backend/services/account/main.py
+ENV SERVICE_NAME=account
+
+# Profile service - minimal files only
+FROM base AS profile_service
+COPY backend/routes/profile.py /app/backend/routes/profile.py
+COPY backend/routes/messaging.py /app/backend/routes/messaging.py
+COPY backend/push_service.py /app/backend/push_service.py
+COPY backend/security /app/backend/security/
+COPY backend/logging_config.py /app/backend/logging_config.py
+COPY backend/websocket /app/backend/websocket/
+COPY backend/similarity.py /app/backend/similarity.py
+COPY backend/services/profile/main.py /app/backend/services/profile/main.py
+ENV SERVICE_NAME=profile
+
+# Device service - minimal files only
+FROM base AS device_service
+COPY backend/routes/devices.py /app/backend/routes/devices.py
+COPY backend/services/device/main.py /app/backend/services/device/main.py
+ENV SERVICE_NAME=device
+
+# Messaging service - minimal files only
+FROM base AS messaging_service
+COPY backend/routes/messaging.py /app/backend/routes/messaging.py
+COPY backend/push_service.py /app/backend/push_service.py
+COPY backend/security /app/backend/security/
+COPY backend/logging_config.py /app/backend/logging_config.py
+COPY backend/websocket /app/backend/websocket/
+COPY backend/services/messaging/main.py /app/backend/services/messaging/main.py
+ENV SERVICE_NAME=messaging
+
+# Push service - minimal files only
+FROM base AS push_service
+COPY backend/routes/push.py /app/backend/routes/push.py
+COPY backend/push_service.py /app/backend/push_service.py
+COPY backend/services/push/main.py /app/backend/services/push/main.py
+ENV SERVICE_NAME=push
+
+# WebRTC service - minimal files only
+FROM base AS webrtc_service
+COPY backend/routes/webrtc.py /app/backend/routes/webrtc.py
+COPY backend/services/webrtc/main.py /app/backend/services/webrtc/main.py
+ENV SERVICE_NAME=webrtc
+
+# Moderation service - minimal files only
+FROM base AS moderation_service
+COPY backend/routes/moderation.py /app/backend/routes/moderation.py
+COPY backend/security /app/backend/security/
+COPY backend/similarity.py /app/backend/similarity.py
+COPY backend/logging_config.py /app/backend/logging_config.py
+COPY backend/services/moderation/main.py /app/backend/services/moderation/main.py
+ENV SERVICE_NAME=moderation
+
+# Gateway service - minimal files only
+FROM base AS gateway
+COPY backend/app.py /app/backend/app.py
+COPY backend/main.py /app/backend/main.py
+COPY backend/dependencies.py /app/backend/dependencies.py
+COPY backend/security /app/backend/security/
+COPY backend/services/gateway/main.py /app/backend/services/gateway/main.py
+ENV SERVICE_NAME=gateway
+
+# Migration runner - needs alembic config and migration files
+FROM base AS migration_runner
+# Temporarily switch back to root to manage file permissions
+USER root
+COPY backend/alembic.ini /app/backend/alembic.ini
+COPY backend/alembic /app/backend/alembic/
+COPY backend/migration.py /app/backend/migration.py
+COPY backend/services/migration_runner/main.py /app/backend/services/migration_runner/main.py
+# Clean up problematic migrations as root
+RUN find /app/backend/alembic/versions -name "*auto_generated_migration_for_schema_*" | xargs rm -f || true
+# Switch back to fromchat user
+USER fromchat
+ENV SERVICE_NAME=migration_runner

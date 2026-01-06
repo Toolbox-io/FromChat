@@ -9,15 +9,15 @@ import uuid
 import io
 from fastapi import Request
 
-from dependencies import get_db, get_current_user
-from models import User, UpdateBioRequest, UserProfileResponse
+from backend.shared.dependencies import get_db, get_current_user
+from backend.shared.models import User, UpdateBioRequest, UserProfileResponse
 from pydantic import BaseModel
-from validation import is_valid_username, is_valid_display_name
-from similarity import is_user_similar_to_verified
+from backend.shared.validation import is_valid_username, is_valid_display_name
+from backend.similarity import is_user_similar_to_verified
 from .messaging import messagingManager
-from security.audit import log_security
-from security.profanity import contains_profanity
-from security.rate_limit import rate_limit_per_ip
+from backend.security.audit import log_security
+from backend.security.profanity import contains_profanity
+from backend.security.rate_limit import rate_limit_per_ip
 
 router = APIRouter()
 
@@ -36,7 +36,7 @@ class UpdateProfileRequest(BaseModel):
     description: str | None = None
 
 # Create uploads directory if it doesn't exist
-PROFILE_PICTURES_DIR = Path("data/uploads/pfp")
+PROFILE_PICTURES_DIR = Path(__file__).resolve().parent.parent / "data" / "uploads" / "pfp"
 
 os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
 

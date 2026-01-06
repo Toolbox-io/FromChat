@@ -8,7 +8,7 @@ from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from utils import get_client_ip
+from backend.shared.utils import get_client_ip
 
 logger = logging.getLogger("uvicorn.error")
 

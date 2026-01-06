@@ -1,67 +1,322 @@
 services:
-  backend:
-    build:
-      dockerfile: deployment/Dockerfile.backend
-      context: ..
+  # Database service
+  db:
+    image: postgres:15
     environment:
-      PORT: 8300
-      JWT_SECRET: ${JWT_SECRET}
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
-      FIREBASE_CERT: ${FIREBASE_CERT}
+      POSTGRES_DB: fromchat
+      POSTGRES_USER: fromchat_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     volumes:
-      - data:/app/data
-      - logs:/app/logs
-
-    develop:
-      watch:
-        - action: sync+restart
-          path: ../backend
-          target: /app
-        - action: rebuild
-          path: ../backend/requirements.txt
-
-  frontend:
-    build:
-      dockerfile: deployment/frontend/Dockerfile
-      context: ..
-    environment:
-      PORT: 8301
-      BACKEND_HOST: http://backend:8300
-    ports:
-      - "8301:8301"
-    depends_on:
-      - backend
-    develop:
-      watch:
-        - action: rebuild
-          path: ../frontend
-        - action: sync+restart
-          path: server.js
-          target: /server/server.js
-        - action: rebuild
-          path: package.json
-
-  caddy:
-    build:
-      context: ./caddy
-      dockerfile: Dockerfile
+      - postgres_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    networks:
+      - fromchat_internal
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fromchat_admin -d fromchat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Migration runner - runs once before other services
+  migration_runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: migration_runner
+    environment:
+      DATABASE_URL: postgresql://fromchat_admin:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - fromchat_internal
+    develop:
+      watch:
+        - action: sync
+          path: backend/alembic.ini
+          target: /app/backend/alembic.ini
+        - action: sync
+          path: backend/alembic
+          target: /app/backend/alembic
+        - action: sync
+          path: backend/migration.py
+          target: /app/backend/migration.py
+        - action: sync
+          path: backend/services/migration_runner
+          target: /app/backend/services/migration_runner
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # Gateway service - handles complex operations
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: gateway
+    environment:
+      DATABASE_URL: postgresql://gateway_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+    depends_on:
+      migration_runner:
+        condition: service_completed_successfully
+    networks:
+      - fromchat_internal
+      - fromchat_external
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: backend/app.py
+          target: /app/backend/app.py
+        - action: sync
+          path: backend/main.py
+          target: /app/backend/main.py
+        - action: sync
+          path: backend/dependencies.py
+          target: /app/backend/dependencies.py
+        - action: sync
+          path: backend/security
+          target: /app/backend/security
+        - action: sync
+          path: backend/services/gateway
+          target: /app/backend/services/gateway
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # Account service
+  account_service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: account_service
+    environment:
+      DATABASE_URL: postgresql://account_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+    depends_on:
+      migration_runner:
+        condition: service_completed_successfully
+    networks:
+      - fromchat_internal
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: backend/routes/account.py
+          target: /app/backend/routes/account.py
+        - action: sync
+          path: backend/services/account
+          target: /app/backend/services/account
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # Profile service
+  profile_service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: profile_service
+    environment:
+      DATABASE_URL: postgresql://profile_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      FIREBASE_CERT: ${FIREBASE_CERT:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+    depends_on:
+      migration_runner:
+        condition: service_completed_successfully
+    networks:
+      - fromchat_internal
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: backend/routes/profile.py
+          target: /app/backend/routes/profile.py
+        - action: sync
+          path: backend/services/profile
+          target: /app/backend/services/profile
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # Device service
+  device_service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: device_service
+    environment:
+      DATABASE_URL: postgresql://device_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+    depends_on:
+      migration_runner:
+        condition: service_completed_successfully
+    networks:
+      - fromchat_internal
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: backend/routes/devices.py
+          target: /app/backend/routes/devices.py
+        - action: sync
+          path: backend/services/device
+          target: /app/backend/services/device
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # Messaging service
+  messaging_service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: messaging_service
+    environment:
+      DATABASE_URL: postgresql://messaging_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      FIREBASE_CERT: ${FIREBASE_CERT:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+    depends_on:
+      migration_runner:
+        condition: service_completed_successfully
+    networks:
+      - fromchat_internal
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: backend/routes/messaging.py
+          target: /app/backend/routes/messaging.py
+        - action: sync
+          path: backend/websocket
+          target: /app/backend/websocket
+        - action: sync
+          path: backend/services/messaging
+          target: /app/backend/services/messaging
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # Push service
+  push_service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: push_service
+    environment:
+      DATABASE_URL: postgresql://push_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      FIREBASE_CERT: ${FIREBASE_CERT:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+    depends_on:
+      migration_runner:
+        condition: service_completed_successfully
+    networks:
+      - fromchat_internal
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: backend/routes/push.py
+          target: /app/backend/routes/push.py
+        - action: sync
+          path: backend/push_service.py
+          target: /app/backend/push_service.py
+        - action: sync
+          path: backend/services/push
+          target: /app/backend/services/push
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # WebRTC service
+  webrtc_service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: webrtc_service
+    environment:
+      DATABASE_URL: postgresql://webrtc_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+    depends_on:
+      migration_runner:
+        condition: service_completed_successfully
+    networks:
+      - fromchat_internal
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: backend/routes/webrtc.py
+          target: /app/backend/routes/webrtc.py
+        - action: sync
+          path: backend/services/webrtc
+          target: /app/backend/services/webrtc
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # Moderation service
+  moderation_service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.multi
+      target: moderation_service
+    environment:
+      DATABASE_URL: postgresql://moderation_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+    depends_on:
+      migration_runner:
+        condition: service_completed_successfully
+    networks:
+      - fromchat_internal
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: backend/routes/moderation.py
+          target: /app/backend/routes/moderation.py
+        - action: sync
+          path: backend/security
+          target: /app/backend/security
+        - action: sync
+          path: backend/similarity.py
+          target: /app/backend/similarity.py
+        - action: sync
+          path: backend/services/moderation
+          target: /app/backend/services/moderation
+        - action: sync+restart
+          path: backend/shared
+          target: /app/backend/shared
+
+  # Caddy reverse proxy
+  caddy:
+    image: caddy:2
     ports:
       - "80:80"
       - "443:443"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
-      - certs:/root/site/certs
-    environment:
-      XDG_DATA_HOME: /root/site/certs
-      XDG_CONFIG_HOME: /root/site/certs
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - fromchat_external
+    restart: unless-stopped
+    depends_on:
+      - gateway
 
 volumes:
-  data:
-    name: fromchat-data
-  logs:
-    name: fromchat-logs
-  certs:
-    name: fromchat-certs
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  fromchat_internal:
+    driver: bridge
+    internal: true
+  fromchat_external:
+    driver: bridge

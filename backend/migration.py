@@ -8,7 +8,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine
-from constants import DATABASE_URL
+from backend.shared.constants import DATABASE_URL
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,12 +31,14 @@ def run_migrations():
         # If no application tables exist, create them directly from models
         if not existing_tables:
             logger.info("No application tables found. Creating all tables directly from models...")
-            from models import Base
+            from backend.shared.models import Base
             Base.metadata.create_all(bind=engine)
             logger.info("All tables created successfully from models.")
 
         # Get the directory where this script is located
         current_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Note: Problematic migrations are now cleaned up during Docker build
 
         # Create Alembic configuration
         alembic_cfg = Config(os.path.join(current_dir, "alembic.ini"))
@@ -54,6 +56,13 @@ def run_migrations():
             os.makedirs(versions_dir)
 
         migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
+
+        # If no migration files exist after cleanup, create initial migration
+        if not migration_files:
+            logger.info("No migration files found after cleanup. Creating initial migration...")
+            command.revision(alembic_cfg, autogenerate=True, message="Initial migration")
+            migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
+            logger.info(f"Created {len(migration_files)} initial migration(s)")
         
         if not migration_files:
             logger.info("No migration files found. Creating initial migration...")
@@ -179,10 +188,11 @@ def run_migrations():
                     from sqlalchemy import text
                     connection.execute(text("DELETE FROM alembic_version"))
                     connection.commit()
-                
+
                 # Try upgrade again
                 command.upgrade(alembic_cfg, "head")
                 logger.info("Database migrations completed successfully after reset.")
+            # Note: Index-related errors are now prevented by Docker build cleanup
             else:
                 raise upgrade_error
         
@@ -289,7 +299,7 @@ def _populate_migration_file(migration_path):
 
 def _generate_migration_from_models():
     """Generate migration content dynamically from SQLAlchemy models."""
-    from models import Base
+    from backend.shared.models import Base
     import sqlalchemy as sa
     from datetime import datetime
     
@@ -474,8 +484,8 @@ def _get_column_type(column):
 
 def _create_database_directly():
     """Fallback method: create database directly using SQLAlchemy."""
-    from models import Base
-    from db import engine
+    from backend.shared.models import Base
+    from backend.shared.db import get_engine
     from sqlalchemy import text, inspect
     
     # Check existing tables and update schema
@@ -534,35 +544,38 @@ def _create_database_directly():
                     logger.info(f"Creating table {table_name}")
         
         # Create alembic_version table manually
-        connection.execute(text("""
-            CREATE TABLE IF NOT EXISTS alembic_version (
-                version_num VARCHAR(32) NOT NULL,
-                CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
-            )
-        """))
-        
-        # Get the correct revision ID from existing migration files
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        versions_dir = os.path.join(current_dir, "alembic", "versions")
-        migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
-        
-        if migration_files:
-            latest_migration = max(migration_files)
-            migration_path = os.path.join(versions_dir, latest_migration)
-            
-            with open(migration_path, 'r') as f:
-                content = f.read()
-                import re
-                revision_match = re.search(r"revision: str = '([^']+)'", content)
-                if revision_match:
-                    revision_id = revision_match.group(1)
-                    connection.execute(text(f"INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('{revision_id}')"))
-                else:
-                    connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
-        else:
-            connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
-        
-        connection.commit()
+        engine = get_engine(DATABASE_URL)
+        with engine.connect() as connection:
+            # Create alembic_version table manually
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS alembic_version (
+                    version_num VARCHAR(32) NOT NULL,
+                    CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+                )
+            """))
+
+            # Get the correct revision ID from existing migration files
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            versions_dir = os.path.join(current_dir, "alembic", "versions")
+            migration_files = [f for f in os.listdir(versions_dir) if f.endswith('.py') and not f.startswith('__')]
+
+            if migration_files:
+                latest_migration = max(migration_files)
+                migration_path = os.path.join(versions_dir, latest_migration)
+
+                with open(migration_path, 'r') as f:
+                    content = f.read()
+                    import re
+                    revision_match = re.search(r"revision: str = '([^']+)'", content)
+                    if revision_match:
+                        revision_id = revision_match.group(1)
+                        connection.execute(text(f"INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('{revision_id}')"))
+                    else:
+                        connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
+            else:
+                connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
+
+            connection.commit()
 
 
 def _get_sql_type(column):

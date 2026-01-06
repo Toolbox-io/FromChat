@@ -2,9 +2,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from dependencies import get_current_user, get_db
-from models import User, DeviceSession
-from utils import verify_token
+from backend.shared.dependencies import get_current_user, get_db
+from backend.shared.models import User, DeviceSession
+from backend.shared.utils import verify_token
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 router = APIRouter()

@@ -4,7 +4,7 @@ import logging
 from html import unescape
 from typing import Any, Callable, Dict, List
 
-from logging_config import access_logger, dm_logger, public_chat_logger, security_logger
+from backend.logging_config import access_logger, dm_logger, public_chat_logger, security_logger
 
 
 def _clean_username(username: Any) -> str:

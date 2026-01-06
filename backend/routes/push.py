@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from dependencies import get_current_user, get_db
-from models import User, PushSubscriptionRequest
-from push_service import push_service
+from backend.shared.dependencies import get_current_user, get_db
+from backend.shared.models import User, PushSubscriptionRequest
+import backend.push_service as push_service
 
 router = APIRouter()
 

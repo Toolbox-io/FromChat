@@ -4,7 +4,7 @@ import hmac
 import hashlib
 import time
 from fastapi import APIRouter, Depends
-from dependencies import get_current_user
+from backend.shared.dependencies import get_current_user
 import traceback
 
 router = APIRouter()
