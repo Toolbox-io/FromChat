@@ -163,6 +163,8 @@ async def proxy_moderation(path: str, request: Request):
 
 async def _proxy_to_service(service: str, path: str, request: Request):
     """Helper function to proxy requests to microservices."""
+    from fastapi.responses import Response
+
     service_url = SERVICE_URLS[service]
     target_url = f"{service_url}/{service}/{path}"
 
@@ -182,7 +184,14 @@ async def _proxy_to_service(service: str, path: str, request: Request):
                 content=body,
                 params=request.query_params,
             )
-            return response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
+
+            # Return response with the same status code and content
+            content = response.content
+            return Response(
+                content=content,
+                status_code=response.status_code,
+                headers={"content-type": response.headers.get("content-type", "application/json")}
+            )
     except httpx.RequestError as exc:
         logging.error(f"Error communicating with {service} service: {exc}")
         raise HTTPException(status_code=503, detail=f"Service {service} unavailable")
