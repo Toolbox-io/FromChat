@@ -13,8 +13,9 @@ from backend.shared.dependencies import get_db, get_current_user
 from backend.shared.models import User, UpdateBioRequest, UserProfileResponse
 from pydantic import BaseModel
 from backend.shared.validation import is_valid_username, is_valid_display_name
-from backend.similarity import is_user_similar_to_verified
-from .messaging import messagingManager
+from backend.shared.similarity import is_user_similar_to_verified
+import os
+import httpx
 from backend.security.audit import log_security
 from backend.security.profanity import contains_profanity
 from backend.security.rate_limit import rate_limit_per_ip
@@ -479,7 +480,16 @@ async def suspend_user(
 
     # Send WebSocket suspension message
     try:
-        await messagingManager.send_suspension_to_user(user_id, request.reason)
+        messaging_service_url = os.getenv("MESSAGING_SERVICE_URL", "http://messaging_service:8305")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{messaging_service_url}/messaging/send-suspension",
+                json={
+                    "user_id": user_id,
+                    "reason": request.reason
+                }
+            )
+            response.raise_for_status()
     except Exception as e:
         # Log error but don't fail the request
         pass

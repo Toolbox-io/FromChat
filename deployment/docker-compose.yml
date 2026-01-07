@@ -56,8 +56,17 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.multi
       target: gateway
+    ports: ["8300:8300"]
     environment:
       DATABASE_URL: postgresql://gateway_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
+      PORT: 8300
+      ACCOUNT_SERVICE_URL: http://account_service:8302
+      PROFILE_SERVICE_URL: http://profile_service:8303
+      DEVICE_SERVICE_URL: http://device_service:8304
+      MESSAGING_SERVICE_URL: http://messaging_service:8305
+      PUSH_SERVICE_URL: http://push_service:8306
+      WEBRTC_SERVICE_URL: http://webrtc_service:8307
+      MODERATION_SERVICE_URL: http://moderation_service:8308
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -95,6 +104,7 @@ services:
     environment:
       DATABASE_URL: postgresql://account_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
       JWT_SECRET: ${JWT_SECRET:-changeme}
+      PORT: 8302
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -125,6 +135,8 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      MESSAGING_SERVICE_URL: http://messaging_service:8305
+      PORT: 8303
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -151,6 +163,7 @@ services:
       target: device_service
     environment:
       DATABASE_URL: postgresql://device_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
+      PORT: 8304
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -175,12 +188,16 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.multi
       target: messaging_service
+    ports:
+      - "8305:8305"
     environment:
       DATABASE_URL: postgresql://messaging_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
       FIREBASE_CERT: ${FIREBASE_CERT:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      PUSH_SERVICE_URL: http://push_service:8306
+      PORT: 8305
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -214,6 +231,7 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      PORT: 8306
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -243,6 +261,7 @@ services:
       target: webrtc_service
     environment:
       DATABASE_URL: postgresql://webrtc_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
+      PORT: 8307
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -269,6 +288,7 @@ services:
       target: moderation_service
     environment:
       DATABASE_URL: postgresql://moderation_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
+      PORT: 8308
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -314,6 +334,20 @@ services:
     depends_on:
       - gateway
     profiles: ["prod"]
+
+  # Frontend service - serves the React app
+  frontend:
+    build:
+      context: ..
+      dockerfile: deployment/frontend/Dockerfile
+    ports:
+      - "8301:8301"
+    environment:
+      - PORT=8301
+      - BACKEND_HOST=http://gateway:8300
+    restart: unless-stopped
+    networks:
+      - fromchat_external
 
 volumes:
   database:

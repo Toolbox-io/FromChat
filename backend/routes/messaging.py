@@ -20,7 +20,8 @@ from backend.shared.dependencies import get_current_user, get_db
 from backend.shared.utils import convert_user
 from backend.shared.constants import OWNER_USERNAME
 from backend.shared.models import Message, SendMessageRequest, EditMessageRequest, User, DMEnvelope, MessageFile, DMFile, Reaction, ReactionRequest, ReactionResponse, DMReaction, DMReactionRequest, DMReactionResponse, UpdateLog
-import backend.push_service as push_service
+import os
+import httpx
 from PIL import Image
 import io
 import json
@@ -29,7 +30,7 @@ from better_profanity import profanity as _bp
 from backend.security.audit import log_access, log_dm, log_public_chat, log_security
 from backend.security.profanity import contains_profanity
 from backend.security.rate_limit import rate_limit_per_ip
-from backend.websocket.utils import authenticate_user
+from backend.services.messaging.files.websocket.utils import authenticate_user
 
 from backend.shared.models import FcmToken
 
@@ -393,7 +394,16 @@ async def _send_message_internal(
 
     # Send push notifications for public messages
     try:
-        await push_service.send_public_message_notification(db, new_message, exclude_user_id=current_user.id)
+        push_service_url = os.getenv("PUSH_SERVICE_URL", "http://push_service:8306")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{push_service_url}/push/send-public-notification",
+                json={
+                    "message_id": new_message.id,
+                    "exclude_user_id": current_user.id
+                }
+            )
+            response.raise_for_status()
     except Exception as e:
         logger.error(f"Failed to send push notification for message {new_message.id}: {e}")
 
@@ -1561,3 +1571,21 @@ async def get_file_encrypted(filename: str, current_user: User = Depends(get_cur
         raise HTTPException(500)
 
     return FileResponse(str(path))
+
+
+class SendSuspensionRequest(BaseModel):
+    user_id: int
+    reason: str
+
+
+@router.post("/send-suspension")
+async def send_suspension_to_user(
+    request: SendSuspensionRequest,
+    db: Session = Depends(get_db)
+):
+    """Send suspension message to user via WebSocket (called by profile service)"""
+    try:
+        await messagingManager.send_suspension_to_user(request.user_id, request.reason)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

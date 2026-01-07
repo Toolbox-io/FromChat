@@ -1,10 +1,6 @@
-from fastapi import FastAPI
-
-# Gateway service - handles complex operations that Caddy cannot
-# This will be expanded later with routing logic to other services
+# Gateway service - runs the main gateway app from backend/app.py
 
 if __name__ == "__main__":
-    app = FastAPI(title="Gateway Service")
-
+    from backend.app import app
     import os, uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8301)))
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8300)))

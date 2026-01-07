@@ -10,13 +10,13 @@ import uvicorn
 import os
 
 # Import service routers
-from routes.account import router as account_router
-from routes.profile import router as profile_router
-from routes.devices import router as device_router
-from routes.messaging import router as messaging_router
-from routes.push import router as push_router
-from routes.webrtc import router as webrtc_router
-from routes.moderation import router as moderation_router
+from backend.routes.account import router as account_router
+from backend.routes.profile import router as profile_router
+from backend.routes.devices import router as device_router
+from backend.routes.messaging import router as messaging_router
+from backend.routes.push import router as push_router
+from backend.routes.webrtc import router as webrtc_router
+from backend.routes.moderation import router as moderation_router
 
 # Import security modules
 from security.audit import log_access

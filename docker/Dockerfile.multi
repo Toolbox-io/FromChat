@@ -52,11 +52,11 @@ ENV SERVICE_NAME=account
 FROM base AS profile_service
 COPY backend/routes/profile.py /app/backend/routes/profile.py
 COPY backend/routes/messaging.py /app/backend/routes/messaging.py
-COPY backend/push_service.py /app/backend/push_service.py
+COPY backend/services/push/files/push_service.py /app/backend/services/push/files/push_service.py
 COPY backend/security /app/backend/security/
 COPY backend/logging_config.py /app/backend/logging_config.py
-COPY backend/websocket /app/backend/websocket/
-COPY backend/similarity.py /app/backend/similarity.py
+COPY backend/services/messaging/files/websocket /app/backend/services/messaging/files/websocket/
+COPY backend/shared/similarity.py /app/backend/shared/similarity.py
 COPY backend/services/profile/main.py /app/backend/services/profile/main.py
 ENV SERVICE_NAME=profile
 
@@ -69,17 +69,17 @@ ENV SERVICE_NAME=device
 # Messaging service - minimal files only
 FROM base AS messaging_service
 COPY backend/routes/messaging.py /app/backend/routes/messaging.py
-COPY backend/push_service.py /app/backend/push_service.py
+COPY backend/services/push/files/push_service.py /app/backend/services/push/files/push_service.py
 COPY backend/security /app/backend/security/
 COPY backend/logging_config.py /app/backend/logging_config.py
-COPY backend/websocket /app/backend/websocket/
+COPY backend/services/messaging/files/websocket /app/backend/services/messaging/files/websocket/
 COPY backend/services/messaging/main.py /app/backend/services/messaging/main.py
 ENV SERVICE_NAME=messaging
 
 # Push service - minimal files only
 FROM base AS push_service
 COPY backend/routes/push.py /app/backend/routes/push.py
-COPY backend/push_service.py /app/backend/push_service.py
+COPY backend/services/push/files/push_service.py /app/backend/services/push/files/push_service.py
 COPY backend/services/push/main.py /app/backend/services/push/main.py
 ENV SERVICE_NAME=push
 
@@ -93,7 +93,7 @@ ENV SERVICE_NAME=webrtc
 FROM base AS moderation_service
 COPY backend/routes/moderation.py /app/backend/routes/moderation.py
 COPY backend/security /app/backend/security/
-COPY backend/similarity.py /app/backend/similarity.py
+COPY backend/shared/similarity.py /app/backend/shared/similarity.py
 COPY backend/logging_config.py /app/backend/logging_config.py
 COPY backend/services/moderation/main.py /app/backend/services/moderation/main.py
 ENV SERVICE_NAME=moderation
@@ -103,6 +103,7 @@ FROM base AS gateway
 COPY backend/app.py /app/backend/app.py
 COPY backend/main.py /app/backend/main.py
 COPY backend/dependencies.py /app/backend/dependencies.py
+COPY backend/logging_config.py /app/backend/logging_config.py
 COPY backend/security /app/backend/security/
 COPY backend/services/gateway/main.py /app/backend/services/gateway/main.py
 ENV SERVICE_NAME=gateway

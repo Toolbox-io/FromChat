@@ -1,103 +1,43 @@
 import asyncio
 import time
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import subprocess
 import sys
 import os
-from routes import account, messaging, profile, push, webrtc, devices, moderation
+import httpx
 import logging
-from backend.shared.models import User
-from backend.shared.constants import OWNER_USERNAME
+# Gateway doesn't need direct model access - it's a stateless proxy
+# Gateway doesn't need constants - it's a stateless proxy
 from backend.shared.utils import get_client_ip
 
-from backend.shared.db import POOL_CONFIG, SessionLocal
-from logging_config import access_logger  # noqa: F401 - ensure loggers configured
-from security.audit import log_access
-from security.rate_limit import limiter
+# Gateway doesn't need database access - it's a stateless proxy
+from backend.logging_config import access_logger  # noqa: F401 - ensure loggers configured
+from backend.security.audit import log_access
+from backend.security.rate_limit import limiter
 from slowapi.middleware import SlowAPIMiddleware
+
+# Service URL mapping for routing
+SERVICE_URLS = {
+    "account": os.getenv("ACCOUNT_SERVICE_URL", "http://account_service:8302"),
+    "profile": os.getenv("PROFILE_SERVICE_URL", "http://profile_service:8303"),
+    "devices": os.getenv("DEVICE_SERVICE_URL", "http://device_service:8304"),
+    "messaging": os.getenv("MESSAGING_SERVICE_URL", "http://messaging_service:8305"),
+    "push": os.getenv("PUSH_SERVICE_URL", "http://push_service:8306"),
+    "webrtc": os.getenv("WEBRTC_SERVICE_URL", "http://webrtc_service:8307"),
+    "moderation": os.getenv("MODERATION_SERVICE_URL", "http://moderation_service:8308"),
+}
 
 logger = logging.getLogger("uvicorn.error")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup - run migration in subprocess to avoid logging interference
-    try:
-        logger.info("Starting database migration check...")
-        # Run migration in a separate process
-        subprocess.run(
-            [
-                sys.executable, 
-                "-c", 
-                "import sys; sys.path.append('.'); from migration import run_migrations; run_migrations()"
-            ], 
-            cwd=os.path.dirname(os.path.abspath(__file__))
-        )
-    except Exception as e:
-        logger.error(f"Failed to run database migrations: {e}")
-        raise
-
-    try:
-        with SessionLocal() as db:
-            owner = db.query(User).filter(User.id == 1).first()
-            if owner and not owner.verified:
-                owner.verified = True
-                db.commit()
-                logger.info(f"Owner user '{OWNER_USERNAME}' has been verified")
-            elif owner and owner.verified:
-                logger.info(f"Owner user '{OWNER_USERNAME}' is already verified")
-            else:
-                logger.warning(f"Owner user '{OWNER_USERNAME}' not found")
-    except Exception as e:
-        logger.error(f"Failed to ensure owner verification: {e}")
-    
-    logger.info(
-        "SQLAlchemy pool configured (size=%s, max_overflow=%s, timeout=%ss, recycle=%ss, pre_ping=%s)",
-        POOL_CONFIG["pool_size"],
-        POOL_CONFIG["max_overflow"],
-        POOL_CONFIG["pool_timeout"],
-        POOL_CONFIG["pool_recycle"],
-        POOL_CONFIG["pool_pre_ping"],
-    )
-
-    # Start the messaging cleanup task
-    try:
-        from routes.messaging import messagingManager
-        messagingManager.start_cleanup_task()
-        logger.info("Messaging cleanup task started")
-    except Exception as e:
-        logger.error(f"Failed to start messaging cleanup task: {e}")
-    
-    # Reset all rate limits on startup to ensure clean state
-    # This prevents rate limits from persisting across restarts
-    try:
-        from security.rate_limit import reset_all_rate_limits
-        cleared = reset_all_rate_limits()
-        if cleared > 0:
-            logger.info(f"Cleared {cleared} rate limit entries on startup")
-    except Exception as e:
-        logger.warning(f"Failed to reset rate limits on startup: {e}")
-    
-    # Start the rate limit cleanup task
-    try:
-        from security.rate_limit import start_rate_limit_cleanup_task
-        cleanup_task = asyncio.create_task(start_rate_limit_cleanup_task())
-        logger.info("Rate limit cleanup task started")
-    except Exception as e:
-        logger.error(f"Failed to start rate limit cleanup task: {e}")
-        cleanup_task = None
-    
+    # Gateway is a stateless proxy - no database operations or background tasks needed
+    logger.info("Gateway proxy service initialized - routing to microservices")
     yield
-    
-    # Shutdown - cancel cleanup task if it exists
-    if cleanup_task:
-        cleanup_task.cancel()
-        try:
-            await cleanup_task
-        except asyncio.CancelledError:
-            pass
+    logger.info("Gateway proxy service shutting down.")
 
 # Инициализация FastAPI
 app = FastAPI(title="FromChat", lifespan=lifespan)
@@ -168,11 +108,83 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routes
-app.include_router(account.router)
-app.include_router(messaging.router)
-app.include_router(profile.router)
-app.include_router(push.router, prefix="/push")
-app.include_router(webrtc.router, prefix="/webrtc")
-app.include_router(devices.router, prefix="/devices")
-app.include_router(moderation.router)
+# Common API endpoints - route to appropriate services (defined first for priority)
+@app.api_route("/login", methods=["POST"])
+async def login(request: Request):
+    """Login endpoint - routes to account service."""
+    return await _proxy_to_service("account", "login", request)
+
+@app.api_route("/register", methods=["POST"])
+async def register(request: Request):
+    """Register endpoint - routes to account service."""
+    return await _proxy_to_service("account", "register", request)
+
+@app.api_route("/chat/ws", methods=["GET"])
+async def chat_websocket(request: Request):
+    """Chat WebSocket endpoint - routes to messaging service."""
+    return await _proxy_to_service("messaging", "chat/ws", request)
+
+# API routes - route to appropriate microservices
+@app.api_route("/account/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_account(path: str, request: Request):
+    """Proxy account service requests."""
+    return await _proxy_to_service("account", path, request)
+
+@app.api_route("/profile/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_profile(path: str, request: Request):
+    """Proxy profile service requests."""
+    return await _proxy_to_service("profile", path, request)
+
+@app.api_route("/devices/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_devices(path: str, request: Request):
+    """Proxy device service requests."""
+    return await _proxy_to_service("devices", path, request)
+
+@app.api_route("/messaging/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_messaging(path: str, request: Request):
+    """Proxy messaging service requests."""
+    return await _proxy_to_service("messaging", path, request)
+
+@app.api_route("/push/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_push(path: str, request: Request):
+    """Proxy push service requests."""
+    return await _proxy_to_service("push", path, request)
+
+@app.api_route("/webrtc/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_webrtc(path: str, request: Request):
+    """Proxy WebRTC service requests."""
+    return await _proxy_to_service("webrtc", path, request)
+
+@app.api_route("/moderation/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_moderation(path: str, request: Request):
+    """Proxy moderation service requests."""
+    return await _proxy_to_service("moderation", path, request)
+
+
+async def _proxy_to_service(service: str, path: str, request: Request):
+    """Helper function to proxy requests to microservices."""
+    service_url = SERVICE_URLS[service]
+    target_url = f"{service_url}/{service}/{path}"
+
+    # Get request body
+    body = await request.body()
+
+    # Prepare headers (remove host header)
+    headers = dict(request.headers)
+    headers.pop("host", None)
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=body,
+                params=request.query_params,
+            )
+            return response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
+    except httpx.RequestError as exc:
+        logging.error(f"Error communicating with {service} service: {exc}")
+        raise HTTPException(status_code=503, detail=f"Service {service} unavailable")
+
+# Routes are handled by the catch-all proxy above

@@ -9,6 +9,7 @@ Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"schema": "account_schema"}
 
     id = Column(BigInteger, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
@@ -42,9 +43,10 @@ class User(Base):
 
 class Message(Base):
     __tablename__ = "messages"
+    __table_args__ = {"schema": "messaging_schema"}
 
     id = Column(BigInteger, primary_key=True, index=True)
-    sender_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    sender_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, index=True)
     content = Column(Text, nullable=False)
     content_type = Column(String(50), default="text")
     encrypted_content = Column(Text, nullable=True)
@@ -53,8 +55,8 @@ class Message(Base):
     edited_at = Column(DateTime, nullable=True)
     edited = Column(Boolean, default=False)
     deleted = Column(Boolean, default=False)
-    reply_to_id = Column(BigInteger, ForeignKey("messages.id"), nullable=True)
-    thread_id = Column(BigInteger, ForeignKey("messages.id"), nullable=True)
+    reply_to_id = Column(BigInteger, ForeignKey("messaging_schema.messages.id"), nullable=True)
+    thread_id = Column(BigInteger, ForeignKey("messaging_schema.messages.id"), nullable=True)
     is_public = Column(Boolean, default=False)
 
     # Relationships
@@ -63,13 +65,15 @@ class Message(Base):
     reply_to = relationship("Message", remote_side=[id], foreign_keys=[reply_to_id])
     thread = relationship("Message", remote_side=[id], foreign_keys=[thread_id])
     reactions = relationship("MessageReaction", back_populates="message", cascade="all, delete-orphan")
+    files = relationship("MessageFile", back_populates="message", cascade="all, delete-orphan")
 
 class MessageRecipient(Base):
     __tablename__ = "message_recipients"
+    __table_args__ = {"schema": "messaging_schema"}
 
     id = Column(BigInteger, primary_key=True, index=True)
-    message_id = Column(BigInteger, ForeignKey("messages.id"), nullable=False, index=True)
-    recipient_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    message_id = Column(BigInteger, ForeignKey("messaging_schema.messages.id"), nullable=False, index=True)
+    recipient_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, index=True)
     read_at = Column(DateTime, nullable=True)
     delivered_at = Column(DateTime, nullable=True)
     encrypted_key = Column(Text, nullable=True)
@@ -80,10 +84,11 @@ class MessageRecipient(Base):
 
 class MessageReaction(Base):
     __tablename__ = "message_reactions"
+    __table_args__ = {"schema": "messaging_schema"}
 
     id = Column(BigInteger, primary_key=True, index=True)
-    message_id = Column(BigInteger, ForeignKey("messages.id"), nullable=False, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    message_id = Column(BigInteger, ForeignKey("messaging_schema.messages.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, index=True)
     reaction = Column(String(50), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -92,9 +97,10 @@ class MessageReaction(Base):
 
 class Device(Base):
     __tablename__ = "devices"
+    __table_args__ = {"schema": "device_schema"}
 
     id = Column(BigInteger, primary_key=True, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, index=True)
     device_id = Column(String(255), unique=True, nullable=False, index=True)
     device_name = Column(String(255), nullable=True)
     device_type = Column(String(50), nullable=True)
@@ -110,10 +116,11 @@ class Device(Base):
 
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
+    __table_args__ = {"schema": "push_schema"}
 
     id = Column(BigInteger, primary_key=True, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
-    device_id = Column(BigInteger, ForeignKey("devices.id"), nullable=True, index=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, index=True)
+    device_id = Column(BigInteger, ForeignKey("device_schema.devices.id"), nullable=True, index=True)
     endpoint = Column(String(500), nullable=False)
     p256dh = Column(String(255), nullable=False)
     auth = Column(String(255), nullable=False)
@@ -126,10 +133,11 @@ class PushSubscription(Base):
 
 class WebRTCSession(Base):
     __tablename__ = "webrtc_sessions"
+    __table_args__ = {"schema": "webrtc_schema"}
 
     id = Column(BigInteger, primary_key=True, index=True)
     session_id = Column(String(255), unique=True, nullable=False, index=True)
-    initiator_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    initiator_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False)
     participant_ids = Column(JSON, nullable=False)
     offer = Column(JSON, nullable=True)
     answer = Column(JSON, nullable=True)
@@ -140,11 +148,12 @@ class WebRTCSession(Base):
 
 class ModerationAction(Base):
     __tablename__ = "moderation_actions"
+    __table_args__ = {"schema": "moderation_schema"}
 
     id = Column(BigInteger, primary_key=True, index=True)
-    moderator_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    target_user_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
-    target_message_id = Column(BigInteger, ForeignKey("messages.id"), nullable=True)
+    moderator_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False)
+    target_user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=True)
+    target_message_id = Column(BigInteger, ForeignKey("messaging_schema.messages.id"), nullable=True)
     action_type = Column(String(50), nullable=False)
     reason = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -153,9 +162,10 @@ class ModerationAction(Base):
 
 class MessageFile(Base):
     __tablename__ = "message_file"
+    __table_args__ = {"schema": "messaging_schema"}
 
     id = Column(Integer, primary_key=True, index=True)
-    message_id = Column(BigInteger, ForeignKey("messages.id"), nullable=False, index=True)
+    message_id = Column(BigInteger, ForeignKey("messaging_schema.messages.id"), nullable=False, index=True)
     path = Column(Text, nullable=False)
     name = Column(Text, nullable=False)
 
@@ -166,7 +176,7 @@ class CryptoPublicKey(Base):
     __tablename__ = "crypto_public_key"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, unique=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, unique=True)
     public_key_b64 = Column(Text, nullable=False)
 
 
@@ -174,16 +184,17 @@ class CryptoBackup(Base):
     __tablename__ = "crypto_backup"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, unique=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, unique=True)
     blob_json = Column(Text, nullable=False)
 
 
 class DMEnvelope(Base):
     __tablename__ = "dm_envelope"
+    __table_args__ = {"schema": "messaging_schema"}
 
     id = Column(Integer, primary_key=True, index=True)
-    sender_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    recipient_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    sender_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False)
+    recipient_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False)
     iv_b64 = Column(Text, nullable=False)
     ciphertext_b64 = Column(Text, nullable=False)
     salt_b64 = Column(Text, nullable=False)
@@ -197,11 +208,12 @@ class DMEnvelope(Base):
 
 class DMFile(Base):
     __tablename__ = "dm_file"
+    __table_args__ = {"schema": "messaging_schema"}
 
     id = Column(Integer, primary_key=True, index=True)
-    message_id = Column(Integer, ForeignKey("dm_envelope.id"), nullable=False, index=True)
-    sender_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    recipient_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    message_id = Column(Integer, ForeignKey("messaging_schema.dm_envelope.id"), nullable=False, index=True)
+    sender_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False)
+    recipient_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False)
     name = Column(Text, nullable=False)
     path = Column(Text, nullable=False)
 
@@ -210,9 +222,10 @@ class DMFile(Base):
 
 class FcmToken(Base):
     __tablename__ = "fcm_token"
+    __table_args__ = {"schema": "push_schema"}
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, index=True)
     token = Column(Text, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -220,10 +233,11 @@ class FcmToken(Base):
 
 class Reaction(Base):
     __tablename__ = "reaction"
+    __table_args__ = {"schema": "messaging_schema"}
 
     id = Column(Integer, primary_key=True, index=True)
-    message_id = Column(BigInteger, ForeignKey("messages.id"), nullable=False, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    message_id = Column(BigInteger, ForeignKey("messaging_schema.messages.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False)
     emoji = Column(String(10), nullable=False)  # Store emoji as string
     timestamp = Column(DateTime, default=datetime.now)
 
@@ -236,10 +250,11 @@ class Reaction(Base):
 
 class DMReaction(Base):
     __tablename__ = "dm_reaction"
+    __table_args__ = {"schema": "messaging_schema"}
 
     id = Column(Integer, primary_key=True, index=True)
-    dm_envelope_id = Column(Integer, ForeignKey("dm_envelope.id"), nullable=False, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    dm_envelope_id = Column(Integer, ForeignKey("messaging_schema.dm_envelope.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False)
     emoji = Column(String(10), nullable=False)  # Store emoji as string
     timestamp = Column(DateTime, default=datetime.now)
 
@@ -254,9 +269,10 @@ class DMReaction(Base):
 # Tracks authenticated device sessions per user
 class DeviceSession(Base):
     __tablename__ = "device_session"
+    __table_args__ = {"schema": "device_schema"}
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, index=True)
 
     # Raw User-Agent for reference/debugging
     raw_user_agent = Column(Text, nullable=True)
@@ -392,9 +408,10 @@ class DMReactionResponse(BaseModel):
 class UpdateLog(Base):
     """Stores update sequence numbers and updates for gap detection"""
     __tablename__ = "update_log"
+    __table_args__ = {"schema": "public"}
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("account_schema.users.id"), nullable=False, index=True)
     sequence = Column(Integer, nullable=False, index=True)
     updates = Column(Text, nullable=False)  # JSON array of updates
     timestamp = Column(DateTime, default=datetime.now, index=True)
