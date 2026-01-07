@@ -119,10 +119,6 @@ async def register(request: Request):
     """Register endpoint - routes to account service."""
     return await _proxy_to_service("account", "register", request)
 
-@app.api_route("/chat/ws", methods=["GET"])
-async def chat_websocket(request: Request):
-    """Chat WebSocket endpoint - routes to messaging service."""
-    return await _proxy_to_service("messaging", "chat/ws", request)
 
 # API routes - route to appropriate microservices
 @app.api_route("/account/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])

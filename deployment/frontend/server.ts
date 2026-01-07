@@ -16,7 +16,13 @@ app.use('/api', createProxyMiddleware({
     ws: true
 }));
 
-// WebSockets are handled by the general API proxy above
+// Direct WebSocket proxy for chat - bypass gateway
+app.use('/api/chat/ws', createProxyMiddleware({
+    target: 'http://messaging_service:8305',
+    changeOrigin: true,
+    pathRewrite: { '^/api/chat/ws': '/messaging/chat/ws' },
+    ws: true
+}));
 
 // Serve static files
 app.use(express.static(resolve(filePath)));

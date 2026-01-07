@@ -1292,7 +1292,7 @@ class MessaggingSocketManager:
         self.ws_subscriptions[websocket] = set()
         
         # Import here to avoid circular import
-        from websocket.handlers import handler_registry
+        from backend.services.messaging.files.websocket.handlers import handler_registry
 
         while True:
             try:
