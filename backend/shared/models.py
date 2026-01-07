@@ -155,7 +155,7 @@ class MessageFile(Base):
     __tablename__ = "message_file"
 
     id = Column(Integer, primary_key=True, index=True)
-    message_id = Column(Integer, ForeignKey("message.id"), nullable=False, index=True)
+    message_id = Column(BigInteger, ForeignKey("messages.id"), nullable=False, index=True)
     path = Column(Text, nullable=False)
     name = Column(Text, nullable=False)
 
@@ -166,7 +166,7 @@ class CryptoPublicKey(Base):
     __tablename__ = "crypto_public_key"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, unique=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, unique=True)
     public_key_b64 = Column(Text, nullable=False)
 
 
@@ -174,7 +174,7 @@ class CryptoBackup(Base):
     __tablename__ = "crypto_backup"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, unique=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, unique=True)
     blob_json = Column(Text, nullable=False)
 
 
@@ -182,8 +182,8 @@ class DMEnvelope(Base):
     __tablename__ = "dm_envelope"
 
     id = Column(Integer, primary_key=True, index=True)
-    sender_id = Column(Integer, ForeignKey("user.id"), nullable=False)
-    recipient_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    sender_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    recipient_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     iv_b64 = Column(Text, nullable=False)
     ciphertext_b64 = Column(Text, nullable=False)
     salt_b64 = Column(Text, nullable=False)
@@ -200,8 +200,8 @@ class DMFile(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     message_id = Column(Integer, ForeignKey("dm_envelope.id"), nullable=False, index=True)
-    sender_id = Column(Integer, ForeignKey("user.id"), nullable=False)
-    recipient_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    sender_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    recipient_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     name = Column(Text, nullable=False)
     path = Column(Text, nullable=False)
 
@@ -212,7 +212,7 @@ class FcmToken(Base):
     __tablename__ = "fcm_token"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
     token = Column(Text, nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -222,8 +222,8 @@ class Reaction(Base):
     __tablename__ = "reaction"
 
     id = Column(Integer, primary_key=True, index=True)
-    message_id = Column(Integer, ForeignKey("message.id"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    message_id = Column(BigInteger, ForeignKey("messages.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     emoji = Column(String(10), nullable=False)  # Store emoji as string
     timestamp = Column(DateTime, default=datetime.now)
 
@@ -239,7 +239,7 @@ class DMReaction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     dm_envelope_id = Column(Integer, ForeignKey("dm_envelope.id"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     emoji = Column(String(10), nullable=False)  # Store emoji as string
     timestamp = Column(DateTime, default=datetime.now)
 
@@ -256,7 +256,7 @@ class DeviceSession(Base):
     __tablename__ = "device_session"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
 
     # Raw User-Agent for reference/debugging
     raw_user_agent = Column(Text, nullable=True)
@@ -394,7 +394,7 @@ class UpdateLog(Base):
     __tablename__ = "update_log"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
     sequence = Column(Integer, nullable=False, index=True)
     updates = Column(Text, nullable=False)  # JSON array of updates
     timestamp = Column(DateTime, default=datetime.now, index=True)

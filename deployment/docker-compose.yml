@@ -1,20 +1,20 @@
 services:
   # Database service
-  db:
+  database:
     image: postgres:15
     environment:
       POSTGRES_DB: fromchat
       POSTGRES_USER: fromchat_admin
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - database:/var/lib/postgresql/data
       - ./db-init:/docker-entrypoint-initdb.d
     networks:
       - fromchat_internal
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fromchat_admin -d fromchat"]
-      interval: 10s
+      interval: 1s
       timeout: 5s
       retries: 5
 
@@ -25,10 +25,10 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: migration_runner
     environment:
-      DATABASE_URL: postgresql://fromchat_admin:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://fromchat_admin:${DB_PASSWORD:-changeme}@database:5432/fromchat
       JWT_SECRET: ${JWT_SECRET:-changeme}
     depends_on:
-      db:
+      database:
         condition: service_healthy
     networks:
       - fromchat_internal
@@ -57,7 +57,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: gateway
     environment:
-      DATABASE_URL: postgresql://gateway_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://gateway_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -93,7 +93,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: account_service
     environment:
-      DATABASE_URL: postgresql://account_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://account_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
       JWT_SECRET: ${JWT_SECRET:-changeme}
     depends_on:
       migration_runner:
@@ -120,7 +120,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: profile_service
     environment:
-      DATABASE_URL: postgresql://profile_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://profile_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
       FIREBASE_CERT: ${FIREBASE_CERT:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
@@ -150,7 +150,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: device_service
     environment:
-      DATABASE_URL: postgresql://device_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://device_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -176,7 +176,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: messaging_service
     environment:
-      DATABASE_URL: postgresql://messaging_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://messaging_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
       FIREBASE_CERT: ${FIREBASE_CERT:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
@@ -209,7 +209,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: push_service
     environment:
-      DATABASE_URL: postgresql://push_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://push_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
       FIREBASE_CERT: ${FIREBASE_CERT:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
@@ -242,7 +242,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: webrtc_service
     environment:
-      DATABASE_URL: postgresql://webrtc_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://webrtc_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -268,7 +268,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: moderation_service
     environment:
-      DATABASE_URL: postgresql://moderation_service_user:${DB_PASSWORD:-changeme}@db:5432/fromchat
+      DATABASE_URL: postgresql://moderation_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
     depends_on:
       migration_runner:
         condition: service_completed_successfully
@@ -295,24 +295,35 @@ services:
 
   # Caddy reverse proxy
   caddy:
-    image: caddy:2
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - certs:/root/site/certs
     networks:
       - fromchat_external
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - XDG_DATA_HOME=/root/site/certs
+      - XDG_CONFIG_HOME=/root/site/certs
     restart: unless-stopped
     depends_on:
       - gateway
+    profiles: ["prod"]
 
 volumes:
-  postgres_data:
-  caddy_data:
-  caddy_config:
+  database:
+    name: fromchat-database
+  certs:
+    name: fromchat-certs
+  logs:
+    name: fromchat-logs
+  data:
+    name: fromchat-data
 
 networks:
   fromchat_internal:

@@ -19,6 +19,9 @@ def run_migrations():
     This function will upgrade the database to the latest migration.
     Fully automated - handles all scenarios automatically.
     """
+    # Get the directory where this script is located
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
     try:
         # FIRST: Check if database has any application tables (excluding alembic_version)
         engine = create_engine(DATABASE_URL)
@@ -34,9 +37,6 @@ def run_migrations():
             from backend.shared.models import Base
             Base.metadata.create_all(bind=engine)
             logger.info("All tables created successfully from models.")
-
-        # Get the directory where this script is located
-        current_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Note: Problematic migrations are now cleaned up during Docker build
 
@@ -487,7 +487,9 @@ def _create_database_directly():
     from backend.shared.models import Base
     from backend.shared.db import get_engine
     from sqlalchemy import text, inspect
-    
+
+    engine = get_engine()
+
     # Check existing tables and update schema
     with engine.connect() as connection:
         inspector = inspect(connection)
@@ -569,9 +571,9 @@ def _create_database_directly():
                     revision_match = re.search(r"revision: str = '([^']+)'", content)
                     if revision_match:
                         revision_id = revision_match.group(1)
-                        connection.execute(text(f"INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('{revision_id}')"))
+                        connection.execute(text(f"INSERT INTO alembic_version (version_num) VALUES ('{revision_id}') ON CONFLICT DO NOTHING"))
                     else:
-                        connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
+                        connection.execute(text("INSERT INTO alembic_version (version_num) VALUES ('direct_creation') ON CONFLICT DO NOTHING"))
             else:
                 connection.execute(text("INSERT OR IGNORE INTO alembic_version (version_num) VALUES ('direct_creation')"))
 
