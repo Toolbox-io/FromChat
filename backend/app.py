@@ -156,7 +156,6 @@ async def proxy_moderation(path: str, request: Request):
     """Proxy moderation service requests."""
     return await _proxy_to_service("moderation", path, request)
 
-
 async def _proxy_to_service(service: str, path: str, request: Request):
     """Helper function to proxy requests to microservices."""
     from fastapi.responses import Response

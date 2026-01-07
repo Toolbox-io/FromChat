@@ -13,7 +13,6 @@ class User(Base):
 
     id = Column(BigInteger, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     salt = Column(String(64), nullable=False)
     display_name = Column(String(100), nullable=True)
@@ -34,6 +33,9 @@ class User(Base):
     public_key = Column(Text, nullable=True)
     private_key = Column(Text, nullable=True)
     encryption_enabled = Column(Boolean, default=False)
+    suspended = Column(Boolean, default=False)
+    suspension_reason = Column(Text, nullable=True)
+    deleted = Column(Boolean, default=False)
 
     # Relationships
     messages = relationship("Message", back_populates="sender", cascade="all, delete-orphan")

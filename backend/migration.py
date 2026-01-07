@@ -147,7 +147,11 @@ def run_migrations():
             command.upgrade(alembic_cfg, "head")
             logger.info("Database migrations completed successfully.")
         except Exception as upgrade_error:
-            if "Can't locate revision identified by 'direct_creation'" in str(upgrade_error):
+            error_msg = str(upgrade_error)
+            # Handle PostgreSQL "already exists" errors gracefully
+            if "already exists" in error_msg.lower() or "relation" in error_msg.lower() and "exists" in error_msg.lower():
+                pass
+            elif "Can't locate revision identified by 'direct_creation'" in error_msg:
                 logger.info("Found 'direct_creation' revision - resetting migration state...")
                 # Clear the alembic_version table and start fresh
                 engine = create_engine(DATABASE_URL)

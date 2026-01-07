@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: fromchat
       POSTGRES_USER: fromchat_admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - database:/var/lib/postgresql/data
       - ./db-init:/docker-entrypoint-initdb.d
@@ -25,8 +25,8 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: migration_runner
     environment:
-      DATABASE_URL: postgresql://fromchat_admin:${DB_PASSWORD:-changeme}@database:5432/fromchat
-      JWT_SECRET: ${JWT_SECRET:-changeme}
+      DATABASE_URL: postgresql://fromchat_admin:${DB_PASSWORD}@database:5432/fromchat
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       database:
         condition: service_healthy
@@ -58,7 +58,7 @@ services:
       target: gateway
     ports: ["8300:8300"]
     environment:
-      DATABASE_URL: postgresql://gateway_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
+      DATABASE_URL: postgresql://gateway_user:${DB_PASSWORD}@database:5432/fromchat
       PORT: 8300
       ACCOUNT_SERVICE_URL: http://account_service:8302
       PROFILE_SERVICE_URL: http://profile_service:8303
@@ -102,8 +102,8 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: account_service
     environment:
-      DATABASE_URL: postgresql://account_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
-      JWT_SECRET: ${JWT_SECRET:-changeme}
+      DATABASE_URL: postgresql://account_service_user:${DB_PASSWORD}@database:5432/fromchat
+      JWT_SECRET: ${JWT_SECRET}
       PORT: 8302
     depends_on:
       migration_runner:
@@ -130,11 +130,11 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: profile_service
     environment:
-      DATABASE_URL: postgresql://profile_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
-      FIREBASE_CERT: ${FIREBASE_CERT:-}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      DATABASE_URL: postgresql://profile_service_user:${DB_PASSWORD}@database:5432/fromchat
+      FIREBASE_CERT: ${FIREBASE_CERT}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
       MESSAGING_SERVICE_URL: http://messaging_service:8305
       PORT: 8303
     depends_on:
@@ -162,7 +162,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: device_service
     environment:
-      DATABASE_URL: postgresql://device_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
+      DATABASE_URL: postgresql://device_service_user:${DB_PASSWORD}@database:5432/fromchat
       PORT: 8304
     depends_on:
       migration_runner:
@@ -191,11 +191,11 @@ services:
     ports:
       - "8305:8305"
     environment:
-      DATABASE_URL: postgresql://messaging_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
-      FIREBASE_CERT: ${FIREBASE_CERT:-}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      DATABASE_URL: postgresql://messaging_service_user:${DB_PASSWORD}@database:5432/fromchat
+      FIREBASE_CERT: ${FIREBASE_CERT}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
       PUSH_SERVICE_URL: http://push_service:8306
       PORT: 8305
     depends_on:
@@ -226,11 +226,11 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: push_service
     environment:
-      DATABASE_URL: postgresql://push_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
-      FIREBASE_CERT: ${FIREBASE_CERT:-}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      DATABASE_URL: postgresql://push_service_user:${DB_PASSWORD}@database:5432/fromchat
+      FIREBASE_CERT: ${FIREBASE_CERT}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
       PORT: 8306
     depends_on:
       migration_runner:
@@ -260,7 +260,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: webrtc_service
     environment:
-      DATABASE_URL: postgresql://webrtc_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
+      DATABASE_URL: postgresql://webrtc_service_user:${DB_PASSWORD}@database:5432/fromchat
       PORT: 8307
     depends_on:
       migration_runner:
@@ -287,7 +287,7 @@ services:
       dockerfile: docker/Dockerfile.multi
       target: moderation_service
     environment:
-      DATABASE_URL: postgresql://moderation_service_user:${DB_PASSWORD:-changeme}@database:5432/fromchat
+      DATABASE_URL: postgresql://moderation_service_user:${DB_PASSWORD}@database:5432/fromchat
       PORT: 8308
     depends_on:
       migration_runner:
@@ -348,6 +348,7 @@ services:
     restart: unless-stopped
     networks:
       - fromchat_external
+      - fromchat_internal
 
 volumes:
   database:

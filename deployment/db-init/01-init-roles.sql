@@ -2,15 +2,15 @@
 -- This script creates dedicated users with limited privileges for each service
 
 -- Create service-specific database roles with limited privileges
--- All services use the same password from DB_PASSWORD environment variable
-CREATE ROLE account_service_user LOGIN PASSWORD '${DB_PASSWORD}';
-CREATE ROLE profile_service_user LOGIN PASSWORD '${DB_PASSWORD}';
-CREATE ROLE device_service_user LOGIN PASSWORD '${DB_PASSWORD}';
-CREATE ROLE messaging_service_user LOGIN PASSWORD '${DB_PASSWORD}';
-CREATE ROLE push_service_user LOGIN PASSWORD '${DB_PASSWORD}';
-CREATE ROLE webrtc_service_user LOGIN PASSWORD '${DB_PASSWORD}';
-CREATE ROLE moderation_service_user LOGIN PASSWORD '${DB_PASSWORD}';
-CREATE ROLE gateway_user LOGIN PASSWORD '${DB_PASSWORD}';
+-- All services use the same password
+CREATE ROLE account_service_user LOGIN PASSWORD 'development';
+CREATE ROLE profile_service_user LOGIN PASSWORD 'development';
+CREATE ROLE device_service_user LOGIN PASSWORD 'development';
+CREATE ROLE messaging_service_user LOGIN PASSWORD 'development';
+CREATE ROLE push_service_user LOGIN PASSWORD 'development';
+CREATE ROLE webrtc_service_user LOGIN PASSWORD 'development';
+CREATE ROLE moderation_service_user LOGIN PASSWORD 'development';
+CREATE ROLE gateway_user LOGIN PASSWORD 'development';
 
 -- Create dedicated schemas for each service
 CREATE SCHEMA IF NOT EXISTS account_schema AUTHORIZATION account_service_user;

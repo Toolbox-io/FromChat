@@ -10,7 +10,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from backend.shared.constants import OWNER_USERNAME
 from backend.shared.dependencies import get_current_user, get_db
-from backend.shared.models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup, DeviceSession
+from backend.shared.models import LoginRequest, RegisterRequest, ChangePasswordRequest, User, CryptoPublicKey, CryptoBackup
 from backend.shared.utils import create_token, get_password_hash, verify_password, get_client_ip
 from backend.shared.validation import is_valid_password, is_valid_username, is_valid_display_name
 import os
@@ -47,16 +47,16 @@ def convert_user(user: User) -> dict:
         "id": user.id,
         "created_at": user.created_at.isoformat(),
         "last_seen": user.last_seen.isoformat(),
-        "online": user.online,
+        "online": user.is_online,
         "username": user.username,
         "display_name": user.display_name,
-        "profile_picture": user.profile_picture,
+        "profile_picture": user.avatar_url,
         "bio": user.bio,
         "admin": _is_admin(user),
         "verified": user.verified,
-        "suspended": user.suspended or False,
+        "suspended": user.suspended,
         "suspension_reason": user.suspension_reason,
-        "deleted": (user.deleted or user.suspended) or False  # Treat suspended as deleted
+        "deleted": user.deleted
     }
 
 @router.get("/check_auth")
@@ -77,7 +77,7 @@ def login(request: Request, login_request: LoginRequest, db: Session = Depends(g
 
     user = db.query(User).filter(User.username == username).first()
 
-    if not user or not verify_password(login_request.password.strip(), user.password_hash):
+    if not user or not verify_password(login_request.password.strip(), user.hashed_password):
         log_security(
             "login_failed",
             severity="warning",
@@ -112,29 +112,8 @@ def login(request: Request, login_request: LoginRequest, db: Session = Depends(g
             detail="Неверное имя пользователя или пароль"
         )
 
-    # Create device session and embed into JWT
-    raw_ua = request.headers.get("user-agent")
-    device_name = request.headers.get("x-device-name")
-    ua = parse_ua(raw_ua or "")
+    # Generate session ID for JWT (device session will be created on first device service access)
     session_id = uuid.uuid4().hex
-
-    device = DeviceSession(
-        user_id=user.id,
-        raw_user_agent=raw_ua,
-        device_name=device_name,
-        device_type=("mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"),
-        os_name=(ua.os.family or None),
-        os_version=(ua.os.version_string or None),
-        browser_name=(ua.browser.family or None),
-        browser_version=(ua.browser.version_string or None),
-        brand=(ua.device.brand or None),
-        model=(ua.device.model or None),
-        session_id=session_id,
-        created_at=datetime.now(),
-        last_seen=datetime.now(),
-        revoked=False,
-    )
-    db.add(device)
 
     user.online = True
     user.last_seen = datetime.now()
@@ -148,15 +127,19 @@ def login(request: Request, login_request: LoginRequest, db: Session = Depends(g
     for identifier in identifiers:
         _reset_failed_logins(identifier)
 
+    # Parse user agent for logging
+    ua = parse_ua(raw_ua or "")
+    device_type = "mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"
+
     log_security(
         "login_success",
         username=user.username,
         user_id=user.id,
         ip=client_ip,
         session_id=session_id,
-        device=device.device_type,
-        os=device.os_name,
-        browser=device.browser_name,
+        device=device_type,
+        os=ua.os.family,
+        browser=ua.browser.family,
     )
 
     return {
@@ -230,8 +213,9 @@ def register(request: Request, register_request: RegisterRequest, db: Session = 
     new_user = User(
         username=username,
         display_name=display_name,
-        password_hash=hashed_password,
-        online=True,
+        hashed_password=hashed_password,
+        salt="",  # Not used since bcrypt includes salt in hash
+        is_online=True,
         last_seen=datetime.now(),
         verified=is_owner
     )
@@ -240,32 +224,13 @@ def register(request: Request, register_request: RegisterRequest, db: Session = 
     db.commit()
     db.refresh(new_user)
 
-    # Create initial device session
-    raw_ua = request.headers.get("user-agent")
-    device_name = request.headers.get("x-device-name")
-    ua = parse_ua(raw_ua or "")
+    # Generate a temporary session ID for the token (device session will be created on first device service access)
     session_id = uuid.uuid4().hex
-    device = DeviceSession(
-        user_id=new_user.id,
-        raw_user_agent=raw_ua,
-        device_name=device_name,
-        device_type=("mobile" if ua.is_mobile else "tablet" if ua.is_tablet else "bot" if ua.is_bot else "desktop"),
-        os_name=(ua.os.family or None),
-        os_version=(ua.os.version_string or None),
-        browser_name=(ua.browser.family or None),
-        browser_version=(ua.browser.version_string or None),
-        brand=(ua.device.brand or None),
-        model=(ua.device.model or None),
-        session_id=session_id,
-        created_at=datetime.now(),
-        last_seen=datetime.now(),
-        revoked=False,
-    )
-    db.add(device)
-    db.commit()
-
     token = create_token(new_user.id, new_user.username, session_id)
 
+    # Parse user agent for logging
+    raw_ua = request.headers.get("user-agent")
+    ua = parse_ua(raw_ua or "")
     os_name = ua.os.family or "Unknown OS"
     if ua.os.version_string:
         os_name = f"{os_name} {ua.os.version_string}"
@@ -380,14 +345,14 @@ def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Revoke current session
-    from backend.shared.utils import verify_token as _verify_token
-    payload = _verify_token(credentials.credentials)
-    if payload and payload.get("session_id"):
-        db.query(DeviceSession).filter(
-            DeviceSession.user_id == current_user.id,
-            DeviceSession.session_id == payload["session_id"],
-        ).update({DeviceSession.revoked: True})
+    # Revoke current session - TODO: Move to device service
+    # from backend.shared.utils import verify_token as _verify_token
+    # payload = _verify_token(credentials.credentials)
+    # if payload and payload.get("session_id"):
+    #     db.query(DeviceSession).filter(
+    #         DeviceSession.user_id == current_user.id,
+    #         DeviceSession.session_id == payload["session_id"],
+    #     ).update({DeviceSession.revoked: True})
 
     current_user.online = False
     current_user.last_seen = datetime.now()
@@ -399,7 +364,7 @@ def logout(
         username=current_user.username,
         user_id=current_user.id,
         ip=client_ip,
-        session_id=payload.get("session_id") if payload else None,
+        session_id=None,  # TODO: Get session_id from device service
     )
 
     return {
@@ -418,25 +383,25 @@ def change_password(
     db: Session = Depends(get_db)
 ):
     # Verify current derived password against stored hash
-    if not verify_password(password_request.currentPasswordDerived.strip(), current_user.password_hash):
+    if not verify_password(password_request.currentPasswordDerived.strip(), current_user.hashed_password):
         raise HTTPException(status_code=401, detail="Текущий пароль неверный")
 
     # Update password hash to hash of new derived password
-    current_user.password_hash = get_password_hash(password_request.newPasswordDerived.strip())
+    current_user.hashed_password = get_password_hash(password_request.newPasswordDerived.strip())
     db.commit()
 
-    # Optionally revoke all other sessions, keeping the current one
-    if password_request.logoutAllExceptCurrent:
-        from backend.shared.utils import verify_token as _verify_token
-        payload = _verify_token(credentials.credentials)
-        if not payload:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        current_session_id = payload.get("session_id")
-        db.query(DeviceSession).filter(
-            DeviceSession.user_id == current_user.id,
-            DeviceSession.session_id != current_session_id,
-        ).update({DeviceSession.revoked: True})
-        db.commit()
+    # Optionally revoke all other sessions, keeping the current one - TODO: Move to device service
+    # if password_request.logoutAllExceptCurrent:
+    #     from backend.shared.utils import verify_token as _verify_token
+    #     payload = _verify_token(credentials.credentials)
+    #     if not payload:
+    #             raise HTTPException(status_code=401, detail="Invalid token")
+    #     current_session_id = payload.get("session_id")
+    #     db.query(DeviceSession).filter(
+    #         DeviceSession.user_id == current_user.id,
+    #         DeviceSession.session_id != current_session_id,
+    #     ).update({DeviceSession.revoked: True})
+    #     db.commit()
 
     client_ip = get_client_ip(request)
     log_security(
@@ -496,7 +461,7 @@ async def _delete_user_data(user: User, db: Session):
     user.deleted = True
     user.display_name = f"Deleted User #{user_id}"
     user.bio = None
-    user.password_hash = ""
+    user.hashed_password = ""
     user.username = f"deleted_{user_id}"
     user.profile_picture = None
     user.last_seen = None  # Clear last seen timestamp

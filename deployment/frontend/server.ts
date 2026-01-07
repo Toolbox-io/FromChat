@@ -8,21 +8,27 @@ const port = Number(process.env.PORT) || 8301;
 const backendHost = process.env.BACKEND_HOST || "http://localhost:8300";
 const filePath = process.env.STATIC_FILE_PATH || ".";
 
-// API proxy middleware
-app.use('/api', createProxyMiddleware({
-    target: backendHost,
-    changeOrigin: true,
-    pathRewrite: { '^/api': '' },
-    ws: true
-}));
-
-// Direct WebSocket proxy for chat - bypass gateway
+// Direct WebSocket proxy for chat - bypass gateway (must come before general API proxy)
 app.use('/api/chat/ws', createProxyMiddleware({
     target: 'http://messaging_service:8305',
     changeOrigin: true,
     pathRewrite: { '^/api/chat/ws': '/messaging/chat/ws' },
     ws: true
 }));
+
+// API proxy middleware (exclude WebSocket paths)
+app.use('/api', (req, res, next) => {
+    // Skip WebSocket upgrade requests - let them be handled by specific proxies
+    if (req.headers.upgrade === 'websocket') {
+        return next();
+    }
+    createProxyMiddleware({
+        target: backendHost,
+        changeOrigin: true,
+        pathRewrite: { '^/api': '' },
+        ws: true
+    })(req, res, next);
+});
 
 // Serve static files
 app.use(express.static(resolve(filePath)));
