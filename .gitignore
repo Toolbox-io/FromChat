@@ -576,3 +576,5 @@ backend/alembic/**
 !backend/alembic/script.py.mako
 !frontend/src/css/lib
 **/*.module.scss.d.ts
+
+.cursor/plans
