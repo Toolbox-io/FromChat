@@ -2,24 +2,6 @@
 @use "../../../css/material" as *;
 @use "sass:color";
 
-// Reply preview styles (shared with Message component)
-.quote.contextualContent > .quoteInner {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    .replyUsername {
-        font-weight: 600;
-        color: $color-dark-on-surface;
-        font-size: 0.85rem;
-    }
-
-    .replyText {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-}
-
 .chatInputWrapper {
     position: relative;
     margin: 0 10px 10px 10px;
@@ -116,7 +98,7 @@
                     width: 50px;
                     height: 50px;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, color.adjust($color-dark-primary, $lightness: 8%), color.adjust($color-dark-primary-container, $lightness: 5%));
+                    background-color: $color-dark-primary;
                     color: $color-dark-on-primary;
                     border: 1px solid rgba($color-dark-primary, 0.5);
                     cursor: pointer;

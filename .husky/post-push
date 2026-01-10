@@ -1,0 +1,116 @@
+#!/bin/sh
+# Post-push hook: opens deploy command in system's native terminal
+# Cross-platform support: macOS, Linux, Windows, WSL
+
+# Get the project root directory
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+cd "$PROJECT_ROOT" || exit 1
+
+# Command to run in terminal (deploy.sh will load .env from project root)
+COMMAND="npm run -s deploy"
+
+# Detect OS and open appropriate terminal
+detect_and_open_terminal() {
+    # Detect WSL
+    if [ -n "${WSL_DISTRO_NAME:-}" ] || [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then
+        # WSL detected - try to open Windows Terminal, fallback to Linux terminals
+        if command -v wt.exe >/dev/null 2>&1; then
+            # Windows Terminal (preferred for WSL)
+            ESCAPED_PATH=$(echo "$PROJECT_ROOT" | sed "s/'/'\"'\"'/g")
+            ESCAPED_CMD=$(echo "$COMMAND" | sed "s/'/'\"'\"'/g")
+            wt.exe bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+        elif command -v wsl.exe >/dev/null 2>&1; then
+            # Fallback: use wsl.exe to open cmd
+            WINDOWS_PATH=$(wslpath -w "$PROJECT_ROOT" 2>/dev/null || echo "$PROJECT_ROOT")
+            cmd.exe /c "start cmd /k \"cd /d $WINDOWS_PATH && $COMMAND\""
+        else
+            # Fallback to Linux terminal
+            open_linux_terminal
+        fi
+    # macOS
+    elif [ "$(uname)" = "Darwin" ]; then
+        # macOS - use .command file with open command
+        # Clean up old script files and create a new one
+        rm -f /tmp/post-push-deploy-*.command 2>/dev/null
+        SCRIPT_FILE=$(mktemp /tmp/post-push-deploy-XXXXXX.command 2>/dev/null)
+        if [ -z "$SCRIPT_FILE" ] || [ ! -f "$SCRIPT_FILE" ]; then
+            # Fallback if mktemp fails
+            SCRIPT_FILE="/tmp/post-push-deploy-$$.command"
+        fi
+        {
+            echo "#!/bin/bash"
+            echo "clear"
+            echo "cd '$PROJECT_ROOT'"
+            echo "export PS1=''"
+            echo "set +x"
+            # Export DEPLOYMENT_SERVER if it was set in the hook environment
+            if [ -n "$DEPLOYMENT_SERVER_VALUE" ]; then
+                echo "export DEPLOYMENT_SERVER='$DEPLOYMENT_SERVER_VALUE'"
+            fi
+            echo "$COMMAND"
+            echo "echo ''"
+            echo "echo 'Press Enter to close...'"
+            echo "read -r"
+            echo "osascript -e 'tell application \"Terminal\" to close front window' &"
+        } > "$SCRIPT_FILE"
+        chmod +x "$SCRIPT_FILE"
+        # Use open command to launch .command file - opens only one Terminal window
+        open "$SCRIPT_FILE"
+    # Windows (Git Bash or similar)
+    elif [ -n "${MSYSTEM:-}" ] || [ -n "${MINGW64:-}" ] || [ -n "${MINGW32:-}" ]; then
+        # Git Bash on Windows
+        if command -v wt.exe >/dev/null 2>&1; then
+            # Windows Terminal
+            ESCAPED_PATH=$(echo "$PROJECT_ROOT" | sed "s/'/'\"'\"'/g")
+            ESCAPED_CMD=$(echo "$COMMAND" | sed "s/'/'\"'\"'/g")
+            wt.exe bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+        elif command -v cmd.exe >/dev/null 2>&1; then
+            # Command Prompt - convert path to Windows format
+            WINDOWS_PATH=$(echo "$PROJECT_ROOT" | sed 's|^/\([a-z]\)|\1:|' | sed 's|/|\\|g' | sed 's|\\|\\\\|g')
+            cmd.exe /c "start cmd /k \"cd /d $WINDOWS_PATH && $COMMAND\""
+        else
+            # Fallback
+            ESCAPED_PATH=$(echo "$PROJECT_ROOT" | sed "s/'/'\"'\"'/g")
+            start "Deploy" bash -c "cd '$ESCAPED_PATH' && $COMMAND; exec bash"
+        fi
+    # Linux
+    else
+        open_linux_terminal
+    fi
+}
+
+open_linux_terminal() {
+    # Escape path for use in shell commands
+    ESCAPED_PATH=$(echo "$PROJECT_ROOT" | sed "s/'/'\"'\"'/g")
+    
+    ESCAPED_CMD=$(echo "$COMMAND" | sed "s/'/'\"'\"'/g")
+    # Try different Linux terminal emulators
+    if command -v gnome-terminal >/dev/null 2>&1; then
+        gnome-terminal -- bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+    elif command -v x-terminal-emulator >/dev/null 2>&1; then
+        x-terminal-emulator -e bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+    elif command -v konsole >/dev/null 2>&1; then
+        konsole -e bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+    elif command -v xterm >/dev/null 2>&1; then
+        xterm -e bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+    elif command -v alacritty >/dev/null 2>&1; then
+        alacritty -e bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+    elif command -v kitty >/dev/null 2>&1; then
+        kitty bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+    elif command -v tilix >/dev/null 2>&1; then
+        tilix -e bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+    else
+        # Last resort: try to find any terminal
+        TERMINAL=$(command -v x-terminal-emulator gnome-terminal konsole xterm alacritty kitty tilix 2>/dev/null | head -1)
+        if [ -n "$TERMINAL" ]; then
+            "$TERMINAL" -e bash -c "cd '$ESCAPED_PATH' && set +x && echo 'Post-push: Running deploy...' && $ESCAPED_CMD && echo '' && echo 'Deploy completed. Press Enter to close...' && read -r && exit"
+        else
+            echo "Could not find a terminal emulator. Please run manually: cd '$PROJECT_ROOT' && $COMMAND"
+        fi
+    fi
+}
+
+# Run in background so git push doesn't wait
+# Add a small delay to ensure git push completes first
+(sleep 0.5 && detect_and_open_terminal) &
+

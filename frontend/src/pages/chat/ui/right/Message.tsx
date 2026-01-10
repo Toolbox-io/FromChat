@@ -3,14 +3,12 @@ import type { Attachment, Message as MessageType, Reaction } from "@/core/types"
 import defaultAvatar from "@/images/default-avatar.png";
 import Quote from "@/core/components/Quote";
 import { parse } from "marked";
-import DOMPurify from "dompurify";
+import { escape as escapeHtml } from "he";
 import { useEffect, useState, useRef, useMemo } from "react";
-import { getCurrentKeys } from "@/core/api/authApi";
-import { ecdhSharedSecret, deriveWrappingKey } from "@/utils/crypto/asymmetric";
-import { importAesGcmKey, aesGcmDecrypt } from "@/utils/crypto/symmetric";
-import { getAuthHeaders } from "@/core/api/authApi";
-import { useAppState } from "@/pages/chat/state";
-import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
+import api from "@/core/api";
+import { ecdhSharedSecret, deriveWrappingKey, importAesGcmKey, aesGcmDecrypt } from "@fromchat/protocol";
+import { useUserStore } from "@/state/user";
+import { useProfileStore } from "@/state/profile";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import { ub64 } from "@/utils/utils";
 import { useImmer } from "use-immer";
@@ -18,6 +16,7 @@ import { createPortal } from "react-dom";
 import { parseProfileLink } from "@/core/profileLinks";
 import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem } from "@/utils/material";
 import styles from "@/pages/chat/css/Message.module.scss";
+import replyPreviewStyles from "@/pages/chat/css/reply-preview.module.scss";
 
 interface MessageReactionsProps {
     reactions?: Reaction[];
@@ -26,7 +25,7 @@ interface MessageReactionsProps {
 }
 
 function Reactions({ reactions, onReactionClick, messageId }: MessageReactionsProps) {
-    const { user } = useAppState();
+    const { user } = useUserStore();
     const [visibleReactions, setVisibleReactions] = useState<Reaction[]>([]);
     const [animatingReactions, setAnimatingReactions] = useState<Set<string>>(new Set());
     const [isVisible, setIsVisible] = useState(false);
@@ -163,14 +162,15 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         endRect: Rect;
     } | null>(null);
     const [isAnimatingOpen, setIsAnimatingOpen] = useState(false);
-    const { user, setProfileDialog } = useAppState();
+    const { user } = useUserStore();
+    const { setProfileDialog } = useProfileStore();
     const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
     const dmEnvelope = message.runtimeData?.dmEnvelope;
 
     const formattedMessage = useMemo(() => {
         // First, temporarily replace existing fromchat.ru links to avoid conflicts
         const linkPlaceholders: string[] = [];
-        let content = message.content.replace(/https?:\/\/fromchat\.ru\/@[a-zA-Z0-9_.-]+/g, (match) => {
+        let content = escapeHtml(message.content).replace(/https?:\/\/fromchat\.ru\/@[a-zA-Z0-9_.-]+/g, (match) => {
             const placeholder = `__LINK_PLACEHOLDER_${linkPlaceholders.length}__`;
             linkPlaceholders.push(match);
             return placeholder;
@@ -186,8 +186,10 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
             content = content.replace(`__LINK_PLACEHOLDER_${index}__`, link);
         });
 
+        const rendered = parse(content, { async: false }).trim();
+
         return {
-            __html: DOMPurify.sanitize(parse(content, { async: false })).trim()
+            __html: rendered
         };
     }, [message.content, styles.mentionLink]);
 
@@ -220,14 +222,14 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
             // no-op decrypt indicator removed from UI
             // Fetch encrypted file
             const response = await fetch(file.path, {
-                headers: getAuthHeaders(user.authToken!)
+                headers: api.user.auth.getAuthHeaders(user.authToken!)
             });
             if (!response.ok) throw new Error("Failed to fetch file");
 
             const encryptedData = await response.arrayBuffer();
 
             // Get current user's keys
-            const keys = getCurrentKeys();
+            const keys = api.user.auth.getCurrentKeys();
             if (!keys) throw new Error("Keys not initialized");
 
             // Derive shared secret with the recipient's public key
@@ -340,7 +342,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
             // Fetch with credentials/headers when not a blob URL
             const response = await fetch(src, {
-                headers: user.authToken ? getAuthHeaders(user.authToken) : undefined,
+                headers: user.authToken ? api.user.auth.getAuthHeaders(user.authToken) : undefined,
                 credentials: "include"
             });
             if (!response.ok) throw new Error("Failed to download image");
@@ -378,7 +380,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
 
             // If not decrypted or public file, fetch with credentials/headers
             const response = await fetch(file.path, {
-                headers: user.authToken ? getAuthHeaders(user.authToken) : undefined,
+                headers: user.authToken ? api.user.auth.getAuthHeaders(user.authToken) : undefined,
                 credentials: "include"
             });
             if (!response.ok) throw new Error("Failed to download file");
@@ -402,7 +404,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
         if (!user.authToken || !message.user_id) return;
 
         try {
-            const userProfile = await fetchUserProfileById(user.authToken, message.user_id);
+            const userProfile = await api.user.profile.fetchById(user.authToken, message.user_id);
             if (userProfile) {
                 setProfileDialog({
                     ...userProfile,
@@ -431,9 +433,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                     let userProfile;
 
                     if (profileLink.userId) {
-                        userProfile = await fetchUserProfileById(user.authToken, profileLink.userId);
-                    } else if (profileLink.username) {
-                        userProfile = await fetchUserProfile(user.authToken, profileLink.username);
+                        userProfile = await api.user.profile.fetchById(user.authToken, profileLink.userId);
+                        } else if (profileLink.username) {
+                        userProfile = await api.user.profile.fetchByUsername(user.authToken, profileLink.username);
                     }
 
                     if (userProfile) {
@@ -481,7 +483,7 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                 {!isAuthor && !isDm && (
                     <div className={styles.messageProfilePic} onClick={handleProfileClick}>
                         <img
-                            src={message.username?.startsWith("Deleted User #") ? defaultAvatar : (message.profile_picture || defaultAvatar)}
+                            src={message.profile_picture || defaultAvatar}
                             alt={message.username}
                             onError={(e) => {
                                 e.target.src = defaultAvatar;
@@ -505,9 +507,9 @@ export function Message({ message, isAuthor, onContextMenu, onReactionClick, isD
                     )}
 
                     {message.reply_to && (
-                        <Quote className={`${styles.replyPreview} ${styles.contextualContent}`} background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
-                            <span className={styles.replyUsername}>{message.reply_to.username}</span>
-                            <span className={styles.replyText}>{message.reply_to.content}</span>
+                        <Quote className={`${styles.replyPreview} ${replyPreviewStyles.contextualContent}`} background={isAuthor ? "primaryContainer" : "surfaceContainer"}>
+                            <span className={replyPreviewStyles.replyUsername}>{message.reply_to.username}</span>
+                            <span className={replyPreviewStyles.replyText}>{message.reply_to.content}</span>
                         </Quote>
                     )}
 

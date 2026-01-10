@@ -7,6 +7,7 @@ import path from "path";
 import { visualizer } from 'rollup-plugin-visualizer';
 import sassDts from 'vite-plugin-sass-dts';
 import { optimizeCssModules } from './plugins/optimizeCssModules';
+import { optimizeSvg } from './plugins/optimizeSvg';
 
 const currentDir = path.resolve(__dirname);
 const outDir = process.env.VITE_ELECTRON ? `${currentDir}/build/electron` : `${currentDir}/build/normal`;
@@ -21,6 +22,7 @@ const plugins: PluginOption[] = [
         enabledMode: ['development', 'production']
     }),
     optimizeCssModules(),
+    optimizeSvg(),
     createHtmlPlugin({
         minify: {
             collapseWhitespace: true,
@@ -68,7 +70,8 @@ export default defineConfig({
     plugins: plugins,
     resolve: {
         alias: {
-            "@": path.resolve(__dirname, "./src")
+            "@": path.resolve(__dirname, "./src"),
+            "@fromchat/protocol": path.resolve(__dirname, "./packages/fromchat-protocol/src/index.ts")
         }
     },
     server: {
@@ -87,6 +90,7 @@ export default defineConfig({
     },
     appType: "spa",
     optimizeDeps: {
+        exclude: ["@fromchat/protocol"],
         esbuildOptions: {
             target: "es2022"
         }

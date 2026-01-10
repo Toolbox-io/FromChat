@@ -1,0 +1,88 @@
+fromchat.ru {
+	reverse_proxy 172.18.0.1:8301 host.docker.internal:8301 172.17.0.1:8301 {
+		lb_policy first
+        header_up X-Real-IP {remote_host}
+	}
+
+	# Security headers
+	header {
+		X-XSS-Protection "1; mode=block" # Prevent XSS attacks
+		X-Content-Type-Options "nosniff" # Prevent MIME type sniffing
+		X-Frame-Options "DENY" # Prevent clickjacking
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		Permissions-Policy "geolocation=(), microphone=(self), camera=(self)"
+	}
+
+	rate_limit {
+		zone global {
+			key {remote_ip}
+			window 1m
+			burst 20
+			events 500
+		}
+	}
+
+	handle_errors {
+		@errors {
+			expression {err.status_code} >= 400
+		}
+
+		handle @errors {
+			rewrite * /{err.status_code}
+			reverse_proxy https://http.cat {
+				header_up Host {upstream_hostport}
+				replace_status {err.status_code}
+			}
+		}
+	}
+}
+
+beta.fromchat.ru {
+    reverse_proxy 95.165.0.162:8301 {
+        header_up X-Real-IP {remote_host}
+    }
+
+	# Security headers
+	header {
+		X-XSS-Protection "1; mode=block" # Prevent XSS attacks
+		X-Content-Type-Options "nosniff" # Prevent MIME type sniffing
+		X-Frame-Options "DENY" # Prevent clickjacking
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		Permissions-Policy "geolocation=(), microphone=(self), camera=(self)"
+	}
+
+	rate_limit {
+		zone global {
+			key {remote_ip}
+			window 1m
+			burst 20
+			events 1000
+		}
+	}
+
+	handle_errors {
+		@errors {
+			expression {err.status_code} >= 400
+		}
+
+		handle @errors {
+			rewrite * /{err.status_code}
+			reverse_proxy https://http.cat {
+				header_up Host {upstream_hostport}
+				replace_status {err.status_code}
+			}
+		}
+	}
+}
+
+api.getgadgets.toolbox-io.ru {
+    reverse_proxy 95.165.0.162:8400
+}
+
+getgadgets.toolbox-io.ru {
+    reverse_proxy 95.165.0.162:8401
+}

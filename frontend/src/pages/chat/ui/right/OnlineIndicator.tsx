@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { useAppState } from "@/pages/chat/state";
+import { usePresenceStore } from "@/state/presence";
 import styles from "@/pages/chat/css/TypingIndicators.module.scss";
 
 interface OnlineIndicatorProps {
@@ -14,8 +14,8 @@ interface OnlineIndicatorProps {
 }
 
 export function OnlineIndicator({ userId, className = "" }: OnlineIndicatorProps) {
-    const { chat } = useAppState();
-    const status = chat.onlineStatuses.get(userId);
+    const { onlineStatuses } = usePresenceStore();
+    const status = onlineStatuses.get(userId);
 
     // Only show indicator when user is online
     if (!status || !status.online) {

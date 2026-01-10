@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { checkUserSimilarity } from "@/core/api/profileApi";
-import { useAppState } from "@/pages/chat/state";
+import api from "@/core/api";
+import { useUserStore } from "@/state/user";
 import { MaterialIcon } from "@/utils/material";
 
 interface StatusBadgeProps {
@@ -11,14 +11,14 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ verified, userId, size = "small" }: StatusBadgeProps) {
     const [isSimilarToVerified, setIsSimilarToVerified] = useState(false);
-    const { user } = useAppState();
+    const { user } = useUserStore();
     
     const className = `status-badge ${size}`;
 
     // Check similarity for unverified users
     useEffect(() => {
         if (!verified && userId && user.authToken) {
-            checkUserSimilarity(userId, user.authToken)
+            api.user.profile.checkSimilarity(userId, user.authToken)
                 .then(result => {
                     setIsSimilarToVerified(result?.isSimilar || false);
                 })

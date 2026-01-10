@@ -1,4 +1,4 @@
-import { getAuthHeaders } from "./authApi";
+import { getAuthHeaders } from "./account";
 import { API_BASE_URL } from "@/core/config";
 import type { UserProfile } from "@/core/types";
 
@@ -172,11 +172,72 @@ export async function verifyUser(userId: number, token: string): Promise<{verifi
 }
 
 /**
+ * In-memory cache for user similarity results
+ * Key: userId, Value: similarity result
+ */
+const similarityCache = new Map<number, {isSimilar: boolean, similarTo?: string} | null>();
+
+/**
  * Checks if a user is similar to any verified user
+ * Results are cached in memory to avoid redundant API calls
  */
 export async function checkUserSimilarity(userId: number, token: string): Promise<{isSimilar: boolean, similarTo?: string} | null> {
+    // Check cache first
+    if (similarityCache.has(userId)) {
+        return similarityCache.get(userId) ?? null;
+    }
+
     try {
         const response = await fetch(`${API_BASE_URL}/user/check-similarity/${userId}`, {
+            headers: getAuthHeaders(token)
+        });
+
+        let result: {isSimilar: boolean, similarTo?: string} | null = null;
+        if (response.ok) {
+            result = await response.json();
+        }
+
+        // Cache the result (even if null/error)
+        similarityCache.set(userId, result);
+        return result;
+    } catch (error) {
+        console.error('Error checking user similarity:', error);
+        const result: null = null;
+        // Cache null result to avoid retrying on errors
+        similarityCache.set(userId, result);
+        return result;
+    }
+}
+
+/**
+ * Suspends a user account (admin only)
+ */
+export async function suspendUser(userId: number, reason: string, token: string): Promise<{status: string; message: string; reason: string} | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/${userId}/suspend`, {
+            method: 'POST',
+            headers: getAuthHeaders(token),
+            body: JSON.stringify({ reason })
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error suspending user:', error);
+        return null;
+    }
+}
+
+/**
+ * Unsuspends a user account (admin only)
+ */
+export async function unsuspendUser(userId: number, token: string): Promise<{status: string; message: string} | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/${userId}/unsuspend`, {
+            method: 'POST',
             headers: getAuthHeaders(token)
         });
 
@@ -186,7 +247,28 @@ export async function checkUserSimilarity(userId: number, token: string): Promis
 
         return null;
     } catch (error) {
-        console.error('Error checking user similarity:', error);
+        console.error('Error unsuspending user:', error);
+        return null;
+    }
+}
+
+/**
+ * Deletes a user account (admin only)
+ */
+export async function deleteUser(userId: number, token: string): Promise<{status: string; message: string} | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/${userId}/delete`, {
+            method: 'POST',
+            headers: getAuthHeaders(token)
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error deleting user:', error);
         return null;
     }
 }

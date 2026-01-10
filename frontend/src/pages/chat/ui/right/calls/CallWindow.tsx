@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useAppState } from "@/pages/chat/state";
+import { useCallStore } from "@/state/call";
+import { useUserStore } from "@/state/user";
 import useCall from "@/pages/chat/hooks/useCall";
 import defaultAvatar from "@/images/default-avatar.png";
 import { createPortal } from "react-dom";
@@ -9,8 +10,8 @@ import { motion, AnimatePresence } from "motion/react";
 import styles from "@/pages/chat/css/callWindow.module.scss";
 
 export function CallWindow() {
-    const { chat, toggleCallMinimize, user } = useAppState();
-    const { call } = chat;
+    const { call, toggleCallMinimized } = useCallStore();
+    const { user } = useUserStore();
     const {
         acceptCall,
         rejectCall,
@@ -158,7 +159,7 @@ export function CallWindow() {
                         <div className={styles.callHeader}>
                             <div className={styles.windowControls}>
                                 <MaterialIconButton
-                                    onClick={toggleCallMinimize}
+                                    onClick={toggleCallMinimized}
                                     icon={call.isMinimized ? "open_in_full" : "close_fullscreen"}
                                     className={styles.windowControlBtn}
                                 />

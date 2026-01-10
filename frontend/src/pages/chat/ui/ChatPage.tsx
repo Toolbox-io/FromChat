@@ -4,15 +4,17 @@ import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
 import { CallWindow } from "./right/calls/CallWindow";
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAppState } from "@/pages/chat/state";
-import { fetchUserProfileById, fetchUserProfile } from "@/core/api/profileApi";
+import { useUserStore } from "@/state/user";
+import { useProfileStore } from "@/state/profile";
+import api from "@/core/api";
 import styles from "@/pages/chat/css/layout.module.scss";
 
 export default function ChatPage() {
     const { navigate: navigateDownloadApp } = useDownloadAppScreen();
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, setProfileDialog } = useAppState();
+    const { user } = useUserStore();
+    const { setProfileDialog } = useProfileStore();
     const processedProfile = useRef<string | null>(null);
 
     // Handle profile links ONLY from navigation state (from SmartCatchAll)
@@ -41,10 +43,10 @@ export default function ChatPage() {
                 
                 if (profileInfo.userId) {
                     // Fetch by user ID
-                    userProfile = await fetchUserProfileById(user.authToken, profileInfo.userId);
+                    userProfile = await api.user.profile.fetchById(user.authToken, profileInfo.userId);
                 } else if (profileInfo.username) {
                     // Fetch by username
-                    userProfile = await fetchUserProfile(user.authToken, profileInfo.username);
+                    userProfile = await api.user.profile.fetchByUsername(user.authToken, profileInfo.username);
                 }
                 
                 if (userProfile) {
@@ -64,7 +66,7 @@ export default function ChatPage() {
         }
 
         handleProfileLink();
-    }, [location.state, user.authToken, user.currentUser?.id, setProfileDialog, navigate, location.pathname]);
+    }, [location.state, user.authToken, user.currentUser?.id, navigate, location.pathname]);
 
     if (navigateDownloadApp) return navigateDownloadApp;
 

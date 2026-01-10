@@ -113,6 +113,16 @@ class PushSubscription(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
+class FcmToken(Base):
+    __tablename__ = "fcm_token"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    token = Column(Text, nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 class Reaction(Base):
     __tablename__ = "reaction"
 
@@ -281,6 +291,21 @@ class DMReactionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UpdateLog(Base):
+    """Stores update sequence numbers and updates for gap detection"""
+    __tablename__ = "update_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    sequence = Column(Integer, nullable=False, index=True)
+    updates = Column(Text, nullable=False)  # JSON array of updates
+    timestamp = Column(DateTime, default=datetime.now, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "sequence", name="uq_user_sequence"),
+    )
 
 
 # Tables are now created through Alembic migrations

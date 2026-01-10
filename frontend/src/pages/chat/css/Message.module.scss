@@ -2,27 +2,11 @@
 @use "../../../css/material" as *;
 @use "sass:color";
 
-.quote.contextualContent > .quoteInner {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    .replyUsername {
-        font-weight: 600;
-        color: $color-dark-on-surface;
-        font-size: 0.85rem;
-    }
-
-    .replyText {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-}
 
 .message {
     $status-indicator-size: 16px;
 
-    margin-bottom: 1rem;
+    margin-bottom: 10px;
     max-width: 70%;
     position: relative;
     width: fit-content;
@@ -30,30 +14,8 @@
     align-items: flex-start;
     gap: 8px;
 
-    &.received {
-        .messageProfilePic {
-            width: 40px;
-            height: 40px;
-            flex-shrink: 0;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-
-            &:hover {
-                transform: scale(1.05);
-            }
-
-            img {
-                width: 100%;
-                height: 100%;
-                border-radius: 50%;
-                object-fit: cover;
-                border: 2px solid $color-dark-outline;
-            }
-        }
-    }
-
     .messageInner {
-        border-radius: 12px;
+        border-radius: 20px 20px 8px 8px; // Top corners rounded, bottom corners sharper
         position: relative;
         word-wrap: break-word;
         overflow-wrap: anywhere;
@@ -72,6 +34,7 @@
             display: flex;
             align-items: center;
             gap: 4px;
+            width: fit-content;
 
             &:hover {
                 transform: scale(1.05);
@@ -92,9 +55,10 @@
             }
         }
 
-        .quote.replyPreview {
+        :global(.quote).replyPreview {
             user-select: none;
-            margin: 10px;
+            margin: 5px;
+            border-radius: 16px;
         }
 
         .messageAttachments {
@@ -194,10 +158,31 @@
     }
 
     &.received {
+        .messageProfilePic {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            align-self: flex-end;
+
+            &:hover {
+                transform: scale(1.05);
+            }
+
+            img {
+                width: 100%;
+                height: 100%;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid $color-dark-outline;
+            }
+        }
+
         .messageInner {
             background: $color-dark-surface-container;
             color: $color-dark-on-surface;
-            border-top-left-radius: 5px;
+            border-radius: 20px 20px 20px 8px; // Top-left: 5px, top-right: 20px, bottom: 8px
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba($color-dark-outline-variant, 0.4);
             position: relative;
@@ -210,7 +195,7 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: linear-gradient(135deg, rgba($color-dark-primary, 0.05), rgba($color-dark-tertiary, 0.03));
+                background: linear-gradient(135deg, rgba(147, 51, 234, 0.05), rgba(99, 102, 241, 0.03));
                 pointer-events: none;
                 z-index: 0;
             }
@@ -231,26 +216,26 @@
         margin-left: auto;
         flex-direction: row-reverse;
 
+        :global(.quote).replyPreview {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(147, 51, 234, 0.5);
+
+            :global(.quote-inner) {
+                position: relative;
+                z-index: 1;
+            }
+        }
+
         .messageInner {
-            background: linear-gradient(135deg, color.adjust($color-dark-primary, $lightness: 8%), color.adjust($color-dark-primary-container, $lightness: 5%));
-            color: $color-dark-on-primary;
-            border-top-right-radius: 5px;
+            background: linear-gradient(135deg, #9333EA, #6366F1, #2f68c5);
+            border-radius: 20px 20px 8px 20px; // Top-left: 20px, top-right: 5px, bottom: 8px
             box-shadow: 0 0 20px rgba($color-dark-primary, 0.4);
             border: 1px solid rgba($color-dark-primary, 0.5);
             position: relative;
             overflow: hidden;
-
-            &::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
-                pointer-events: none;
-                z-index: 0;
-            }
 
             > * {
                 position: relative;
@@ -273,7 +258,6 @@
         }
 
         .messageTime {
-            color: $color-dark-on-primary;
             font-weight: 500;
         }
     }

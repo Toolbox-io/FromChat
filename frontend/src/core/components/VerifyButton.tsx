@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { verifyUser } from "@/core/api/profileApi";
-import { useAppState } from "@/pages/chat/state";
+import api from "@/core/api";
+import { useUserStore } from "@/state/user";
 import { MaterialButton } from "@/utils/material";
 
 interface VerifyButtonProps {
@@ -11,7 +11,7 @@ interface VerifyButtonProps {
 
 export function VerifyButton({ userId, verified, onVerificationChange }: VerifyButtonProps) {
     const [isVerifying, setIsVerifying] = useState(false);
-    const { user } = useAppState();
+    const { user } = useUserStore();
 
     // Only show for owner
     if (user.currentUser?.id !== 1) {
@@ -23,7 +23,7 @@ export function VerifyButton({ userId, verified, onVerificationChange }: VerifyB
         
         setIsVerifying(true);
         try {
-            const result = await verifyUser(userId, user.authToken);
+            const result = await api.moderation.users.verify(userId, user.authToken);
             if (result) {
                 onVerificationChange?.(result.verified);
             }

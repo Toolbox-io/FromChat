@@ -1,21 +1,13 @@
-import { useEffect } from "react";
-import { useAppState } from "./chat/state";
-import { useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
+import { useUserStore } from "@/state/user";
+import { Navigate } from "react-router-dom";
 
 interface ProtectedRouteProps {
-    children: React.ReactNode;
+    children: ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { user } = useAppState();
-    const navigate = useNavigate();
+    const { user } = useUserStore();
 
-    useEffect(() => {
-        if (!user.authToken) {
-            navigate("/login");
-            return;
-        }
-    }, [user.authToken, user.currentUser, navigate]);
-
-    return <>{children}</>;
+    return !user.authToken ? <Navigate to="/login" /> : children;
 }

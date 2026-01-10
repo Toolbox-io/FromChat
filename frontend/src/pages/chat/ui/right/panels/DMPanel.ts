@@ -1,15 +1,7 @@
 import { MessagePanel } from "./MessagePanel";
-import {
-    fetchDMHistory,
-    decryptDm,
-    sendDMViaWebSocket,
-    sendDmWithFiles,
-    editDmEnvelope,
-    deleteDmEnvelope
-} from "@/core/api/dmApi";
-import { fetchUserProfileById } from "@/core/api/profileApi";
+import api from "@/core/api";
 import type { DmEncryptedJSON, DmEnvelope, DMWebSocketMessage, EncryptedMessageJson, Message } from "@/core/types";
-import type { UserState, ProfileDialogData } from "@/pages/chat/state";
+import type { UserState, ProfileDialogData } from "@/state/types";
 import { formatDMUsername } from "@/pages/chat/hooks/useDM";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
 import { typingManager } from "@/core/typingManager";
@@ -63,7 +55,7 @@ export class DMPanel extends MessagePanel {
     }
 
     private async parseTextPayload(env: DmEnvelope, decryptedMessages: Message[]) {
-        const plaintext = await decryptDm(env, this.dmData!.publicKey);
+        const plaintext = await api.chats.dm.decrypt(env, this.dmData!.publicKey);
         const username = formatDMUsername(
             env.senderId,
             env.recipientId,
@@ -111,7 +103,8 @@ export class DMPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
-            const messages = await fetchDMHistory(this.dmData.userId, this.currentUser.authToken, 50);
+            const limit = this.calculateMessageLimit();
+            const { messages, has_more } = await api.chats.dm.fetchMessages(this.dmData.userId, this.currentUser.authToken, limit);
             const decryptedMessages: Message[] = [];
             let maxIncomingId = 0;
 
@@ -130,6 +123,7 @@ export class DMPanel extends MessagePanel {
 
             this.clearMessages();
             decryptedMessages.forEach(msg => this.addMessage(msg));
+            this.setHasMoreMessages(has_more);
 
             // Update last read ID
             if (maxIncomingId > 0) {
@@ -143,37 +137,77 @@ export class DMPanel extends MessagePanel {
         }
     }
 
+    async loadMoreMessages(): Promise<void> {
+        if (!this.currentUser.authToken || !this.dmData || !this.state.hasMoreMessages || this.state.isLoadingMore) return;
+
+        const messages = this.getMessages();
+        if (messages.length === 0) return;
+
+        const oldestMessage = messages[0];
+        const oldestEnvelope = oldestMessage.runtimeData?.dmEnvelope;
+        if (!oldestEnvelope) return;
+
+        this.setLoadingMore(true);
+        try {
+            const limit = this.calculateMessageLimit();
+            const { messages: newEnvelopes, has_more } = await api.chats.dm.fetchMessages(
+                this.dmData.userId,
+                this.currentUser.authToken,
+                limit,
+                oldestEnvelope.id
+            );
+            
+            if (newEnvelopes && newEnvelopes.length > 0) {
+                const decryptedMessages: Message[] = [];
+                for (const env of newEnvelopes) {
+                    try {
+                        const dmMsg = await this.parseTextPayload(env, decryptedMessages);
+                        decryptedMessages.push(dmMsg);
+                    } catch (error) {
+                        console.error("Error decrypting message:", error);
+                    }
+                }
+                
+                // Prepend older messages (they come in reverse chronological order)
+                this.updateState({
+                    messages: [...decryptedMessages.reverse(), ...messages]
+                });
+            }
+            this.setHasMoreMessages(has_more);
+        } catch (error) {
+            console.error("Failed to load more DM messages:", error);
+        } finally {
+            this.setLoadingMore(false);
+        }
+    }
+
     protected async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !this.dmData || !content.trim()) return;
 
-        try {
-            const payload: DmEncryptedJSON = {
-                type: "text",
-                data: {
-                    content: content.trim(),
-                    reply_to_id: replyToId ?? undefined
-                }
+        const payload: DmEncryptedJSON = {
+            type: "text",
+            data: {
+                content: content.trim(),
+                reply_to_id: replyToId ?? undefined
             }
-            const json = JSON.stringify(payload);
+        }
+        const json = JSON.stringify(payload);
 
-            if (files.length === 0) {
-                await sendDMViaWebSocket(
-                    this.dmData.userId,
-                    this.dmData.publicKey,
-                    json,
-                    this.currentUser.authToken
-                );
-            } else {
-                await sendDmWithFiles(
-                    this.dmData.userId,
-                    this.dmData.publicKey,
-                    json,
-                    files,
-                    this.currentUser.authToken
-                );
-            }
-        } catch (error) {
-            console.error("Failed to send DM:", error);
+        if (files.length === 0) {
+            await api.chats.dm.send(
+                this.dmData.userId,
+                this.dmData.publicKey,
+                json,
+                this.currentUser.authToken
+            );
+        } else {
+            await api.chats.dm.sendWithFiles(
+                this.dmData.userId,
+                this.dmData.publicKey,
+                json,
+                files,
+                this.currentUser.authToken
+            );
         }
     }
 
@@ -228,7 +262,7 @@ export class DMPanel extends MessagePanel {
             const { id, iv, ciphertext, salt, iv2, wrappedMk } = response.data;
             try {
                 // Decrypt new content in-place
-                const plaintext = await decryptDm(
+                const plaintext = await api.chats.dm.decrypt(
                     {
                         id,
                         senderId: 0,
@@ -330,7 +364,7 @@ export class DMPanel extends MessagePanel {
         this.deleteMessageImmediately(messageId);
 
         // Fire and forget server deletion; UI already updated
-        await deleteDmEnvelope(messageId, this.dmData.userId, this.currentUser.authToken);
+        await api.chats.dm.deleteMessage(messageId, this.dmData.userId, this.currentUser.authToken);
     }
 
     async handleEditMessage(messageId: number, content: string): Promise<void> {
@@ -345,7 +379,7 @@ export class DMPanel extends MessagePanel {
                 reply_to_id: msg?.reply_to?.id ?? undefined
             }
         };
-        editDmEnvelope(messageId, this.dmData.publicKey, JSON.stringify(payload), this.currentUser.authToken).catch((e) => {
+        api.chats.dm.edit(messageId, this.dmData.publicKey, JSON.stringify(payload), this.currentUser.authToken).catch((e) => {
             console.error("Failed to edit DM:", e);
         });
     }
@@ -354,7 +388,7 @@ export class DMPanel extends MessagePanel {
         if (!this.dmData || !this.currentUser.authToken) return null;
 
         try {
-            const userProfile = await fetchUserProfileById(this.currentUser.authToken, this.dmData.userId);
+            const userProfile = await api.user.profile.fetchById(this.currentUser.authToken, this.dmData.userId);
             if (!userProfile) return null;
 
             return {

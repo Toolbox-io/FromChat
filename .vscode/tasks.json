@@ -33,7 +33,7 @@
                 "panel": "shared"
             },
             "group": {
-                "kind": "build",
+                "kind": "build"
             },
             "isBackground": true
         },
@@ -86,6 +86,18 @@
                 "reveal": "always",
                 "focus": false,
                 "panel": "shared"
+            }
+        },
+        {
+            "label": "Deploy",
+            "type": "shell",
+            "command": "npm run deploy",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
             }
         }
     ]

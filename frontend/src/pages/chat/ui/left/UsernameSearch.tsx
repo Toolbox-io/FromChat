@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { useAppState } from "@/pages/chat/state";
-import { searchUsers, fetchUserPublicKey } from "@/core/api/dmApi";
+import { useUserStore } from "@/state/user";
+import { useChatStore } from "@/state/chat";
+import api from "@/core/api";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { User } from "@/core/types";
 import { onlineStatusManager } from "@/core/onlineStatusManager";
@@ -8,7 +9,7 @@ import { OnlineIndicator } from "@/pages/chat/ui/right/OnlineIndicator";
 import { OnlineStatus } from "@/pages/chat/ui/right/OnlineStatus";
 import defaultAvatar from "@/images/default-avatar.png";
 import SearchBar from "@/core/components/SearchBar";
-import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem } from "@/utils/material";
+import { MaterialCircularProgress, MaterialIconButton, MaterialList, MaterialListItem, type MDUIBottomAppBar } from "@/utils/material";
 import styles from "@/pages/chat/css/left-panel.module.scss";
 
 interface SearchUser extends User {
@@ -16,8 +17,15 @@ interface SearchUser extends User {
     verified?: boolean;
 }
 
-export function UsernameSearch() {
-    const { user, switchToDM, chat } = useAppState();
+export interface UsernameSearchProps {
+    containerRef: React.RefObject<HTMLElement | null>;
+    headerRef?: React.RefObject<HTMLElement | null>;
+    bottomAppBarRef?: React.RefObject<MDUIBottomAppBar | null>;
+}
+
+export function UsernameSearch({ containerRef, headerRef, bottomAppBarRef }: UsernameSearchProps) {
+    const { user } = useUserStore();
+    const { switchToDM, activeDm } = useChatStore();
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -37,7 +45,7 @@ export function UsernameSearch() {
             const newTimeout = setTimeout(async () => {
                 if (user.authToken) {
                     try {
-                        const users = await searchUsers(searchQuery, user.authToken);
+                        const users = await api.user.search.searchUsers(searchQuery, user.authToken);
                         setSearchResults(users);
                     } catch (error) {
                         console.error("Search failed:", error);
@@ -62,7 +70,7 @@ export function UsernameSearch() {
 
     // Subscribe to online status for all search results
     useEffect(() => {
-        const activeDmUserId = chat.activeDm?.userId;
+        const activeDmUserId = activeDm?.userId;
         const switchingToUserId = switchingToUserIdRef.current;
         const currentSearchResultIds = new Set(searchResults.map(u => u.id));
         const previousSearchResultIds = new Set(previousSearchResultIdsRef.current);
@@ -95,12 +103,12 @@ export function UsernameSearch() {
             
             // Clear the ref if the user is now the active DM (state has updated)
             const finalSwitchingToUserId = switchingToUserIdRef.current;
-            const finalActiveDmUserId = chat.activeDm?.userId;
+            const finalActiveDmUserId = activeDm?.userId;
             if (finalSwitchingToUserId && finalSwitchingToUserId === finalActiveDmUserId) {
                 switchingToUserIdRef.current = null;
             }
         };
-    }, [searchResults, chat.activeDm?.userId]);
+    }, [searchResults, activeDm?.userId]);
 
 
     async function handleUserClick(searchUser: SearchUser) {
@@ -110,7 +118,7 @@ export function UsernameSearch() {
 
             let publicKey = searchUser.publicKey;
             if (!publicKey) {
-                const fetchedPublicKey = await fetchUserPublicKey(searchUser.id, user.authToken);
+                const fetchedPublicKey = await api.chats.dm.fetchUserPublicKey(searchUser.id, user.authToken);
                 publicKey = fetchedPublicKey;
             }
 
@@ -165,6 +173,9 @@ export function UsernameSearch() {
                     icon="arrow_back--outlined"
                 />
             ) : "search--outlined"}
+            containerRef={containerRef}
+            headerRef={headerRef}
+            bottomAppBarRef={bottomAppBarRef}
         >
             {isSearching && (
                 <div className={styles.searchLoading}>

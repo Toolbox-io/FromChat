@@ -1,5 +1,11 @@
 import type { Message, WebSocketMessage } from "@/core/types";
-import type { UserState, ProfileDialogData } from "@/pages/chat/state";
+import type { UserState, ProfileDialogData } from "@/state/types";
+import { alert } from "@/core/components/AlertDialog";
+
+interface HttpError extends Error {
+    status?: number;
+    detail?: string;
+}
 
 export interface MessagePanelState {
     id: string;
@@ -9,6 +15,8 @@ export interface MessagePanelState {
     messages: Message[];
     isLoading: boolean;
     isTyping: boolean;
+    hasMoreMessages: boolean;
+    isLoadingMore: boolean;
 }
 
 export interface MessagePanelCallbacks {
@@ -35,7 +43,9 @@ export abstract class MessagePanel {
             online: false,
             messages: [],
             isLoading: false,
-            isTyping: false
+            isTyping: false,
+            hasMoreMessages: false,
+            isLoadingMore: false
         };
         this.currentUser = currentUser;
     }
@@ -46,7 +56,7 @@ export abstract class MessagePanel {
     abstract loadMessages(): Promise<void>;
     protected abstract sendMessage(content: string, replyToId?: number, files?: File[]): Promise<void>;
     abstract isDm(): boolean;
-    abstract handleWebSocketMessage(response: WebSocketMessage<any>): Promise<void>;
+    abstract handleWebSocketMessage(response: WebSocketMessage<unknown>): Promise<void>;
     abstract getProfile(): Promise<ProfileDialogData | null>;
 
     // Common methods
@@ -87,7 +97,7 @@ export abstract class MessagePanel {
         });
     }
 
-    protected updateMessageReactions(messageId: number, reactions: any[]): void {
+    protected updateMessageReactions(messageId: number, reactions: Message["reactions"]): void {
         this.updateState({
             messages: this.state.messages.map(msg =>
                 msg.id === messageId ? { ...msg, reactions } : msg
@@ -106,6 +116,27 @@ export abstract class MessagePanel {
     protected setTyping(typing: boolean): void {
         this.updateState({ isTyping: typing });
     }
+
+    protected setLoadingMore(loading: boolean): void {
+        this.updateState({ isLoadingMore: loading });
+    }
+
+    protected setHasMoreMessages(hasMore: boolean): void {
+        this.updateState({ hasMoreMessages: hasMore });
+    }
+
+    /**
+     * Calculate message limit based on viewport height (5x screen height)
+     */
+    protected calculateMessageLimit(): number {
+        const viewportHeight = window.innerHeight;
+        return Math.ceil((viewportHeight * 5) / 100);
+    }
+
+    /**
+     * Load more messages (to be implemented by subclasses)
+     */
+    abstract loadMoreMessages(): Promise<void>;
 
     // Getters
     getState(): MessagePanelState {
@@ -307,17 +338,35 @@ export abstract class MessagePanel {
             // Message sent successfully - will be updated when WebSocket confirms
         } catch (error) {
             console.error("Failed to send message:", error);
-            this.handleMessageFailed(tempId);
+            // Remove the temporary message from display
+            this.updateState({
+                messages: this.state.messages.filter(msg => 
+                    msg.runtimeData?.sendingState?.tempId !== tempId
+                )
+            });
+            this.pendingMessages.delete(tempId);
+            clearTimeout(timeoutId);
+            
+            // Check if error has HTTP status code
+            const httpError = error as HttpError;
+            const httpStatus = httpError.status;
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            console.log("Error details:", { httpStatus, errorMessage, error });
+            
+            // Check for profanity error: HTTP 422 status (Unprocessable Entity)
+            // Also check error message as fallback for WebSocket errors
+            if (httpStatus === 422 || errorMessage.includes("inappropriate content")) {
+                console.log("Showing profanity error dialog");
+                void alert("Your message contains inappropriate content and cannot be sent.");
+            } else {
+                console.log("Error does not match profanity condition:", { httpStatus, errorMessage });
+            }
         }
     }
 
     // Handle message timeout (10 seconds)
     private handleMessageTimeout(tempId: string): void {
-        this.updateMessageToFailed(tempId);
-    }
-
-    // Handle message send failure
-    private handleMessageFailed(tempId: string): void {
         this.updateMessageToFailed(tempId);
     }
 

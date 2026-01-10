@@ -56,3 +56,6 @@ When working with this project, follow these rules:
 - Use SCSS modules
 - Use nested styles
 - Put SCSS into one folder per page
+
+## Animations with Framer Motion
+- Don't use variants if they are used only once

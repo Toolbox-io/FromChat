@@ -1,9 +1,8 @@
-import { getAuthHeaders, getAuthToken } from "@/core/api/authApi";
-import type { CallSignalingMessage, IceServersResponse, WrappedSessionKeyPayload } from "@/core/types";
+import api from "@/core/api";
+import type { CallSignalingMessage, WrappedSessionKeyPayload } from "@/core/types";
 import { request } from "@/core/websocket";
 import { wrapCallSessionKeyForRecipient, unwrapCallSessionKeyFromSender, rotateCallSessionKey } from "./encryption";
-import { fetchUserPublicKey } from "@/core/api/dmApi";
-import { importAesGcmKey } from "@/utils/crypto/symmetric";
+import { importAesGcmKey } from "@fromchat/protocol";
 import E2EEWorker from "./e2eeWorker?worker";
 import { delay } from "@/utils/utils";
 
@@ -99,16 +98,10 @@ export class WebRTCCall {
      */
     private async getIceServers(): Promise<RTCIceServer[]> {
         try {
-            const response = await fetch("/api/webrtc/ice", {
-                headers: getAuthHeaders(getAuthToken()!)
-            });
-
-            if (response.ok) {
-                const data = await response.json() as IceServersResponse;
-                return data.iceServers || [];
-            } else {
-                console.warn("Failed to fetch ICE servers:", response.status, response.statusText);
-            }
+            const token = api.user.auth.getAuthToken();
+            if (!token) throw new Error("No auth token");
+            const data = await api.calls.iceServers(token);
+            return data.iceServers || [];
         } catch (error) {
             console.warn("Failed to fetch ICE servers:", error);
         }
@@ -779,7 +772,7 @@ async function sendSignalingMessage(message: CallSignalingMessage) {
         type: "call_signaling",
         credentials: {
             scheme: "Bearer",
-            credentials: getAuthToken()!
+            credentials: api.user.auth.getAuthToken()!
         },
         data: message
     });
@@ -862,7 +855,7 @@ export async function sendCallSessionKey(userId: number, sessionKeyHash: string)
 
 export async function sendWrappedCallSessionKey(userId: number, sessionKey: Uint8Array, sessionKeyHash: string): Promise<void> {
     try {
-        const recipientPublicKey = await fetchUserPublicKey(userId, getAuthToken()!);
+        const recipientPublicKey = await api.chats.dm.fetchUserPublicKey(userId, api.user.auth.getAuthToken()!);
         if (!recipientPublicKey) {
             console.warn("No recipient public key for", userId);
             return;
@@ -897,7 +890,7 @@ export async function receiveWrappedSessionKey(
     sessionKeyHash?: string
 ): Promise<void> {
     try {
-        const senderPublicKey = await fetchUserPublicKey(fromUserId, getAuthToken()!);
+        const senderPublicKey = await api.chats.dm.fetchUserPublicKey(fromUserId, api.user.auth.getAuthToken()!);
         if (!senderPublicKey) {
             console.error("Failed to get sender public key");
             return;

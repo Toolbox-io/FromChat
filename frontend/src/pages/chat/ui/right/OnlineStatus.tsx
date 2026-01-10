@@ -5,7 +5,8 @@
  * @version 1.0.0
  */
 
-import { useAppState } from "@/pages/chat/state";
+import { usePresenceStore } from "@/state/presence";
+import { useUserStore } from "@/state/user";
 import styles from "@/pages/chat/css/TypingIndicators.module.scss";
 
 interface OnlineStatusProps {
@@ -14,8 +15,9 @@ interface OnlineStatusProps {
 }
 
 export function OnlineStatus({ userId, showLastSeen = false }: OnlineStatusProps) {
-    const { chat, user } = useAppState();
-    const status = userId === user.currentUser?.id ? { online: true, lastSeen: new Date().toISOString() } : chat.onlineStatuses.get(userId);
+    const { onlineStatuses } = usePresenceStore();
+    const { user } = useUserStore();
+    const status = userId === user.currentUser?.id ? { online: true, lastSeen: new Date().toISOString() } : onlineStatuses.get(userId);
 
     function formatLastSeen(lastSeen: string): string {
         const date = new Date(lastSeen);

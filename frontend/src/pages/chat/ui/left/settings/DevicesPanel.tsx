@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useImmer } from "use-immer";
 import { MaterialList, MaterialListItem, MaterialButton, MaterialCircularProgress } from "@/utils/material";
-import { useAppState } from "@/pages/chat/state";
-import { listDevices, revokeDevice, logoutAllOtherDevices, type DeviceInfo } from "@/core/api/devicesApi";
+import { useUserStore } from "@/state/user";
+import api from "@/core/api";
+import type { DeviceInfo } from "@/core/api/user/devices";
 import { confirm } from "mdui/functions/confirm";
 import styles from "@/pages/chat/css/settings-dialog.module.scss";
 
 export function DevicesPanel() {
-    const { user } = useAppState();
+    const { user } = useUserStore();
     const authToken = user?.authToken ?? null;
     const [devices, updateDevices] = useImmer<DeviceInfo[]>([]);
     const [devicesLoading, setDevicesLoading] = useState(false);
@@ -24,7 +25,7 @@ export function DevicesPanel() {
         
         setDevicesLoading(true);
         try {
-            const deviceList = await listDevices(authToken);
+            const deviceList = await api.user.devices.list(authToken);
             updateDevices(deviceList);
         } catch (error) {
             console.error("Failed to load devices:", error);
@@ -48,7 +49,7 @@ export function DevicesPanel() {
                 draft.add(sessionId);
             });
 
-            await revokeDevice(authToken, sessionId);
+            await api.user.devices.revoke(authToken, sessionId);
             await loadDevices();
         } catch (error) {
             if (error !== "cancelled") {
@@ -72,7 +73,7 @@ export function DevicesPanel() {
                 cancelText: "Cancel"
             });
 
-            await logoutAllOtherDevices(authToken);
+            await api.user.devices.revokeAll(authToken);
             await loadDevices();
         } catch (error) {
             if (error !== "cancelled") {

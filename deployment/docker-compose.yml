@@ -1,6 +1,6 @@
 services:
   backend:
-    build: 
+    build:
       dockerfile: deployment/Dockerfile.backend
       context: ..
     environment:
@@ -8,8 +8,11 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      FIREBASE_CERT: ${FIREBASE_CERT}
     volumes:
-      - "data:/app/data"
+      - data:/app/data
+      - logs:/app/logs
+
     develop:
       watch:
         - action: sync+restart
@@ -19,7 +22,7 @@ services:
           path: ../backend/requirements.txt
 
   frontend:
-    build: 
+    build:
       dockerfile: deployment/frontend/Dockerfile
       context: ..
     environment:
@@ -39,6 +42,26 @@ services:
         - action: rebuild
           path: package.json
 
+  caddy:
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - certs:/root/site/certs
+    environment:
+      XDG_DATA_HOME: /root/site/certs
+      XDG_CONFIG_HOME: /root/site/certs
+
 volumes:
   data:
     name: fromchat-data
+  logs:
+    name: fromchat-logs
+  certs:
+    name: fromchat-certs

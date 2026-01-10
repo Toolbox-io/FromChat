@@ -1,8 +1,8 @@
-import { useAppState } from "@/pages/chat/state";
+import { useChatStore } from "@/state/chat";
 import defaultAvatar from "@/images/default-avatar.png";
 
 export function ChatMainHeader() {
-    const { currentChat } = useAppState().chat;
+    const { currentChat } = useChatStore();
 
     return (
         <div className="chat-header">

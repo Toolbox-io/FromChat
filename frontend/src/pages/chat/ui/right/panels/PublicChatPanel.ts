@@ -1,9 +1,8 @@
 import { MessagePanel } from "./MessagePanel";
-import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/authApi";
 import { request } from "@/core/websocket";
-import type { ChatWebSocketMessage, Message, SendMessageRequest, ReactionUpdateWebSocketMessage } from "@/core/types";
-import type { UserState, ProfileDialogData } from "@/pages/chat/state";
+import type { ChatWebSocketMessage, Message, ReactionUpdateWebSocketMessage } from "@/core/types";
+import type { UserState, ProfileDialogData } from "@/state/types";
+import api from "@/core/api";
 
 export class PublicChatPanel extends MessagePanel {
     private messagesLoaded: boolean = false;
@@ -42,19 +41,15 @@ export class PublicChatPanel extends MessagePanel {
 
         this.setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/get_messages`, {
-                headers: getAuthHeaders(this.currentUser.authToken)
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.messages && data.messages.length > 0) {
-                    this.clearMessages();
-                    data.messages.forEach((msg: Message) => {
-                        this.addMessage(msg);
-                    });
-                }
+            const limit = this.calculateMessageLimit();
+            const { messages, has_more } = await api.chats.general.fetchMessages(this.currentUser.authToken, limit);
+            if (messages && messages.length > 0) {
+                this.clearMessages();
+                messages.forEach((msg: Message) => {
+                    this.addMessage(msg);
+                });
             }
+            this.setHasMoreMessages(has_more);
             this.messagesLoaded = true;
         } catch (error) {
             console.error("Error loading public chat messages:", error);
@@ -63,43 +58,42 @@ export class PublicChatPanel extends MessagePanel {
         }
     }
 
+    async loadMoreMessages(): Promise<void> {
+        if (!this.currentUser.authToken || !this.state.hasMoreMessages || this.state.isLoadingMore) return;
+
+        const messages = this.getMessages();
+        if (messages.length === 0) return;
+
+        const oldestMessage = messages[0];
+        this.setLoadingMore(true);
+        try {
+            const limit = this.calculateMessageLimit();
+            const { messages: newMessages, has_more } = await api.chats.general.fetchMessages(
+                this.currentUser.authToken,
+                limit,
+                oldestMessage.id
+            );
+            if (newMessages && newMessages.length > 0) {
+                // Prepend older messages (they come in reverse chronological order)
+                this.updateState({
+                    messages: [...newMessages.reverse(), ...messages]
+                });
+            }
+            this.setHasMoreMessages(has_more);
+        } catch (error) {
+            console.error("Error loading more public chat messages:", error);
+        } finally {
+            this.setLoadingMore(false);
+        }
+    }
+
     protected async sendMessage(content: string, replyToId?: number, files: File[] = []): Promise<void> {
         if (!this.currentUser.authToken || !content.trim()) return;
 
-        try {
-            if (files.length === 0) {
-                const response = await request({
-                    data: {
-                        content: content.trim(),
-                        reply_to_id: replyToId ?? null
-                    },
-                    credentials: {
-                        scheme: "Bearer",
-                        credentials: this.currentUser.authToken
-                    },
-                    type: "sendMessage"
-                } satisfies SendMessageRequest);
-                if (response.error) {
-                    console.error("Error sending message:", response.error);
-                }
-            } else {
-                const form = new FormData();
-                form.append("payload", JSON.stringify({
-                    content: content.trim(),
-                    reply_to_id: replyToId ?? null
-                } satisfies SendMessageRequest["data"]));
-                for (const f of files) form.append("files", f, f.name);
-                const res = await fetch(`${API_BASE_URL}/send_message`, {
-                    method: "POST",
-                    headers: getAuthHeaders(this.currentUser.authToken, false),
-                    body: form
-                });
-                if (!res.ok) {
-                    console.error("Error sending message with files", await res.text());
-                }
-            }
-        } catch (error) {
-            console.error("Error sending message:", error);
+        if (files.length === 0) {
+            await api.chats.general.send(content, replyToId ?? null, this.currentUser.authToken);
+        } else {
+            await api.chats.general.sendWithFiles(content, replyToId ?? null, files, this.currentUser.authToken);
         }
     }
 

@@ -3,17 +3,17 @@ name: Deploy to server
 
 on:
   # Runs on pushes targeting the default branch
-  push:
-    branches: ["main"]
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "deployment/**"
-      - "**/package.json"
-      - ".nvmrc"
-      - ".github/workflows/deploy.yml"
-      - "!frontend/electron/**"
-      - "!**.d.ts"
+  # push:
+  #   branches: ["main"]
+  #   paths:
+  #     - "backend/**"
+  #     - "frontend/**"
+  #     - "deployment/**"
+  #     - "**/package.json"
+  #     - ".nvmrc"
+  #     - ".github/workflows/deploy.yml"
+  #     - "!frontend/electron/**"
+  #     - "!**.d.ts"
   workflow_dispatch:
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: raspberry-pi
     env:
       HOME: "/root"
     environment:

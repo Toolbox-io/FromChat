@@ -3,11 +3,13 @@ FROM node:24 AS frontend
 
 # 1.1. Install npm dependencies
 WORKDIR /app
+# Copy package.json and workspace package directory first (needed for workspace resolution)
 COPY package.json .
+COPY frontend/packages/ frontend/packages/
 RUN --mount=type=cache,target=/root/.npm \
     npm install --ignore-scripts
 
-# 1.2. Build
+# 1.2. Copy remaining frontend code and build
 COPY frontend frontend
 RUN npm run frontend:build
 

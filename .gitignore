@@ -112,6 +112,7 @@ web_modules/
 
 # dotenv environment variable files
 .env
+.env.prod
 .env.development.local
 .env.test.local
 .env.production.local
@@ -575,3 +576,5 @@ backend/alembic/**
 !backend/alembic/script.py.mako
 !frontend/src/css/lib
 **/*.module.scss.d.ts
+
+.cursor/plans

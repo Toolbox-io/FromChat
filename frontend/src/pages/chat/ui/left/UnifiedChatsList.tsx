@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { useAppState } from "@/pages/chat/state";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useUserStore } from "@/state/user";
+import { useChatStore } from "@/state/chat";
 import { useDM, type DMUser } from "@/pages/chat/hooks/useDM";
-import { API_BASE_URL } from "@/core/config";
-import { getAuthHeaders } from "@/core/api/authApi";
-import { fetchUserPublicKey } from "@/core/api/dmApi";
+import api from "@/core/api";
 import { StatusBadge } from "@/core/components/StatusBadge";
 import type { Message } from "@/core/types";
 import { websocket } from "@/core/websocket";
@@ -36,123 +35,89 @@ interface DMConversation {
 
 type ChatItem = PublicChat | DMConversation;
 
+const PUBLIC_CHAT: PublicChat = { 
+    id: "general",
+    name: "Общий чат", 
+    type: "public" 
+};
+
 export function UnifiedChatsList() {
-    const { user, switchToPublicChat, switchToDM, chat } = useAppState();
+    const { user } = useUserStore();
+    const { switchToPublicChat, switchToDM, activeTab } = useChatStore();
     const { dmUsers, isLoadingUsers, loadUsers } = useDM();
-
-    const [publicChats] = useState<PublicChat[]>([
-        { id: "general", name: "Общий чат", type: "public" },
-        { id: "general2", name: "Общий чат 2", type: "public" }
-    ]);
     const [lastMessages, setLastMessages] = useState<Record<string, Message | undefined>>({});
-    const [allChats, setAllChats] = useState<ChatItem[]>([]);
 
-    // Load public chat last messages
     const loadLastMessages = useCallback(async () => {
         if (!user.authToken) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/get_messages`, {
-                headers: getAuthHeaders(user.authToken)
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.messages && data.messages.length > 0) {
-                    const lastMessage = data.messages[data.messages.length - 1];
-
-                    setLastMessages({
-                        general: lastMessage,
-                        general2: lastMessage
-                    });
-                }
+            const { messages } = await api.chats.general.fetchMessages(user.authToken, 1);
+            if (messages?.length > 0) {
+                const lastMessage = messages[messages.length - 1];
+                setLastMessages({ general: lastMessage });
             }
         } catch (error) {
             console.error("Error loading last messages:", error);
         }
     }, [user.authToken]);
 
-    // Load DM users when chats tab is active
     useEffect(() => {
-        if (chat.activeTab === "chats") {
+        if (activeTab === "chats") {
             loadUsers();
             loadLastMessages();
         }
-    }, [chat.activeTab, loadUsers, loadLastMessages]);
+    }, [activeTab, loadUsers, loadLastMessages]);
 
-    // Combine public chats and DMs into one list
-    useEffect(() => {
-        const publicChatItems: ChatItem[] = publicChats.map(chat => ({
-            ...chat,
-            lastMessage: lastMessages[chat.id]
-        }));
+    const allChats = useMemo<ChatItem[]>(() => {
+        return [
+            ...dmUsers.map((user: DMUser) => ({
+                ...user,
+                userId: user.id,
+                type: "dm" as const
+            })), 
+            {
+                ...PUBLIC_CHAT,
+                lastMessage: lastMessages[PUBLIC_CHAT.id]
+            }
+        ];
+    }, [lastMessages, dmUsers]);
 
-        const dmChatItems: ChatItem[] = dmUsers.map((user: DMUser) => ({
-            id: user.id,
-            userId: user.id, // Add userId field
-            username: user.username,
-            display_name: user.display_name,
-            profile_picture: user.profile_picture,
-            online: user.online,
-            type: "dm" as const,
-            lastMessage: user.lastMessage,
-            unreadCount: user.unreadCount,
-            publicKey: user.publicKey
-        }));
-
-        // Combine and sort by last message timestamp (DMs first, then public chats)
-        const combined = [...dmChatItems, ...publicChatItems];
-        setAllChats(combined);
-    }, [publicChats, lastMessages, dmUsers]);
-
-    // WebSocket listener for public chat message updates
     useEffect(() => {
         if (!websocket) return;
 
-        const handleWebSocketMessage = (e: MessageEvent) => {
+        function handleWebSocketMessage(e: MessageEvent) {
             try {
                 const msg = JSON.parse(e.data);
 
                 if (msg.type === "newMessage") {
                     const newMessage = msg.data as Message;
-                    // Update all public chats with the new message
-                    setLastMessages(prev => {
-                        const updated = { ...prev };
-                        publicChats.forEach(chat => {
-                            updated[chat.id] = newMessage;
-                        });
-                        return updated;
-                    });
+                    setLastMessages(prev => ({
+                        ...prev,
+                        [PUBLIC_CHAT.id]: newMessage
+                    }));
                 } else if (msg.type === "messageEdited") {
                     const editedMessage = msg.data as Message;
-                    // Update only if the edited message is the current last message
                     setLastMessages(prev => {
-                        const updated = { ...prev };
-                        publicChats.forEach(chat => {
-                            if (updated[chat.id]?.id === editedMessage.id) {
-                                updated[chat.id] = editedMessage;
-                            }
-                        });
-                        return updated;
+                        if (prev[PUBLIC_CHAT.id]?.id === editedMessage.id) {
+                            return {
+                                ...prev,
+                                [PUBLIC_CHAT.id]: editedMessage
+                            };
+                        }
+                        return prev;
                     });
                 } else if (msg.type === "messageDeleted") {
                     const deletedMessageId = msg.data?.message_id;
-                    let needsReload = false;
-
                     setLastMessages(prev => {
-                        const updated = { ...prev };
-                        publicChats.forEach(chat => {
-                            if (updated[chat.id]?.id === deletedMessageId) {
-                                updated[chat.id] = undefined;
-                                needsReload = true;
-                            }
-                        });
-                        return updated;
+                        if (prev[PUBLIC_CHAT.id]?.id === deletedMessageId) {
+                            loadLastMessages();
+                            return {
+                                ...prev,
+                                [PUBLIC_CHAT.id]: undefined
+                            };
+                        }
+                        return prev;
                     });
-
-                    if (needsReload) {
-                        loadLastMessages();
-                    }
                 }
             } catch (error) {
                 console.error("Failed to handle WebSocket message in UnifiedChatsList:", error);
@@ -161,58 +126,45 @@ export function UnifiedChatsList() {
 
         websocket.addEventListener("message", handleWebSocketMessage);
         return () => websocket.removeEventListener("message", handleWebSocketMessage);
-    }, [publicChats, loadLastMessages]);
+    }, [loadLastMessages]);
 
-    // Subscribe to online status for all DM users
     useEffect(() => {
-        const dmUsers = allChats.filter(chat => chat.type === "dm") as DMConversation[];
-
-        // Subscribe to all DM users
         dmUsers.forEach(dmUser => {
             onlineStatusManager.subscribe(dmUser.id);
         });
 
-        // Cleanup function to unsubscribe from all users
         return () => {
             dmUsers.forEach(dmUser => {
                 onlineStatusManager.unsubscribe(dmUser.id);
             });
         };
-    }, [allChats]);
+    }, [dmUsers]);
 
     function formatPublicChatMessage(chatId: string): string {
         const lastMessage = lastMessages[chatId];
-        if (!lastMessage) {
-            return "";
-        }
+        if (!lastMessage) return "";
 
         const isCurrentUser = lastMessage.user_id === user.currentUser?.id;
         const prefix = isCurrentUser ? "Вы: " : `${lastMessage.username}: `;
-
-        const maxContentLength = 50 - prefix.length;
-        const content = lastMessage.content.length > maxContentLength
-            ? lastMessage.content.substring(0, maxContentLength) + "..."
+        const maxLength = 50 - prefix.length;
+        const content = lastMessage.content.length > maxLength
+            ? lastMessage.content.substring(0, maxLength) + "..."
             : lastMessage.content;
 
         return prefix + content;
-    }
-
-    async function handlePublicChatClick(chatName: string) {
-        await switchToPublicChat(chatName);
-    }
+    };
 
     async function handleDMClick(dmConversation: DMConversation) {
         if (!dmConversation.publicKey) {
-            const authToken = useAppState.getState().user.authToken;
+            const authToken = useUserStore.getState().user.authToken;
             if (!authToken) return;
 
-            const publicKey = await fetchUserPublicKey(dmConversation.id, authToken);
-            if (publicKey) {
-                dmConversation.publicKey = publicKey;
-            } else {
+            const publicKey = await api.chats.dm.fetchUserPublicKey(dmConversation.id, authToken);
+            if (!publicKey) {
                 console.error("Failed to get public key for user:", dmConversation.id);
                 return;
             }
+            dmConversation.publicKey = publicKey;
         }
 
         await switchToDM({
@@ -222,26 +174,27 @@ export function UnifiedChatsList() {
             profilePicture: dmConversation.profile_picture,
             online: dmConversation.online || false
         });
-    }
+    };
 
     if (isLoadingUsers) {
         return <MaterialCircularProgress />;
     }
 
     return (
-        <MaterialList>
+        <MaterialList className={styles.unifiedChatsList}>
             {allChats.map((chat) => {
                 if (chat.type === "public") {
+                    const formattedMessage = formatPublicChatMessage(chat.id);
                     return (
                         <MaterialListItem
                             key={`public-${chat.id}`}
                             headline={chat.name}
-                            onClick={() => handlePublicChatClick(chat.name)}
+                            onClick={() => switchToPublicChat(chat.name)}
                             style={{ cursor: "pointer" }}
                         >
-                            {formatPublicChatMessage(chat.id) && (
+                            {formattedMessage && (
                                 <span slot="description" className={styles.listDescription}>
-                                    {formatPublicChatMessage(chat.id)}
+                                    {formattedMessage}
                                 </span>
                             )}
                             <img
@@ -257,50 +210,50 @@ export function UnifiedChatsList() {
                             />
                         </MaterialListItem>
                     );
-                } else {
-                    return (
-                        <MaterialListItem
-                            key={`dm-${chat.id}`}
-                            headline={chat.display_name}
-                            onClick={() => handleDMClick(chat)}
-                            style={{ cursor: "pointer" }}
-                        >
-                            <div slot="headline" className="dm-list-headline">
-                                {chat.display_name}
-                                <StatusBadge 
-                                    verified={chat.verified || false}
-                                    userId={chat.userId}
-                                    size="small"
-                                />
-                            </div>
-                            <span slot="description" className={styles.listDescription}>
-                                {chat.lastMessage || "Нет сообщений"}
-                            </span>
-                            <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
-                                <img
-                                    src={chat.profile_picture || defaultAvatar}
-                                    alt={chat.display_name}
-                                    style={{
-                                        width: "40px",
-                                        height: "40px",
-                                        borderRadius: "50%",
-                                        objectFit: "cover",
-                                        display: "block"
-                                    }}
-                                    onError={(e) => {
-                                        e.target.src = defaultAvatar;
-                                    }}
-                                />
-                                <OnlineIndicator userId={chat.id} />
-                            </div>
-                            {chat.unreadCount > 0 && (
-                                <MaterialBadge slot="end-icon">
-                                    {chat.unreadCount}
-                                </MaterialBadge>
-                            )}
-                        </MaterialListItem>
-                    );
                 }
+
+                return (
+                    <MaterialListItem
+                        key={`dm-${chat.id}`}
+                        headline={chat.display_name}
+                        onClick={() => handleDMClick(chat)}
+                        style={{ cursor: "pointer" }}
+                    >
+                        <div slot="headline" className="dm-list-headline">
+                            {chat.display_name}
+                            <StatusBadge 
+                                verified={chat.verified || false}
+                                userId={chat.userId}
+                                size="small"
+                            />
+                        </div>
+                        <span slot="description" className={styles.listDescription}>
+                            {chat.lastMessage || "Нет сообщений"}
+                        </span>
+                        <div slot="icon" style={{ position: "relative", width: "40px", height: "40px", display: "inline-block" }}>
+                            <img
+                                src={chat.profile_picture || defaultAvatar}
+                                alt={chat.display_name}
+                                style={{
+                                    width: "40px",
+                                    height: "40px",
+                                    borderRadius: "50%",
+                                    objectFit: "cover",
+                                    display: "block"
+                                }}
+                                onError={(e) => {
+                                    e.target.src = defaultAvatar;
+                                }}
+                            />
+                            <OnlineIndicator userId={chat.id} />
+                        </div>
+                        {chat.unreadCount > 0 && (
+                            <MaterialBadge slot="end-icon">
+                                {chat.unreadCount}
+                            </MaterialBadge>
+                        )}
+                    </MaterialListItem>
+                );
             })}
         </MaterialList>
     );
