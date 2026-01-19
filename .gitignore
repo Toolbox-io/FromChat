@@ -578,3 +578,5 @@ backend/alembic/**
 **/*.module.scss.d.ts
 
 .cursor/plans
+tmp
+compliance_keypair.txt
