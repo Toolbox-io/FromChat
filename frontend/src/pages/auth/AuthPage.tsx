@@ -1,5 +1,5 @@
 import { AuthContainer } from "./Auth";
-import { useState, useEffect, useRef, useLayoutEffect, useCallback, type RefObject } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import useDownloadAppScreen from "@/core/hooks/useDownloadAppScreen";
@@ -8,18 +8,23 @@ import { RegisterForm } from "./RegisterForm";
 import type { Variants, Transition } from "motion/react";
 import styles from "./auth.module.scss";
 
+const MIN_HEIGHT = 400;
+
 const slideVariants: Variants = {
     enter: (direction: number) => ({
         x: direction > 0 ? 300 : -300,
-        opacity: 0
+        opacity: 0,
+        y: 0 // Ensure no vertical movement
     }),
     center: {
         x: 0,
-        opacity: 1
+        opacity: 1,
+        y: 0 // Ensure no vertical movement
     },
     exit: (direction: number) => ({
         x: direction > 0 ? -300 : 300,
-        opacity: 0
+        opacity: 0,
+        y: 0 // Ensure no vertical movement
     })
 };
 
@@ -45,96 +50,65 @@ export default function AuthPage() {
     const containerRef = useRef<HTMLDivElement>(null);
     const loginFormRef = useRef<HTMLDivElement>(null);
     const registerFormRef = useRef<HTMLDivElement>(null);
-    const [containerHeight, setContainerHeight] = useState<number | "auto">("auto");
+    const [containerHeight, setContainerHeight] = useState<number>(400);
+    const [isTransitioning, setIsTransitioning] = useState(false);
     const currentMode = searchParams.get("mode") || "login";
-    const enteringElementRef = useRef<"login" | "register" | null>(null);
-    const [effectActivated, setEffectActivated] = useState(false);
 
     useEffect(() => {
         if (prevMode.current !== currentMode) {
             setDirection(currentMode === "register" ? 1 : -1);
             prevMode.current = currentMode;
-            enteringElementRef.current = currentMode as "login" | "register";
+            setIsTransitioning(true);
         }
     }, [currentMode]);
 
-    const measureActiveHeight = useCallback(() => {
-        const activeComponent = currentMode === "login" ? loginFormRef.current : registerFormRef.current;
-        if (activeComponent) {
-            const height = activeComponent.scrollHeight;
-            if (height > 0) {
-                setContainerHeight(height);
-            }
-        }
-    }, [currentMode, loginFormRef, registerFormRef]);
+    // Setup ResizeObserver to watch for content changes
+    useEffect(() => {
+        const activeRef = currentMode === "login" ? loginFormRef : registerFormRef;
 
-    useLayoutEffect(() => {
-        if (!effectActivated) {
-            setEffectActivated(true);
-            return;
-        }
-        
-        // Always measure, but prioritize the entering element during transitions
-        // Use double requestAnimationFrame to ensure DOM is fully updated and layout is complete
-        let rafId2: number | null = null;
-        const rafId1 = requestAnimationFrame(() => {
-            rafId2 = requestAnimationFrame(() => {
-                measureActiveHeight();
+        if (activeRef.current) {
+            const resizeObserver = new ResizeObserver((entries) => {
+                for (const entry of entries) {
+                    const height = entry.contentRect.height;
+                    if (height > 0) {
+                        setContainerHeight(Math.max(height, MIN_HEIGHT));
+                    }
+                }
             });
-        });
 
-        return () => {
-            cancelAnimationFrame(rafId1);
-            if (rafId2 !== null) {
-                cancelAnimationFrame(rafId2);
+            resizeObserver.observe(activeRef.current);
+
+            // Initial measurement
+            const initialHeight = activeRef.current.scrollHeight;
+            if (initialHeight > 0) {
+                setContainerHeight(Math.max(initialHeight, MIN_HEIGHT));
             }
-        };
+
+            return () => {
+                resizeObserver.disconnect();
+            };
+        }
     }, [currentMode]);
+
     
     function switchMode(newMode: "login" | "register") {
         navigate(`/auth?mode=${newMode}`, { replace: true });
     }
 
-    function handleAnimationComplete(
-        currentMode: "login" | "register", 
-        mode: "login" | "register", 
-        enteringElementRef: RefObject<"login" | "register" | null>,
-        formRef: React.RefObject<HTMLDivElement | null>,
-        setContainerHeight: (height: number) => void
-    ) {
-        return () => {
-            if (currentMode === mode && enteringElementRef.current === mode) {
-                enteringElementRef.current = null;
-
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        if (formRef.current && currentMode === mode) {
-                            const height = formRef.current.scrollHeight;
-                            if (height > 0) {
-                                setContainerHeight(height);
-                            }
-                        }
-                    });
-                });
-            }
-        }
+    function handleAnimationComplete() {
+        setIsTransitioning(false);
     }
+
 
     return (
         <AuthContainer>
-            <div 
+            <div
                 ref={containerRef}
-                style={{ 
-                    position: "relative", 
+                style={{
+                    position: "relative",
                     width: "100%",
-                    height: containerHeight === "auto" ? "auto" : `${containerHeight}px`,
-                    transition: "height 0.3s ease"
-                }}
-                onAnimationStart={() => {
-                    
-                }}
-                onAnimationEnd={() => {
-                    setContainerHeight("auto");
+                    height: `${containerHeight}px`,
+                    transition: isTransitioning ? "height 0.3s ease" : "none"
                 }}
             >
                 <AnimatePresence mode="sync" custom={direction}>
@@ -148,11 +122,8 @@ export default function AuthPage() {
                             animate="center"
                             exit="exit"
                             transition={slideTransition}
-                            onAnimationComplete={handleAnimationComplete("login", "login", enteringElementRef, loginFormRef, setContainerHeight)}
+                            onAnimationComplete={handleAnimationComplete}
                             className={styles.formWrapper}
-                            style={{
-                                position: containerHeight === "auto" ? "relative" : "absolute"
-                            }}
                         >
                             <LoginForm onSwitchMode={() => switchMode("register")} />
                         </motion.div>
@@ -166,7 +137,7 @@ export default function AuthPage() {
                             animate="center"
                             exit="exit"
                             transition={slideTransition}
-                            onAnimationComplete={handleAnimationComplete("register", "register", enteringElementRef, registerFormRef, setContainerHeight)}
+                            onAnimationComplete={handleAnimationComplete}
                             className={styles.formWrapper}
                         >
                             <RegisterForm onSwitchMode={() => switchMode("login")} />

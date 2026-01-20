@@ -98,6 +98,12 @@
             top: 0;
             left: 0;
 
+            &.relative {
+                position: relative;
+                top: auto;
+                left: auto;
+            }
+
             .authHeader {
                 margin: 0;
                 padding: 24px;
