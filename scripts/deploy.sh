@@ -407,15 +407,89 @@ if ! docker pussh --help > /dev/null 2>&1; then
     echo "   Install: npm run install:pussh"
 fi
 
-# Detect images
-IMAGES=($(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${PROJECT_NAME}-" || true))
+# Detect images based on docker-compose.yml (prefer explicit `image:` entries; fall back to built tags)
+cd "$DEPLOYMENT_DIR"
+COMPOSE_SERVICES=$(docker compose -f docker-compose.yml config --services 2>/dev/null || true)
+IMAGES=()
+
+for S in $COMPOSE_SERVICES; do
+    # Try to read explicit image: field from the compose config for this service
+    IMAGE_FROM_COMPOSE=$(docker compose -f docker-compose.yml config 2>/dev/null | \
+        grep -A5 "^[[:space:]]*${S}:" | \
+        grep -m1 "image:" || true)
+
+    IMAGE_FROM_COMPOSE=$(echo "$IMAGE_FROM_COMPOSE" | sed 's/.*image:[[:space:]]*//' | tr -d '"' | tr -d "'" | xargs || true)
+
+    if [ -n "$IMAGE_FROM_COMPOSE" ]; then
+        IMAGES+=("$IMAGE_FROM_COMPOSE")
+    else
+        # If service has a build section (we built it above), use the tag pattern used during build
+        TAG="${PROJECT_NAME}-${S}:latest"
+        # Only include the tag if the image exists locally (avoid pushing unrelated images)
+        if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${TAG}$"; then
+            IMAGES+=("$TAG")
+        fi
+    fi
+done
+
+# Deduplicate while preserving order
+if [ ${#IMAGES[@]} -gt 0 ]; then
+    IMAGES=($(printf "%s\n" "${IMAGES[@]}" | awk '!seen[$0]++'))
+fi
+
+# Verify that all built images are among the detected images to be pushed.
+# This prevents accidentally pushing unrelated images.
+BUILT_COUNT=${#BUILT_IMAGES[@]}
+MATCHING_BUILT=0
+MISSING_FROM_DETECTED=()
+for BI in "${BUILT_IMAGES[@]}"; do
+    found=false
+    for DI in "${IMAGES[@]}"; do
+        if [ "$BI" = "$DI" ]; then
+            found=true
+            break
+        fi
+    done
+    if [ "$found" = true ]; then
+        MATCHING_BUILT=$((MATCHING_BUILT + 1))
+    else
+        MISSING_FROM_DETECTED+=("$BI")
+    fi
+done
+
+# Also list detected images that weren't built locally (these are likely external images)
+NOT_BUILT_DETECTED=()
+for DI in "${IMAGES[@]}"; do
+    built=false
+    for BI in "${BUILT_IMAGES[@]}"; do
+        if [ "$DI" = "$BI" ]; then
+            built=true
+            break
+        fi
+    done
+    if [ "$built" = false ]; then
+        NOT_BUILT_DETECTED+=("$DI")
+    fi
+done
+
+if [ "$BUILT_COUNT" -ne "$MATCHING_BUILT" ]; then
+    error "Mismatch between built images (${BUILT_COUNT}) and detected built images (${MATCHING_BUILT})."
+    if [ ${#MISSING_FROM_DETECTED[@]} -gt 0 ]; then
+        echo "  Built but not detected: ${MISSING_FROM_DETECTED[*]}"
+    fi
+    if [ ${#NOT_BUILT_DETECTED[@]} -gt 0 ]; then
+        echo "  Detected but not built (external images): ${NOT_BUILT_DETECTED[*]}"
+    fi
+    echo "Aborting to avoid pushing incorrect images."
+    exit 1
+fi
 
 if [ ${#IMAGES[@]} -eq 0 ]; then
-    error "No ${PROJECT_NAME} images found"
+    error "No images found in docker-compose.yml or built locally for project ${PROJECT_NAME}"
 fi
 
 # Pre-pull unregistry image if needed
-UNREGISTRY_IMAGE="ghcr.io/psviderski/unregistry:0.3.1"
+UNREGISTRY_IMAGE="ghcr.io/psviderski/unregistry"
 if ! ssh "$SERVER" "docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^${UNREGISTRY_IMAGE}$'" 2>/dev/null; then
     substep "Pulling unregistry image (one-time setup)..."
     ssh "$SERVER" "docker pull ${UNREGISTRY_IMAGE}" > /dev/null 2>&1 || true
