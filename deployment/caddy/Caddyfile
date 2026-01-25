@@ -79,6 +79,32 @@ beta.fromchat.ru {
 	}
 }
 
+git.fromchat.ru {
+	reverse_proxy 172.18.0.1:3000 host.docker.internal:3000 172.17.0.1:3000 {
+		lb_policy first
+        header_up X-Real-IP {remote_host}
+	}
+
+	# Security headers
+	header {
+		X-XSS-Protection "1; mode=block" # Prevent XSS attacks
+		X-Content-Type-Options "nosniff" # Prevent MIME type sniffing
+		X-Frame-Options "DENY" # Prevent clickjacking
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+	}
+
+	rate_limit {
+		zone global {
+			key {remote_ip}
+			window 1m
+			burst 20
+			events 500
+		}
+	}
+}
+
 api.getgadgets.toolbox-io.ru {
     reverse_proxy 95.165.0.162:8400
 }
